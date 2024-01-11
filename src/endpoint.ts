@@ -1,8 +1,6 @@
 import {Options} from "./options";
 import {Job, LoadFromJob, UploadJob} from "./jobs";
 
-import fetch from 'node-fetch';
-
 interface PopConfig {
     base_url: string;
     pipeline_id: string;
@@ -13,13 +11,14 @@ interface AccessToken {
     expires_in: number;
     token_type: string;
 }
+
 export class Endpoint {
 
     private _options: Options;
-    private _token: string|null;
-    private _expire_token_time: number|null;
-    private _baseUrl: string|null;
-    private _pipelineId: string|null;
+    private _token: string | null;
+    private _expire_token_time: number | null;
+    private _baseUrl: string | null;
+    private _pipelineId: string | null;
 
     constructor(options: Options) {
         this._options = options;
@@ -29,12 +28,12 @@ export class Endpoint {
         this._expire_token_time = null;
     }
 
-    public open() {
-        this.connect();
+    public async open() {
+        await this.connect()
     }
 
-    public close() {
-        this.disconnect();
+    public async close() {
+        await this.disconnect()
     }
 
     public upload(location: string): Job {
@@ -45,44 +44,53 @@ export class Endpoint {
         return new LoadFromJob(location);
     }
 
-    protected connect() {
-        const config_url = '${this._options.eyepopUrl}/pops/${this._options.popId}/config?auto_start=${this._options.autoStart}';
-            fetch(config_url)
-                .then((response) => response.json())
-                .then((data) => {
-                    const config: PopConfig = data as PopConfig
-                    this._baseUrl = config.base_url;
-                    this._pipelineId = config.pipeline_id;
-                });
+    protected async connect() {
+        const config_url = `${this.eyepopUrl()}/pops/${this._options.popId}/config?auto_start=${this._options.autoStart}`
+        const headers = {
+            'Authorization': await this.authorizationHeader()
+        }
+        const response = await fetch(config_url, {headers: headers})
+        const data = await response.json()
+        const config: PopConfig = data as PopConfig
+        this._baseUrl = config.base_url;
+        this._pipelineId = config.pipeline_id;
     }
 
     protected disconnect() {
 
     }
 
-    protected authorizationHeader(): string {
-        return 'Bearer ${this.accessToken()}';
+    protected async authorizationHeader(): Promise<string> {
+        return `Bearer ${await this.accessToken()}`;
     }
 
-    private accessToken(): string {
+    private async accessToken(): Promise<string> {
         const now = Date.now() / 1000;
         if (!this._token || <number>this._expire_token_time < now) {
-             const body = {
-                'secret_key': this._options.secretKey
+            const body = {'secret_key': this._options.secretKey}
+            const headers = {'Content-Type': 'application/json'}
+            const post_url = `${this.eyepopUrl()}/authentication/token`
+            const response = await fetch(post_url, {method: 'POST', headers: headers, body: JSON.stringify(body)})
+            if (response.status != 200) {
+                const message = await response.text()
+                return new Promise<string>((resolve, reject) => {
+                    reject(new Error(`Unexpected status ${response.status}: ${message}`))
+                })
             }
-            const headers = {
-                'Content-Type': 'application/json'
-            };
-            const post_url = '${this._options.eyepopUrl}/authentication/token'
-
-            fetch(post_url,{method:'POST', headers: headers, body: JSON.stringify(body)})
-                .then((response) => response.json())
-                .then((data) => {
-                    const token = <AccessToken>data;
-                    this._token = token.access_token;
-                    this._expire_token_time = now / 1000 + token.expires_in - 60;
-                });
+            const data = await response.json()
+            const token: AccessToken = data as AccessToken
+            this._token = token.access_token
+            this._expire_token_time = now / 1000 + token.expires_in - 60
         }
-        return <string>this._token;
+        return <string>this._token
+    }
+
+    private eyepopUrl(): string {
+        if (this._options.eyepopUrl) {
+            return this._options.eyepopUrl.replace(/\/+$/, '')
+        } else {
+            return 'https://api.eyepop.ai'
+        }
+
     }
 }
