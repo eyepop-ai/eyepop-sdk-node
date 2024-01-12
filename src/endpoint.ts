@@ -1,5 +1,9 @@
+import { open } from 'node:fs/promises';
 import {Options} from "./options";
 import {Job, LoadFromJob, UploadJob} from "./jobs";
+import * as stream from "stream";
+import {Prediction} from "./types";
+import * as fs from "fs";
 
 interface PopConfig {
     base_url: string;
@@ -36,27 +40,47 @@ export class Endpoint {
         await this.disconnect()
     }
 
-    public upload(location: string): Job {
-        return new UploadJob(location);
+    public async upload(readableStream: fs.ReadStream): Promise<AsyncIterable<Prediction>> {
+        if (!this._baseUrl || !this._pipelineId) {
+            throw Error("endpoint not connected, use open() before upload()")
+        }
+        const job = new UploadJob(readableStream, this._baseUrl, this._pipelineId, await this.authorizationHeader())
+        await job.start()
+        return await job.stream()
     }
 
-    public loadFrom(location: string): Job {
-        return new LoadFromJob(location);
-    }
+    // public loadFrom(location: string): Job {
+    //     return new LoadFromJob(location);
+    // }
 
     protected async connect() {
         const config_url = `${this.eyepopUrl()}/pops/${this._options.popId}/config?auto_start=${this._options.autoStart}`
         const headers = {
             'Authorization': await this.authorizationHeader()
         }
-        const response = await fetch(config_url, {headers: headers})
+        let response = await fetch(config_url, {headers: headers})
+        if (response.status == 401) {
+            // one retry, the token might have just expired
+            this._token = null
+            const config_url = `${this.eyepopUrl()}/pops/${this._options.popId}/config?auto_start=${this._options.autoStart}`
+            const headers = {
+                'Authorization': await this.authorizationHeader()
+            }
+            response = await fetch(config_url, {headers: headers})
+        }
+        if (response.status != 200) {
+            const message = await response.text()
+            return new Promise<string>((resolve, reject) => {
+                reject(new Error(`Unexpected status ${response.status}: ${message}`))
+            })
+        }
         const data = await response.json()
         const config: PopConfig = data as PopConfig
         this._baseUrl = config.base_url;
         this._pipelineId = config.pipeline_id;
     }
 
-    protected disconnect() {
+    protected async disconnect() {
 
     }
 
@@ -80,7 +104,7 @@ export class Endpoint {
             const data = await response.json()
             const token: AccessToken = data as AccessToken
             this._token = token.access_token
-            this._expire_token_time = now / 1000 + token.expires_in - 60
+            this._expire_token_time = now + token.expires_in - 60
         }
         return <string>this._token
     }
