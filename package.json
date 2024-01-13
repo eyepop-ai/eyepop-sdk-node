@@ -42,6 +42,6 @@
     "uuid": "^9.0.1"
   },
   "dependencies": {
-    "node-fetch": "^3.3.2"
+    "@types/mime-types": "^2.1.4"
   }
 }

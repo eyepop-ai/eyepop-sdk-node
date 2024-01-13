@@ -2,13 +2,18 @@ import type { JestConfigWithTsJest } from 'ts-jest';
 
 const config: JestConfigWithTsJest = {
   preset: 'ts-jest/presets/default-esm',
-  testEnvironment: 'node',
-  moduleNameMapper: {
-    '^EyePopSdk$': '<rootDir>/src/index.ts',
+  verbose: true,
+  transform: {
+    "^.+\\.ts?$": [
+      "ts-jest",
+      {
+        useESM: true,
+      },
+    ],
   },
-  modulePathIgnorePatterns: [
-    '<rootDir>/dist/',
-    '<rootDir>/node_modules/',
-  ],
+  extensionsToTreatAsEsm: [".ts"],
+  moduleNameMapper: {
+    "^(\\.{1,2}/.*)\\.js$": "$1",
+  },
 };
 export default config;

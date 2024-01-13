@@ -38,11 +38,11 @@ describe('EyePopSdk endpoint module auth and connect',  () => {
     })
     expect(endpoint).toBeDefined()
     try {
-      await endpoint.open()
+      await endpoint.connect()
       expect(authenticationRoute).toHaveBeenCalledTimes(1)
       expect(popConfigRoute).toHaveBeenCalledTimes(1)
     }finally {
-      await endpoint.close()
+      await endpoint.disconnect()
     }
   })
 
@@ -74,19 +74,19 @@ describe('EyePopSdk endpoint module auth and connect',  () => {
     })
     expect(endpoint).toBeDefined()
     try {
-      await endpoint.open()
+      await endpoint.connect()
       expect(authenticationRoute).toHaveBeenCalledTimes(1)
       expect(popConfigRoute).toHaveBeenCalledTimes(1)
     }finally {
-      await endpoint.close()
+      await endpoint.disconnect()
     }
     // token should be reused
     try {
-      await endpoint.open()
+      await endpoint.connect()
       expect(authenticationRoute).toHaveBeenCalledTimes(1)
       expect(popConfigRoute).toHaveBeenCalledTimes(2)
     }finally {
-      await endpoint.close()
+      await endpoint.disconnect()
     }
   })
 
@@ -124,19 +124,19 @@ describe('EyePopSdk endpoint module auth and connect',  () => {
     })
     expect(endpoint).toBeDefined()
     try {
-      await endpoint.open()
+      await endpoint.connect()
       expect(authenticationRoute).toHaveBeenCalledTimes(1)
       expect(popConfigRoute).toHaveBeenCalledTimes(1)
     }finally {
-      await endpoint.close()
+      await endpoint.disconnect()
     }
     // token should have expired by now
     try {
-      await endpoint.open()
+      await endpoint.connect()
       expect(authenticationRoute).toHaveBeenCalledTimes(2)
       expect(popConfigRoute).toHaveBeenCalledTimes(2)
     }finally {
-      await endpoint.close()
+      await endpoint.disconnect()
     }
   })
 
@@ -171,11 +171,11 @@ describe('EyePopSdk endpoint module auth and connect',  () => {
     })
     expect(endpoint).toBeDefined()
     try {
-      await endpoint.open()
+      await endpoint.connect()
       expect(authenticationRoute).toHaveBeenCalledTimes(2)
       expect(popConfigRoute).toHaveBeenCalledTimes(2)
     }finally {
-      await endpoint.close()
+      await endpoint.disconnect()
     }
   })
 })

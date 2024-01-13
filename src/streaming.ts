@@ -1,6 +1,3 @@
-import {Prediction} from './types'
-
-
 type Bytes = string | ArrayBuffer | Uint8Array | Buffer | null | undefined;
 
 export class Stream<Prediction> implements AsyncIterable<Prediction> {
@@ -17,7 +14,7 @@ export class Stream<Prediction> implements AsyncIterable<Prediction> {
    * Generates a Stream from a newline-separated ReadableStream
    * where each item is a JSON value.
    */
-  static fromReadableStream<Prediction>(readableStream: ReadableStream, controller: AbortController) {
+  static fromReadableStream<Prediction>(readableStream: ReadableStream<Uint8Array>, controller: AbortController) {
     let consumed = false;
 
     async function* iterLines(): AsyncGenerator<string, void, unknown> {

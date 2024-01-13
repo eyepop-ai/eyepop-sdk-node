@@ -3,9 +3,6 @@ import {MockServer} from 'jest-mock-server'
 import {describe, expect, test} from '@jest/globals'
 import {EyePopSdk} from '../src'
 import {v4 as uuidv4} from 'uuid'
-import * as fs from "fs";
-
-import mime from 'mime-types';
 
 function prepMockServer(server: MockServer, test_pop_id: string, test_pipeline_id: string) {
     const test_access_token = uuidv4()
@@ -17,9 +14,9 @@ function prepMockServer(server: MockServer, test_pop_id: string, test_pipeline_i
             ctx.status = 200
             ctx.response.headers['content-type'] = 'application/json'
             ctx.body = JSON.stringify({
-                access_token: test_access_token,
-                expires_in: token_valid_time,
-                token_type: 'Bearer'
+                'access_token': test_access_token,
+                'expires_in': token_valid_time,
+                'token_type': 'Bearer'
             })
         })
 
@@ -33,30 +30,31 @@ function prepMockServer(server: MockServer, test_pop_id: string, test_pipeline_i
     return {authenticationRoute, popConfigRoute};
 }
 
-describe('EyePopSdk endpoint module upload', () => {
+describe('EyePopSdk endpoint module loadFrom', () => {
     const server = new MockServer()
 
     beforeAll(() => server.start())
     afterAll(() => server.stop())
     beforeEach(() => server.reset())
 
-    test('EyePopSdk upload', async () => {
+    test('EyePopSdk loadFrom', async () => {
         const fake_timestamp = Date.now()
         const test_pop_id = uuidv4()
         const test_pipeline_id = uuidv4()
-        const image_path = './tests/test.jpg'
+        const location = 'http://invalid.example'
         const {authenticationRoute, popConfigRoute} = prepMockServer(server, test_pop_id, test_pipeline_id)
 
         const uploadRoute = server
-        .post(`/worker/pipelines/${test_pipeline_id}/source`)
+        .patch(`/worker/pipelines/${test_pipeline_id}/source`)
         .mockImplementation(async (ctx) => {
             expect(ctx.headers['authorization']).toBeDefined()
             expect(ctx.request.query['mode']).toBe('queue')
             expect(ctx.request.query['processing']).toBe('sync')
-            let bodyContent = await ctx.request.req.toArray()
-            // post is gzip'ed and not sure how to use this KOA api to retrieve the decompressed content
-            expect(bodyContent.length).toBeGreaterThan(0)
-            expect(bodyContent.length).toBeLessThanOrEqual(fs.statSync(image_path).size)
+            expect(ctx.request.body).toBeDefined()
+            // @ts-ignore
+            expect(ctx.request.body['sourceType']).toBe('URL')
+            // @ts-ignore
+            expect(ctx.request.body['url']).toBe(location)
             ctx.status = 200
             ctx.response.headers['content-type'] = 'application/json'
             ctx.body = JSON.stringify({timestamp: fake_timestamp})
@@ -71,7 +69,7 @@ describe('EyePopSdk endpoint module upload', () => {
             await endpoint.connect()
             expect(authenticationRoute).toHaveBeenCalledTimes(1)
             expect(popConfigRoute).toHaveBeenCalledTimes(1)
-            let result = await endpoint.upload({filePath: image_path})
+            let result = await endpoint.loadFrom(location)
             expect(uploadRoute).toHaveBeenCalledTimes(1)
             expect(result).toBeDefined()
             let count = 0
