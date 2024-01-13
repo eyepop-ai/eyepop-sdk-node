@@ -71,14 +71,14 @@ describe('EyePopSdk endpoint module upload', () => {
             await endpoint.connect()
             expect(authenticationRoute).toHaveBeenCalledTimes(1)
             expect(popConfigRoute).toHaveBeenCalledTimes(1)
-            let result = await endpoint.upload({filePath: image_path})
-            expect(uploadRoute).toHaveBeenCalledTimes(1)
-            expect(result).toBeDefined()
+            let job = await endpoint.upload({filePath: image_path})
+            expect(job).toBeDefined()
             let count = 0
-            for await (let prediction of result) {
+            for await (let prediction of await job.results()) {
                 count++
                 expect(prediction.timestamp).toBe(fake_timestamp)
             }
+            expect(uploadRoute).toHaveBeenCalledTimes(1)
             expect(count).toBe(1)
         } finally {
             await endpoint.disconnect()

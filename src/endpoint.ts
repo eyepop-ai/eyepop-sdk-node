@@ -1,10 +1,10 @@
-import { open } from 'node:fs/promises';
-import {Options} from "./options";
-import {LoadFromJob, UploadJob} from "./jobs";
-import {Prediction} from "./types";
-import * as fs from "fs";
-import stream from "node:stream";
-import mime from "mime-types";
+import {Options} from "./options"
+import {Job, LoadFromJob, UploadJob} from "./jobs"
+import {Prediction} from "./types"
+import * as fs from "fs"
+import stream from "node:stream"
+import mime from "mime-types"
+import {Agent, Dispatcher, Pool} from "undici";
 
 interface PopConfig {
     base_url: string;
@@ -25,22 +25,25 @@ export interface UploadParams {
 
 export class Endpoint {
 
-    private _options: Options;
-    private _token: string | null;
-    private _expire_token_time: number | null;
-    private _baseUrl: string | null;
-    private _pipelineId: string | null;
+    private _options: Options
+    private _token: string | null
+    private _expire_token_time: number | null
+    private _baseUrl: string | null
+    private _pipelineId: string | null
+
+    private _dispatcher: Dispatcher | null
 
     constructor(options: Options) {
-        this._options = options;
-        this._baseUrl = null;
-        this._pipelineId = null;
-        this._token = null;
-        this._expire_token_time = null;
+        this._options = options
+        this._baseUrl = null
+        this._pipelineId = null
+        this._token = null
+        this._expire_token_time = null
+        this._dispatcher = null
     }
 
-    public async upload(params: UploadParams): Promise<AsyncIterable<Prediction>> {
-        if (!this._baseUrl || !this._pipelineId) {
+    public async upload(params: UploadParams): Promise<Job> {
+        if (!this._baseUrl || !this._pipelineId || !this._dispatcher) {
             return Promise.reject("endpoint not connected, use open() before upload()")
         }
         let mimeType = null
@@ -59,18 +62,16 @@ export class Endpoint {
         if (!mimeType) {
             return Promise.reject("upload for streams requires a mimeType")
         }
-        const job = new UploadJob(stream, mimeType, this._baseUrl, this._pipelineId, await this.authorizationHeader())
-        await job.start()
-        return await job.stream()
+        const job = new UploadJob(stream, mimeType, this._baseUrl, this._pipelineId, await this.authorizationHeader(), this._dispatcher)
+        return job.start()
     }
 
-    public async loadFrom(location: string): Promise<AsyncIterable<Prediction>> {
-        if (!this._baseUrl || !this._pipelineId) {
-            return Promise.reject("endpoint not connected, use open() before loadFrom()")
+    public async loadFrom(location: string): Promise<Job> {
+        if (!this._baseUrl || !this._pipelineId || !this._dispatcher) {
+            throw new Error("endpoint not connected, use open() before loadFrom()")
         }
-        const job = new LoadFromJob(location, this._baseUrl, this._pipelineId, await this.authorizationHeader())
-        await job.start()
-        return await job.stream()
+        const job = new LoadFromJob(location, this._baseUrl, this._pipelineId, await this.authorizationHeader(), this._dispatcher)
+        return job.start()
     }
 
     public async connect():Promise<void> {
@@ -83,6 +84,15 @@ export class Endpoint {
         if (!this._options.secretKey) {
             return Promise.reject("option secretKey or environment variable EYEPOP_SECRET_KEY is required")
         }
+
+       this._dispatcher = new Agent({
+           keepAliveTimeout: 10000,
+           pipelining: 100,
+           maxConcurrentStreams: 100,
+           maxCachedSessions: 100,
+           connections: 5
+        })
+
         const config_url = `${this.eyepopUrl()}/pops/${this._options.popId}/config?auto_start=${this._options.autoStart}`
         const headers = {
             'Authorization': await this.authorizationHeader()
@@ -97,7 +107,8 @@ export class Endpoint {
             }
             response = await fetch(config_url, {
                 headers: headers,
-                keepalive: true
+                // @ts-ignore
+                dispatcher: this._dispatcher
             })
         }
         if (response.status != 200) {
@@ -111,7 +122,9 @@ export class Endpoint {
     }
 
     public async disconnect() {
-
+        if (this._dispatcher) {
+            await this._dispatcher.close()
+        }
     }
 
     protected async authorizationHeader(): Promise<string> {
@@ -128,7 +141,8 @@ export class Endpoint {
                 method: 'POST',
                 headers: headers,
                 body: JSON.stringify(body),
-                keepalive: true
+                // @ts-ignore
+                dispatcher: this._dispatcher
             })
             if (response.status != 200) {
                 const message = await response.text()

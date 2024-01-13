@@ -1,15 +1,13 @@
 import {EyePopSdk} from "../src";
-import mime from 'mime-types';
-import fs from "fs";
 
 async function upload_photos_sequentially(image_paths: Array<string>) {
     const endpoint = EyePopSdk.endpoint()
     try {
         await endpoint.connect()
         for (let i = 0; i < image_paths.length; i++) {
-            let results = await endpoint.upload({filePath: image_paths[i]})
-            for await (let result of results) {
-                //
+            let job = await endpoint.upload({filePath: image_paths[i]})
+            for await (let result of await job.results()) {
+                // console.log(result)
             }
         }
     } finally {
@@ -23,12 +21,12 @@ async function upload_photos_parallel(image_paths: Array<string>) {
     try {
         await endpoint.connect()
         for (let i = 0; i < image_paths.length; i++) {
-            let results = await endpoint.upload({filePath: image_paths[i]})
-            jobs.push(results)
+            jobs.push(await endpoint.upload({filePath: image_paths[i]}))
         }
+        console.log('done scheduling')
         for (let i = 0; i < jobs.length; i++) {
-            for await (let result of jobs[i]) {
-                //
+            for await (let result of await jobs[i].results()) {
+                // console.log(result)
             }
         }
     } finally {
@@ -67,5 +65,4 @@ async function upload_photos_parallel(image_paths: Array<string>) {
     } catch (e) {
         console.error(e)
     }
-
 })()
