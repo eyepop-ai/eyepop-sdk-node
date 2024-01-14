@@ -1,6 +1,6 @@
 import {Prediction} from "./types"
 import {Stream} from "./streaming"
-import { Agent, Dispatcher } from 'undici'
+import { Dispatcher } from 'undici'
 
 export interface Job {
     results(): Promise<AsyncIterable<Prediction>>

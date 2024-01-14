@@ -1,10 +1,9 @@
 import {Options} from "./options"
 import {Job, LoadFromJob, UploadJob} from "./jobs"
-import {Prediction} from "./types"
 import * as fs from "fs"
 import stream from "node:stream"
 import mime from "mime-types"
-import {Agent, Dispatcher, Pool} from "undici";
+import {Agent, Dispatcher} from "undici";
 
 interface PopConfig {
     base_url: string;
