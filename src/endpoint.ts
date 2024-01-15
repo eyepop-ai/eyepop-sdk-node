@@ -1,9 +1,10 @@
 import {Options} from "./options"
-import {Job, LoadFromJob, UploadJob} from "./jobs"
+import {ResultStream, LoadFromJob, UploadJob} from "./jobs"
 import * as fs from "fs"
 import stream from "node:stream"
 import mime from "mime-types"
-import {Agent, Dispatcher} from "undici";
+import {Agent, Dispatcher} from "undici"
+import {Semaphore} from 'await-semaphore'
 
 interface PopConfig {
     base_url: string;
@@ -23,6 +24,8 @@ export interface UploadParams {
 }
 
 export class Endpoint {
+    private static readonly MAX_JOBS: number = 1024
+    private static readonly MAX_CONNECTIONS: number = 5
 
     private _options: Options
     private _token: string | null
@@ -32,6 +35,8 @@ export class Endpoint {
 
     private _dispatcher: Dispatcher | null
 
+    private _limit: Semaphore | null
+
     constructor(options: Options) {
         this._options = options
         this._baseUrl = null
@@ -39,10 +44,11 @@ export class Endpoint {
         this._token = null
         this._expire_token_time = null
         this._dispatcher = null
+        this._limit = null
     }
 
-    public async upload(params: UploadParams): Promise<Job> {
-        if (!this._baseUrl || !this._pipelineId || !this._dispatcher) {
+    public async upload(params: UploadParams): Promise<ResultStream> {
+        if (!this._baseUrl || !this._pipelineId || !this._dispatcher || !this._limit) {
             return Promise.reject("endpoint not connected, use open() before upload()")
         }
         let mimeType = null
@@ -61,19 +67,25 @@ export class Endpoint {
         if (!mimeType) {
             return Promise.reject("upload for streams requires a mimeType")
         }
+        let release = await this._limit.acquire()
         const job = new UploadJob(stream, mimeType, this._baseUrl, this._pipelineId, await this.authorizationHeader(), this._dispatcher)
-        return job.start()
+        return job.start(release)
     }
 
-    public async loadFrom(location: string): Promise<Job> {
-        if (!this._baseUrl || !this._pipelineId || !this._dispatcher) {
+    public async loadFrom(location: string): Promise<ResultStream> {
+        if (!this._baseUrl || !this._pipelineId || !this._dispatcher|| !this._limit) {
             throw new Error("endpoint not connected, use open() before loadFrom()")
         }
+        const release = await this._limit.acquire()
         const job = new LoadFromJob(location, this._baseUrl, this._pipelineId, await this.authorizationHeader(), this._dispatcher)
-        return job.start()
+        return job.start(release)
     }
 
-    public async connect():Promise<void> {
+    public async connect():Promise<Endpoint> {
+        if (this._dispatcher) {
+            console.info('endpoint already connected')
+            return this
+        }
         if (!this._options.eyepopUrl) {
             return Promise.reject("option eyepopUrl or environment variable EYEPOP_URL is required")
         }
@@ -89,8 +101,10 @@ export class Endpoint {
            pipelining: 100,
            maxConcurrentStreams: 100,
            maxCachedSessions: 100,
-           connections: 5
+           connections: Endpoint.MAX_CONNECTIONS
         })
+
+        this._limit = new Semaphore(Endpoint.MAX_JOBS)
 
         const config_url = `${this.eyepopUrl()}/pops/${this._options.popId}/config?auto_start=${this._options.autoStart}`
         const headers = {
@@ -118,12 +132,22 @@ export class Endpoint {
         const config: PopConfig = data as PopConfig
         this._baseUrl = config.base_url;
         this._pipelineId = config.pipeline_id;
+        return this;
     }
 
-    public async disconnect() {
+    public async disconnect(wait: boolean = true) : Promise<void> {
+        if (wait && this._limit) {
+            for (let i = 0; i < Endpoint.MAX_JOBS; i++) {
+                await this._limit.acquire()
+            }
+        }
         if (this._dispatcher) {
             await this._dispatcher.close()
+            this._dispatcher = null
         }
+        this._baseUrl = null
+        this._pipelineId = null
+        this._limit = null
     }
 
     protected async authorizationHeader(): Promise<string> {

@@ -1,5 +1,5 @@
 {
-  "name": "@eyepop.ai/eyepop-sdk-node",
+  "name": "EyePopSdk",
   "version": "0.1.0",
   "description": "The official Node.js / Typescript library for EyePop.ai's inference API",
   "main": "./dist/index.js",
@@ -46,6 +46,7 @@
   },
   "dependencies": {
     "@types/mime-types": "^2.1.4",
+    "await-semaphore": "^0.1.3",
     "undici": "^6.3.0"
   }
 }

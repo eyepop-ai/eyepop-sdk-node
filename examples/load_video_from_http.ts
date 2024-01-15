@@ -1,14 +1,13 @@
-import {EyePopSdk} from "../src";
+import {EyePopSdk} from '../src'
 
 
 async function load_video_from_url(video_url: string, seconds: number) {
-    const endpoint = EyePopSdk.endpoint()
+    const endpoint = await EyePopSdk.endpoint().connect()
     try {
-        await endpoint.connect()
-        const job = await endpoint.loadFrom(video_url)
-        for await (let result of await job.results()) {
+        const results = await endpoint.loadFrom(video_url)
+        for await (let result of await results) {
             if (result['seconds'] >= seconds) {
-                job.cancel()
+                results.cancel()
             }
             console.log(result)
         }

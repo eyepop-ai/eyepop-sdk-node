@@ -1,6 +1,7 @@
+import {EyePopSdk} from '../src'
+
 import { MockServer } from 'jest-mock-server'
 import {describe, expect, test} from '@jest/globals'
-import {EyePopSdk} from '../src'
 import {v4 as uuidv4} from 'uuid'
 
 describe('EyePopSdk endpoint module auth and connect',  () => {

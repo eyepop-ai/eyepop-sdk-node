@@ -1,5 +1,5 @@
 import {CanvasRenderingContext2D} from "canvas"
-import {PredictedObject} from "EyePopSdk/types";
+import {PredictedObject, Prediction} from "EyePopSdk/types";
 
 export class EyePopPlot {
     private _context: CanvasRenderingContext2D
@@ -20,6 +20,14 @@ export class EyePopPlot {
         white: "#FFFFFF",
         black: "#111111",
         blank_color: '#000000',
+    }
+
+    public prediction(p: Prediction) {
+        if (p && p.objects) {
+            for (let i = 0; i < p.objects.length; i++) {
+                this.object(p.objects[i])
+            }
+        }
     }
 
     public object(obj: PredictedObject) {

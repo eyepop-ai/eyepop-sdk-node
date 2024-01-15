@@ -1,12 +1,12 @@
-import {EyePopSdk} from "../src";
+import {EyePopSdk} from '../src'
+import process from 'process'
 
 async function upload_photos_sequentially(image_paths: Array<string>) {
-    const endpoint = EyePopSdk.endpoint()
+    const endpoint = await EyePopSdk.endpoint().connect()
     try {
-        await endpoint.connect()
         for (let i = 0; i < image_paths.length; i++) {
-            let job = await endpoint.upload({filePath: image_paths[i]})
-            for await (let result of await job.results()) {
+            let results = await endpoint.upload({filePath: image_paths[i]})
+            for await (let result of results) {
                 // console.log(result)
             }
         }
@@ -16,18 +16,16 @@ async function upload_photos_sequentially(image_paths: Array<string>) {
 }
 
 async function upload_photos_parallel(image_paths: Array<string>) {
-    const endpoint = EyePopSdk.endpoint()
-    let jobs = new Array()
+    const endpoint = await EyePopSdk.endpoint().connect()
     try {
-        await endpoint.connect()
         for (let i = 0; i < image_paths.length; i++) {
-            jobs.push(await endpoint.upload({filePath: image_paths[i]}))
-        }
-        console.log('done scheduling')
-        for (let i = 0; i < jobs.length; i++) {
-            for await (let result of await jobs[i].results()) {
-                // console.log(result)
-            }
+            endpoint.upload({filePath: image_paths[i]}).then(async (results) => {
+                for await (let result of results) {
+                    // console.log(result)
+                }
+            }).catch((reason) => {
+                throw reason
+            })
         }
     } finally {
         await endpoint.disconnect()
@@ -35,10 +33,20 @@ async function upload_photos_parallel(image_paths: Array<string>) {
 }
 
 
-(async() => {
+if (!process.argv[2]) {
+    console.error('first argument must be path to an image')
+    process.exit(-1)
+}
+if (!process.argv[3]) {
+    console.error('second argument must be the number of iterations')
+    process.exit(-1)
+}
+
+const example_image_path = process.argv[2];
+const num_of_iterations: number = Number.parseInt(process.argv[3]);
+
+(async () => {
     try {
-        const example_image_path = './examples/example.jpg'
-        const num_of_iterations = 100
         console.log(`using: ${example_image_path} x ${num_of_iterations} for sequential upload`)
         const example_image_paths = new Array<string>(num_of_iterations)
         example_image_paths.fill(example_image_path)
@@ -52,8 +60,6 @@ async function upload_photos_parallel(image_paths: Array<string>) {
     }
 
     try {
-        const example_image_path = './examples/example.jpg'
-        const num_of_iterations = 100
         console.log(`using: ${example_image_path} x ${num_of_iterations} for parallel upload`)
         const example_image_paths = new Array<string>(num_of_iterations)
         example_image_paths.fill(example_image_path)

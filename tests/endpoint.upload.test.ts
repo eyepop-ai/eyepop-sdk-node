@@ -1,11 +1,9 @@
-import {MockServer} from 'jest-mock-server'
-
-import {describe, expect, test} from '@jest/globals'
 import {EyePopSdk} from '../src'
-import {v4 as uuidv4} from 'uuid'
-import * as fs from "fs";
 
-import mime from 'mime-types';
+import {MockServer} from 'jest-mock-server'
+import {describe, expect, test} from '@jest/globals'
+import {v4 as uuidv4} from 'uuid'
+import * as fs from "fs"
 
 function prepMockServer(server: MockServer, test_pop_id: string, test_pipeline_id: string) {
     const test_access_token = uuidv4()
@@ -74,7 +72,7 @@ describe('EyePopSdk endpoint module upload', () => {
             let job = await endpoint.upload({filePath: image_path})
             expect(job).toBeDefined()
             let count = 0
-            for await (let prediction of await job.results()) {
+            for await (let prediction of await job) {
                 count++
                 expect(prediction.timestamp).toBe(fake_timestamp)
             }

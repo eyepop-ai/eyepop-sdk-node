@@ -1,5 +1,7 @@
 import {Endpoint} from "./endpoint";
 import {Options} from "./options";
+import {EyePopPlot} from "./visualize";
+import {CanvasRenderingContext2D} from "canvas";
 
 export class EyePopSdk {
   public static endpoint({
@@ -19,6 +21,10 @@ export class EyePopSdk {
       };
       const endpoint = new Endpoint(options);
       return endpoint;
+  }
+
+  public static plot(context: CanvasRenderingContext2D) : EyePopPlot {
+      return new EyePopPlot(context)
   }
 }
 

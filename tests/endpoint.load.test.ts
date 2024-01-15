@@ -1,7 +1,7 @@
-import {MockServer} from 'jest-mock-server'
-
-import {describe, expect, test} from '@jest/globals'
 import {EyePopSdk} from '../src'
+
+import {MockServer} from 'jest-mock-server'
+import {describe, expect, test} from '@jest/globals'
 import {v4 as uuidv4} from 'uuid'
 
 function prepMockServer(server: MockServer, test_pop_id: string, test_pipeline_id: string) {
@@ -72,7 +72,7 @@ describe('EyePopSdk endpoint module loadFrom', () => {
             let job = await endpoint.loadFrom(location)
             expect(job).toBeDefined()
             let count = 0
-            for await (let prediction of await job.results()) {
+            for await (let prediction of job) {
                 count++
                 expect(prediction.timestamp).toBe(fake_timestamp)
             }
