@@ -33,6 +33,8 @@ function prepMockServer(server: MockServer, test_pop_id: string, test_pipeline_i
 describe('EyePopSdk endpoint module loadFrom', () => {
     const server = new MockServer()
 
+    const test_secret_key = uuidv4()
+
     beforeAll(() => server.start())
     afterAll(() => server.stop())
     beforeEach(() => server.reset())
@@ -44,7 +46,7 @@ describe('EyePopSdk endpoint module loadFrom', () => {
         const location = 'http://invalid.example'
         const {authenticationRoute, popConfigRoute} = prepMockServer(server, test_pop_id, test_pipeline_id)
 
-        const uploadRoute = server
+        const loadFromRoute = server
         .patch(`/worker/pipelines/${test_pipeline_id}/source`)
         .mockImplementation(async (ctx) => {
             expect(ctx.headers['authorization']).toBeDefined()
@@ -62,6 +64,7 @@ describe('EyePopSdk endpoint module loadFrom', () => {
 
         const endpoint = EyePopSdk.endpoint({
             eyepopUrl: server.getURL().toString(),
+            secretKey: test_secret_key,
             popId: test_pop_id
         })
         expect(endpoint).toBeDefined()
@@ -76,7 +79,7 @@ describe('EyePopSdk endpoint module loadFrom', () => {
                 count++
                 expect(prediction.timestamp).toBe(fake_timestamp)
             }
-            expect(uploadRoute).toHaveBeenCalledTimes(1)
+            expect(loadFromRoute).toHaveBeenCalledTimes(1)
             expect(count).toBe(1)
         } finally {
             await endpoint.disconnect()

@@ -10,6 +10,7 @@ export class EyePopSdk {
       eyepopUrl = readEnv('EYEPOP_URL'),
       autoStart = true,
       stopJobs = true,
+      jobQueueLength = 1024,
                    ...opts
   }: Options = {}): Endpoint {
       const options: Options = {
@@ -17,7 +18,8 @@ export class EyePopSdk {
           popId : popId,
           eyepopUrl: eyepopUrl ?? 'https://api.eyepop.ai',
           autoStart: autoStart,
-          stopJobs: stopJobs
+          stopJobs: stopJobs,
+          jobQueueLength: jobQueueLength
       };
       const endpoint = new Endpoint(options);
       return endpoint;

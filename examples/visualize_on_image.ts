@@ -6,8 +6,9 @@ import { mkdtempSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 
+const example_image_path = 'examples/example.jpg';
+
 (async () => {
-    const example_image_path = './examples/example.jpg'
     const image = await loadImage(example_image_path)
     const canvas = createCanvas(image.width, image.height)
     const context = canvas.getContext("2d")

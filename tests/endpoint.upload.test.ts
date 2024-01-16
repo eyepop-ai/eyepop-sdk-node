@@ -34,6 +34,8 @@ function prepMockServer(server: MockServer, test_pop_id: string, test_pipeline_i
 describe('EyePopSdk endpoint module upload', () => {
     const server = new MockServer()
 
+    const test_secret_key = uuidv4()
+
     beforeAll(() => server.start())
     afterAll(() => server.stop())
     beforeEach(() => server.reset())
@@ -62,6 +64,7 @@ describe('EyePopSdk endpoint module upload', () => {
 
         const endpoint = EyePopSdk.endpoint({
             eyepopUrl: server.getURL().toString(),
+            secretKey: test_secret_key,
             popId: test_pop_id
         })
         expect(endpoint).toBeDefined()

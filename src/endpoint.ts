@@ -24,7 +24,6 @@ export interface UploadParams {
 }
 
 export class Endpoint {
-    private static readonly MAX_JOBS: number = 1024
     private static readonly MAX_CONNECTIONS: number = 5
 
     private _options: Options
@@ -81,6 +80,7 @@ export class Endpoint {
         return job.start(release)
     }
 
+    // noinspection TypeScriptValidateTypes
     public async connect():Promise<Endpoint> {
         if (this._dispatcher) {
             console.info('endpoint already connected')
@@ -104,7 +104,8 @@ export class Endpoint {
            connections: Endpoint.MAX_CONNECTIONS
         })
 
-        this._limit = new Semaphore(Endpoint.MAX_JOBS)
+        // @ts-ignore
+        this._limit = new Semaphore(this._options.jobQueueLength)
 
         const config_url = `${this.eyepopUrl()}/pops/${this._options.popId}/config?auto_start=${this._options.autoStart}`
         const headers = {
@@ -137,7 +138,8 @@ export class Endpoint {
 
     public async disconnect(wait: boolean = true) : Promise<void> {
         if (wait && this._limit) {
-            for (let i = 0; i < Endpoint.MAX_JOBS; i++) {
+            // @ts-ignore
+            for (let i = 0; i < this._options.jobQueueLength; i++) {
                 await this._limit.acquire()
             }
         }

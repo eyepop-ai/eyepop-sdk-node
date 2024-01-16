@@ -18,4 +18,5 @@ export interface Options {
 
   autoStart?: boolean;
   stopJobs?: boolean;
+  jobQueueLength?: number;
 }
