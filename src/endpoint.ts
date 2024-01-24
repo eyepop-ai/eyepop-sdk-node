@@ -5,6 +5,8 @@ import stream from "node:stream"
 import mime from "mime-types"
 import {Agent, Dispatcher} from "undici"
 import {Semaphore} from 'await-semaphore'
+import {Logger, pino} from "pino"
+
 
 interface PopConfig {
     base_url: string;
@@ -18,9 +20,9 @@ interface AccessToken {
 }
 
 export interface UploadParams {
-  readonly filePath?: string | undefined;
-  readonly stream?: stream.Readable | undefined;
-  readonly mimeType?: string | undefined;
+    readonly filePath?: string | undefined;
+    readonly stream?: stream.Readable | undefined;
+    readonly mimeType?: string | undefined;
 }
 
 export class Endpoint {
@@ -36,6 +38,9 @@ export class Endpoint {
 
     private _limit: Semaphore | null
 
+    private _logger: Logger
+    private _requestLogger: Logger
+
     constructor(options: Options) {
         this._options = options
         this._baseUrl = null
@@ -44,6 +49,14 @@ export class Endpoint {
         this._expire_token_time = null
         this._dispatcher = null
         this._limit = null
+        let rootLogger
+        if (options.logger) {
+            rootLogger = options.logger
+        } else {
+            rootLogger = pino()
+        }
+        this._logger = rootLogger.child({module: 'eyepop'})
+        this._requestLogger = this._logger.child({module: 'requests'})
     }
 
     public async upload(params: UploadParams): Promise<ResultStream> {
@@ -67,21 +80,23 @@ export class Endpoint {
             return Promise.reject("upload for streams requires a mimeType")
         }
         let release = await this._limit.acquire()
-        const job = new UploadJob(stream, mimeType, this._baseUrl, this._pipelineId, await this.authorizationHeader(), this._dispatcher)
+        const job = new UploadJob(stream, mimeType, this._baseUrl, this._pipelineId, await this.authorizationHeader(),
+            this._dispatcher, this._requestLogger)
         return job.start(release)
     }
 
     public async loadFrom(location: string): Promise<ResultStream> {
-        if (!this._baseUrl || !this._pipelineId || !this._dispatcher|| !this._limit) {
+        if (!this._baseUrl || !this._pipelineId || !this._dispatcher || !this._limit) {
             throw new Error("endpoint not connected, use open() before loadFrom()")
         }
         const release = await this._limit.acquire()
-        const job = new LoadFromJob(location, this._baseUrl, this._pipelineId, await this.authorizationHeader(), this._dispatcher)
+        const job = new LoadFromJob(location, this._baseUrl, this._pipelineId, await this.authorizationHeader(),
+            this._dispatcher, this._requestLogger)
         return job.start(release)
     }
 
     // noinspection TypeScriptValidateTypes
-    public async connect():Promise<Endpoint> {
+    public async connect(): Promise<Endpoint> {
         if (this._dispatcher) {
             console.info('endpoint already connected')
             return this
@@ -96,12 +111,12 @@ export class Endpoint {
             return Promise.reject("option secretKey or environment variable EYEPOP_SECRET_KEY is required")
         }
 
-       this._dispatcher = new Agent({
-           keepAliveTimeout: 10000,
-           pipelining: 100,
-           maxConcurrentStreams: 100,
-           maxCachedSessions: 100,
-           connections: Endpoint.MAX_CONNECTIONS
+        this._dispatcher = new Agent({
+            keepAliveTimeout: 10000,
+            pipelining: 100,
+            maxConcurrentStreams: 100,
+            maxCachedSessions: 100,
+            connections: Endpoint.MAX_CONNECTIONS
         })
 
         // @ts-ignore
@@ -111,17 +126,17 @@ export class Endpoint {
         const headers = {
             'Authorization': await this.authorizationHeader()
         }
+        this._requestLogger.debug('before GET %s', config_url)
         let response = await fetch(config_url, {headers: headers})
         if (response.status == 401) {
+            this._requestLogger.debug('after GET %s: 401, about to retry with fresh access token', config_url)
             // one retry, the token might have just expired
             this._token = null
-            const config_url = `${this.eyepopUrl()}/pops/${this._options.popId}/config?auto_start=${this._options.autoStart}`
             const headers = {
                 'Authorization': await this.authorizationHeader()
             }
             response = await fetch(config_url, {
-                headers: headers,
-                // @ts-ignore
+                headers: headers, // @ts-ignore
                 dispatcher: this._dispatcher
             })
         }
@@ -133,10 +148,28 @@ export class Endpoint {
         const config: PopConfig = data as PopConfig
         this._baseUrl = config.base_url;
         this._pipelineId = config.pipeline_id;
+        this._requestLogger.debug('after GET %s: %s / %s', config_url, this._baseUrl, this._pipelineId)
+        if (!this._pipelineId || !this._baseUrl) {
+            return Promise.reject(`Pop not started`)
+        }
+        if (this._options.stopJobs) {
+            const stop_url = `${this._baseUrl}/pipelines/${this._pipelineId}/source?mode=preempt&processing=sync`
+            const body = {'sourceType': 'NONE'}
+            const headers = {
+                'Authorization': await this.authorizationHeader(), 'Content-Type': 'application/json'
+            }
+            this._requestLogger.debug('before PATCH %s', stop_url)
+            let response = await fetch(stop_url, {method: 'PATCH', headers: headers, body: JSON.stringify(body)})
+            if (response.status >= 300) {
+                const message = await response.text()
+                return Promise.reject(`Unexpected status ${response.status}: ${message}`)
+            }
+            this._requestLogger.debug('after PATCH %s', stop_url)
+        }
         return this;
     }
 
-    public async disconnect(wait: boolean = true) : Promise<void> {
+    public async disconnect(wait: boolean = true): Promise<void> {
         if (wait && this._limit) {
             // @ts-ignore
             for (let i = 0; i < this._options.jobQueueLength; i++) {
@@ -162,22 +195,22 @@ export class Endpoint {
             const body = {'secret_key': this._options.secretKey}
             const headers = {'Content-Type': 'application/json'}
             const post_url = `${this.eyepopUrl()}/authentication/token`
+            this._requestLogger.debug('before POST %s', post_url)
             const response = await fetch(post_url, {
-                method: 'POST',
-                headers: headers,
-                body: JSON.stringify(body),
-                // @ts-ignore
+                method: 'POST', headers: headers, body: JSON.stringify(body), // @ts-ignore
                 dispatcher: this._dispatcher
             })
             if (response.status != 200) {
                 const message = await response.text()
                 return Promise.reject(`Unexpected status ${response.status}: ${message}`)
             }
+            this._requestLogger.debug('after POST %s', post_url)
             const data = await response.json()
             const token: AccessToken = data as AccessToken
             this._token = token.access_token
             this._expire_token_time = now + token.expires_in - 60
         }
+        this._logger.info('using access token, valid for at least %d seconds', <number>this._expire_token_time - now)
         return <string>this._token
     }
 

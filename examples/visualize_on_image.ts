@@ -6,6 +6,11 @@ import { mkdtempSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 
+import { pino } from 'pino'
+
+const logger = pino({level: 'debug', name: 'eyepop-example'})
+
+
 const example_image_path = 'examples/example.jpg';
 
 (async () => {
@@ -15,7 +20,7 @@ const example_image_path = 'examples/example.jpg';
     context.drawImage(image, 0, 0)
     const plot = EyePopSdk.plot(context)
 
-    const endpoint = await EyePopSdk.endpoint().connect()
+    const endpoint = await EyePopSdk.endpoint({logger: logger}).connect()
     try {
         let results = await endpoint.upload({filePath: example_image_path})
         for await (let result of await results) {

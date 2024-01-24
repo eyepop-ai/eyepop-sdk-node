@@ -2,6 +2,7 @@ import {Endpoint} from "./endpoint";
 import {Options} from "./options";
 import {EyePopPlot} from "./visualize";
 import {CanvasRenderingContext2D} from "canvas";
+import {pino} from 'pino';
 
 export class EyePopSdk {
   public static endpoint({
@@ -11,6 +12,7 @@ export class EyePopSdk {
       autoStart = true,
       stopJobs = true,
       jobQueueLength = 1024,
+      logger,
                    ...opts
   }: Options = {}): Endpoint {
       const options: Options = {
@@ -19,7 +21,8 @@ export class EyePopSdk {
           eyepopUrl: eyepopUrl ?? 'https://api.eyepop.ai',
           autoStart: autoStart,
           stopJobs: stopJobs,
-          jobQueueLength: jobQueueLength
+          jobQueueLength: jobQueueLength,
+          logger: logger,
       };
       const endpoint = new Endpoint(options);
       return endpoint;
