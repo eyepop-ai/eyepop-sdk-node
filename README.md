@@ -8,7 +8,7 @@ npm install --save eyepop
 ## Configuration
 The EyePop SDK needs to be configured with the __Pop Id__ and your __Secret Api Key__. 
 ```typescript
-import { EyePopSdk } from 'eyepop'
+import { EyePopSdk } from '@eyepop.ai/eyepop'
 (async() => {
     const endpoint = EyePopSdk.endpoint(
         // This is the default and can be omitted
@@ -29,7 +29,7 @@ to your .env file so that your API Key is not stored in source control. By defau
 ## Usage Examples
 ### Uploading and processing one single image
 ```typescript
-import { EyePopSdk } from 'eyepop'
+import { EyePopSdk } from '@eyepop.ai/eyepop'
 
 const example_image_path = 'examples/example.jpg';
 
@@ -71,7 +71,7 @@ import {open} from 'openurl'
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { EyePopSdk } from 'eyepop'
+import { EyePopSdk } from '@eyepop.ai/eyepop'
 
 const example_image_path = 'examples/example.jpg';
     
@@ -107,7 +107,7 @@ The above _synchronous_ way, upload() then iterate all results, is great for ind
 sized batches. For larger batch sizes, or continuous stream of images, don't `await` the results but instead 
 use `then()` on the returned promise.
 ```typescript
-import { EyePopSdk } from 'eyepop'
+import { EyePopSdk } from '@eyepop.ai/eyepop'
 
 const example_image_path = 'examples/example.jpg';
 
@@ -136,7 +136,7 @@ Alternatively to uploading files, you can also submit a publicly accessible URL 
 * RTSP (live-streaming)
 * RTMP (live-streaming)
 ```typescript
-import { EyePopSdk } from 'eyepop'
+import { EyePopSdk } from '@eyepop.ai/eyepop'
 
 const example_image_url = 'https://farm2.staticflickr.com/1080/1301049949_532835a8b5_z.jpg';
 
@@ -157,7 +157,7 @@ You can process videos via upload or public URLs. This example shows how to proc
 retrieved from a public URL.
 
 ```typescript
-import { EyePopSdk } from 'eyepop'
+import { EyePopSdk } from '@eyepop.ai/eyepop'
 
 const example_video_url = 'https://demo-eyepop-videos.s3.amazonaws.com/test1_vlog.mp4';
 
@@ -177,7 +177,7 @@ const example_video_url = 'https://demo-eyepop-videos.s3.amazonaws.com/test1_vlo
 Any job that has been queued or is in-progress can be cancelled. E.g. stop the video processing after
 predictions have been processed for 10 seconds duration of the video.
 ```typescript
-import { EyePopSdk } from 'eyepop'
+import { EyePopSdk } from '@eyepop.ai/eyepop'
 
 const example_video_url = 'https://demo-eyepop-videos.s3.amazonaws.com/test1_vlog.mp4';
 

@@ -1,3 +1,5 @@
+import {Logger} from "pino";
+
 export interface Options {
   /**
    * Defaults to process.env['EYEPOP_SECRET_KEY'].
@@ -19,4 +21,5 @@ export interface Options {
   autoStart?: boolean;
   stopJobs?: boolean;
   jobQueueLength?: number;
+  logger?: Logger | undefined;
 }
