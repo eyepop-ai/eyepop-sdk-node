@@ -65,7 +65,8 @@ describe('EyePopSdk endpoint module loadFrom', () => {
         const endpoint = EyePopSdk.endpoint({
             eyepopUrl: server.getURL().toString(),
             secretKey: test_secret_key,
-            popId: test_pop_id
+            popId: test_pop_id,
+            stopJobs: false
         })
         expect(endpoint).toBeDefined()
         try {

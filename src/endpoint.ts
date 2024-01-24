@@ -152,6 +152,8 @@ export class Endpoint {
         if (!this._pipelineId || !this._baseUrl) {
             return Promise.reject(`Pop not started`)
         }
+        this._baseUrl = this._baseUrl.replace(/\/+$/, "")
+
         if (this._options.stopJobs) {
             const stop_url = `${this._baseUrl}/pipelines/${this._pipelineId}/source?mode=preempt&processing=sync`
             const body = {'sourceType': 'NONE'}
@@ -210,7 +212,7 @@ export class Endpoint {
             this._token = token.access_token
             this._expire_token_time = now + token.expires_in - 60
         }
-        this._logger.info('using access token, valid for at least %d seconds', <number>this._expire_token_time - now)
+        this._logger.debug('using access token, valid for at least %d seconds', <number>this._expire_token_time - now)
         return <string>this._token
     }
 
