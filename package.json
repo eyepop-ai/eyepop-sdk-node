@@ -1,6 +1,6 @@
 {
   "name": "@eyepop.ai/eyepop",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "description": "The official Node.js / Typescript library for EyePop.ai's inference API",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
