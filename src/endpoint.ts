@@ -1,11 +1,13 @@
 import {Options} from "./options"
 import {ResultStream, LoadFromJob, UploadJob} from "./jobs"
-import * as fs from "fs"
-import stream from "node:stream"
-import mime from "mime-types"
-import {Agent, Dispatcher} from "undici"
+
+import { Agent, Dispatcher } from './shims/index'
+
 import {Semaphore} from 'await-semaphore'
 import {Logger, pino} from "pino"
+import * as fs from "node:fs"
+import * as stream from "node:stream"
+import * as mime from "mime-types"
 
 
 interface PopConfig {

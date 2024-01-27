@@ -1,4 +1,4 @@
-import {EyePopSdk} from '../src'
+import {EyePopSdk} from '@eyepop.ai/eyepop'
 
 import {createCanvas, loadImage} from "canvas"
 import {open} from 'openurl'

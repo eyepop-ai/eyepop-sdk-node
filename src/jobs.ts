@@ -1,7 +1,7 @@
 import {Prediction} from "./types"
 import {Stream} from "./streaming"
 import {Dispatcher} from 'undici'
-import {Logger} from "pino";
+import {Logger} from "pino"
 
 export interface ResultStream extends AsyncIterable<Prediction> {
     cancel(): void

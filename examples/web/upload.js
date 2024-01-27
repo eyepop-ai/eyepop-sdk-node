@@ -1,3 +1,3 @@
-import { eyepop } from '@eyepop.ai/eyepop';
+import '../../dist/index.js';
 
 console.log("Hello EyePop");

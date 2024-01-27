@@ -2,7 +2,6 @@ import {Endpoint} from "./endpoint";
 import {Options} from "./options";
 import {EyePopPlot} from "./visualize";
 import {CanvasRenderingContext2D} from "canvas";
-import {pino} from 'pino';
 
 export class EyePopSdk {
   public static endpoint({
