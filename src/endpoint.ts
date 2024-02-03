@@ -1,7 +1,6 @@
 import {Options} from "./options"
 import {ResultStream, LoadFromJob, UploadJob} from "./jobs"
-
-import { Agent, Dispatcher } from './shims/index'
+import {createHttpClient, HttpClient} from './shims/http_client'
 
 import {Semaphore} from 'await-semaphore'
 import {Logger, pino} from "pino"
@@ -28,20 +27,18 @@ export interface UploadParams {
 }
 
 export class Endpoint {
-    private static readonly MAX_CONNECTIONS: number = 5
-
     private _options: Options
     private _token: string | null
     private _expire_token_time: number | null
     private _baseUrl: string | null
     private _pipelineId: string | null
 
-    private _dispatcher: Dispatcher | null
+    private _client: HttpClient | null
 
     private _limit: Semaphore | null
 
     private _logger: Logger
-    private _requestLogger: Logger
+    private readonly _requestLogger: Logger
 
     constructor(options: Options) {
         this._options = options
@@ -49,7 +46,7 @@ export class Endpoint {
         this._pipelineId = null
         this._token = null
         this._expire_token_time = null
-        this._dispatcher = null
+        this._client = null
         this._limit = null
         let rootLogger
         if (options.logger) {
@@ -62,7 +59,7 @@ export class Endpoint {
     }
 
     public async upload(params: UploadParams): Promise<ResultStream> {
-        if (!this._baseUrl || !this._pipelineId || !this._dispatcher || !this._limit) {
+        if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
             return Promise.reject("endpoint not connected, use open() before upload()")
         }
         let mimeType = null
@@ -83,23 +80,23 @@ export class Endpoint {
         }
         let release = await this._limit.acquire()
         const job = new UploadJob(stream, mimeType, this._baseUrl, this._pipelineId, await this.authorizationHeader(),
-            this._dispatcher, this._requestLogger)
+            this._client, this._requestLogger)
         return job.start(release)
     }
 
     public async loadFrom(location: string): Promise<ResultStream> {
-        if (!this._baseUrl || !this._pipelineId || !this._dispatcher || !this._limit) {
+        if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
             throw new Error("endpoint not connected, use open() before loadFrom()")
         }
         const release = await this._limit.acquire()
         const job = new LoadFromJob(location, this._baseUrl, this._pipelineId, await this.authorizationHeader(),
-            this._dispatcher, this._requestLogger)
+            this._client, this._requestLogger)
         return job.start(release)
     }
 
     // noinspection TypeScriptValidateTypes
     public async connect(): Promise<Endpoint> {
-        if (this._dispatcher) {
+        if (this._client) {
             console.info('endpoint already connected')
             return this
         }
@@ -113,13 +110,7 @@ export class Endpoint {
             return Promise.reject("option secretKey or environment variable EYEPOP_SECRET_KEY is required")
         }
 
-        this._dispatcher = new Agent({
-            keepAliveTimeout: 10000,
-            pipelining: 100,
-            maxConcurrentStreams: 100,
-            maxCachedSessions: 100,
-            connections: Endpoint.MAX_CONNECTIONS
-        })
+        this._client = await createHttpClient()
 
         // @ts-ignore
         this._limit = new Semaphore(this._options.jobQueueLength)
@@ -129,7 +120,7 @@ export class Endpoint {
             'Authorization': await this.authorizationHeader()
         }
         this._requestLogger.debug('before GET %s', config_url)
-        let response = await fetch(config_url, {headers: headers})
+        let response = await this._client.fetch(config_url, {headers: headers})
         if (response.status == 401) {
             this._requestLogger.debug('after GET %s: 401, about to retry with fresh access token', config_url)
             // one retry, the token might have just expired
@@ -137,9 +128,8 @@ export class Endpoint {
             const headers = {
                 'Authorization': await this.authorizationHeader()
             }
-            response = await fetch(config_url, {
+            response = await this._client.fetch(config_url, {
                 headers: headers, // @ts-ignore
-                dispatcher: this._dispatcher
             })
         }
         if (response.status != 200) {
@@ -163,7 +153,7 @@ export class Endpoint {
                 'Authorization': await this.authorizationHeader(), 'Content-Type': 'application/json'
             }
             this._requestLogger.debug('before PATCH %s', stop_url)
-            let response = await fetch(stop_url, {method: 'PATCH', headers: headers, body: JSON.stringify(body)})
+            let response = await this._client.fetch(stop_url, {method: 'PATCH', headers: headers, body: JSON.stringify(body)})
             if (response.status >= 300) {
                 const message = await response.text()
                 return Promise.reject(`Unexpected status ${response.status}: ${message}`)
@@ -180,9 +170,9 @@ export class Endpoint {
                 await this._limit.acquire()
             }
         }
-        if (this._dispatcher) {
-            await this._dispatcher.close()
-            this._dispatcher = null
+        if (this._client) {
+            await this._client.close()
+            this._client = null
         }
         this._baseUrl = null
         this._pipelineId = null
@@ -196,13 +186,16 @@ export class Endpoint {
     private async accessToken(): Promise<string> {
         const now = Date.now() / 1000;
         if (!this._token || <number>this._expire_token_time < now) {
+            if (!this._client) {
+                return Promise.reject("endpoint not connected")
+            }
+
             const body = {'secret_key': this._options.secretKey}
             const headers = {'Content-Type': 'application/json'}
             const post_url = `${this.eyepopUrl()}/authentication/token`
             this._requestLogger.debug('before POST %s', post_url)
-            const response = await fetch(post_url, {
-                method: 'POST', headers: headers, body: JSON.stringify(body), // @ts-ignore
-                dispatcher: this._dispatcher
+            const response = await this._client.fetch(post_url, {
+                method: 'POST', headers: headers, body: JSON.stringify(body)
             })
             if (response.status != 200) {
                 const message = await response.text()
