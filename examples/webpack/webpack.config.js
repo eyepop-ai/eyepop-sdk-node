@@ -13,7 +13,6 @@ module.exports = {
   resolve: {
     extensions: ['.ts', '.js', '.json', '.css'],
   },
-  target: 'web',
   plugins: [
     new HtmlWebpackPlugin({
       template: "./src/index.html"

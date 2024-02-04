@@ -9,7 +9,10 @@ async function component() {
   const element = document.createElement('div');
   endpoint = EyePopSdk.endpoint({
     popId: popId,
-    accessToken: token
+    session: {
+      accessToken: token,
+      validUntil: new Date(Date.now() + 1000 * 60)
+    }
   })
   await endpoint.connect();
   // Lodash, now imported by this script
@@ -54,34 +57,5 @@ function GetJSONFromEyePop_file(file) {
         console.log(result);
       }
       document.getElementById("timing").innerHTML = Math.floor(performance.now() - startTime) + "ms";
-      formatPre();
     });
-}
-function formatPre()
-{
-    // Grab the text content of the <pre> element
-    let preContent = document.getElementById('txt_json').textContent;
-
-    // Convert the string to a JavaScript object
-    let parsedJson = JSON.parse(preContent);
-
-    // Let the jazzing up begin!
-    jazzUpClassLabels(parsedJson);
-
-    // Convert the jazzed-up object back to a string
-    let newPreContent = JSON.stringify(parsedJson, null, 2);
-
-    // Put the newly minted, jazzed-up JSON back into the <pre> element, complete with sassy bold classLabels!
-    document.getElementById('txt_json').innerHTML = newPreContent.replace(/&quot/g,'"') //.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"(<span class=\\"bold\\">.*?<\/span>)"/g, '$1');
-}
-
-function jazzUpClassLabels(obj) {
-    for (let key in obj) {
-        if (typeof obj[key] === "object") {
-            jazzUpClassLabels(obj[key]);
-        }
-        if (key === "classLabel") {
-            obj[key] = `<span class="strong">${obj[key]}</span>`;
-        }
-    }
 }

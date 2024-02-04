@@ -1,3 +1,7 @@
+export interface Session {
+    readonly accessToken: string;
+    readonly validUntil: Date;
+}
 export interface UploadParams {
     readonly filePath?: string | undefined;
     readonly file?: File | undefined;

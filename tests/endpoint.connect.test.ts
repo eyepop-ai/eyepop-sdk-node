@@ -3,6 +3,7 @@ import {EyePopSdk} from '../src'
 import {MockServer} from 'jest-mock-server'
 import {describe, expect, test} from '@jest/globals'
 import {v4 as uuidv4} from 'uuid'
+import {Session} from "EyePopSdk/types";
 
 describe('EyePopSdk endpoint module auth and connect', () => {
     const server = new MockServer()
@@ -205,5 +206,66 @@ describe('EyePopSdk endpoint module auth and connect', () => {
         } finally {
             await endpoint.disconnect()
         }
+    })
+
+    test('EyePopSdk auth with session', async () => {
+        const authenticationRoute = server
+            .post('/authentication/token')
+            .mockImplementation((ctx) => {
+                ctx.status = 200
+                ctx.response.headers['content-type'] = 'application/json'
+                ctx.body = JSON.stringify({
+                    access_token: test_access_token,
+                    expires_in: long_token_valid_time,
+                    token_type: 'Bearer'
+                })
+            })
+
+        const popConfigRoute = server
+            .get(`/pops/${test_pop_id}/config`)
+            .mockImplementation((ctx) => {
+                ctx.status = 200
+                ctx.response.headers['content-type'] = 'application/json'
+                ctx.body = JSON.stringify({base_url: `${server.getURL()}worker/`, pipeline_id: test_pipeline_id})
+            })
+
+        server
+            .patch(`/worker/pipelines/${test_pipeline_id}/source`)
+            .mockImplementation((ctx) => {
+                ctx.status = 204
+            })
+
+        const endpoint1 = EyePopSdk.endpoint({
+            eyepopUrl: server.getURL().toString(), secretKey: test_secret_key, popId: test_pop_id, stopJobs: false
+        })
+        expect(endpoint1).toBeDefined()
+
+        let session: Session
+
+        try {
+            await endpoint1.connect()
+            session = await endpoint1.session()
+            expect(authenticationRoute).toHaveBeenCalledTimes(1)
+            expect(popConfigRoute).toHaveBeenCalledTimes(1)
+        } finally {
+            await endpoint1.disconnect()
+        }
+
+        authenticationRoute.mockClear()
+        popConfigRoute.mockClear()
+
+        const endpoint2 = EyePopSdk.endpoint({
+            eyepopUrl: server.getURL().toString(), session: session, popId: test_pop_id, stopJobs: false
+        })
+        expect(endpoint2).toBeDefined()
+
+        try {
+            await endpoint2.connect()
+            expect(authenticationRoute).toHaveBeenCalledTimes(0)
+            expect(popConfigRoute).toHaveBeenCalledTimes(1)
+        } finally {
+            await endpoint2.disconnect()
+        }
+
     })
 })

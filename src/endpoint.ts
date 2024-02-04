@@ -1,5 +1,5 @@
 import {Options} from "./options"
-import {UploadParams} from "./types"
+import {Session, UploadParams} from "./types"
 import {ResultStream, LoadFromJob, UploadJob} from "./jobs"
 import {createHttpClient, HttpClient} from './shims/http_client'
 import { Semaphore } from "./semaphore"
@@ -58,6 +58,18 @@ export class Endpoint {
         return this._popName
     }
 
+    public async session(): Promise<Session> {
+        await this.currentAccessToken()
+        if (this._token == null || this._expire_token_time == null) {
+            return Promise.reject("endpoint not connected")
+        }
+        const token = {
+            accessToken: this._token,
+            validUntil: new Date(this._expire_token_time * 1000),
+        }
+        return token
+    }
+
     public async upload(params: UploadParams): Promise<ResultStream> {
         if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
             return Promise.reject("endpoint not connected, use open() before upload()")
@@ -96,13 +108,9 @@ export class Endpoint {
         if (!this._options.popId) {
             return Promise.reject("option popId or environment variable EYEPOP_POP_ID is required")
         }
-        if (this._options.accessToken) {
-            this._token = this._options.accessToken
-            if (this._options.accessTokenExpiresIn) {
-                this._expire_token_time = (Date.now() / 1000) + this._options.accessTokenExpiresIn - 60
-            } else {
-                this._expire_token_time = (Date.now() / 1000) + 3600 - 60
-            }
+        if (this._options.session) {
+            this._token = this._options.session.accessToken
+            this._expire_token_time = this._options.session.validUntil.getTime() / 1000
         } else {
             if (!this._options.secretKey) {
                 return Promise.reject("option secretKey or environment variable EYEPOP_SECRET_KEY is required")
@@ -180,10 +188,10 @@ export class Endpoint {
     }
 
     protected async authorizationHeader(): Promise<string> {
-        return `Bearer ${await this.accessToken()}`;
+        return `Bearer ${await this.currentAccessToken()}`;
     }
 
-    private async accessToken(): Promise<string> {
+    private async currentAccessToken(): Promise<string> {
         const now = Date.now() / 1000;
         if (!this._token || <number>this._expire_token_time < now) {
             if (!this._client) {
