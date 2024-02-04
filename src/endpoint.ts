@@ -1,18 +1,16 @@
 import {Options} from "./options"
+import {Session, UploadParams} from "./types"
 import {ResultStream, LoadFromJob, UploadJob} from "./jobs"
+import {createHttpClient, HttpClient} from './shims/http_client'
+import { Semaphore } from "./semaphore"
+import {resolve} from "./shims/local_file"
 
-import { Agent, Dispatcher } from './shims/index'
-
-import {Semaphore} from 'await-semaphore'
 import {Logger, pino} from "pino"
-import * as fs from "node:fs"
-import * as stream from "node:stream"
-import * as mime from "mime-types"
-
 
 interface PopConfig {
     base_url: string;
     pipeline_id: string;
+    name: string;
 }
 
 interface AccessToken {
@@ -21,35 +19,30 @@ interface AccessToken {
     token_type: string;
 }
 
-export interface UploadParams {
-    readonly filePath?: string | undefined;
-    readonly stream?: stream.Readable | undefined;
-    readonly mimeType?: string | undefined;
-}
-
 export class Endpoint {
-    private static readonly MAX_CONNECTIONS: number = 5
-
     private _options: Options
     private _token: string | null
     private _expire_token_time: number | null
     private _baseUrl: string | null
     private _pipelineId: string | null
 
-    private _dispatcher: Dispatcher | null
+    private _popName: string | null
+
+    private _client: HttpClient | null
 
     private _limit: Semaphore | null
 
     private _logger: Logger
-    private _requestLogger: Logger
+    private readonly _requestLogger: Logger
 
     constructor(options: Options) {
         this._options = options
         this._baseUrl = null
         this._pipelineId = null
+        this._popName = null
         this._token = null
         this._expire_token_time = null
-        this._dispatcher = null
+        this._client = null
         this._limit = null
         let rootLogger
         if (options.logger) {
@@ -61,45 +54,51 @@ export class Endpoint {
         this._requestLogger = this._logger.child({module: 'requests'})
     }
 
+    public popName(): string | null {
+        return this._popName
+    }
+
+    public async session(): Promise<Session> {
+        await this.currentAccessToken()
+        if (this._token == null || this._expire_token_time == null) {
+            return Promise.reject("endpoint not connected")
+        }
+        const token = {
+            accessToken: this._token,
+            validUntil: new Date(this._expire_token_time * 1000),
+        }
+        return token
+    }
+
     public async upload(params: UploadParams): Promise<ResultStream> {
-        if (!this._baseUrl || !this._pipelineId || !this._dispatcher || !this._limit) {
+        if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
             return Promise.reject("endpoint not connected, use open() before upload()")
         }
-        let mimeType = null
-        let stream = null
-        if (params.filePath) {
-            if (params.mimeType) {
-                mimeType = params.mimeType
-            } else {
-                mimeType = mime.lookup(params.filePath)
-            }
-            stream = fs.createReadStream(params.filePath)
-        } else if (params.stream) {
-            stream = params.stream
-            mimeType = params.mimeType
-        }
-        if (!mimeType) {
+
+        params = await resolve(params)
+        if (!params.mimeType) {
             return Promise.reject("upload for streams requires a mimeType")
         }
-        let release = await this._limit.acquire()
-        const job = new UploadJob(stream, mimeType, this._baseUrl, this._pipelineId, await this.authorizationHeader(),
-            this._dispatcher, this._requestLogger)
-        return job.start(release)
+
+        await this._limit.acquire()
+        const job = new UploadJob(params.file, params.mimeType, this._baseUrl, this._pipelineId,
+            await this.authorizationHeader(), this._client, this._requestLogger)
+        return job.start(() => { this._limit?.release() })
     }
 
     public async loadFrom(location: string): Promise<ResultStream> {
-        if (!this._baseUrl || !this._pipelineId || !this._dispatcher || !this._limit) {
+        if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
             throw new Error("endpoint not connected, use open() before loadFrom()")
         }
-        const release = await this._limit.acquire()
+        await this._limit.acquire()
         const job = new LoadFromJob(location, this._baseUrl, this._pipelineId, await this.authorizationHeader(),
-            this._dispatcher, this._requestLogger)
-        return job.start(release)
+            this._client, this._requestLogger)
+        return job.start(() => { this._limit?.release() })
     }
 
     // noinspection TypeScriptValidateTypes
     public async connect(): Promise<Endpoint> {
-        if (this._dispatcher) {
+        if (this._client) {
             console.info('endpoint already connected')
             return this
         }
@@ -109,17 +108,16 @@ export class Endpoint {
         if (!this._options.popId) {
             return Promise.reject("option popId or environment variable EYEPOP_POP_ID is required")
         }
-        if (!this._options.secretKey) {
-            return Promise.reject("option secretKey or environment variable EYEPOP_SECRET_KEY is required")
+        if (this._options.session) {
+            this._token = this._options.session.accessToken
+            this._expire_token_time = this._options.session.validUntil.getTime() / 1000
+        } else {
+            if (!this._options.secretKey) {
+                return Promise.reject("option secretKey or environment variable EYEPOP_SECRET_KEY is required")
+            }
         }
 
-        this._dispatcher = new Agent({
-            keepAliveTimeout: 10000,
-            pipelining: 100,
-            maxConcurrentStreams: 100,
-            maxCachedSessions: 100,
-            connections: Endpoint.MAX_CONNECTIONS
-        })
+        this._client = await createHttpClient()
 
         // @ts-ignore
         this._limit = new Semaphore(this._options.jobQueueLength)
@@ -129,7 +127,7 @@ export class Endpoint {
             'Authorization': await this.authorizationHeader()
         }
         this._requestLogger.debug('before GET %s', config_url)
-        let response = await fetch(config_url, {headers: headers})
+        let response = await this._client.fetch(config_url, {headers: headers})
         if (response.status == 401) {
             this._requestLogger.debug('after GET %s: 401, about to retry with fresh access token', config_url)
             // one retry, the token might have just expired
@@ -137,9 +135,8 @@ export class Endpoint {
             const headers = {
                 'Authorization': await this.authorizationHeader()
             }
-            response = await fetch(config_url, {
+            response = await this._client.fetch(config_url, {
                 headers: headers, // @ts-ignore
-                dispatcher: this._dispatcher
             })
         }
         if (response.status != 200) {
@@ -150,6 +147,7 @@ export class Endpoint {
         const config: PopConfig = data as PopConfig
         this._baseUrl = config.base_url;
         this._pipelineId = config.pipeline_id;
+        this._popName = config.name;
         this._requestLogger.debug('after GET %s: %s / %s', config_url, this._baseUrl, this._pipelineId)
         if (!this._pipelineId || !this._baseUrl) {
             return Promise.reject(`Pop not started`)
@@ -163,7 +161,7 @@ export class Endpoint {
                 'Authorization': await this.authorizationHeader(), 'Content-Type': 'application/json'
             }
             this._requestLogger.debug('before PATCH %s', stop_url)
-            let response = await fetch(stop_url, {method: 'PATCH', headers: headers, body: JSON.stringify(body)})
+            let response = await this._client.fetch(stop_url, {method: 'PATCH', headers: headers, body: JSON.stringify(body)})
             if (response.status >= 300) {
                 const message = await response.text()
                 return Promise.reject(`Unexpected status ${response.status}: ${message}`)
@@ -176,13 +174,13 @@ export class Endpoint {
     public async disconnect(wait: boolean = true): Promise<void> {
         if (wait && this._limit) {
             // @ts-ignore
-            for (let i = 0; i < this._options.jobQueueLength; i++) {
+            for (let j = 0; j < this._options.jobQueueLength; j++) {
                 await this._limit.acquire()
             }
         }
-        if (this._dispatcher) {
-            await this._dispatcher.close()
-            this._dispatcher = null
+        if (this._client) {
+            await this._client.close()
+            this._client = null
         }
         this._baseUrl = null
         this._pipelineId = null
@@ -190,19 +188,24 @@ export class Endpoint {
     }
 
     protected async authorizationHeader(): Promise<string> {
-        return `Bearer ${await this.accessToken()}`;
+        return `Bearer ${await this.currentAccessToken()}`;
     }
 
-    private async accessToken(): Promise<string> {
+    private async currentAccessToken(): Promise<string> {
         const now = Date.now() / 1000;
         if (!this._token || <number>this._expire_token_time < now) {
+            if (!this._client) {
+                return Promise.reject("endpoint not connected")
+            } else if (!this._options.secretKey) {
+                return Promise.reject("temporary access token expired")
+            }
+
             const body = {'secret_key': this._options.secretKey}
             const headers = {'Content-Type': 'application/json'}
             const post_url = `${this.eyepopUrl()}/authentication/token`
             this._requestLogger.debug('before POST %s', post_url)
-            const response = await fetch(post_url, {
-                method: 'POST', headers: headers, body: JSON.stringify(body), // @ts-ignore
-                dispatcher: this._dispatcher
+            const response = await this._client.fetch(post_url, {
+                method: 'POST', headers: headers, body: JSON.stringify(body)
             })
             if (response.status != 200) {
                 const message = await response.text()

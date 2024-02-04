@@ -269,15 +269,6 @@ class LineDecoder {
   }
 }
 
-function partition(str: string, delimiter: string): [string, string, string] {
-  const index = str.indexOf(delimiter);
-  if (index !== -1) {
-    return [str.substring(0, index), delimiter, str.substring(index + delimiter.length)];
-  }
-
-  return [str, '', ''];
-}
-
 /**
  * Most browsers don't yet have async iterable support for ReadableStream,
  * and Node has a very different way of reading bytes from its "ReadableStream".

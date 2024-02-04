@@ -1,3 +1,13 @@
+export interface Session {
+    readonly accessToken: string;
+    readonly validUntil: Date;
+}
+export interface UploadParams {
+    readonly filePath?: string | undefined;
+    readonly file?: File | undefined;
+    readonly mimeType?: string | undefined;
+}
+
 export interface Prediction {
     timestamp: number
     seconds: number

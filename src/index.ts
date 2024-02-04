@@ -6,6 +6,7 @@ import {CanvasRenderingContext2D} from "canvas";
 export class EyePopSdk {
   public static endpoint({
       secretKey = readEnv('EYEPOP_SECRET_KEY'),
+      session = undefined,
       popId = readEnv('EYEPOP_POP_ID'),
       eyepopUrl = readEnv('EYEPOP_URL'),
       autoStart = true,
@@ -16,6 +17,7 @@ export class EyePopSdk {
   }: Options = {}): Endpoint {
       const options: Options = {
           secretKey: secretKey,
+          session: session,
           popId : popId,
           eyepopUrl: eyepopUrl ?? 'https://api.eyepop.ai',
           autoStart: autoStart,

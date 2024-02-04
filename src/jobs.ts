@@ -1,6 +1,7 @@
 import {Prediction} from "./types"
 import {Stream} from "./streaming"
-import {Dispatcher} from 'undici'
+import {HttpClient} from './shims/http_client'
+
 import {Logger} from "pino"
 
 export interface ResultStream extends AsyncIterable<Prediction> {
@@ -15,7 +16,7 @@ export class AbstractJob implements ResultStream {
     protected _responseStream: Promise<ReadableStream<Uint8Array>> | null = null
     protected _controller: AbortController = new AbortController()
 
-    protected _dispatcher: Dispatcher
+    protected _client: HttpClient
 
     protected _requestLogger: Logger
 
@@ -26,16 +27,16 @@ export class AbstractJob implements ResultStream {
         return Stream.iterFromReadableStream(this._responseStream, this._controller)
     }
 
-    protected constructor(baseUrl: string, pipelineId: string, authorizationHeader: string, dispatcher: Dispatcher, requestLogger: Logger) {
+    protected constructor(baseUrl: string, pipelineId: string, authorizationHeader: string, client: HttpClient, requestLogger: Logger) {
         this._baseUrl = baseUrl.replace(/\/+$/, "")
         this._pipelineId = pipelineId
         this._authorizationHeader = authorizationHeader
-        this._dispatcher = dispatcher
+        this._client = client
         this._requestLogger = requestLogger
         this.i = AbstractJob.n++
     }
 
-    protected async _fetch(): Promise<Response> {
+    protected async startJob(): Promise<Response> {
         return Promise.reject("abstract class")
     }
 
@@ -44,7 +45,7 @@ export class AbstractJob implements ResultStream {
 
     public start(done: () => void): AbstractJob {
         this._responseStream = new Promise<ReadableStream<Uint8Array>>((resolve, reject) => {
-            const request = this._fetch()
+            const request = this.startJob()
             request.then(response => {
                 if (response.status != 200) {
                     reject(`upload error ${response.status}: ${response.text()}`)
@@ -68,26 +69,26 @@ export class AbstractJob implements ResultStream {
 }
 
 export class UploadJob extends AbstractJob {
-    private _uploadStream: ReadableStream<Uint8Array>
-    private _mimeType: string
+    private readonly _uploadStream: ReadableStream<Uint8Array>
+    private readonly  _mimeType: string
 
     get [Symbol.toStringTag](): string {
         return 'uploadJob'
     }
 
-    constructor(stream: any, mimeType: string, baseUrl: string, pipelineId: string, authorizationHeader: string, dispatcher: Dispatcher, requestLogger: Logger) {
-        super(baseUrl, pipelineId, authorizationHeader, dispatcher, requestLogger)
+    constructor(stream: any, mimeType: string, baseUrl: string, pipelineId: string, authorizationHeader: string, client: HttpClient, requestLogger: Logger) {
+        super(baseUrl, pipelineId, authorizationHeader, client, requestLogger)
         this._uploadStream = stream
         this._mimeType = mimeType
     }
 
-    protected override async _fetch(): Promise<Response> {
+    protected override async startJob(): Promise<Response> {
         const headers = {
             'Authorization': this._authorizationHeader, 'Accept': 'application/jsonl', 'Content-Type': this._mimeType
         }
         const postUrl: string = `${this._baseUrl}/pipelines/${this._pipelineId}/source?mode=queue&processing=sync`
         this._requestLogger.debug("before POST %s with stream as body")
-        const response = await fetch(postUrl, {
+        const response = await this._client.fetch(postUrl, {
             headers: headers, method: 'POST', body: this._uploadStream, signal: this._controller.signal, // @ts-ignore
             'duplex': 'half', dispatcher: this._dispatcher
         })
@@ -97,10 +98,10 @@ export class UploadJob extends AbstractJob {
 }
 
 export class LoadFromJob extends AbstractJob {
-    private _location: string;
+    private readonly _location: string;
 
-    constructor(location: string, baseUrl: string, pipelineId: string, authorizationHeader: string, dispatcher: Dispatcher, requestLogger: Logger) {
-        super(baseUrl, pipelineId, authorizationHeader, dispatcher, requestLogger)
+    constructor(location: string, baseUrl: string, pipelineId: string, authorizationHeader: string, client: HttpClient, requestLogger: Logger) {
+        super(baseUrl, pipelineId, authorizationHeader, client, requestLogger)
         this._location = location
     }
 
@@ -108,7 +109,7 @@ export class LoadFromJob extends AbstractJob {
         return 'loadFromJob'
     }
 
-    protected override async _fetch(): Promise<Response> {
+    protected override async startJob(): Promise<Response> {
         const headers = {
             'Authorization': this._authorizationHeader,
             'Accept': 'application/jsonl',
@@ -120,7 +121,7 @@ export class LoadFromJob extends AbstractJob {
 
         const postUrl: string = `${this._baseUrl}/pipelines/${this._pipelineId}/source?mode=queue&processing=sync`
         this._requestLogger.debug("before PATCH %s with url %s as source", postUrl, this._location)
-        const response = await fetch(postUrl, {
+        const response = await this._client.fetch(postUrl, {
             headers: headers,
             method: 'PATCH',
             body: JSON.stringify(body),
