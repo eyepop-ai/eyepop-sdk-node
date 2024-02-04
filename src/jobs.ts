@@ -1,7 +1,8 @@
 import {Prediction} from "./types"
 import {Stream} from "./streaming"
-import {Logger} from "pino"
 import {HttpClient} from './shims/http_client'
+
+import {Logger} from "pino"
 
 export interface ResultStream extends AsyncIterable<Prediction> {
     cancel(): void

@@ -1,17 +1,16 @@
 import {Options} from "./options"
+import {UploadParams} from "./types"
 import {ResultStream, LoadFromJob, UploadJob} from "./jobs"
 import {createHttpClient, HttpClient} from './shims/http_client'
+import { Semaphore } from "./semaphore"
+import {resolve} from "./shims/local_file"
 
-import {Semaphore} from 'await-semaphore'
 import {Logger, pino} from "pino"
-import * as fs from "node:fs"
-import * as stream from "node:stream"
-import * as mime from "mime-types"
-
 
 interface PopConfig {
     base_url: string;
     pipeline_id: string;
+    name: string;
 }
 
 interface AccessToken {
@@ -20,18 +19,14 @@ interface AccessToken {
     token_type: string;
 }
 
-export interface UploadParams {
-    readonly filePath?: string | undefined;
-    readonly stream?: stream.Readable | undefined;
-    readonly mimeType?: string | undefined;
-}
-
 export class Endpoint {
     private _options: Options
     private _token: string | null
     private _expire_token_time: number | null
     private _baseUrl: string | null
     private _pipelineId: string | null
+
+    private _popName: string | null
 
     private _client: HttpClient | null
 
@@ -44,6 +39,7 @@ export class Endpoint {
         this._options = options
         this._baseUrl = null
         this._pipelineId = null
+        this._popName = null
         this._token = null
         this._expire_token_time = null
         this._client = null
@@ -58,40 +54,34 @@ export class Endpoint {
         this._requestLogger = this._logger.child({module: 'requests'})
     }
 
+    public popName(): string | null {
+        return this._popName
+    }
+
     public async upload(params: UploadParams): Promise<ResultStream> {
         if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
             return Promise.reject("endpoint not connected, use open() before upload()")
         }
-        let mimeType = null
-        let stream = null
-        if (params.filePath) {
-            if (params.mimeType) {
-                mimeType = params.mimeType
-            } else {
-                mimeType = mime.lookup(params.filePath)
-            }
-            stream = fs.createReadStream(params.filePath)
-        } else if (params.stream) {
-            stream = params.stream
-            mimeType = params.mimeType
-        }
-        if (!mimeType) {
+
+        params = await resolve(params)
+        if (!params.mimeType) {
             return Promise.reject("upload for streams requires a mimeType")
         }
-        let release = await this._limit.acquire()
-        const job = new UploadJob(stream, mimeType, this._baseUrl, this._pipelineId, await this.authorizationHeader(),
-            this._client, this._requestLogger)
-        return job.start(release)
+
+        await this._limit.acquire()
+        const job = new UploadJob(params.file, params.mimeType, this._baseUrl, this._pipelineId,
+            await this.authorizationHeader(), this._client, this._requestLogger)
+        return job.start(() => { this._limit?.release() })
     }
 
     public async loadFrom(location: string): Promise<ResultStream> {
         if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
             throw new Error("endpoint not connected, use open() before loadFrom()")
         }
-        const release = await this._limit.acquire()
+        await this._limit.acquire()
         const job = new LoadFromJob(location, this._baseUrl, this._pipelineId, await this.authorizationHeader(),
             this._client, this._requestLogger)
-        return job.start(release)
+        return job.start(() => { this._limit?.release() })
     }
 
     // noinspection TypeScriptValidateTypes
@@ -106,8 +96,17 @@ export class Endpoint {
         if (!this._options.popId) {
             return Promise.reject("option popId or environment variable EYEPOP_POP_ID is required")
         }
-        if (!this._options.secretKey) {
-            return Promise.reject("option secretKey or environment variable EYEPOP_SECRET_KEY is required")
+        if (this._options.accessToken) {
+            this._token = this._options.accessToken
+            if (this._options.accessTokenExpiresIn) {
+                this._expire_token_time = (Date.now() / 1000) + this._options.accessTokenExpiresIn - 60
+            } else {
+                this._expire_token_time = (Date.now() / 1000) + 3600 - 60
+            }
+        } else {
+            if (!this._options.secretKey) {
+                return Promise.reject("option secretKey or environment variable EYEPOP_SECRET_KEY is required")
+            }
         }
 
         this._client = await createHttpClient()
@@ -140,6 +139,7 @@ export class Endpoint {
         const config: PopConfig = data as PopConfig
         this._baseUrl = config.base_url;
         this._pipelineId = config.pipeline_id;
+        this._popName = config.name;
         this._requestLogger.debug('after GET %s: %s / %s', config_url, this._baseUrl, this._pipelineId)
         if (!this._pipelineId || !this._baseUrl) {
             return Promise.reject(`Pop not started`)
@@ -166,7 +166,7 @@ export class Endpoint {
     public async disconnect(wait: boolean = true): Promise<void> {
         if (wait && this._limit) {
             // @ts-ignore
-            for (let i = 0; i < this._options.jobQueueLength; i++) {
+            for (let j = 0; j < this._options.jobQueueLength; j++) {
                 await this._limit.acquire()
             }
         }
@@ -188,6 +188,8 @@ export class Endpoint {
         if (!this._token || <number>this._expire_token_time < now) {
             if (!this._client) {
                 return Promise.reject("endpoint not connected")
+            } else if (!this._options.secretKey) {
+                return Promise.reject("temporary access token expired")
             }
 
             const body = {'secret_key': this._options.secretKey}

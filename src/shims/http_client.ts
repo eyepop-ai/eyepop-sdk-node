@@ -7,7 +7,22 @@ export interface HttpClient {
 export let createHttpClient: () => Promise<HttpClient>
 
 if ('document' in globalThis && 'implementation' in globalThis.document) {
-    throw new DOMException("browser not supported")
+    class HttpClient {
+        constructor() {
+        }
+
+        public async fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+            return fetch(input, init)
+        }
+
+        public async close(): Promise<void> {
+
+        }
+    }
+
+    createHttpClient = async () => {
+        return new HttpClient()
+    }
 } else {
     class HttpClient {
         private readonly agent: any
