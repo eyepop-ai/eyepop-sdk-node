@@ -1,5 +1,5 @@
 import {CanvasRenderingContext2D} from "canvas"
-import {PredictedObject, Prediction} from "EyePopSdk/types";
+import {PredictedObject, Prediction} from "./types";
 
 export class EyePopPlot {
     private _context: CanvasRenderingContext2D
@@ -24,18 +24,21 @@ export class EyePopPlot {
 
     public prediction(p: Prediction) {
         if (p && p.objects) {
+            const x_scale = this._context.canvas.width / p.source_width
+            const y_scale = this._context.canvas.height / p.source_height
+
             for (let i = 0; i < p.objects.length; i++) {
-                this.object(p.objects[i])
+                this.object(p.objects[i], x_scale, y_scale)
             }
         }
     }
 
-    public object(obj: PredictedObject) {
+    public object(obj: PredictedObject, x_scale: number, y_scale: number) {
         const context = this._context
-        const x = obj.x
-        const y = obj.y
-        const w = obj.width
-        const h = obj.height
+        const x = obj.x * x_scale
+        const y = obj.y * y_scale
+        const w = obj.width * x_scale
+        const h = obj.height * y_scale
 
 
         //faded blue background

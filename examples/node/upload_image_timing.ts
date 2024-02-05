@@ -1,4 +1,4 @@
-import {EyePopSdk} from '../src'
+import {EyePopSdk} from '@eyepop.ai/eyepop'
 import process from 'process'
 
 async function upload_photos_sequentially(image_paths: Array<string>) {
@@ -23,7 +23,7 @@ async function upload_photos_parallel(image_paths: Array<string>) {
                 for await (let result of results) {
                     // console.log(result)
                 }
-            }).catch((reason) => {
+            }).catch((reason:any) => {
                 throw reason
             })
         }

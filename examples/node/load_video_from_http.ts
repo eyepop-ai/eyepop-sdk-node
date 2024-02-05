@@ -1,4 +1,4 @@
-import {EyePopSdk} from '../src'
+import {EyePopSdk} from '@eyepop.ai/eyepop'
 
 
 async function load_video_from_url(video_url: string, seconds: number) {

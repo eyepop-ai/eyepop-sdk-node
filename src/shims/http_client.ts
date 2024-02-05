@@ -43,7 +43,7 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
     }
 
     createHttpClient = async () => {
-        const undici = await import('undici')
+        const undici = require('undici')
         const agent = new undici.Agent({
             keepAliveTimeout: 10000,
             connections: 5

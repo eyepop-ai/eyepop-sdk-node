@@ -1,20 +1,25 @@
-import {EyePopSdk} from '@eyepop.ai/eyepop';
+console.log("Hello EyePop");
 
 let endpoint = undefined;
 let context = undefined;
-
-const popNameElement = document.getElementById("pop-name");
-const uploadButton = document.getElementById('file-upload');
-const imagePreview = document.getElementById('image-preview');
-const resultOverlay = document.getElementById('result-overlay');
-const timingSpan = document.getElementById("timing");
-const resultSpan = document.getElementById('txt_json');
-
+let popNameElement = undefined;
+let uploadButton = undefined;
+let imagePreview = undefined;
+let resultOverlay = undefined;
+let timingSpan = undefined;
+let resultSpan = undefined;
 
 async function setup() {
-    const session = await (await fetch("eyepop-session.json")).json()
+    popNameElement = document.getElementById("pop-name");
+    uploadButton = document.getElementById('file-upload');
+    imagePreview = document.getElementById('image-preview');
+    resultOverlay = document.getElementById('result-overlay');
+    timingSpan = document.getElementById("timing");
+    resultSpan = document.getElementById('txt_json');
+
     endpoint = EyePopSdk.endpoint({
-        session: session,
+        auth: { oAuth: true },
+        popId: '<YOUR POP ID>'
     })
     endpoint.onStateChanged((from, to) => {
        console.log("Endpoint state transition from " + from + " to " + to);
@@ -26,7 +31,6 @@ async function setup() {
 
     context = resultOverlay.getContext("2d");
 }
-
 async function upload(event) {
     const file = event.target.files[0];
     const reader = new FileReader();
@@ -40,17 +44,19 @@ async function upload(event) {
     const startTime = performance.now();
     timingSpan.innerHTML = "__ms";
     resultSpan.innerHTML = "<span class='text-muted'>processing</a>";
-    context.clearRect(0,0,resultOverlay.width, resultOverlay.height);
+
     endpoint.upload({file: file}).then(async (results) => {
         for await (let result of results) {
             resultSpan.textContent = JSON.stringify(result, " ", 2);
             resultOverlay.width = result.source_width;
             resultOverlay.height = result.source_height;
             context.clearRect(0,0,resultOverlay.width, resultOverlay.height);
-            EyePopSdk.plot.prediction(result);
+            EyePopSdk.plot(context).prediction(result);
         }
         timingSpan.innerHTML = Math.floor(performance.now() - startTime) + "ms";
     });
 }
 
-await setup();
+document.addEventListener("DOMContentLoaded", async (event) => {
+    await setup();
+});
