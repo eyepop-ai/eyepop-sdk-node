@@ -27,8 +27,8 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
             return params
         }
 
-        const mime = await import('mime-types')
-        const fs = await import('node:fs')
+        const mime = require('mime-types')
+        const fs = require('node:fs')
 
         let mimeType: string | undefined
         let stream: any | undefined

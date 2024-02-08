@@ -64,7 +64,7 @@ describe('EyePopSdk endpoint module upload', () => {
 
         const endpoint = EyePopSdk.endpoint({
             eyepopUrl: server.getURL().toString(),
-            secretKey: test_secret_key,
+            auth: {secretKey: test_secret_key},
             popId: test_pop_id,
             stopJobs: false
         })

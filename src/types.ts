@@ -1,7 +1,24 @@
 export interface Session {
+    readonly eyepopUrl: string;
+    readonly popId: string;
     readonly accessToken: string;
-    readonly validUntil: Date;
+    readonly validUntil: number;
 }
+
+export interface SessionPlus extends Session {
+    readonly baseUrl: string;
+    readonly pipelineId: string;
+}
+
+export enum EndpointState {
+    Idle = "Idle",
+    Busy = "Busy",
+    Authenticating = "Authenticating",
+    FetchConfig = "FetchConfig",
+    StartingPop = "StartingPop",
+    Error = "Error"
+}
+
 export interface UploadParams {
     readonly filePath?: string | undefined;
     readonly file?: File | undefined;

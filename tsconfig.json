@@ -10,7 +10,7 @@
     "module": "esnext",
     "moduleResolution": "node",
     "esModuleInterop": true,
-    "baseUrl": "./",
+    "baseUrl": ".",
     "paths": {
       "EyePopSdk/*": ["src/*"],
       "EyePopSdk": ["src/index.ts"]

@@ -1,4 +1,4 @@
-import {Prediction} from "./types"
+import {Prediction, SessionPlus} from "./types"
 import {Stream} from "./streaming"
 import {HttpClient} from './shims/http_client'
 
@@ -9,9 +9,7 @@ export interface ResultStream extends AsyncIterable<Prediction> {
 }
 
 export class AbstractJob implements ResultStream {
-    protected _baseUrl: string
-    protected _pipelineId: string
-    protected _authorizationHeader: string
+    protected _getSession: () => Promise<SessionPlus>
 
     protected _responseStream: Promise<ReadableStream<Uint8Array>> | null = null
     protected _controller: AbortController = new AbortController()
@@ -27,13 +25,10 @@ export class AbstractJob implements ResultStream {
         return Stream.iterFromReadableStream(this._responseStream, this._controller)
     }
 
-    protected constructor(baseUrl: string, pipelineId: string, authorizationHeader: string, client: HttpClient, requestLogger: Logger) {
-        this._baseUrl = baseUrl.replace(/\/+$/, "")
-        this._pipelineId = pipelineId
-        this._authorizationHeader = authorizationHeader
+    protected constructor(getSession: () => Promise<SessionPlus>, client: HttpClient, requestLogger: Logger) {
+        this._getSession = getSession
         this._client = client
         this._requestLogger = requestLogger
-        this.i = AbstractJob.n++
     }
 
     protected async startJob(): Promise<Response> {
@@ -41,24 +36,56 @@ export class AbstractJob implements ResultStream {
     }
 
     static n: number = 0
-    private i: number
 
-    public start(done: () => void): AbstractJob {
-        this._responseStream = new Promise<ReadableStream<Uint8Array>>((resolve, reject) => {
-            const request = this.startJob()
-            request.then(response => {
-                if (response.status != 200) {
-                    reject(`upload error ${response.status}: ${response.text()}`)
-                } else if (!response.body) {
-                    reject(`response body is empty`)
-                } else {
-                    resolve(response.body)
+    public start(done: () => void, status: (statusCode:number) => void): AbstractJob {
+        this._responseStream = new Promise<ReadableStream<Uint8Array>>(async (resolve, reject) => {
+            try {
+                let retries = 1
+                while (true) {
+                    try {
+                        const response = await this.startJob()
+                        if (response.status == 401) {
+                            status(response.status)
+                            if (retries--) {
+                                this._requestLogger.info('received 401 response, attempt to reauthorize once')
+                            } else {
+                                reject(`response ${response.status}: ${response.statusText}`)
+                                break
+                            }
+                        } else if (response.status == 404) {
+                            status(response.status)
+                            if (retries--) {
+                                this._requestLogger.info('received 404 response, attempt to restart pop')
+                            } else {
+                                reject(`response ${response.status}: ${response.statusText}`)
+                                break
+                            }
+                        } else if (response.status != 200) {
+                            reject(`upload error ${response.status}: ${await response.text()}`)
+                            break
+                        } else if (!response.body) {
+                            reject(`response body is empty`)
+                            break
+                        } else {
+                            resolve(response.body)
+                            break
+                        }
+                    } catch (error) {
+                        if (retries--) {
+                            this._requestLogger.info('unknown, attempt to restart pop (as if we received 404)', error)
+                            status(404)
+                        } else {
+                            status(500)
+                            reject(error)
+                            break
+                        }
+                    }
                 }
-            }).catch(reason => {
+            } catch(reason) {
                 reject(reason)
-            }).finally(() => {
+            } finally {
                 done()
-            })
+            }
         })
         return this
     }
@@ -76,17 +103,18 @@ export class UploadJob extends AbstractJob {
         return 'uploadJob'
     }
 
-    constructor(stream: any, mimeType: string, baseUrl: string, pipelineId: string, authorizationHeader: string, client: HttpClient, requestLogger: Logger) {
-        super(baseUrl, pipelineId, authorizationHeader, client, requestLogger)
+    constructor(stream: any, mimeType: string, getSession: () => Promise<SessionPlus>, client: HttpClient, requestLogger: Logger) {
+        super(getSession, client, requestLogger)
         this._uploadStream = stream
         this._mimeType = mimeType
     }
 
     protected override async startJob(): Promise<Response> {
+        const session = await this._getSession()
         const headers = {
-            'Authorization': this._authorizationHeader, 'Accept': 'application/jsonl', 'Content-Type': this._mimeType
+            'Authorization': `Bearer ${session.accessToken}`, 'Accept': 'application/jsonl', 'Content-Type': this._mimeType
         }
-        const postUrl: string = `${this._baseUrl}/pipelines/${this._pipelineId}/source?mode=queue&processing=sync`
+        const postUrl: string = `${session.baseUrl.replace(/\/+$/, "")}/pipelines/${session.pipelineId}/source?mode=queue&processing=sync`
         this._requestLogger.debug("before POST %s with stream as body")
         const response = await this._client.fetch(postUrl, {
             headers: headers, method: 'POST', body: this._uploadStream, signal: this._controller.signal, // @ts-ignore
@@ -100,8 +128,8 @@ export class UploadJob extends AbstractJob {
 export class LoadFromJob extends AbstractJob {
     private readonly _location: string;
 
-    constructor(location: string, baseUrl: string, pipelineId: string, authorizationHeader: string, client: HttpClient, requestLogger: Logger) {
-        super(baseUrl, pipelineId, authorizationHeader, client, requestLogger)
+    constructor(location: string, getSession: () => Promise<SessionPlus>, client: HttpClient, requestLogger: Logger) {
+        super(getSession, client, requestLogger)
         this._location = location
     }
 
@@ -110,25 +138,25 @@ export class LoadFromJob extends AbstractJob {
     }
 
     protected override async startJob(): Promise<Response> {
-        const headers = {
-            'Authorization': this._authorizationHeader,
-            'Accept': 'application/jsonl',
-            'Content-Type': 'application/json'
-        }
         const body = {
             'sourceType': 'URL', 'url': this._location
         }
-
-        const postUrl: string = `${this._baseUrl}/pipelines/${this._pipelineId}/source?mode=queue&processing=sync`
-        this._requestLogger.debug("before PATCH %s with url %s as source", postUrl, this._location)
-        const response = await this._client.fetch(postUrl, {
+        const session = await this._getSession()
+        const headers = {
+            'Authorization': `Bearer ${session.accessToken}`,
+            'Accept': 'application/jsonl',
+            'Content-Type': 'application/json'
+        }
+        const patchUrl: string = `${session.baseUrl.replace(/\/+$/, "")}/pipelines/${session.pipelineId}/source?mode=queue&processing=sync`
+        this._requestLogger.debug("before PATCH %s with url %s as source", patchUrl, this._location)
+        const response = await this._client.fetch(patchUrl, {
             headers: headers,
             method: 'PATCH',
             body: JSON.stringify(body),
             signal: this._controller.signal, // @ts-ignore
             dispatcher: this._dispatcher
         })
-        this._requestLogger.debug("after PATCH %s with url %s as source", postUrl, this._location)
+        this._requestLogger.debug("after PATCH %s with url %s as source", patchUrl, this._location)
         return response
 
     }
