@@ -1,7 +1,7 @@
-import {SessionPlus} from "EyePopSdk/types";
-import {HttpClient} from "EyePopSdk/shims/http_client";
+import {SessionPlus} from "./types";
+import {HttpClient} from "./shims/http_client";
 import {Logger} from "pino";
-import {Whip} from "EyePopSdk/whip";
+import {Whip} from "./whip";
 
 
 interface OfferData {

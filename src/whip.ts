@@ -1,8 +1,8 @@
 import {v4 as uuidv4} from 'uuid';
 import {LiveIngress, SessionPlus} from "./types";
-import {HttpClient} from "EyePopSdk/shims/http_client";
+import {HttpClient} from "./shims/http_client";
 import {Logger} from "pino";
-import {WebRtcBase} from "EyePopSdk/web_rtc_base";
+import {WebRtcBase} from "./web_rtc_base";
 
 export class Whip extends WebRtcBase implements LiveIngress {
     private _ingressId: string
