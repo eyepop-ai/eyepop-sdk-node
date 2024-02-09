@@ -19,6 +19,15 @@ export enum EndpointState {
     Error = "Error"
 }
 
+export interface LiveIngress {
+    ingressId(): string
+    close(): Promise<void>
+}
+export interface IngressEvent {
+    readonly ingressId?: string
+    readonly event?: "stream-ready" | "stream-ready"
+}
+
 export interface UploadParams {
     readonly filePath?: string | undefined;
     readonly file?: File | undefined;
@@ -80,4 +89,8 @@ export interface PredictedKeyPoints {
 }
 
 export interface PredictedKeyPoint extends Point3d, PredictedClass {
+}
+
+export interface ResultStream extends AsyncIterable<Prediction> {
+    cancel(): void
 }
