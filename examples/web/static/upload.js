@@ -17,14 +17,15 @@ async function setup() {
     timingSpan = document.getElementById("timing");
     resultSpan = document.getElementById('txt_json');
 
-    endpoint = EyePopSdk.endpoint({
+    endpoint = await EyePopSdk.endpoint({
         auth: { oAuth: true },
-        popId: '<YOUR POP ID>'
-    })
-    endpoint.onStateChanged((from, to) => {
+        popId: '09ff30fb09224fe19b2cb11fa3bdccf1'
+    }).onStateChanged((from, to) => {
        console.log("Endpoint state transition from " + from + " to " + to);
-    });
-    await endpoint.connect();
+    }).onIngressEvent((ingressEvent) => {
+       console.log(ingressEvent);
+    }).connect();
+
     popNameElement.innerHTML = endpoint.popName();
     uploadButton.disabled = false;
     uploadButton.addEventListener('change', upload);

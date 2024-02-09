@@ -33,7 +33,7 @@ export class EyePopPlot {
         }
     }
 
-    public object(obj: PredictedObject, x_scale: number, y_scale: number) {
+    public object(obj: PredictedObject, x_scale: number = 1.0, y_scale: number = 1.0) {
         const context = this._context
         const x = obj.x * x_scale
         const y = obj.y * y_scale

@@ -6,21 +6,62 @@ TypeScript or JavaScript language.
 npm install --save eyepop
 ```
 ## Configuration
-The EyePop SDK needs to be configured with the __Pop Id__ and your __Secret Api Key__. 
+The EyePop SDK needs to be configured with the __Pop Id__ and your __Authentication Credentials__. Credentials can 
+be provided as:
+1. __Api Key__, server side only because this key must be kept secret
+2. __Session generated from Api Key__, server side generated session transported to client over trusted channel
+3. __Current Browser Session__, for developer running client code in the same browser session loghed into their EyePop Dashboard.
+### Authentication with Api Key
 ```typescript
 import { EyePopSdk } from '@eyepop.ai/eyepop'
 (async() => {
-    const endpoint = EyePopSdk.endpoint(
-        // This is the default and can be omitted
-        pop_id=process.env['EYEPOP_POP_ID'], 
-        // This is the default and can be omitted
-        secret_key=process.env['EYEPOP_SECRET_KEY'],
-    )
-    await endpoint.connect()
+    const endpoint = await EyePopSdk.endpoint().connect()
     // do work ....
     await endpoint.disconnect()
 })
 ```
+### Authentication with session generated from Api Key
+#### Server Side
+```javascript
+import { EyePopSdk } from '@eyepop.ai/eyepop'
+const getSession = async function (req, res) {
+    const endpoint = await EyePopSdk.endpoint().connect();
+    res.setHeader("Content-Type", "application/json");
+    res.writeHead(200);
+    res.end(JSON.stringify(await endpoint.session()));
+};
+const server = http.createServer(getSession);
+server.listen(8080, '127.0.0.1');
+```
+#### Client Side 
+```javascript
+import { EyePopSdk } from '@eyepop.ai/eyepop'
+(async() => {
+    const session = await (await fetch("http://127.0.0.1:8080")).json();
+    const endpoint = await EyePopSdk.endpoint({ session: session }).connect();
+    // do work ....
+    await endpoint.disconnect();
+});
+```
+### Authentication with Current Browser Session
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="https://cdn.jsdelivr.net/npm/@eyepop.ai/eyepop/dist/eyepop.min.js"></script>
+</head>
+<body>
+<script>
+    document.addEventListener("DOMContentLoaded", async (event) => {
+        let endpoint = await EyePopSdk.endpoint({ auth: { oAuth: true }, popId: '< Pop Id>' }).connect();
+        // do work ....
+        await endpoint.disconnect();
+    });
+</script>
+</body>
+```
+### Configuration via Environment (Server Side)
 While you can provide a secret_key keyword argument, we recommend using dotenv to add EYEPOP_SECRET_KEY="My API Key" 
 to your .env file so that your API Key is not stored in source control. By default, the SDK will read the following environment variables:
 * `EYEPOP_POP_ID`: The Pop Id to use as an endpoint. You can copy and paste this string from your EyePop Dashboard in the Pop -> Settings section.

@@ -1,12 +1,8 @@
-import {Prediction, SessionPlus} from "./types"
+import {Prediction, ResultStream, SessionPlus} from "./types"
 import {Stream} from "./streaming"
 import {HttpClient} from './shims/http_client'
 
 import {Logger} from "pino"
-
-export interface ResultStream extends AsyncIterable<Prediction> {
-    cancel(): void
-}
 
 export class AbstractJob implements ResultStream {
     protected _getSession: () => Promise<SessionPlus>
@@ -157,6 +153,43 @@ export class LoadFromJob extends AbstractJob {
             dispatcher: this._dispatcher
         })
         this._requestLogger.debug("after PATCH %s with url %s as source", patchUrl, this._location)
+        return response
+
+    }
+}
+
+export class LoadLiveIngressJob extends AbstractJob {
+    private readonly _ingressId: string;
+
+    constructor(ingressId: string, getSession: () => Promise<SessionPlus>, client: HttpClient, requestLogger: Logger) {
+        super(getSession, client, requestLogger)
+        this._ingressId = ingressId
+    }
+
+    get [Symbol.toStringTag](): string {
+        return 'loadLiveIngressJob'
+    }
+
+    protected override async startJob(): Promise<Response> {
+        const body = {
+            'sourceType': 'LIVE_INGRESS', 'liveIngressId': this._ingressId
+        }
+        const session = await this._getSession()
+        const headers = {
+            'Authorization': `Bearer ${session.accessToken}`,
+            'Accept': 'application/jsonl',
+            'Content-Type': 'application/json'
+        }
+        const patchUrl: string = `${session.baseUrl.replace(/\/+$/, "")}/pipelines/${session.pipelineId}/source?mode=queue&processing=sync`
+        this._requestLogger.debug("before PATCH %s with url %s as source", patchUrl, this._ingressId)
+        const response = await this._client.fetch(patchUrl, {
+            headers: headers,
+            method: 'PATCH',
+            body: JSON.stringify(body),
+            signal: this._controller.signal, // @ts-ignore
+            dispatcher: this._dispatcher
+        })
+        this._requestLogger.debug("after PATCH %s with url %s as source", patchUrl, this._ingressId)
         return response
 
     }

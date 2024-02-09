@@ -1,8 +1,9 @@
 import {Options} from "./options"
-import {EndpointState, SessionPlus, UploadParams} from "./types"
-import {AbstractJob, LoadFromJob, ResultStream, UploadJob} from "./jobs"
+import {EndpointState, IngressEvent, LiveIngress, ResultStream, SessionPlus, UploadParams} from "./types"
+import {AbstractJob, LoadFromJob, LoadLiveIngressJob, UploadJob} from "./jobs"
 import {createHttpClient, HttpClient} from './shims/http_client'
 import {Semaphore} from "./semaphore"
+import {Whip} from "./whip"
 import {resolve} from "./shims/local_file"
 
 import {Logger, pino} from "pino"
@@ -19,6 +20,9 @@ interface AccessToken {
     token_type: string;
 }
 
+interface WsAuthToken {
+	token: string;
+}
 export class Endpoint {
     private _options: Options
     private _token: string | null
@@ -34,6 +38,8 @@ export class Endpoint {
 
     private _state: EndpointState
     private _stateChangeHandler: null | ((fromState: EndpointState, toState: EndpointState) => void)
+    private _ingressEventHandler: null | ((event: IngressEvent) => void)
+    private _ingressEventWs: WebSocket | null
 
     private _logger: Logger
     private readonly _requestLogger: Logger
@@ -48,6 +54,8 @@ export class Endpoint {
         this._client = null
         this._state = EndpointState.Idle
         this._stateChangeHandler = null
+        this._ingressEventHandler = null
+        this._ingressEventWs = null
 
         this._limit = new Semaphore(this._options.jobQueueLength??1024)
 
@@ -63,6 +71,57 @@ export class Endpoint {
 
     public onStateChanged(handler: (fromState: EndpointState, toState: EndpointState) => void): Endpoint {
         this._stateChangeHandler = handler
+        return this
+    }
+
+    private async startIngressWs(): Promise<void> {
+        if (this._ingressEventWs || !this._baseUrl || !this._client) {
+            return;
+        }
+        try {
+            const getTokenUrl = `${this._baseUrl}/liveIngress/events/token`
+            const headers = {
+                'Authorization': await this.authorizationHeader()
+            }
+            this._requestLogger.debug('before GET %s', getTokenUrl)
+            let response = await this._client.fetch(getTokenUrl, {headers: headers})
+            if (response.status == 401) {
+                this._requestLogger.debug('after GET %s: 401, about to retry with fresh access token', getTokenUrl)
+                // one retry, the token might have just expired
+                this._token = null
+                const headers = {
+                    'Authorization': await this.authorizationHeader()
+                }
+                this.updateState(EndpointState.FetchConfig)
+                response = await this._client.fetch(getTokenUrl, {headers: headers})
+            }
+            if (response.status != 200) {
+                const message = await response.text()
+                return Promise.reject(`Unexpected status ${response.status}: ${message}`)
+            }
+            const wsAuthToken = (await response.json()) as WsAuthToken
+            const wsUrl = this._baseUrl.startsWith('https://')?
+                `${this._baseUrl.replace('https://', 'wss://')}/liveIngress/events/${wsAuthToken.token}` :
+                `${this._baseUrl.replace('http://', 'ws://')}/liveIngress/events/${wsAuthToken.token}`;
+
+            this._ingressEventWs = new WebSocket(wsUrl)
+            this._ingressEventWs.addEventListener('message', (event:MessageEvent) => {
+                const ingressEvent = JSON.parse(event.data) as IngressEvent;
+                if (this._ingressEventHandler) {
+                    this._ingressEventHandler(ingressEvent)
+                }
+            })
+        } finally {
+            this.updateState()
+        }
+
+    }
+
+    public onIngressEvent(handler: (event: IngressEvent) => void): Endpoint {
+        this._ingressEventHandler = handler
+        this.startIngressWs().then(() => {}).catch((reason)=>{
+          this._logger.warn('unexpected error starting the ingress event handler: %s', reason)
+        })
         return this
     }
 
@@ -102,9 +161,17 @@ export class Endpoint {
         }
     }
 
+    public async liveIngress(stream: MediaStream): Promise<LiveIngress> {
+        if (!this._baseUrl || !this._client) {
+            return Promise.reject("endpoint not connected, use connect() before ingress()")
+        }
+        const job = new Whip(stream, async () => { return this.session() }, this._client, this._requestLogger)
+        return job.start()
+    }
+
     public async upload(params: UploadParams): Promise<ResultStream> {
         if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
-            return Promise.reject("endpoint not connected, use open() before upload()")
+            return Promise.reject("endpoint not connected, use connect() before upload()")
         }
 
         params = await resolve(params)
@@ -124,11 +191,25 @@ export class Endpoint {
 
     public async loadFrom(location: string): Promise<ResultStream> {
         if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
-            throw new Error("endpoint not connected, use open() before loadFrom()")
+            throw new Error("endpoint not connected, use connect() before loadFrom()")
         }
         await this._limit.acquire()
         this.updateState()
         const job = new LoadFromJob(location, async () => { return this.session() }, this._client, this._requestLogger)
+        return job.start(() => {
+            this.jobDone(job)
+        }, (statusCode: number) => {
+            this.jobStatus(job, statusCode)
+        })
+    }
+
+    public async loadLiveIngress(ingressId: string): Promise<ResultStream> {
+        if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
+            throw new Error("endpoint not connected, use connect() before loadLiveIngress()")
+        }
+        await this._limit.acquire()
+        this.updateState()
+        const job = new LoadLiveIngressJob(ingressId, async () => { return this.session() }, this._client, this._requestLogger)
         return job.start(() => {
             this.jobDone(job)
         }, (statusCode: number) => {
@@ -175,6 +256,10 @@ export class Endpoint {
                 return Promise.reject(`Unexpected status ${response.status}: ${message}`)
             }
             this._requestLogger.debug('after PATCH %s', stop_url)
+        }
+
+        if (!this._ingressEventWs && this._ingressEventHandler) {
+            await this.startIngressWs()
         }
 
         return result;
@@ -332,6 +417,5 @@ export class Endpoint {
         } else {
             return 'https://api.eyepop.ai'
         }
-
     }
 }
