@@ -4,6 +4,7 @@ const CopyPlugin = require("copy-webpack-plugin");
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const EmitFilePlugin = require('emit-file-webpack-plugin');
 const EyePopSdk = require('@eyepop.ai/eyepop').EyePopSdk;
+const NodePolyfillPlugin = require("node-polyfill-webpack-plugin");
 
 const eyepopSession = async () => {
     return JSON.stringify(await (await EyePopSdk.endpoint().connect()).session());
@@ -22,7 +23,7 @@ module.exports = {
           filename: `eyepop-session.json`,
           content: eyepopSession,
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_PRE_PROCESS,
-      })
+      }), new NodePolyfillPlugin()
     ],
     devServer: {
       hot: false, allowedHosts: "all", liveReload: false, port: 8080, client: {

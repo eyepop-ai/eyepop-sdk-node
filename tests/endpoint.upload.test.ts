@@ -73,7 +73,7 @@ describe('EyePopSdk endpoint module upload', () => {
             await endpoint.connect()
             expect(authenticationRoute).toHaveBeenCalledTimes(1)
             expect(popConfigRoute).toHaveBeenCalledTimes(1)
-            let job = await endpoint.upload({filePath: image_path})
+            let job = await endpoint.process({path: image_path})
             expect(job).toBeDefined()
             let count = 0
             for await (let prediction of await job) {
@@ -82,6 +82,30 @@ describe('EyePopSdk endpoint module upload', () => {
             }
             expect(uploadRoute).toHaveBeenCalledTimes(1)
             expect(count).toBe(1)
+        } finally {
+            await endpoint.disconnect()
+        }
+    })
+
+      test('EyePopSdk upload file not found', async () => {
+        const fake_timestamp = Date.now()
+        const test_pop_id = uuidv4()
+        const test_pipeline_id = uuidv4()
+        const image_path = './tests/does_not_exist.dummy'
+        const {authenticationRoute, popConfigRoute} = prepMockServer(server, test_pop_id, test_pipeline_id)
+
+        const endpoint = EyePopSdk.endpoint({
+            eyepopUrl: server.getURL().toString(),
+            auth: {secretKey: test_secret_key},
+            popId: test_pop_id,
+            stopJobs: false
+        })
+        expect(endpoint).toBeDefined()
+        try {
+            await endpoint.connect()
+            expect(authenticationRoute).toHaveBeenCalledTimes(1)
+            expect(popConfigRoute).toHaveBeenCalledTimes(1)
+            expect(endpoint.process({path: image_path})).rejects.toBeDefined()
         } finally {
             await endpoint.disconnect()
         }

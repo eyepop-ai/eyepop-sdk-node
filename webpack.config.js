@@ -1,4 +1,4 @@
- const path = require('path');
+const path = require('path');
 const NodePolyfillPlugin = require("node-polyfill-webpack-plugin");
 
   module.exports = {
@@ -15,11 +15,4 @@ const NodePolyfillPlugin = require("node-polyfill-webpack-plugin");
     plugins: [
         new NodePolyfillPlugin()
     ]
-    // resolve: {
-    //   fallback: {
-    //     "crypto": require.resolve("crypto-browserify"),
-    //     "stream": false,
-    //     "process": false
-    //   }
-    // }
   };

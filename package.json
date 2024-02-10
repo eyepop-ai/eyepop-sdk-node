@@ -12,12 +12,14 @@
   "browser": {
     "@eyepop.ai/eyepop": "./dist/index.js",
     "fs": false,
+    "fs/promises": false,
     "path": false,
     "undici": false
   },
   "scripts": {
     "build": "tsup && webpack",
-    "test": "jest"
+    "test": "jest",
+    "tsx": "tsx"
   },
   "repository": {
     "type": "git",
