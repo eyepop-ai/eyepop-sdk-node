@@ -199,13 +199,19 @@ export class Endpoint {
             return Promise.reject("endpoint not connected, use connect() before upload()")
         }
         await this._limit.acquire()
-        this.updateState()
-        const job = new UploadJob(source.file, source.file.type, async () => { return this.session() }, this._client, this._requestLogger)
-        return job.start(() => {
-            this.jobDone(job)
-        }, (statusCode: number) => {
-            this.jobStatus(job, statusCode)
-        })
+        try {
+            this.updateState()
+            const job = new UploadJob(source.file, source.file.type, async () => { return this.session() }, this._client, this._requestLogger)
+            return job.start(() => {
+                this.jobDone(job)
+            }, (statusCode: number) => {
+                this.jobStatus(job, statusCode)
+            })
+        } catch (e) {
+            // we'll have to reset our queue counter in case the job canot be started
+            this._limit.release()
+            throw e
+        }
     }
 
     private async uploadStream(source: StreamSource): Promise<ResultStream> {
@@ -213,13 +219,19 @@ export class Endpoint {
             return Promise.reject("endpoint not connected, use connect() before upload()")
         }
         await this._limit.acquire()
-        this.updateState()
-        const job = new UploadJob(source.stream, source.mimeType, async () => { return this.session() }, this._client, this._requestLogger)
-        return job.start(() => {
-            this.jobDone(job)
-        }, (statusCode: number) => {
-            this.jobStatus(job, statusCode)
-        })
+        try {
+            this.updateState()
+            const job = new UploadJob(source.stream, source.mimeType, async () => { return this.session() }, this._client, this._requestLogger)
+            return job.start(() => {
+                this.jobDone(job)
+            }, (statusCode: number) => {
+                this.jobStatus(job, statusCode)
+            })
+        } catch (e) {
+            // we'll have to reset our queue counter in case the job canot be started
+            this._limit.release()
+            throw e
+        }
     }
 
     private async uploadPath(source: PathSource): Promise<ResultStream> {
@@ -227,14 +239,22 @@ export class Endpoint {
             throw new Error("endpoint not connected, use connect() before process()")
         }
         await this._limit.acquire()
-        this.updateState()
-        const streamSource = await resolvePath(source as PathSource)
-        const job = new UploadJob(streamSource.stream, streamSource.mimeType, async () => { return this.session() }, this._client, this._requestLogger)
-        return job.start(() => {
-            this.jobDone(job)
-        }, (statusCode: number) => {
-            this.jobStatus(job, statusCode)
-        })
+        try {
+            this.updateState()
+            const streamSource = await resolvePath(source as PathSource)
+            const job = new UploadJob(streamSource.stream, streamSource.mimeType, async () => {
+                return this.session()
+            }, this._client, this._requestLogger)
+            return job.start(() => {
+                this.jobDone(job)
+            }, (statusCode: number) => {
+                this.jobStatus(job, statusCode)
+            })
+        } catch (e) {
+            // we'll have to reset our queue counter in case the job canot be started
+            this._limit.release()
+            throw e
+        }
     }
 
     private async loadFrom(source: UrlSource): Promise<ResultStream> {
@@ -242,13 +262,19 @@ export class Endpoint {
             throw new Error("endpoint not connected, use connect() before loadFrom()")
         }
         await this._limit.acquire()
-        this.updateState()
-        const job = new LoadFromJob(source.url, async () => { return this.session() }, this._client, this._requestLogger)
-        return job.start(() => {
-            this.jobDone(job)
-        }, (statusCode: number) => {
-            this.jobStatus(job, statusCode)
-        })
+        try {
+            this.updateState()
+            const job = new LoadFromJob(source.url, async () => { return this.session() }, this._client, this._requestLogger)
+            return job.start(() => {
+                this.jobDone(job)
+            }, (statusCode: number) => {
+                this.jobStatus(job, statusCode)
+            })
+        } catch (e) {
+            // we'll have to reset our queue counter in case the job canot be started
+            this._limit.release()
+            throw e
+        }
     }
 
     private async loadLiveIngress(source: LiveSource): Promise<ResultStream> {
@@ -256,13 +282,19 @@ export class Endpoint {
             throw new Error("endpoint not connected, use connect() before loadLiveIngress()")
         }
         await this._limit.acquire()
-        this.updateState()
-        const job = new LoadLiveIngressJob(source.ingressId, async () => { return this.session() }, this._client, this._requestLogger)
-        return job.start(() => {
-            this.jobDone(job)
-        }, (statusCode: number) => {
-            this.jobStatus(job, statusCode)
-        })
+        try {
+            this.updateState()
+            const job = new LoadLiveIngressJob(source.ingressId, async () => { return this.session() }, this._client, this._requestLogger)
+            return job.start(() => {
+                this.jobDone(job)
+            }, (statusCode: number) => {
+                this.jobStatus(job, statusCode)
+            })
+        } catch (e) {
+            // we'll have to reset our queue counter in case the job canot be started
+            this._limit.release()
+            throw e
+        }
     }
 
     // noinspection TypeScriptValidateTypes
