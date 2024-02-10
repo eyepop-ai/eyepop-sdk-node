@@ -3,7 +3,8 @@ console.log("Hello EyePop");
 let endpoint = undefined;
 let context = undefined;
 let popNameElement = undefined;
-let uploadButton = undefined;
+let connectButton = undefined;
+let fileChooser = undefined;
 let imagePreview = undefined;
 let resultOverlay = undefined;
 let timingSpan = undefined;
@@ -11,33 +12,40 @@ let resultSpan = undefined;
 
 async function setup() {
     popNameElement = document.getElementById("pop-name");
-    uploadButton = document.getElementById('file-upload');
+    connectButton = document.getElementById('connect');
+    fileChooser = document.getElementById('file-upload');
     imagePreview = document.getElementById('image-preview');
     resultOverlay = document.getElementById('result-overlay');
     timingSpan = document.getElementById("timing");
     resultSpan = document.getElementById('txt_json');
 
-    const queryString = window.location.search;
-    const urlParams = new URLSearchParams(queryString);
-    const popId = urlParams.get('popId');
-
-    endpoint = await EyePopSdk.endpoint({
-        auth: { oAuth: true },
-        popId: popId
-    }).onStateChanged((from, to) => {
-       console.log("Endpoint state transition from " + from + " to " + to);
-    }).onIngressEvent((ingressEvent) => {
-       console.log(ingressEvent);
-    }).connect();
-
-    popNameElement.innerHTML = endpoint.popName();
-    uploadButton.disabled = false;
-    uploadButton.addEventListener('change', upload);
+    connectButton.disabled = false;
+    connectButton.addEventListener('click', connect);
+    fileChooser.addEventListener('change', upload);
 
     context = resultOverlay.getContext("2d");
 }
+
+async function connect(event) {
+    if (!endpoint) {
+        const queryString = window.location.search;
+        const urlParams = new URLSearchParams(queryString);
+        const popId = urlParams.get('popId');
+
+        endpoint = await EyePopSdk.endpoint({
+            auth: {oAuth2: true},
+            popId: popId
+        }).onStateChanged((from, to) => {
+            console.log("Endpoint state transition from " + from + " to " + to);
+        }).onIngressEvent((ingressEvent) => {
+            console.log(ingressEvent);
+        }).connect();
+    }
+    fileChooser.disabled = false;
+    popNameElement.innerHTML = endpoint.popName();
+}
 async function upload(event) {
-    const file = event.target.files[0];
+    const file = fileChooser.files[0];
     const reader = new FileReader();
     reader.onload = function () {
         context.clearRect(0,0,resultOverlay.width, resultOverlay.height);
