@@ -37,8 +37,7 @@ Equivalent, but shorter:
 ```typescript
 import { EyePopSdk } from '@eyepop.ai/eyepop'
 (async() => {
-    const endpoint = EyePopSdk.endpoint()
-    await endpoint.connect()
+    const endpoint = await EyePopSdk.endpoint().connect()
     // do work ....
     await endpoint.disconnect()
 })
