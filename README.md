@@ -84,6 +84,17 @@ import { EyePopSdk } from '@eyepop.ai/eyepop'
 </script>
 </body>
 ```
+To use an alternative environment, e.g. STAGING vs PRODUCTION, pass in the adjusted Auth0 configuration:
+```javascript
+// ...
+let endpoint = await EyePopSdk.endpoint({ 
+  auth: { oAuth2: {
+    audience: "https://dev-app.eyepop.ai",
+    domain: "dev-eyepop.us.auth0.com",
+    clientId: "jktx3YO2UnbkNPvr05PQWf26t1kNTJyg"
+  } }, popId: '< Pop Id>' }).connect();
+// ...
+```
 ## Usage Examples
 ### Uploading and processing one single image
 ```typescript
