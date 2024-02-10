@@ -3,7 +3,7 @@ The EyePop.ai Node SDK provides convenient access to the EyePop.ai's inference A
 TypeScript or JavaScript language.
 ## Installation
 ```shell
-npm install --save eyepop
+npm install --save @eyepop.ai/eyepop
 ```
 ## Configuration
 The EyePop SDK needs to be configured with the __Pop Id__ and your __Authentication Credentials__. Credentials can 
