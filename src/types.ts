@@ -24,15 +24,32 @@ export interface LiveIngress {
     close(): Promise<void>
 }
 export interface IngressEvent {
-    readonly ingressId?: string
-    readonly event?: "stream-ready" | "stream-ready"
+    readonly ingressId: string
+    readonly event: "stream-ready" | "stream-ready"
 }
 
-export interface UploadParams {
-    readonly filePath?: string | undefined;
-    readonly file?: File | undefined;
-    readonly mimeType?: string | undefined;
+export interface FileSource {
+    readonly file: File;
 }
+
+export interface StreamSource {
+    readonly stream: ReadableStream<Uint8Array>;
+    readonly mimeType: string;
+}
+
+export interface PathSource {
+    readonly path: string;
+}
+
+export interface LiveSource {
+    readonly ingressId: string;
+}
+
+export interface UrlSource {
+    readonly url: string;
+}
+
+export type Source = FileSource | StreamSource | PathSource | LiveSource | UrlSource
 
 export interface Prediction {
     timestamp: number

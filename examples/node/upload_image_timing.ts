@@ -1,11 +1,12 @@
 import {EyePopSdk} from '@eyepop.ai/eyepop'
 import process from 'process'
+import {pino} from 'pino'
 
 async function upload_photos_sequentially(image_paths: Array<string>) {
     const endpoint = await EyePopSdk.endpoint().connect()
     try {
         for (let i = 0; i < image_paths.length; i++) {
-            let results = await endpoint.upload({filePath: image_paths[i]})
+            let results = await endpoint.process({path: image_paths[i]})
             for await (let result of results) {
                 // console.log(result)
             }
@@ -19,12 +20,11 @@ async function upload_photos_parallel(image_paths: Array<string>) {
     const endpoint = await EyePopSdk.endpoint().connect()
     try {
         for (let i = 0; i < image_paths.length; i++) {
-            endpoint.upload({filePath: image_paths[i]}).then(async (results) => {
+            const job = endpoint.process({path: image_paths[i]})
+            job.then(async (results) => {
                 for await (let result of results) {
                     // console.log(result)
                 }
-            }).catch((reason:any) => {
-                throw reason
             })
         }
     } finally {
@@ -42,10 +42,10 @@ if (!process.argv[3]) {
     process.exit(-1)
 }
 
-const example_image_path = process.argv[2];
-const num_of_iterations: number = Number.parseInt(process.argv[3]);
+const example_image_path = process.argv[2]
+const num_of_iterations: number = Number.parseInt(process.argv[3])
 
-(async () => {
+;(async () => {
     try {
         console.log(`using: ${example_image_path} x ${num_of_iterations} for sequential upload`)
         const example_image_paths = new Array<string>(num_of_iterations)

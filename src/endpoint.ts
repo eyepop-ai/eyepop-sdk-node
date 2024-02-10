@@ -1,10 +1,19 @@
 import {Options} from "./options"
-import {EndpointState, IngressEvent, LiveIngress, ResultStream, SessionPlus, UploadParams} from "./types"
+import {
+    EndpointState,
+    FileSource,
+    IngressEvent,
+    LiveIngress, LiveSource,
+    PathSource,
+    ResultStream,
+    SessionPlus,
+    Source, StreamSource, UrlSource
+} from "./types"
 import {AbstractJob, LoadFromJob, LoadLiveIngressJob, UploadJob} from "./jobs"
 import {createHttpClient, HttpClient} from './shims/http_client'
 import {Semaphore} from "./semaphore"
 import {Whip} from "./whip"
-import {resolve} from "./shims/local_file"
+import {resolvePath} from "./shims/local_file"
 
 import {Logger, pino} from "pino"
 
@@ -165,23 +174,33 @@ export class Endpoint {
         if (!this._baseUrl || !this._client) {
             return Promise.reject("endpoint not connected, use connect() before ingress()")
         }
-        const job = new Whip(stream, async () => { return this.session() }, this._client, this._requestLogger)
-        return job.start()
+        const whip = new Whip(stream, async () => { return this.session() }, this._client, this._requestLogger)
+        return whip.start()
     }
 
-    public async upload(params: UploadParams): Promise<ResultStream> {
+    public async process(source: Source): Promise<ResultStream> {
+        if ((source as FileSource).file !== undefined) {
+            return this.uploadFile(source as FileSource)
+        } else if ((source as StreamSource).stream !== undefined) {
+            return this.uploadStream(source as StreamSource)
+        } else if ((source as PathSource).path !== undefined) {
+            return this.uploadPath(source as PathSource)
+        } else if ((source as UrlSource).url !== undefined) {
+            return this.loadFrom(source as UrlSource)
+        } else if ((source as LiveSource).ingressId !== undefined) {
+            return this.loadLiveIngress(source as LiveSource)
+        } else {
+            return Promise.reject('unknown source type')
+        }
+    }
+
+    private async uploadFile(source: FileSource): Promise<ResultStream> {
         if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
             return Promise.reject("endpoint not connected, use connect() before upload()")
         }
-
-        params = await resolve(params)
-        if (!params.mimeType) {
-            return Promise.reject("upload for streams requires a mimeType")
-        }
-
         await this._limit.acquire()
         this.updateState()
-        const job = new UploadJob(params.file, params.mimeType, async () => { return this.session() }, this._client, this._requestLogger)
+        const job = new UploadJob(source.file, source.file.type, async () => { return this.session() }, this._client, this._requestLogger)
         return job.start(() => {
             this.jobDone(job)
         }, (statusCode: number) => {
@@ -189,13 +208,42 @@ export class Endpoint {
         })
     }
 
-    public async loadFrom(location: string): Promise<ResultStream> {
+    private async uploadStream(source: StreamSource): Promise<ResultStream> {
+        if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
+            return Promise.reject("endpoint not connected, use connect() before upload()")
+        }
+        await this._limit.acquire()
+        this.updateState()
+        const job = new UploadJob(source.stream, source.mimeType, async () => { return this.session() }, this._client, this._requestLogger)
+        return job.start(() => {
+            this.jobDone(job)
+        }, (statusCode: number) => {
+            this.jobStatus(job, statusCode)
+        })
+    }
+
+    private async uploadPath(source: PathSource): Promise<ResultStream> {
+        if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
+            throw new Error("endpoint not connected, use connect() before process()")
+        }
+        await this._limit.acquire()
+        this.updateState()
+        const streamSource = await resolvePath(source as PathSource)
+        const job = new UploadJob(streamSource.stream, streamSource.mimeType, async () => { return this.session() }, this._client, this._requestLogger)
+        return job.start(() => {
+            this.jobDone(job)
+        }, (statusCode: number) => {
+            this.jobStatus(job, statusCode)
+        })
+    }
+
+    private async loadFrom(source: UrlSource): Promise<ResultStream> {
         if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
             throw new Error("endpoint not connected, use connect() before loadFrom()")
         }
         await this._limit.acquire()
         this.updateState()
-        const job = new LoadFromJob(location, async () => { return this.session() }, this._client, this._requestLogger)
+        const job = new LoadFromJob(source.url, async () => { return this.session() }, this._client, this._requestLogger)
         return job.start(() => {
             this.jobDone(job)
         }, (statusCode: number) => {
@@ -203,13 +251,13 @@ export class Endpoint {
         })
     }
 
-    public async loadLiveIngress(ingressId: string): Promise<ResultStream> {
+    private async loadLiveIngress(source: LiveSource): Promise<ResultStream> {
         if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
             throw new Error("endpoint not connected, use connect() before loadLiveIngress()")
         }
         await this._limit.acquire()
         this.updateState()
-        const job = new LoadLiveIngressJob(ingressId, async () => { return this.session() }, this._client, this._requestLogger)
+        const job = new LoadLiveIngressJob(source.ingressId, async () => { return this.session() }, this._client, this._requestLogger)
         return job.start(() => {
             this.jobDone(job)
         }, (statusCode: number) => {

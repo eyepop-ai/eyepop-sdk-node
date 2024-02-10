@@ -10,7 +10,6 @@ export {
     LiveIngress,
     ResultStream,
     EndpointState,
-    UploadParams,
     Prediction,
     PredictedClass,
     PredictedObject,
@@ -18,7 +17,13 @@ export {
     PredictedKeyPoint,
     PredictedKeyPoints,
     Point2d,
-    Point3d
+    Point3d,
+    Source,
+    StreamSource,
+    LiveSource,
+    UrlSource,
+    PathSource,
+    FileSource
 } from "./types";
 
 const readEnv = (env: string): string | undefined => {

@@ -19,9 +19,13 @@ async function setup() {
     startButton.addEventListener('click', startStream);
     stopButton.addEventListener('click', stopStream);
 
+    const queryString = window.location.search;
+    const urlParams = new URLSearchParams(queryString);
+    const popId = urlParams.get('popId');
+
     endpoint = await EyePopSdk.endpoint({
         auth: { oAuth: true },
-        popId: '09ff30fb09224fe19b2cb11fa3bdccf1'
+        popId: popId
     }).onStateChanged((from, to) => {
        console.log("Endpoint state transition from " + from + " to " + to);
     }).onIngressEvent((ingressEvent) => {
@@ -46,7 +50,7 @@ async function startStream(event) {
 }
 
 function startLiveInference(ingressId) {
-    endpoint.loadLiveIngress(ingressId).then(async (results) => {
+    endpoint.process({ingressId: ingressId}).then(async (results) => {
         for await (let result of results) {
             resultSpan.textContent = JSON.stringify(result, " ", 2);
         }

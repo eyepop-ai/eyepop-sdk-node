@@ -7,17 +7,16 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 
 import { pino } from 'pino'
-import process from "process";
+import process from 'process'
 
 const logger = pino({level: 'info', name: 'eyepop-example'})
 
-const example_image_path = process.argv[2];
+const example_image_path = process.argv[2]
 
-(async () => {
+;(async () => {
     const image = await loadImage(example_image_path)
     const canvas = createCanvas(image.width, image.height)
     const context = canvas.getContext("2d")
-    const plot = EyePopSdk.plot(context)
 
     const endpoint = await EyePopSdk.endpoint({
         logger: logger
@@ -25,12 +24,12 @@ const example_image_path = process.argv[2];
         logger.info("Endpoint changed state %s -> %s", fromState, toState)
     }).connect()
     try {
-        let results = await endpoint.upload({filePath: example_image_path})
+        let results = await endpoint.process({path: example_image_path})
         for await (let result of await results) {
             canvas.width = result.source_width
             canvas.height = result.source_height
             context.drawImage(image, 0, 0)
-            plot.prediction(result)
+            EyePopSdk.plot(context).prediction(result)
         }
     } finally {
         await endpoint.disconnect()

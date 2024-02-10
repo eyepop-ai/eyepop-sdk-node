@@ -14,7 +14,7 @@ const resultSpan = document.getElementById('txt_json');
 async function setup() {
     const session = await (await fetch("eyepop-session.json")).json()
     endpoint = EyePopSdk.endpoint({
-        session: session,
+        auth: {session: session}
     })
     endpoint.onStateChanged((from, to) => {
        console.log("Endpoint state transition from " + from + " to " + to);
@@ -31,8 +31,8 @@ async function upload(event) {
     const file = event.target.files[0];
     const reader = new FileReader();
     reader.onload = function () {
+        context.clearRect(0,0,resultOverlay.width, resultOverlay.height);
         imagePreview.src = reader.result;
-        imagePreview.style.display = 'block';
     };
 
     reader.readAsDataURL(file);
@@ -41,13 +41,13 @@ async function upload(event) {
     timingSpan.innerHTML = "__ms";
     resultSpan.innerHTML = "<span class='text-muted'>processing</a>";
     context.clearRect(0,0,resultOverlay.width, resultOverlay.height);
-    endpoint.upload({file: file}).then(async (results) => {
+    endpoint.process({file: file}).then(async (results) => {
         for await (let result of results) {
             resultSpan.textContent = JSON.stringify(result, " ", 2);
             resultOverlay.width = result.source_width;
             resultOverlay.height = result.source_height;
             context.clearRect(0,0,resultOverlay.width, resultOverlay.height);
-            EyePopSdk.plot.prediction(result);
+            EyePopSdk.plot(context).prediction(result);
         }
         timingSpan.innerHTML = Math.floor(performance.now() - startTime) + "ms";
     });

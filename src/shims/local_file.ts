@@ -1,52 +1,21 @@
-import {UploadParams} from "EyePopSdk/types";
+import {StreamSource, PathSource} from "../types";
 
-export let resolve: (params: UploadParams) => Promise<UploadParams>
+export let resolvePath: (source: PathSource) => Promise<StreamSource>
 
 if ('document' in globalThis && 'implementation' in globalThis.document) {
-    const isFileLike = (value:any) => value != null &&
-    typeof value === 'object' &&
-    typeof value.name === 'string' &&
-    typeof value.lastModified === 'number';
-
-    resolve = async (params: UploadParams) => {
-        if (params.file) {
-            if (isFileLike(params.file)) {
-                params = {
-                    mimeType: params.file.type,
-                    file: params.file
-                }
-                return params
-            }
-        }
+    resolvePath = async (source: PathSource) => {
         throw new DOMException("resolving a path to a file is not supported in browser")
     }
-
 } else {
-    resolve = async (params: UploadParams) => {
-        if (params.file) {
-            return params
-        }
-
+    resolvePath = async (source: PathSource) => {
         const mime = require('mime-types')
-        const fs = require('node:fs')
-
-        let mimeType: string | undefined
-        let stream: any | undefined
-
-        if (params.filePath) {
-            if (params.mimeType) {
-                mimeType = params.mimeType
-            } else {
-                mimeType = mime.lookup(params.filePath) || undefined
-            }
-            stream = fs.createReadStream(params.filePath)
+        const filehandle = require('node:fs/promises')
+        const fd = await filehandle.open(source.path, 'r')
+        const stream = fd.createReadStream()
+        const mimeType = mime.lookup(source.path) || 'application/octet-stream'
+        return {
+            stream: stream,
+            mimeType: mimeType
         }
-
-        params = {
-            filePath: params.filePath,
-            mimeType: mimeType,
-            file: stream
-        }
-        return params
     }
 }

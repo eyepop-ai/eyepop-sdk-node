@@ -31,8 +31,11 @@ open http://localhost:8080/
 ## Vanilla JS in browser
 in project root
 ```shell
-open 
+python3 -m http.server 
 ```
-
+In another terminal
+```shell
+open http://127.0.0.1:8000/examples/web/static/upload.html?popId=$EYEPOP_POP_ID
+```
 ## Plain Javascript in Browser
 

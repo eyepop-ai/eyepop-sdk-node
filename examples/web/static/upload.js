@@ -17,9 +17,13 @@ async function setup() {
     timingSpan = document.getElementById("timing");
     resultSpan = document.getElementById('txt_json');
 
+    const queryString = window.location.search;
+    const urlParams = new URLSearchParams(queryString);
+    const popId = urlParams.get('popId');
+
     endpoint = await EyePopSdk.endpoint({
         auth: { oAuth: true },
-        popId: '09ff30fb09224fe19b2cb11fa3bdccf1'
+        popId: popId
     }).onStateChanged((from, to) => {
        console.log("Endpoint state transition from " + from + " to " + to);
     }).onIngressEvent((ingressEvent) => {
@@ -36,8 +40,8 @@ async function upload(event) {
     const file = event.target.files[0];
     const reader = new FileReader();
     reader.onload = function () {
+        context.clearRect(0,0,resultOverlay.width, resultOverlay.height);
         imagePreview.src = reader.result;
-        imagePreview.style.display = 'block';
     };
 
     reader.readAsDataURL(file);
@@ -46,7 +50,7 @@ async function upload(event) {
     timingSpan.innerHTML = "__ms";
     resultSpan.innerHTML = "<span class='text-muted'>processing</a>";
 
-    endpoint.upload({file: file}).then(async (results) => {
+    endpoint.process({file: file}).then(async (results) => {
         for await (let result of results) {
             resultSpan.textContent = JSON.stringify(result, " ", 2);
             resultOverlay.width = result.source_width;
