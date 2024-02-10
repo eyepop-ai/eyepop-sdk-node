@@ -108,7 +108,7 @@ EYEPOP_SECRET_KEY and load the worker configuration for the Pop identified by EY
 2. Call `endpoint.connect()` before any job is submitted and `endpoint.disconnect()` to release all resources.
 3. `endpoint.process({path:'examples/example.jpg'})` initiates the upload to the local file to the worker service. 
 The image will be queued and processed immediately when the worker becomes available.
-The result of endpoint.upload() implements `AsyncIterable<Prediction>` which can be iterated fir 'for await' as 
+The result of endpoint.upload() implements `AsyncIterable<Prediction>` which can be iterated with 'for await' as 
 shown in the example above. Predictions will become available when the submitted file becomes processed by the worker 
 and results are efficiently streamed back to the calling client. If the uploaded file is a video
 e.g. 'video/mp4' or image container format e.g. 'image/gif', the client will receive one prediction per image frame 
