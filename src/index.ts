@@ -1,5 +1,5 @@
 import {Endpoint} from "./endpoint";
-import {Options} from "./options";
+import {Auth0Options, OAuth2Auth, Options, SecretKeyAuth, SessionAuth} from "./options";
 import {EyePopPlot} from "./visualize";
 import {CanvasRenderingContext2D} from "canvas";
 import {authenticateBrowserSession} from "./shims/browser_session";
@@ -34,9 +34,11 @@ const readEnv = (env: string): string | undefined => {
 };
 
 export class EyePopSdk {
-    static defaultAuth = {
-        secretKey: readEnv('EYEPOP_SECRET_KEY'),
-    }
+    private static readonly envSecretKey = readEnv('EYEPOP_SECRET_KEY')
+
+    static defaultAuth:SecretKeyAuth | undefined = EyePopSdk.envSecretKey ? {
+        secretKey: EyePopSdk.envSecretKey,
+    } : undefined
 
     public static endpoint({
                                auth = this.defaultAuth,
@@ -48,17 +50,30 @@ export class EyePopSdk {
                                logger,
                                ...opts
                            }: Options = {}): Endpoint {
-        if (auth.oAuth && popId) {
-            let oauthUrl = "https://dashboard.eyepop.ai/sdkauth"
-            if (typeof auth.oAuth == "string") {
-                oauthUrl = auth.oAuth
+        if (((auth as OAuth2Auth).oAuth2 !== undefined) && popId) {
+            if (typeof (auth as OAuth2Auth).oAuth2 === "boolean") {
+                auth = {
+                    oAuth2: {
+                        domain: "eyepop.us.auth0.com",
+                        clientId: "Lb9ubA9Hf3jlaqWLUx8XgA0zvotgViCl",
+                        audience: "https://api.eyepop.ai",
+                        scope: "admin:clouds"
+                    }
+                }
             }
-            auth.session = authenticateBrowserSession(oauthUrl, eyepopUrl ?? 'https://api.eyepop.ai', popId) ?? undefined
+        }
+        if ((auth as SessionAuth).session !== undefined) {
+            if ((auth as SessionAuth).session.popId) {
+                popId = (auth as SessionAuth).session.popId
+            }
+            if ((auth as SessionAuth).session.eyepopUrl) {
+                eyepopUrl = (auth as SessionAuth).session.eyepopUrl
+            }
         }
         const options: Options = {
             auth: auth,
-            popId: auth.session ? auth.session.popId : popId,
-            eyepopUrl: auth.session ? auth.session.eyepopUrl : (eyepopUrl ?? 'https://api.eyepop.ai'),
+            popId: popId,
+            eyepopUrl: eyepopUrl ?? 'https://api.eyepop.ai',
             autoStart: autoStart,
             stopJobs: stopJobs,
             jobQueueLength: jobQueueLength,

@@ -1,13 +1,16 @@
-import {Options} from "./options"
+import {Auth0Options, OAuth2Auth, Options, SecretKeyAuth, SessionAuth} from "./options"
 import {
     EndpointState,
     FileSource,
     IngressEvent,
-    LiveIngress, LiveSource,
+    LiveIngress,
+    LiveSource,
     PathSource,
     ResultStream,
     SessionPlus,
-    Source, StreamSource, UrlSource
+    Source,
+    StreamSource,
+    UrlSource
 } from "./types"
 import {AbstractJob, LoadFromJob, LoadLiveIngressJob, UploadJob} from "./jobs"
 import {createHttpClient, HttpClient} from './shims/http_client'
@@ -16,6 +19,7 @@ import {Whip} from "./whip"
 import {resolvePath} from "./shims/local_file"
 
 import {Logger, pino} from "pino"
+import {authenticateBrowserSession} from "./shims/browser_session";
 
 interface PopConfig {
     base_url: string;
@@ -30,8 +34,9 @@ interface AccessToken {
 }
 
 interface WsAuthToken {
-	token: string;
+    token: string;
 }
+
 export class Endpoint {
     private _options: Options
     private _token: string | null
@@ -66,7 +71,7 @@ export class Endpoint {
         this._ingressEventHandler = null
         this._ingressEventWs = null
 
-        this._limit = new Semaphore(this._options.jobQueueLength??1024)
+        this._limit = new Semaphore(this._options.jobQueueLength ?? 1024)
 
         let rootLogger
         if (options.logger) {
@@ -109,12 +114,10 @@ export class Endpoint {
                 return Promise.reject(`Unexpected status ${response.status}: ${message}`)
             }
             const wsAuthToken = (await response.json()) as WsAuthToken
-            const wsUrl = this._baseUrl.startsWith('https://')?
-                `${this._baseUrl.replace('https://', 'wss://')}/liveIngress/events/${wsAuthToken.token}` :
-                `${this._baseUrl.replace('http://', 'ws://')}/liveIngress/events/${wsAuthToken.token}`;
+            const wsUrl = this._baseUrl.startsWith('https://') ? `${this._baseUrl.replace('https://', 'wss://')}/liveIngress/events/${wsAuthToken.token}` : `${this._baseUrl.replace('http://', 'ws://')}/liveIngress/events/${wsAuthToken.token}`;
 
             this._ingressEventWs = new WebSocket(wsUrl)
-            this._ingressEventWs.addEventListener('message', (event:MessageEvent) => {
+            this._ingressEventWs.addEventListener('message', (event: MessageEvent) => {
                 const ingressEvent = JSON.parse(event.data) as IngressEvent;
                 if (this._ingressEventHandler) {
                     this._ingressEventHandler(ingressEvent)
@@ -128,8 +131,9 @@ export class Endpoint {
 
     public onIngressEvent(handler: (event: IngressEvent) => void): Endpoint {
         this._ingressEventHandler = handler
-        this.startIngressWs().then(() => {}).catch((reason)=>{
-          this._logger.warn('unexpected error starting the ingress event handler: %s', reason)
+        this.startIngressWs().then(() => {
+        }).catch((reason) => {
+            this._logger.warn('unexpected error starting the ingress event handler: %s', reason)
         })
         return this
     }
@@ -139,8 +143,9 @@ export class Endpoint {
     }
 
     public pendingJobs(): number {
-        return (this._options.jobQueueLength??1024) - this._limit.getPermits()
+        return (this._options.jobQueueLength ?? 1024) - this._limit.getPermits()
     }
+
     public popName(): string | null {
         return this._popName
     }
@@ -174,7 +179,9 @@ export class Endpoint {
         if (!this._baseUrl || !this._client) {
             return Promise.reject("endpoint not connected, use connect() before ingress()")
         }
-        const whip = new Whip(stream, async () => { return this.session() }, this._client, this._requestLogger)
+        const whip = new Whip(stream, async () => {
+            return this.session()
+        }, this._client, this._requestLogger)
         return whip.start()
     }
 
@@ -201,7 +208,9 @@ export class Endpoint {
         await this._limit.acquire()
         try {
             this.updateState()
-            const job = new UploadJob(source.file, source.file.type, async () => { return this.session() }, this._client, this._requestLogger)
+            const job = new UploadJob(source.file, source.file.type, async () => {
+                return this.session()
+            }, this._client, this._requestLogger)
             return job.start(() => {
                 this.jobDone(job)
             }, (statusCode: number) => {
@@ -221,7 +230,9 @@ export class Endpoint {
         await this._limit.acquire()
         try {
             this.updateState()
-            const job = new UploadJob(source.stream, source.mimeType, async () => { return this.session() }, this._client, this._requestLogger)
+            const job = new UploadJob(source.stream, source.mimeType, async () => {
+                return this.session()
+            }, this._client, this._requestLogger)
             return job.start(() => {
                 this.jobDone(job)
             }, (statusCode: number) => {
@@ -264,7 +275,9 @@ export class Endpoint {
         await this._limit.acquire()
         try {
             this.updateState()
-            const job = new LoadFromJob(source.url, async () => { return this.session() }, this._client, this._requestLogger)
+            const job = new LoadFromJob(source.url, async () => {
+                return this.session()
+            }, this._client, this._requestLogger)
             return job.start(() => {
                 this.jobDone(job)
             }, (statusCode: number) => {
@@ -284,7 +297,9 @@ export class Endpoint {
         await this._limit.acquire()
         try {
             this.updateState()
-            const job = new LoadLiveIngressJob(source.ingressId, async () => { return this.session() }, this._client, this._requestLogger)
+            const job = new LoadLiveIngressJob(source.ingressId, async () => {
+                return this.session()
+            }, this._client, this._requestLogger)
             return job.start(() => {
                 this.jobDone(job)
             }, (statusCode: number) => {
@@ -309,13 +324,18 @@ export class Endpoint {
         if (!this._options.popId) {
             return Promise.reject("option popId or environment variable EYEPOP_POP_ID is required")
         }
-        if (this._options.auth && this._options.auth.session) {
-            this._token = this._options.auth.session.accessToken
-            this._expire_token_time = this._options.auth.session.validUntil / 1000
+        if (this._options.auth === undefined) {
+            return Promise.reject("cannot connect without defined auth option")
+        }
+        if ((this._options.auth as SessionAuth).session !== undefined) {
+            this._token = (this._options.auth as SessionAuth).session.accessToken
+            this._expire_token_time = (this._options.auth as SessionAuth).session.validUntil / 1000
+        } else if ((this._options.auth as OAuth2Auth).oAuth2 !== undefined) {
+
+        } else if ((this._options.auth as SecretKeyAuth).secretKey !== undefined) {
+
         } else {
-            if (!this._options.auth || !this._options.auth.secretKey) {
-                return Promise.reject("option secretKey or environment variable EYEPOP_SECRET_KEY is required")
-            }
+            return Promise.reject("option secretKey or environment variable EYEPOP_SECRET_KEY is required")
         }
 
         this._client = await createHttpClient()
@@ -330,7 +350,11 @@ export class Endpoint {
                 'Authorization': await this.authorizationHeader(), 'Content-Type': 'application/json'
             }
             this._requestLogger.debug('before PATCH %s', stop_url)
-            let response = await this._client.fetch(stop_url, {method: 'PATCH', headers: headers, body: JSON.stringify(body)})
+            let response = await this._client.fetch(stop_url, {
+                method: 'PATCH',
+                headers: headers,
+                body: JSON.stringify(body)
+            })
             if (response.status >= 300) {
                 const message = await response.text()
                 return Promise.reject(`Unexpected status ${response.status}: ${message}`)
@@ -365,7 +389,7 @@ export class Endpoint {
         }
     }
 
-    private jobStatus(job: AbstractJob, statusCode:number) {
+    private jobStatus(job: AbstractJob, statusCode: number) {
         if (statusCode == 404) {
             this._pipelineId = null;
             this._baseUrl = null;
@@ -437,6 +461,7 @@ export class Endpoint {
             return Promise.resolve(this)
         }
     }
+
     public async disconnect(wait: boolean = true): Promise<void> {
         if (wait && this._limit) {
             // @ts-ignore
@@ -445,7 +470,7 @@ export class Endpoint {
             }
         }
 
-        this._limit = new Semaphore(this._options.jobQueueLength??1024)
+        this._limit = new Semaphore(this._options.jobQueueLength ?? 1024)
 
         if (this._client) {
             await this._client.close()
@@ -463,29 +488,41 @@ export class Endpoint {
         const now = Date.now() / 1000;
         if (!this._token || <number>this._expire_token_time < now) {
             this.updateState(EndpointState.Authenticating)
-            if (!this._client) {
-                return Promise.reject("endpoint not connected")
-            } else if (!this._options.auth || !this._options.auth.secretKey) {
-                return Promise.reject("temporary access token expired")
+            try {
+                if (!this._client) {
+                    return Promise.reject("endpoint not connected")
+                } else if ((this._options.auth as SessionAuth).session !== undefined) {
+                    return Promise.reject("temporary access token expired")
+                } else if ((this._options.auth as OAuth2Auth).oAuth2 !== undefined &&
+                    this._options.eyepopUrl && this._options.popId) {
+                    const session = await authenticateBrowserSession(((this._options.auth as OAuth2Auth).oAuth2 as Auth0Options),
+                        this._options.eyepopUrl, this._options.popId)
+                    this._token = session.accessToken
+                    this._expire_token_time = session.validUntil / 1000
+                } else if ((this._options.auth as SecretKeyAuth).secretKey !== undefined && this._options.eyepopUrl) {
+                    const secretKeyAuth = this._options.auth as SecretKeyAuth
+                    const body = {'secret_key': secretKeyAuth.secretKey}
+                    const headers = {'Content-Type': 'application/json'}
+                    const post_url = `${this.eyepopUrl()}/authentication/token`
+                    this._requestLogger.debug('before POST %s', post_url)
+                    const response = await this._client.fetch(post_url, {
+                        method: 'POST', headers: headers, body: JSON.stringify(body)
+                    })
+                    if (response.status != 200) {
+                        const message = await response.text()
+                        return Promise.reject(`Unexpected status ${response.status}: ${message}`)
+                    }
+                    this._requestLogger.debug('after POST %s', post_url)
+                    const data = await response.json()
+                    const token: AccessToken = data as AccessToken
+                    this._token = token.access_token
+                    this._expire_token_time = now + token.expires_in - 60
+                } else {
+                    return Promise.reject("no valid auth option")
+                }
+            } finally {
+                this.updateState()
             }
-
-            const body = {'secret_key': this._options.auth.secretKey}
-            const headers = {'Content-Type': 'application/json'}
-            const post_url = `${this.eyepopUrl()}/authentication/token`
-            this._requestLogger.debug('before POST %s', post_url)
-            const response = await this._client.fetch(post_url, {
-                method: 'POST', headers: headers, body: JSON.stringify(body)
-            })
-            if (response.status != 200) {
-                const message = await response.text()
-                return Promise.reject(`Unexpected status ${response.status}: ${message}`)
-            }
-            this._requestLogger.debug('after POST %s', post_url)
-            const data = await response.json()
-            const token: AccessToken = data as AccessToken
-            this._token = token.access_token
-            this._expire_token_time = now + token.expires_in - 60
-            this.updateState()
         }
         this._logger.debug('using access token, valid for at least %d seconds', <number>this._expire_token_time - now)
         return <string>this._token

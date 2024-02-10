@@ -77,7 +77,7 @@ import { EyePopSdk } from '@eyepop.ai/eyepop'
 <body>
 <script>
     document.addEventListener("DOMContentLoaded", async (event) => {
-        let endpoint = await EyePopSdk.endpoint({ auth: { oAuth: true }, popId: '< Pop Id>' }).connect();
+        let endpoint = await EyePopSdk.endpoint({ auth: { oAuth2: true }, popId: '< Pop Id>' }).connect();
         // do work ....
         await endpoint.disconnect();
     });

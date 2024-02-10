@@ -1,24 +1,36 @@
 import {Logger} from "pino"
 import {Session} from "./types";
 
-export interface Authentication {
+export interface Auth0Options {
+  domain: string
+  clientId: string
+  audience: string
+  scope: string
+}
+
+export interface SecretKeyAuth {
   /**
    * Authentication secret for server side execution.
    * Defaults to process.env['EYEPOP_SECRET_KEY'].
    */
-  secretKey?: string | undefined;
+  secretKey: string;
+}
 
+export interface SessionAuth {
   /**
    * Temporary authentication token for client side execution.
    */
-  session?: Session | undefined;
-
-  /**
-   * For development mode, attempt to fetch an session from a logged in EyePop user in the same browser session.
-   * Either pass the Url of the dashboard, or true fro the default url 'https://dashboard.eyepop.ai/sdkauth'
-   */
-  oAuth?: true | string | undefined;
+  session: Session;
 }
+
+export interface OAuth2Auth {
+  /**
+   * For development mode, authenticate with your dashboard.eyepop.ai account
+   */
+  oAuth2: true | Auth0Options;
+}
+
+export type Authentication = undefined | SecretKeyAuth | SessionAuth | OAuth2Auth
 
 export interface Options {
 

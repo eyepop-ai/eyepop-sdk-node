@@ -2,6 +2,7 @@ console.log("Hello EyePop");
 
 let endpoint = undefined;
 let popNameElement = undefined;
+let connectButton = undefined;
 let startButton = undefined;
 let stopButton = undefined;
 let timingSpan = undefined;
@@ -11,33 +12,39 @@ let liveIngress = undefined;
 
 async function setup() {
     popNameElement = document.getElementById("pop-name");
+    connectButton = document.getElementById('connect');
     startButton = document.getElementById('start-stream');
     stopButton = document.getElementById('stop-stream');
     timingSpan = document.getElementById("timing");
     resultSpan = document.getElementById('txt_json');
 
+    connectButton.addEventListener('click', connect);
     startButton.addEventListener('click', startStream);
     stopButton.addEventListener('click', stopStream);
 
-    const queryString = window.location.search;
-    const urlParams = new URLSearchParams(queryString);
-    const popId = urlParams.get('popId');
-
-    endpoint = await EyePopSdk.endpoint({
-        auth: { oAuth: true },
-        popId: popId
-    }).onStateChanged((from, to) => {
-       console.log("Endpoint state transition from " + from + " to " + to);
-    }).onIngressEvent((ingressEvent) => {
-       console.log(ingressEvent);
-       if (ingressEvent.event == "stream-ready") {
-           startLiveInference(ingressEvent.ingressId);
-       }
-    }).connect();
-
-    popNameElement.innerHTML = endpoint.popName();
-    startButton.disabled = false;
+    connectButton.disabled = false;
 }
+async function connect(event) {
+    if (!endpoint) {
+        const queryString = window.location.search;
+        const urlParams = new URLSearchParams(queryString);
+        const popId = urlParams.get('popId');
+
+        endpoint = await EyePopSdk.endpoint({
+            auth: {oAuth2: true},
+            popId: popId
+        }).onStateChanged((from, to) => {
+            console.log("Endpoint state transition from " + from + " to " + to);
+        }).onIngressEvent((ingressEvent) => {
+            console.log(ingressEvent);
+            if (ingressEvent.event == "stream-ready") {
+                startLiveInference(ingressEvent.ingressId);
+            }
+        }).connect();
+   }
+   popNameElement.innerHTML = endpoint.popName();
+   startButton.disabled = false;
+ }
 async function startStream(event) {
     const startTime = performance.now();
     timingSpan.innerHTML = "__ms";
