@@ -3,7 +3,7 @@ import {
     EndpointState,
     FileSource,
     IngressEvent,
-    LiveIngress,
+    LiveMedia,
     LiveSource,
     PathSource,
     ResultStream,
@@ -15,11 +15,12 @@ import {
 import {AbstractJob, LoadFromJob, LoadLiveIngressJob, UploadJob} from "./jobs"
 import {createHttpClient, HttpClient} from './shims/http_client'
 import {Semaphore} from "./semaphore"
-import {Whip} from "./whip"
+import {WebrtcWhip} from "./webrtc_whip"
+import {WebrtcWhep} from "./webrtc_whep"
 import {resolvePath} from "./shims/local_file"
 
 import {Logger, pino} from "pino"
-import {authenticateBrowserSession} from "./shims/browser_session";
+import {authenticateBrowserSession} from "./shims/browser_session"
 
 interface PopConfig {
     base_url: string;
@@ -83,9 +84,173 @@ export class Endpoint {
         this._requestLogger = this._logger.child({module: 'requests'})
     }
 
+    public eyepopUrl(): string {
+        if (this._options.eyepopUrl) {
+            return this._options.eyepopUrl.replace(/\/+$/, '')
+        } else {
+            return 'https://api.eyepop.ai'
+        }
+    }
+
+    public state(): EndpointState {
+        return this._state
+    }
+
+    public pendingJobs(): number {
+        return (this._options.jobQueueLength ?? 1024) - this._limit.getPermits()
+    }
+
+    public popName(): string | null {
+        return this._popName
+    }
+
+    public popId(): string | null {
+        return this._options.popId || null
+    }
+
     public onStateChanged(handler: (fromState: EndpointState, toState: EndpointState) => void): Endpoint {
         this._stateChangeHandler = handler
         return this
+    }
+
+    public onIngressEvent(handler: (event: IngressEvent) => void): Endpoint {
+        this._ingressEventHandler = handler
+        this.startIngressWs().then(() => {
+        }).catch((reason) => {
+            this._logger.warn('unexpected error starting the ingress event handler: %s', reason)
+        })
+        return this
+    }
+
+    public async connect(): Promise<Endpoint> {
+        if (this._client) {
+            this._logger.warn('endpoint already connected')
+            return this
+        }
+        if (!this._options.eyepopUrl) {
+            return Promise.reject("option eyepopUrl or environment variable EYEPOP_URL is required")
+        }
+        if (!this._options.popId) {
+            return Promise.reject("option popId or environment variable EYEPOP_POP_ID is required")
+        }
+        if (this._options.auth === undefined) {
+            return Promise.reject("cannot connect without defined auth option")
+        }
+        if ((this._options.auth as SessionAuth).session !== undefined) {
+            this._token = (this._options.auth as SessionAuth).session.accessToken
+            this._expire_token_time = (this._options.auth as SessionAuth).session.validUntil / 1000
+        } else if ((this._options.auth as OAuth2Auth).oAuth2 !== undefined) {
+
+        } else if ((this._options.auth as SecretKeyAuth).secretKey !== undefined) {
+
+        } else {
+            return Promise.reject("option secretKey or environment variable EYEPOP_SECRET_KEY is required")
+        }
+
+        this._client = await createHttpClient()
+
+        let result: Endpoint = await this.reconnect()
+
+
+        if (this._baseUrl && this._options.stopJobs) {
+            const stop_url = `${this._baseUrl}/pipelines/${this._pipelineId}/source?mode=preempt&processing=sync`
+            const body = {'sourceType': 'NONE'}
+            const headers = {
+                'Authorization': await this.authorizationHeader(), 'Content-Type': 'application/json'
+            }
+            this._requestLogger.debug('before PATCH %s', stop_url)
+            let response = await this._client.fetch(stop_url, {
+                method: 'PATCH',
+                headers: headers,
+                body: JSON.stringify(body)
+            })
+            if (response.status >= 300) {
+                const message = await response.text()
+                return Promise.reject(`Unexpected status ${response.status}: ${message}`)
+            }
+            this._requestLogger.debug('after PATCH %s', stop_url)
+        }
+
+        if (!this._ingressEventWs && this._ingressEventHandler) {
+            await this.startIngressWs()
+        }
+
+        return result;
+    }
+
+    public async disconnect(wait: boolean = true): Promise<void> {
+        if (wait && this._limit) {
+            // @ts-ignore
+            for (let j = 0; j < this._options.jobQueueLength; j++) {
+                await this._limit.acquire()
+            }
+        }
+
+        this._limit = new Semaphore(this._options.jobQueueLength ?? 1024)
+
+        if (this._client) {
+            await this._client.close()
+            this._client = null
+        }
+        this._baseUrl = null
+        this._pipelineId = null
+    }
+
+    public async session(): Promise<SessionPlus> {
+        await this.currentAccessToken()
+        if (this._token == null || this._expire_token_time == null) {
+            return Promise.reject("endpoint not connected")
+        }
+        if (this._baseUrl == null || this._pipelineId == null) {
+            await this.reconnect()
+            if (this._baseUrl == null || this._pipelineId == null) {
+                return Promise.reject("endpoint not connected")
+            }
+        }
+        return {
+            eyepopUrl: <string>this._options.eyepopUrl,
+            popId: <string>this._options.popId,
+            accessToken: this._token,
+            validUntil: this._expire_token_time * 1000,
+            baseUrl: this._baseUrl,
+            pipelineId: this._pipelineId
+        }
+    }
+
+    public async liveIngress(stream: MediaStream): Promise<LiveMedia> {
+        if (!this._baseUrl || !this._client) {
+            return Promise.reject("endpoint not connected, use connect() before ingress()")
+        }
+        const whip = new WebrtcWhip(stream, async () => {
+            return this.session()
+        }, this._client, this._requestLogger)
+        return whip.start()
+    }
+
+    public async liveEgress(ingressId: string): Promise<LiveMedia> {
+        if (!this._baseUrl || !this._client) {
+            return Promise.reject("endpoint not connected, use connect() before ingress()")
+        }
+        const whep = new WebrtcWhep(ingressId, async () => {
+            return this.session()
+        }, this._client, this._requestLogger)
+        return whep.start()
+    }
+
+    public async process(source: Source): Promise<ResultStream> {
+        if ((source as FileSource).file !== undefined) {
+            return this.uploadFile(source as FileSource)
+        } else if ((source as StreamSource).stream !== undefined) {
+            return this.uploadStream(source as StreamSource)
+        } else if ((source as PathSource).path !== undefined) {
+            return this.uploadPath(source as PathSource)
+        } else if ((source as UrlSource).url !== undefined) {
+            return this.loadFrom(source as UrlSource)
+        } else if ((source as LiveSource).ingressId !== undefined) {
+            return this.loadLiveIngress(source as LiveSource)
+        } else {
+            return Promise.reject('unknown source type')
+        }
     }
 
     private async startIngressWs(): Promise<void> {
@@ -125,79 +290,6 @@ export class Endpoint {
             })
         } finally {
             this.updateState()
-        }
-
-    }
-
-    public onIngressEvent(handler: (event: IngressEvent) => void): Endpoint {
-        this._ingressEventHandler = handler
-        this.startIngressWs().then(() => {
-        }).catch((reason) => {
-            this._logger.warn('unexpected error starting the ingress event handler: %s', reason)
-        })
-        return this
-    }
-
-    public state(): EndpointState {
-        return this._state
-    }
-
-    public pendingJobs(): number {
-        return (this._options.jobQueueLength ?? 1024) - this._limit.getPermits()
-    }
-
-    public popName(): string | null {
-        return this._popName
-    }
-
-    public popId(): string | null {
-        return this._options.popId || null
-    }
-
-    public async session(): Promise<SessionPlus> {
-        await this.currentAccessToken()
-        if (this._token == null || this._expire_token_time == null) {
-            return Promise.reject("endpoint not connected")
-        }
-        if (this._baseUrl == null || this._pipelineId == null) {
-            await this.reconnect()
-            if (this._baseUrl == null || this._pipelineId == null) {
-                return Promise.reject("endpoint not connected")
-            }
-        }
-        return {
-            eyepopUrl: <string>this._options.eyepopUrl,
-            popId: <string>this._options.popId,
-            accessToken: this._token,
-            validUntil: this._expire_token_time * 1000,
-            baseUrl: this._baseUrl,
-            pipelineId: this._pipelineId
-        }
-    }
-
-    public async liveIngress(stream: MediaStream): Promise<LiveIngress> {
-        if (!this._baseUrl || !this._client) {
-            return Promise.reject("endpoint not connected, use connect() before ingress()")
-        }
-        const whip = new Whip(stream, async () => {
-            return this.session()
-        }, this._client, this._requestLogger)
-        return whip.start()
-    }
-
-    public async process(source: Source): Promise<ResultStream> {
-        if ((source as FileSource).file !== undefined) {
-            return this.uploadFile(source as FileSource)
-        } else if ((source as StreamSource).stream !== undefined) {
-            return this.uploadStream(source as StreamSource)
-        } else if ((source as PathSource).path !== undefined) {
-            return this.uploadPath(source as PathSource)
-        } else if ((source as UrlSource).url !== undefined) {
-            return this.loadFrom(source as UrlSource)
-        } else if ((source as LiveSource).ingressId !== undefined) {
-            return this.loadLiveIngress(source as LiveSource)
-        } else {
-            return Promise.reject('unknown source type')
         }
     }
 
@@ -312,63 +404,6 @@ export class Endpoint {
         }
     }
 
-    // noinspection TypeScriptValidateTypes
-    public async connect(): Promise<Endpoint> {
-        if (this._client) {
-            console.info('endpoint already connected')
-            return this
-        }
-        if (!this._options.eyepopUrl) {
-            return Promise.reject("option eyepopUrl or environment variable EYEPOP_URL is required")
-        }
-        if (!this._options.popId) {
-            return Promise.reject("option popId or environment variable EYEPOP_POP_ID is required")
-        }
-        if (this._options.auth === undefined) {
-            return Promise.reject("cannot connect without defined auth option")
-        }
-        if ((this._options.auth as SessionAuth).session !== undefined) {
-            this._token = (this._options.auth as SessionAuth).session.accessToken
-            this._expire_token_time = (this._options.auth as SessionAuth).session.validUntil / 1000
-        } else if ((this._options.auth as OAuth2Auth).oAuth2 !== undefined) {
-
-        } else if ((this._options.auth as SecretKeyAuth).secretKey !== undefined) {
-
-        } else {
-            return Promise.reject("option secretKey or environment variable EYEPOP_SECRET_KEY is required")
-        }
-
-        this._client = await createHttpClient()
-
-        let result: Endpoint = await this.reconnect()
-
-
-        if (this._baseUrl && this._options.stopJobs) {
-            const stop_url = `${this._baseUrl}/pipelines/${this._pipelineId}/source?mode=preempt&processing=sync`
-            const body = {'sourceType': 'NONE'}
-            const headers = {
-                'Authorization': await this.authorizationHeader(), 'Content-Type': 'application/json'
-            }
-            this._requestLogger.debug('before PATCH %s', stop_url)
-            let response = await this._client.fetch(stop_url, {
-                method: 'PATCH',
-                headers: headers,
-                body: JSON.stringify(body)
-            })
-            if (response.status >= 300) {
-                const message = await response.text()
-                return Promise.reject(`Unexpected status ${response.status}: ${message}`)
-            }
-            this._requestLogger.debug('after PATCH %s', stop_url)
-        }
-
-        if (!this._ingressEventWs && this._ingressEventHandler) {
-            await this.startIngressWs()
-        }
-
-        return result;
-    }
-
     private jobDone(job: AbstractJob) {
         this._limit?.release()
         this.updateState()
@@ -461,26 +496,7 @@ export class Endpoint {
             return Promise.resolve(this)
         }
     }
-
-    public async disconnect(wait: boolean = true): Promise<void> {
-        if (wait && this._limit) {
-            // @ts-ignore
-            for (let j = 0; j < this._options.jobQueueLength; j++) {
-                await this._limit.acquire()
-            }
-        }
-
-        this._limit = new Semaphore(this._options.jobQueueLength ?? 1024)
-
-        if (this._client) {
-            await this._client.close()
-            this._client = null
-        }
-        this._baseUrl = null
-        this._pipelineId = null
-    }
-
-    protected async authorizationHeader(): Promise<string> {
+    private async authorizationHeader(): Promise<string> {
         return `Bearer ${await this.currentAccessToken()}`;
     }
 
@@ -526,13 +542,5 @@ export class Endpoint {
         }
         this._logger.debug('using access token, valid for at least %d seconds', <number>this._expire_token_time - now)
         return <string>this._token
-    }
-
-    public eyepopUrl(): string {
-        if (this._options.eyepopUrl) {
-            return this._options.eyepopUrl.replace(/\/+$/, '')
-        } else {
-            return 'https://api.eyepop.ai'
-        }
     }
 }

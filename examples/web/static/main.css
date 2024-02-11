@@ -12,3 +12,23 @@
     width:100%;
     position:relative;
 }
+
+.local-video {
+    width: 100%;
+    border: 5px solid #008800;
+}
+
+.remote-video {
+    width: 100%;
+    border: 5px solid #660000;
+}
+
+.vertical-center {
+    min-height: 100%;  /* Fallback for browsers do NOT support vh unit */
+    min-height: 100vh; /* These two lines are counted as one :-)       */
+
+    min-width: 100%;
+
+    display: flex;
+    align-items: center;
+}

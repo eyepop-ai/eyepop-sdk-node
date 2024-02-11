@@ -1,4 +1,4 @@
-console.log("Hello EyePop");
+console.log("Hello EyePop Demo");
 
 let endpoint = undefined;
 let context = undefined;

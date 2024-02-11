@@ -29,10 +29,11 @@
         <div class="container-fluid mt-4">
             <div class="row justify-content-center">
                 <div id="drop-area" class="col-12">
-                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                    <div class="d-grid gap-2 d-md-flex">
                         <button disabled class="form-control" id="connect">Connect</button>
-                        <button disabled class="form-control" id="start-stream">Start</button>
-                        <button disabled class="form-control" id="stop-stream">Stop</button>
+                        <button disabled class="form-control" id="start-stream">Start Local Camera</button>
+                        <button disabled class="form-control" id="stop-stream">Stop Local Camera</button>
+                         <a href="#" class="link-primary link-body-emphasis" style="min-width: 200px" id="share-link" target="_blank">share camera request!</a>
                     </div>
                 </div>
             </div>
@@ -42,10 +43,35 @@
         <div class="container-fluid mt-4">
             <div class="row">
                 <div class="col-md-6 d-flex">
-                    Preview image:<h3 id="title" class="ms-auto"></h3>
+                    <h4>Local Video</h4>
                 </div>
                 <div class="col-md-6 d-flex">
-                    EyePop.ai Results: <h3 id="timing" class="ms-auto">0ms</h3>
+                    <h4>Remote Video</h4>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 d-flex">
+                    <div class="preview-wrapper">
+                        <video class="local-video" id="local-video" type="application/x-mpegURL"  muted autoplay playsinline controls></video>
+                        <canvas class="result-overlay" id="local-result-overlay"></canvas>
+                    </div>
+                </div>
+                <div class="col-md-6 d-flex">
+                    <div class="preview-wrapper">
+                        <video class="remote-video" id="remote-video" type="application/x-mpegURL"  muted autoplay playsinline controls></video>
+                        <canvas class="result-overlay" id="remote-result-overlay"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-12 d-flex">
+                    <hr style="width: 100%"/>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-12 d-flex">
+                    <h3>EyePop.ai Results:</h3> <h3 id="timing" class="ms-auto">0ms</h3>
                 </div>
             </div>
             <div class="row">
