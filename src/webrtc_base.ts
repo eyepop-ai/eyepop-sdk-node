@@ -1,7 +1,7 @@
 import {SessionPlus} from "./types";
 import {HttpClient} from "./shims/http_client";
 import {Logger} from "pino";
-import {Whip} from "./whip";
+import {WebrtcWhip} from "./webrtc_whip";
 
 
 interface OfferData {
@@ -9,23 +9,111 @@ interface OfferData {
     icePwd: string
     medias: string[]
 }
-export class WebRtcBase {
+export abstract class WebrtcBase {
+    protected readonly _getSession: () => Promise<SessionPlus>
+    protected readonly _client: HttpClient
+    protected readonly _requestLogger: Logger
+    protected readonly _urlPath: string
+
+    private readonly _ingressId: string
+
     protected _pc: RTCPeerConnection | null
-    protected _getSession: () => Promise<SessionPlus>
-    protected _client: HttpClient
-    protected _requestLogger: Logger
     protected _eTag: string
     protected _queuedCandidates: RTCIceCandidate[]
     protected _offerData: OfferData | null
 
-    constructor(getSession: () => Promise<SessionPlus>, client: HttpClient, requestLogger: Logger) {
-        this._pc = null
+    constructor(getSession: () => Promise<SessionPlus>, client: HttpClient, ingressId: string, urlBasePath: string, requestLogger: Logger) {
         this._getSession = getSession
         this._client = client
         this._requestLogger = requestLogger
+        this._ingressId = ingressId
+        this._urlPath = `${urlBasePath}/${this._ingressId}`
+        this._pc = null
         this._eTag = ''
         this._queuedCandidates = []
         this._offerData = null
+    }
+
+    public async close(): Promise<void> {
+        const pc = this._pc
+        this._pc = null
+        if (pc) {
+            return pc.close()
+        }
+    }
+
+    public ingressId(): string {
+        return this._ingressId
+    }
+
+    protected async onLocalOffer(offer: RTCSessionDescriptionInit): Promise<WebrtcBase> {
+        if (!this._pc) {
+            throw new Error('onLocalOffer no peer connection')
+        }
+        if (!offer.sdp) {
+            throw new Error('onLocalOffer no sdp')
+        }
+        this._offerData = WebrtcBase.parseOffer(offer.sdp)
+        await this._pc.setLocalDescription(offer)
+
+        const session = await this._getSession()
+        const ingressUrl = new URL(this._urlPath, session.baseUrl);
+        this._requestLogger.debug("before POST: %s", ingressUrl)
+        const headers = {
+            'Authorization': `Bearer ${session.accessToken}`,
+            'Content-Type': 'application/sdp',
+        }
+        const response = await this._client.fetch(ingressUrl, {
+            headers: headers,
+            method: 'POST',
+            body: offer.sdp
+        })
+        if (response.status != 201) {
+            return Promise.reject(`unknown status code for POST '${ingressUrl}': ${response.status} (${response.statusText})`)
+        }
+
+        this._eTag = response.headers.get('ETag')??''
+
+        return this.onRemoteAnswer(new RTCSessionDescription({
+            type: 'answer',
+            sdp: await response.text()
+        }))
+    }
+
+    protected abstract onRemoteAnswer(answer: RTCSessionDescription): Promise<WebrtcBase>
+
+    protected async sendLocalCandidates(candidates: RTCIceCandidate[]): Promise<WebrtcBase> {
+        if (!this._offerData) {
+            throw new Error('sendLocalCandidates no offerData')
+        }
+        const session = await this._getSession()
+        const ingressUrl = new URL(this._urlPath, session.baseUrl);
+        this._requestLogger.debug("before PATCH: %s", ingressUrl)
+        const headers = {
+            'Authorization': `Bearer ${session.accessToken}`,
+            'Content-Type': 'application/trickle-ice-sdpfrag',
+            'If-Match': this._eTag
+        }
+        const response = await this._client.fetch(ingressUrl, {
+            headers: headers,
+            method: 'PATCH',
+            body: WebrtcBase.generateSdpFragment(this._offerData, candidates),
+        })
+        if (response.status != 204) {
+            return Promise.reject(`unknown status code for PATCH '${ingressUrl}': ${response.status} (${response.statusText})`)
+        }
+        return this
+    }
+
+    protected async onLocalCandidate(evt: RTCPeerConnectionIceEvent): Promise<WebrtcBase> {
+        if (evt.candidate !== null) {
+            if (this._eTag === '') {
+                this._queuedCandidates.push(evt.candidate)
+            } else {
+                await this.sendLocalCandidates([evt.candidate])
+            }
+        }
+        return this
     }
 
     static linkToIceServers(links: string | null): RTCIceServer[] {
@@ -36,8 +124,8 @@ export class WebRtcBase {
             }
             const iceServer: RTCIceServer = {
                 urls: [m[1]],
-                username: Whip.unquoteCredential(m[3]),
-                credential: Whip.unquoteCredential(m[4]),
+                username: WebrtcWhip.unquoteCredential(m[3]),
+                credential: WebrtcWhip.unquoteCredential(m[4]),
                 // credentialType: m[3]? "password" : undefined
             }
             return iceServer
@@ -53,9 +141,9 @@ export class WebRtcBase {
         for (let i = 0; i < sections.length; i++) {
             const section = sections[i];
             if (section.startsWith('video')) {
-                sections[i] = Whip.setVideoBitrate(Whip.setCodec(section, videoCodec), videoBitrate);
+                sections[i] = WebrtcWhip.setVideoBitrate(WebrtcWhip.setCodec(section, videoCodec), videoBitrate);
             } else if (section.startsWith('audio')) {
-                sections[i] = Whip.setAudioBitrate(Whip.setCodec(section, audioCodec), audioBitrate, audioVoice);
+                sections[i] = WebrtcWhip.setAudioBitrate(WebrtcWhip.setCodec(section, audioCodec), audioBitrate, audioVoice);
             }
         }
 

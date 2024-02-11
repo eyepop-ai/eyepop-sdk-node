@@ -7,7 +7,7 @@ import {authenticateBrowserSession} from "./shims/browser_session";
 export {
     Session,
     IngressEvent,
-    LiveIngress,
+    LiveMedia,
     ResultStream,
     EndpointState,
     Prediction,

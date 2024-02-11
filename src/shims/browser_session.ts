@@ -20,7 +20,6 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
             await auth0Client.loginWithPopup()
         }
         const accessToken = await auth0Client.getTokenSilently()
-        console.log(await auth0Client.getIdTokenClaims())
         if (!accessToken) {
             return Promise.reject('auth0 login failed')
         }

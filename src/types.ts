@@ -19,8 +19,9 @@ export enum EndpointState {
     Error = "Error"
 }
 
-export interface LiveIngress {
+export interface LiveMedia {
     ingressId(): string
+    stream(): Promise<MediaStream>
     close(): Promise<void>
 }
 export interface IngressEvent {

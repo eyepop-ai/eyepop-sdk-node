@@ -180,7 +180,7 @@ export class LoadLiveIngressJob extends AbstractJob {
             'Accept': 'application/jsonl',
             'Content-Type': 'application/json'
         }
-        const patchUrl: string = `${session.baseUrl.replace(/\/+$/, "")}/pipelines/${session.pipelineId}/source?mode=queue&processing=sync`
+        const patchUrl: string = `${session.baseUrl.replace(/\/+$/, "")}/pipelines/${session.pipelineId}/source?mode=preempt&processing=sync`
         this._requestLogger.debug("before PATCH %s with url %s as source", patchUrl, this._ingressId)
         const response = await this._client.fetch(patchUrl, {
             headers: headers,
