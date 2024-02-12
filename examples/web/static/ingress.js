@@ -42,7 +42,37 @@ async function setup() {
 
     document.getElementById('share-link').href = document.location.href.replace('ingress.html', 'ingress-only.html')
     connectButton.disabled = false;
+    await populateDevices();
 }
+
+async function populateDevices() {
+    return navigator.mediaDevices.enumerateDevices()
+        .then((devices) => {
+            for (const device of devices) {
+                console.log(device);
+                switch (device.kind) {
+                    case 'videoinput':
+                    {
+                        const opt = document.createElement('option');
+                        opt.value = device.deviceId;
+                        opt.text = device.label;
+                        document.getElementById('video_device').appendChild(opt);
+                    }
+                        break;
+                }
+            }
+
+            // add screen
+            const opt = document.createElement('option');
+            opt.value = "screen";
+            opt.text = "screen";
+            document.getElementById('video_device').appendChild(opt);
+
+            // set default
+            document.getElementById('video_device').value = document.getElementById('video_device').children[1].value;
+        });
+};
+
 async function connect(event) {
     if (!endpoint) {
         const queryString = window.location.search;
@@ -84,7 +114,21 @@ async function startLocalStream(event) {
     timingSpan.innerHTML = "__ms";
     resultSpan.innerHTML = "<span class='text-muted'>processing</a>";
     startButton.disabled = true;
-    const stream = await navigator.mediaDevices.getUserMedia({video: true});
+    const videoId = document.getElementById('video_device').value;
+    let stream = undefined;
+    if (videoId == 'screen') {
+        stream = await navigator.mediaDevices.getDisplayMedia({
+            video: {
+                width: { ideal: 1920 },
+                height: { ideal: 1080 },
+                frameRate: { ideal: 30 },
+                cursor: "always",
+            },
+            audio: false,
+        })
+    } else {
+        stream = await navigator.mediaDevices.getUserMedia({video: {deviceId: videoId}});
+    }
     localVideo.srcObject = stream;
     localVideo.play();
     liveIngress = await endpoint.liveIngress(stream);
