@@ -15,10 +15,8 @@ let remoteVideo = undefined;
 let remoteResultOverlay = undefined;
 let remoteOverlayContext = undefined;
 
-
-let currentRemoteIngressId = undefined;
-
 let liveIngress = undefined;
+let liveEgress = undefined;
 
 async function setup() {
     popNameElement = document.getElementById("pop-name");
@@ -90,13 +88,13 @@ async function connect(event) {
                 await startRemoteStream(ingressEvent.ingressId);
                 startLiveInference(ingressEvent.ingressId);
             } else {
-                if (currentRemoteIngressId == ingressEvent.ingressId) {
+                if (liveEgress && liveEgress.ingressId() == ingressEvent.ingressId) {
                     remoteVideo.pause();
                     remoteVideo.srcObject = null;
                     remoteOverlayContext.clearRect(0,0,remoteResultOverlay.width, remoteResultOverlay.height);
+                    liveEgress = null;
                 }
             }
-
         }).connect();
    }
    popNameElement.innerHTML = endpoint.popName();
@@ -104,9 +102,8 @@ async function connect(event) {
 }
 
 async function startRemoteStream(ingressId) {
-    const liveEgress = await endpoint.liveEgress(ingressId);
+    liveEgress = await endpoint.liveEgress(ingressId);
     remoteVideo.srcObject = await liveEgress.stream();
-    currentRemoteIngressId = ingressId;
     remoteVideo.play();
 }
 async function startLocalStream(event) {
@@ -164,6 +161,7 @@ async function stopStream(event) {
     localVideo.srcObject = null;
     localOverlayContext.clearRect(0,0,localResultOverlay.width, localResultOverlay.height);
     await liveIngress.close();
+    liveIngress = null;
     startButton.disabled = false;
 }
 
