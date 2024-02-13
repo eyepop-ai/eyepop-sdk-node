@@ -40,46 +40,66 @@ export class EyePopSdk {
         secretKey: EyePopSdk.envSecretKey,
     } : undefined
 
-    public static endpoint({
-                               auth = this.defaultAuth,
-                               popId = readEnv('EYEPOP_POP_ID'),
-                               eyepopUrl = readEnv('EYEPOP_URL'),
-                               autoStart = true,
-                               stopJobs = true,
-                               jobQueueLength = 1024,
-                               logger,
-                               ...opts
-                           }: Options = {}): Endpoint {
-        if (((auth as OAuth2Auth).oAuth2 !== undefined) && popId) {
-            if (typeof (auth as OAuth2Auth).oAuth2 === "boolean") {
-                auth = {
-                    oAuth2: {
-                        domain: "eyepop.us.auth0.com",
-                        clientId: "Lb9ubA9Hf3jlaqWLUx8XgA0zvotgViCl",
-                        audience: "https://api.eyepop.ai",
-                        scope: "admin:clouds"
+    public static endpoint(opts: Options = {}): Endpoint {
+        if (typeof opts.auth == "undefined") {
+            if (typeof EyePopSdk.defaultAuth == "undefined") {
+                throw new Error('auth option or EYEPOP_SECRET_KEY environment variable is required')
+            }
+            opts.auth = EyePopSdk.defaultAuth
+        }
+
+        if (typeof opts.popId == "undefined") {
+            opts.popId = readEnv('EYEPOP_POP_ID')
+        }
+
+        if (typeof opts.eyepopUrl == "undefined") {
+            opts.eyepopUrl = readEnv('EYEPOP_URL') || 'https://api.eyepop.ai'
+        }
+
+        if (typeof opts.autoStart == "undefined") {
+            opts.autoStart = true
+        }
+
+        if (typeof opts.stopJobs == "undefined") {
+            opts.stopJobs = true
+        }
+
+        if (typeof opts.jobQueueLength == "undefined") {
+            opts.jobQueueLength = 1024
+        }
+
+        if ((typeof (opts.auth as OAuth2Auth).oAuth2 != "undefined") && opts.popId) {
+            if (typeof (opts.auth as OAuth2Auth).oAuth2 === "boolean") {
+                if (opts.eyepopUrl.startsWith('https://staging-api.eyepop.ai')) {
+                    opts.auth = {
+                        oAuth2: {
+                            domain: "dev-eyepop.us.auth0.com",
+                            clientId: "jktx3YO2UnbkNPvr05PQWf26t1kNTJyg",
+                            audience: "https://dev-app.eyepop.ai",
+                            scope: "admin:clouds"
+                        }
+                    }
+                } else {
+                    opts.auth = {
+                        oAuth2: {
+                            domain: "eyepop.us.auth0.com",
+                            clientId: "Lb9ubA9Hf3jlaqWLUx8XgA0zvotgViCl",
+                            audience: "https://api.eyepop.ai",
+                            scope: "admin:clouds"
+                        }
                     }
                 }
             }
         }
-        if ((auth as SessionAuth).session !== undefined) {
-            if ((auth as SessionAuth).session.popId) {
-                popId = (auth as SessionAuth).session.popId
+        if ((opts.auth as SessionAuth).session !== undefined) {
+            if ((opts.auth as SessionAuth).session.popId) {
+                opts.popId = (opts.auth as SessionAuth).session.popId
             }
-            if ((auth as SessionAuth).session.eyepopUrl) {
-                eyepopUrl = (auth as SessionAuth).session.eyepopUrl
+            if ((opts.auth as SessionAuth).session.eyepopUrl) {
+                opts.eyepopUrl = (opts.auth as SessionAuth).session.eyepopUrl
             }
         }
-        const options: Options = {
-            auth: auth,
-            popId: popId,
-            eyepopUrl: eyepopUrl ?? 'https://api.eyepop.ai',
-            autoStart: autoStart,
-            stopJobs: stopJobs,
-            jobQueueLength: jobQueueLength,
-            logger: logger,
-        };
-        const endpoint = new Endpoint(options);
+        const endpoint = new Endpoint(opts);
         return endpoint;
     }
 

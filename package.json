@@ -13,7 +13,6 @@
     "@eyepop.ai/eyepop": "./dist/index.js",
     "fs": false,
     "fs/promises": false,
-    "path": false,
     "undici": false
   },
   "scripts": {

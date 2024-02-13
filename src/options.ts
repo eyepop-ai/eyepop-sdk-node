@@ -51,5 +51,6 @@ export interface Options {
   autoStart?: boolean;
   stopJobs?: boolean;
   jobQueueLength?: number;
+
   logger?: Logger | undefined;
 }
