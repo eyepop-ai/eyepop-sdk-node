@@ -27,7 +27,7 @@ npm link ../.. @eyepop.ai/eyepop
 npm install
 npm run dev
 ```
-open http://localhost:8080/
+open http://localhost:8000/
 ## Vanilla JS in browser
 in project root
 ```shell
@@ -35,7 +35,7 @@ python3 -m http.server
 ```
 In another terminal
 ```shell
-open http://127.0.0.1:8000/examples/web/static/upload.html?popId=$EYEPOP_POP_ID
+open http://127.0.0.1:8000/examples/web/static/upload.html?popId=$EYEPOP_POP_ID&eyepopUrl=(echo $EYEPOP_URL | jq -sRr @uri)
 ```
 ## Plain Javascript in Browser
 

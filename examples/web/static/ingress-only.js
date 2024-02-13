@@ -51,10 +51,12 @@ async function startLocalStream(event) {
         const queryString = window.location.search;
         const urlParams = new URLSearchParams(queryString);
         const popId = urlParams.get('popId');
+        const eyepopUrl = urlParams.get('eyepopUrl') || undefined;
 
         endpoint = await EyePopSdk.endpoint({
             auth: {oAuth2: true},
-            popId: popId
+            popId: popId,
+            eyepopUrl: eyepopUrl
         }).onStateChanged((from, to) => {
             console.log("Endpoint state transition from " + from + " to " + to);
         }).connect();

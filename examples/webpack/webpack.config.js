@@ -26,7 +26,7 @@ module.exports = {
       }), new NodePolyfillPlugin()
     ],
     devServer: {
-      hot: false, allowedHosts: "all", liveReload: false, port: 8080, client: {
+      hot: false, allowedHosts: "all", liveReload: false, port: 8000, client: {
           logging: 'verbose', overlay: true,
       },
   },

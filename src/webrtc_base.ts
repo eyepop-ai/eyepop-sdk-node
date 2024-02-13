@@ -2,6 +2,7 @@ import {SessionPlus} from "./types";
 import {HttpClient} from "./shims/http_client";
 import {Logger} from "pino";
 import {WebrtcWhip} from "./webrtc_whip";
+import path from "path";
 
 
 interface OfferData {
@@ -17,6 +18,8 @@ export abstract class WebrtcBase {
 
     private readonly _ingressId: string
 
+    private _location: string | null
+
     protected _pc: RTCPeerConnection | null
     protected _eTag: string
     protected _queuedCandidates: RTCIceCandidate[]
@@ -30,6 +33,7 @@ export abstract class WebrtcBase {
         this._urlPath = `${urlBasePath}/${this._ingressId}`
         this._pc = null
         this._eTag = ''
+        this._location = null
         this._queuedCandidates = []
         this._offerData = null
     }
@@ -73,7 +77,7 @@ export abstract class WebrtcBase {
         }
 
         this._eTag = response.headers.get('ETag')??''
-
+        this._location = response.headers.get('Location')
         return this.onRemoteAnswer(new RTCSessionDescription({
             type: 'answer',
             sdp: await response.text()
@@ -86,8 +90,15 @@ export abstract class WebrtcBase {
         if (!this._offerData) {
             throw new Error('sendLocalCandidates no offerData')
         }
+        let urlPath: string|undefined = undefined
+
         const session = await this._getSession()
-        const ingressUrl = new URL(this._urlPath, session.baseUrl);
+        if (this._location) {
+            urlPath = path.join(this._urlPath, this._location)
+        }else {
+            urlPath = this._urlPath
+        }
+        const ingressUrl = new URL(urlPath, session.baseUrl);
         this._requestLogger.debug("before PATCH: %s", ingressUrl)
         const headers = {
             'Authorization': `Bearer ${session.accessToken}`,

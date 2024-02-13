@@ -339,6 +339,7 @@ export class Endpoint {
 
     private async uploadPath(source: PathSource): Promise<ResultStream> {
         if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
+            console.log(this)
             throw new Error("endpoint not connected, use connect() before process()")
         }
         await this._limit.acquire()
@@ -484,9 +485,10 @@ export class Endpoint {
                 config = (await response.json()) as PopConfig
             }
 
-            this._baseUrl = config.base_url;
-            this._pipelineId = config.pipeline_id;
-            this._popName = config.name;
+            const baseUrl = new URL(config.base_url, this.eyepopUrl())
+            this._baseUrl = baseUrl.toString()
+            this._pipelineId = config.pipeline_id
+            this._popName = config.name
             this._requestLogger.debug('after GET %s: %s / %s', config_url, this._baseUrl, this._pipelineId)
             if (!this._pipelineId || !this._baseUrl) {
                 return Promise.reject(`Pop not started`)
