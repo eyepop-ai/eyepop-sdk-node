@@ -22,7 +22,6 @@ async function populateDevices() {
     return navigator.mediaDevices.enumerateDevices()
         .then((devices) => {
             for (const device of devices) {
-                console.log(device);
                 switch (device.kind) {
                     case 'videoinput':
                     {

@@ -10,7 +10,6 @@ export class WebrtcWhip extends WebrtcBase implements LiveMedia {
         super(getSession, client, uuidv4().toString(), '/liveIngress/whip', requestLogger)
         this._stream = stream
     }
-
     public async start(): Promise<WebrtcWhip> {
         const session = await this._getSession()
         const ingressUrl = new URL(this._urlPath, session.baseUrl);
@@ -46,18 +45,6 @@ export class WebrtcWhip extends WebrtcBase implements LiveMedia {
         if (!this._pc) {
             throw new Error('onLocalOffer no peer connection')
         }
-        answer = new RTCSessionDescription({
-            type: 'answer',
-            sdp: WebrtcWhip.editAnswer(
-                answer.sdp,
-                'h264/90000',
-                undefined,
-                5000,
-                undefined,
-                true,
-            ),
-        })
-
         await this._pc.setRemoteDescription(new RTCSessionDescription(answer))
 
         if (this._queuedCandidates.length !== 0) {
