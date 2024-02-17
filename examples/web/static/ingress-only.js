@@ -52,7 +52,7 @@ async function startLocalStream(event) {
         const popId = urlParams.get('popId');
         const eyepopUrl = urlParams.get('eyepopUrl') || undefined;
 
-        endpoint = await EyePopSdk.endpoint({
+        endpoint = await EyePop.endpoint({
             auth: {oAuth2: true},
             popId: popId,
             eyepopUrl: eyepopUrl

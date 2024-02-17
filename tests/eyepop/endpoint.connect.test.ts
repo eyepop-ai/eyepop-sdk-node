@@ -1,9 +1,8 @@
-import {EyePopSdk} from '../src'
+import {EyePop, Session} from '../../src/eyepop'
 
 import {MockServer} from 'jest-mock-server'
 import {describe, expect, test} from '@jest/globals'
 import {v4 as uuidv4} from 'uuid'
-import {SessionPlus} from "EyePopSdk/types";
 
 describe('EyePopSdk endpoint module auth and connect', () => {
     const server = new MockServer()
@@ -47,7 +46,7 @@ describe('EyePopSdk endpoint module auth and connect', () => {
                 ctx.status = 204
             })
 
-        const endpoint = EyePopSdk.endpoint({
+        const endpoint = EyePop.endpoint({
             eyepopUrl: server.getURL().toString(),
             popId: test_pop_id,
             auth: {secretKey: test_secret_key}
@@ -95,7 +94,7 @@ describe('EyePopSdk endpoint module auth and connect', () => {
                 ctx.status = 204
             })
 
-        const endpoint = EyePopSdk.endpoint({
+        const endpoint = EyePop.endpoint({
             eyepopUrl: server.getURL().toString(), popId: test_pop_id, auth: {secretKey: test_secret_key}
         })
         expect(endpoint).toBeDefined()
@@ -146,7 +145,7 @@ describe('EyePopSdk endpoint module auth and connect', () => {
                 ctx.body = JSON.stringify({base_url: `${server.getURL()}worker/`, pipeline_id: test_pipeline_id})
             })
 
-        const endpoint = EyePopSdk.endpoint({
+        const endpoint = EyePop.endpoint({
             eyepopUrl: server.getURL().toString(), popId: test_pop_id, stopJobs: false, auth: {secretKey: test_secret_key}
         })
         expect(endpoint).toBeDefined()
@@ -197,7 +196,7 @@ describe('EyePopSdk endpoint module auth and connect', () => {
                 ctx.status = 204
             })
 
-        const endpoint = EyePopSdk.endpoint({
+        const endpoint = EyePop.endpoint({
             eyepopUrl: server.getURL().toString(), popId: test_pop_id, stopJobs: false, auth: {secretKey: test_secret_key}
         })
         expect(endpoint).toBeDefined()
@@ -237,12 +236,12 @@ describe('EyePopSdk endpoint module auth and connect', () => {
                 ctx.status = 204
             })
 
-        const endpoint1 = EyePopSdk.endpoint({
+        const endpoint1 = EyePop.endpoint({
             eyepopUrl: server.getURL().toString(), popId: test_pop_id, stopJobs: false, auth: {secretKey: test_secret_key}
         })
         expect(endpoint1).toBeDefined()
 
-        let session: SessionPlus
+        let session: Session
 
         try {
             await endpoint1.connect()
@@ -256,7 +255,7 @@ describe('EyePopSdk endpoint module auth and connect', () => {
         authenticationRoute.mockClear()
         popConfigRoute.mockClear()
 
-        const endpoint2 = EyePopSdk.endpoint({
+        const endpoint2 = EyePop.endpoint({
             eyepopUrl: server.getURL().toString(), popId: test_pop_id, stopJobs: false, auth: {session: session}
         })
         expect(endpoint2).toBeDefined()

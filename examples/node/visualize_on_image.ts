@@ -1,4 +1,5 @@
-import {EyePopSdk, EndpointState} from '@eyepop.ai/eyepop'
+import {EyePop, EndpointState} from '../../src/eyepop'
+import {Render2d} from '../../src/eyepop-render-2d'
 
 import {createCanvas, loadImage} from "canvas"
 import {open} from 'openurl'
@@ -8,6 +9,7 @@ import { tmpdir } from 'node:os'
 
 import { pino } from 'pino'
 import process from 'process'
+import json from "@rollup/plugin-json";
 
 const logger = pino({level: 'info', name: 'eyepop-example'})
 
@@ -18,7 +20,7 @@ const example_image_path = process.argv[2]
     const canvas = createCanvas(image.width, image.height)
     const context = canvas.getContext("2d")
 
-    const endpoint = await EyePopSdk.endpoint({
+    const endpoint = await EyePop.endpoint({
         logger: logger
     }).onStateChanged((fromState:EndpointState, toState:EndpointState) => {
         logger.info("Endpoint changed state %s -> %s", fromState, toState)
@@ -29,7 +31,7 @@ const example_image_path = process.argv[2]
             canvas.width = result.source_width
             canvas.height = result.source_height
             context.drawImage(image, 0, 0)
-            EyePopSdk.plot(context).prediction(result)
+            Render2d.renderer(context).prediction(result)
         }
     } finally {
         await endpoint.disconnect()

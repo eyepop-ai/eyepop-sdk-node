@@ -2,8 +2,13 @@
 The EyePop.ai Node SDK provides convenient access to the EyePop.ai's inference API from applications written in the 
 TypeScript or JavaScript language.
 ## Installation
+### Node
 ```shell
 npm install --save @eyepop.ai/eyepop
+```
+### Browser
+```html
+<script src="https://cdn.jsdelivr.net/npm/@eyepop.ai/eyepop/dist/eyepop.min.js"></script>
 ```
 ## Configuration
 The EyePop SDK needs to be configured with the __Pop Id__ and your __Authentication Credentials__. Credentials can 
@@ -20,9 +25,9 @@ to your .env file so that your API Key is not stored in source control. By defau
 ### Authentication with Api Key
 Configuration and authorization with explicit defaults:
 ```typescript
-import { EyePopSdk } from '@eyepop.ai/eyepop'
+import { EyePop } from '@eyepop.ai/eyepop'
 (async() => {
-    const endpoint = EyePopSdk.endpoint({
+    const endpoint = EyePop.endpoint({
         // This is the default and can be omitted
         popId: process.env['EYEPOP_POP_ID'],
         // This is the default and can be omitted
@@ -35,9 +40,9 @@ import { EyePopSdk } from '@eyepop.ai/eyepop'
 ```
 Equivalent, but shorter:
 ```typescript
-import { EyePopSdk } from '@eyepop.ai/eyepop'
+import { EyePop } from '@eyepop.ai/eyepop'
 (async() => {
-    const endpoint = await EyePopSdk.endpoint().connect()
+    const endpoint = await EyePop.endpoint().connect()
     // do work ....
     await endpoint.disconnect()
 })
@@ -45,9 +50,9 @@ import { EyePopSdk } from '@eyepop.ai/eyepop'
 ### Authentication with session generated from Api Key
 #### Server Side
 ```javascript
-import { EyePopSdk } from '@eyepop.ai/eyepop'
+import { EyePop } from '@eyepop.ai/eyepop'
 const getSession = async function (req, res) {
-    const endpoint = await EyePopSdk.endpoint().connect();
+    const endpoint = await EyePop.endpoint().connect();
     res.setHeader("Content-Type", "application/json");
     res.writeHead(200);
     res.end(JSON.stringify(await endpoint.session()));
@@ -57,13 +62,13 @@ server.listen(8080, '127.0.0.1');
 ```
 #### Client Side 
 ```javascript
-import { EyePopSdk } from '@eyepop.ai/eyepop'
+import { EyePop } from '@eyepop.ai/eyepop'
 (async() => {
     const session = await (await fetch("http://127.0.0.1:8080")).json();
-    const endpoint = await EyePopSdk.endpoint({ auth: { session: session } }).connect();
+    const endpoint = await EyePop.endpoint({ auth: { session: session } }).connect();
     // do work ....
     await endpoint.disconnect();
-});
+})();
 ```
 ### Authentication with Current Browser Session
 ```html
@@ -76,7 +81,7 @@ import { EyePopSdk } from '@eyepop.ai/eyepop'
 <body>
 <script>
     document.addEventListener("DOMContentLoaded", async (event) => {
-        let endpoint = await EyePopSdk.endpoint({ auth: { oAuth2: true }, popId: '< Pop Id>' }).connect();
+        let endpoint = await EyePop.endpoint({ auth: { oAuth2: true }, popId: '< Pop Id>' }).connect();
         // do work ....
         await endpoint.disconnect();
     });
@@ -86,7 +91,7 @@ import { EyePopSdk } from '@eyepop.ai/eyepop'
 To use an alternative environment, e.g. STAGING vs PRODUCTION, pass in the adjusted Auth0 configuration:
 ```javascript
 // ...
-let endpoint = await EyePopSdk.endpoint({ 
+let endpoint = await EyePop.endpoint({ 
   auth: { oAuth2: {
     audience: "https://dev-app.eyepop.ai",
     domain: "dev-eyepop.us.auth0.com",
@@ -97,12 +102,12 @@ let endpoint = await EyePopSdk.endpoint({
 ## Usage Examples
 ### Uploading and processing one single image
 ```typescript
-import { EyePopSdk } from '@eyepop.ai/eyepop'
+import { EyePop } from '@eyepop.ai/eyepop'
 
 const example_image_path = 'examples/example.jpg';
 
 (async() => {
-    const endpoint = await EyePopSdk.endpoint().connect()
+    const endpoint = await EyePop.endpoint().connect()
     try {
         let results = await endpoint.process({path: example_image_path})
         for await (let result of results) {
@@ -111,9 +116,9 @@ const example_image_path = 'examples/example.jpg';
     } finally {
         await endpoint.disconnect()
     }
-})
+})();
 ```
-1. `EyePopSdk.endpoint()` returns a local endpoint object, that will authenticate with the Api Key found in 
+1. `EyePop.endpoint()` returns a local endpoint object, that will authenticate with the Api Key found in 
 EYEPOP_SECRET_KEY and load the worker configuration for the Pop identified by EYEPOP_POP_ID. 
 2. Call `endpoint.connect()` before any job is submitted and `endpoint.disconnect()` to release all resources.
 3. `endpoint.process({path:'examples/example.jpg'})` initiates the upload to the local file to the worker service. 
@@ -132,54 +137,19 @@ until the entire file has been processed.
     // ...
 ```
 ### Visualizing Results
-The EyePop SDK includes helper classes to visualize the predictions for images using `canvas.CanvasRenderingContext2D`.
-```typescript
-import {createCanvas, loadImage} from "canvas"
-import {open} from 'openurl'
-import { mkdtempSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
-import { tmpdir } from 'node:os'
-import { EyePopSdk } from '@eyepop.ai/eyepop'
-
-const example_image_path = 'examples/example.jpg';
-    
-(async() => {
-    const image = await loadImage(example_image_path)
-    const canvas = createCanvas(image.width, image.height)
-    const context = canvas.getContext("2d")
-    context.drawImage(image, 0, 0)
-
-    const endpoint = await EyePopSdk.endpoint().connect()
-    try {
-        let results = await endpoint.process({path: example_image_path})
-        for await (let result of results) {
-            EyePopSdk.plot(context).prediction(result)
-        }        
-    } finally {
-        await endpoint.disconnect()
-    }
-    
-    const tmp_dir = mkdtempSync(join(tmpdir(), 'ep-demo-'))
-    const temp_file = join(tmp_dir, 'out.png')
-    console.log(`creating temp file: ${temp_file}`)
-
-    const buffer = canvas.toBuffer('image/png')
-    writeFileSync(temp_file, buffer)
-
-    open(`file://${temp_file}`)
-})
-```
+Visualization components are provided as separate modules. Please refer to the module's documentation for usage examples.
+* [EyePop Render 2d](../eyepop-render-2d/README.md)
 ### Asynchronous uploading and processing of images
 The above _synchronous_ way, process() then iterate all results, is great for individual images or reasonable 
 sized batches. For larger batch sizes, or continuous stream of images, don't `await` the results but instead 
 use `then()` on the returned promise.
 ```typescript
-import { EyePopSdk } from '@eyepop.ai/eyepop'
+import { EyePop } from '@eyepop.ai/eyepop';
 
 const example_image_path = 'examples/example.jpg';
 
 (async() => {
-    const endpoint = await EyePopSdk.endpoint().connect()
+    const endpoint = await EyePop.endpoint().connect()
     try {
         for (let i = 0; i < 100; i++) {
             endpoint.process({path: example_image_path}).then(async (results) => {
@@ -191,7 +161,7 @@ const example_image_path = 'examples/example.jpg';
     } finally {
         await endpoint.disconnect()
     }
-})
+})();
 ```
 This will result in a most efficient processing, i.e. uploads will be processed in parallel (up to five HTTP 
 connections per endpoint) and results will be processed by your code as soon as they are available.     
@@ -201,12 +171,12 @@ Alternatively to uploading files, you can also submit a publicly accessible URL 
 * RTSP (live-streaming)
 * RTMP (live-streaming)
 ```typescript
-import { EyePopSdk } from '@eyepop.ai/eyepop'
+import { EyePop } from '@eyepop.ai/eyepop';
 
 const example_image_url = 'https://farm2.staticflickr.com/1080/1301049949_532835a8b5_z.jpg';
 
 (async() => {
-    const endpoint = await EyePopSdk.endpoint().connect()
+    const endpoint = await EyePop.endpoint().connect()
     try {
         let results = await endpoint.process({url: example_image_url})
         for await (let result of results) {
@@ -215,19 +185,19 @@ const example_image_url = 'https://farm2.staticflickr.com/1080/1301049949_532835
     } finally {
         await endpoint.disconnect()
     }
-})
+})();
 ```
 ### Processing Videos 
 You can process videos via upload or public URLs. This example shows how to process all video frames of a file 
 retrieved from a public URL.
 
 ```typescript
-import { EyePopSdk } from '@eyepop.ai/eyepop'
+import { EyePop } from '@eyepop.ai/eyepop'
 
 const example_video_url = 'https://demo-eyepop-videos.s3.amazonaws.com/test1_vlog.mp4';
 
 (async() => {
-    const endpoint = await EyePopSdk.endpoint().connect()
+    const endpoint = await EyePop.endpoint().connect()
     try {
         let results = await endpoint.process({url: example_image_url})
         for await (let result of results) {
@@ -236,18 +206,18 @@ const example_video_url = 'https://demo-eyepop-videos.s3.amazonaws.com/test1_vlo
     } finally {
         await endpoint.disconnect()
     }
-})
+})();
 ```
 ### Canceling Jobs
 Any job that has been queued or is in-progress can be cancelled. E.g. stop the video processing after
 predictions have been processed for 10 seconds duration of the video.
 ```typescript
-import { EyePopSdk } from '@eyepop.ai/eyepop'
+import { EyePop } from '@eyepop.ai/eyepop'
 
 const example_video_url = 'https://demo-eyepop-videos.s3.amazonaws.com/test1_vlog.mp4';
 
 (async() => {
-    const endpoint = EyePopSdk.endpoint().connect()
+    const endpoint = EyePop.endpoint().connect()
     try {
         let results = await endpoint.process({url: example_image_url})
         for await (let result of results) {
@@ -259,16 +229,17 @@ const example_video_url = 'https://demo-eyepop-videos.s3.amazonaws.com/test1_vlo
     } finally {
         await endpoint.disconnect()
     }
-})
+})();
 ```
 ## Other Usage Options
 #### Auto start workers
-By default, `EyePopSdk.endpoint().connect()` will start a worker if none is running yet. To disable this behavior 
-create an endpoint with `EyePopSdk.endpoint({autoStart: false})`.
+By default, `EyePop.endpoint().connect()` will start a worker if none is running yet. To disable this behavior 
+create an endpoint with `EyePop.endpoint({autoStart: false})`.
 #### Stop pending jobs
-By default, `EyePopSdk.endpoint().connect()` will cancel all currently running or queued jobs on the worker. 
+By default, `EyePop.endpoint().connect()` will cancel all currently running or queued jobs on the worker. 
 It is assumed that the caller _takes full control_ of that worker. To disable this behavior create an endpoint with 
-`EyePopSdk.endpoint({stopJobs: false})`.
+`EyePop.endpoint({stopJobs: false})`.
+
 
 
 

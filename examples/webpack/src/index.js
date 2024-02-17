@@ -1,4 +1,4 @@
-import {EyePopSdk} from '@eyepop.ai/eyepop';
+import {EyePop} from '../../../dist/index'
 
 let endpoint = undefined;
 let context = undefined;
@@ -13,7 +13,7 @@ const resultSpan = document.getElementById('txt_json');
 
 async function setup() {
     const session = await (await fetch("eyepop-session.json")).json()
-    endpoint = EyePopSdk.endpoint({
+    endpoint = EyePop.endpoint({
         auth: {session: session}
     })
     endpoint.onStateChanged((from, to) => {

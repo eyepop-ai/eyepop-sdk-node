@@ -339,7 +339,6 @@ export class Endpoint {
 
     private async uploadPath(source: PathSource): Promise<ResultStream> {
         if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
-            console.log(this)
             throw new Error("endpoint not connected, use connect() before process()")
         }
         await this._limit.acquire()

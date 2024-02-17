@@ -1,8 +1,5 @@
-import {Endpoint} from "./endpoint";
-import {Auth0Options, OAuth2Auth, Options, SecretKeyAuth, SessionAuth} from "./options";
-import {EyePopPlot} from "./visualize";
-import {CanvasRenderingContext2D} from "canvas";
-import {authenticateBrowserSession} from "./shims/browser_session";
+import {Endpoint} from "./endpoint"
+import {OAuth2Auth, Options, SecretKeyAuth, SessionAuth} from "./options"
 
 export {
     Session,
@@ -33,19 +30,19 @@ const readEnv = (env: string): string | undefined => {
     return undefined;
 };
 
-export class EyePopSdk {
-    private static readonly envSecretKey = readEnv('EYEPOP_SECRET_KEY')
+export namespace EyePop {
+    const envSecretKey = readEnv('EYEPOP_SECRET_KEY')
 
-    static defaultAuth:SecretKeyAuth | undefined = EyePopSdk.envSecretKey ? {
-        secretKey: EyePopSdk.envSecretKey,
+    const defaultAuth:SecretKeyAuth | undefined = envSecretKey ? {
+        secretKey: envSecretKey,
     } : undefined
 
-    public static endpoint(opts: Options = {}): Endpoint {
+    export function endpoint(opts: Options = {}): Endpoint {
         if (typeof opts.auth == "undefined") {
-            if (typeof EyePopSdk.defaultAuth == "undefined") {
+            if (typeof defaultAuth == "undefined") {
                 throw new Error('auth option or EYEPOP_SECRET_KEY environment variable is required')
             }
-            opts.auth = EyePopSdk.defaultAuth
+            opts.auth = defaultAuth
         }
 
         if (typeof opts.popId == "undefined") {
@@ -102,10 +99,6 @@ export class EyePopSdk {
         const endpoint = new Endpoint(opts);
         return endpoint;
     }
-
-    public static plot(context: CanvasRenderingContext2D): EyePopPlot {
-        return new EyePopPlot(context)
-    }
 }
 
-export default EyePopSdk
+export default EyePop

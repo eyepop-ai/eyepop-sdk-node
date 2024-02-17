@@ -1,5 +1,5 @@
 {
-  "include": ["src", "tests", "examples"],
+  "include": ["src/eyepop", "src/eyepop-render-2d" ,"tests/eyepop", "examples"],
   "sourceMap": true,
   "compilerOptions": {
     "target": "es2020",
@@ -12,8 +12,10 @@
     "esModuleInterop": true,
     "baseUrl": ".",
     "paths": {
-      "EyePopSdk/*": ["src/*"],
-      "EyePopSdk": ["src/index.ts"]
+      "EyePop/*": ["src/eyepop/*"],
+      "EyePop": ["src/eyepop/index.ts"],
+      "EyePop/Render2d/*": ["src/eyepop-render-2d/*"],
+      "EyePop/Render2d": ["src/eyepop-render-2d/index.ts"]
     },
     "noEmit": true,
 

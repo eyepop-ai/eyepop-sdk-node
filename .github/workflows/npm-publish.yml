@@ -16,7 +16,7 @@ jobs:
         with:
           node-version: 21
       - run: npm install
-      - run: npm run build
+      - run: npm run build -ws
       - run: npm test
 
   publish-npm:
@@ -29,7 +29,7 @@ jobs:
           node-version: 21
           registry-url: https://registry.npmjs.org/
       - run: npm install
-      - run: npm run build
-      - run: npm publish
+      - run: npm run build -ws
+      - run: npm publish -ws
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

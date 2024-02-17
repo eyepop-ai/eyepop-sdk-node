@@ -69,6 +69,7 @@ export interface PredictedClass {
     id: number
     confidence: number
     classLabel: string
+    category: string
 }
 
 export interface PredictedObject extends PredictedClass {
@@ -92,6 +93,7 @@ export interface Point2d {
 }
 
 export interface PredictedMesh {
+    category: string
     id: number
     confidence: number
     points: Array<Point3d>
@@ -102,6 +104,7 @@ export interface Point3d extends Point2d {
 }
 
 export interface PredictedKeyPoints {
+    category: string
     type: string
     points: Array<PredictedKeyPoint>
 }

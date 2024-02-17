@@ -78,7 +78,7 @@ async function connect(event) {
         const popId = urlParams.get('popId');
         const eyepopUrl = urlParams.get('eyepopUrl') || undefined;
 
-        endpoint = await EyePopSdk.endpoint({
+        endpoint = await EyePop.endpoint({
             auth: {oAuth2: true},
             popId: popId,
             eyepopUrl: eyepopUrl
@@ -144,14 +144,20 @@ function startLiveInference(ingressId) {
                 localResultOverlay.width = result.source_width;
                 localResultOverlay.height = result.source_height;
                 localOverlayContext.clearRect(0, 0, localResultOverlay.width, localResultOverlay.height);
-                EyePopSdk.plot(localOverlayContext).prediction(result);
+                Render2d.renderer(localOverlayContext).prediction(result);
             }
 
             if (remoteVideo.srcObject) {
                 remoteResultOverlay.width = result.source_width;
                 remoteResultOverlay.height = result.source_height;
                 remoteOverlayContext.clearRect(0, 0, remoteResultOverlay.width, remoteResultOverlay.height);
-                EyePopSdk.plot(remoteOverlayContext).prediction(result);
+                Render2d.renderer(remoteOverlayContext,[{
+                    type: 'face',
+                    target: '$..objects[?(@.meshs[0].category=="3d-face-mesh")]'
+                }, {
+                    type: 'hand',
+                    target: '$..objects[?(@.keyPoints[0].category=="3d-hand-points")]'
+                }]).prediction(result);
             }
         }
     })

@@ -1,9 +1,9 @@
-import {EyePopSdk} from '@eyepop.ai/eyepop'
+import {EyePop} from '../../src/eyepop'
 import process from 'process'
 import {pino} from 'pino'
 
 async function upload_photos_sequentially(image_paths: Array<string>) {
-    const endpoint = await EyePopSdk.endpoint().connect()
+    const endpoint = await EyePop.endpoint().connect()
     try {
         for (let i = 0; i < image_paths.length; i++) {
             let results = await endpoint.process({path: image_paths[i]})
@@ -17,7 +17,7 @@ async function upload_photos_sequentially(image_paths: Array<string>) {
 }
 
 async function upload_photos_parallel(image_paths: Array<string>) {
-    const endpoint = await EyePopSdk.endpoint().connect()
+    const endpoint = await EyePop.endpoint().connect()
     try {
         for (let i = 0; i < image_paths.length; i++) {
             const job = endpoint.process({path: image_paths[i]})

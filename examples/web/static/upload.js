@@ -33,7 +33,7 @@ async function connect(event) {
         const popId = urlParams.get('popId');
         const eyepopUrl = urlParams.get('eyepopUrl') || undefined;
 
-        endpoint = await EyePopSdk.endpoint({
+        endpoint = await EyePop.endpoint({
             auth: {oAuth2: true},
             popId: popId,
             eyepopUrl: eyepopUrl
@@ -66,7 +66,10 @@ async function upload(event) {
             resultOverlay.width = result.source_width;
             resultOverlay.height = result.source_height;
             context.clearRect(0,0,resultOverlay.width, resultOverlay.height);
-            EyePopSdk.plot(context).prediction(result);
+            Render2d.renderer(context,[{
+                type: 'face',
+                target: '$..objects[?(@.classLabel=="face")]'
+            }]).prediction(result);
         }
         timingSpan.innerHTML = Math.floor(performance.now() - startTime) + "ms";
     });
