@@ -1,7 +1,7 @@
-import {EyePopSdk} from '@eyepop.ai/eyepop'
+import {EyePop} from '../../src/eyepop'
 
 async function load_video_from_url(video_url: string, seconds: number) {
-    const endpoint = await EyePopSdk.endpoint().connect()
+    const endpoint = await EyePop.endpoint().connect()
     try {
         const results = await endpoint.process({url: video_url})
         for await (let result of await results) {

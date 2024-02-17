@@ -1,0 +1,38 @@
+{
+  "name": "@eyepop.ai/eyepop",
+  "version": "0.15.0",
+  "description": "The official Node.js / Typescript library for EyePop.ai's inference API",
+  "keywords": [
+    "AI",
+    "CV",
+    "ML",
+    "EyePop"
+  ],
+  "author": "EyePop.ai",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/eyepop-ai/eyepop-sdk-node/issues"
+  },
+  "homepage": "https://github.com/eyepop-ai/eyepop-sdk-node#readme",
+  "main": "./dist/eyepop.index.js",
+  "module": "./dist/eyepop.index.mjs",
+  "types": "./dist/eyepop.index.d.ts",
+  "type": "commonjs",
+  "browser": {
+    "fs": false,
+    "fs/promises": false,
+    "undici": false
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup && webpack"
+  },
+  "dependencies": {
+    "@auth0/auth0-spa-js": "^2.1.3",
+    "@types/mime-types": "^2.1.4",
+    "pino": "^8.17.2",
+    "undici": "^6.3.0"
+  }
+}

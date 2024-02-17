@@ -1,0 +1,37 @@
+{
+  "name": "@eyepop.ai/eyepop-render-2d",
+  "version": "0.15.0",
+  "description": "The Node.js / Typescript library for 2d rendering of EyePop.ai's inference API",
+  "keywords": [
+    "AI",
+    "CV",
+    "ML",
+    "EyePop"
+  ],
+  "author": "EyePop.ai",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/eyepop-ai/eyepop-sdk-node/issues"
+  },
+  "homepage": "https://github.com/eyepop-ai/eyepop-sdk-node#readme",
+  "main": "./dist/eyepop.render2d.index.js",
+  "module": "./dist/eyepop.render2d.index.mjs",
+  "types": "./dist/eyepop.render2d.index.d.ts",
+  "type": "commonjs",
+  "files": [
+    "dist"
+  ],
+  "browser": {
+    "fs": false,
+    "fs/promises": false,
+    "undici": false
+  },
+  "scripts": {
+    "build": "tsup && webpack"
+  },
+  "dependencies": {
+    "@eyepop.ai/eyepop": "0.15.0",
+    "@types/jsonpath": "^0.2.4",
+    "jsonpath": "^1.1.1"
+  }
+}

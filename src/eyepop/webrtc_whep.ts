@@ -1,8 +1,7 @@
-import {WebrtcBase} from "./webrtc_base";
-import {LiveMedia, SessionPlus} from "./types";
-import {HttpClient} from "./shims/http_client";
-import {Logger} from "pino";
-import {WebrtcWhip} from "EyePopSdk/webrtc_whip";
+import {WebrtcBase} from './webrtc_base'
+import {LiveMedia, SessionPlus} from './types'
+import {HttpClient} from './shims/http_client'
+import {Logger} from 'pino'
 
 export class WebrtcWhep extends WebrtcBase implements LiveMedia {
     private _stream: MediaStream | null

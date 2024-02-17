@@ -2,9 +2,6 @@
 ## Preparation
 In project root:
 ```shell
-npm link . @eyepop.ai/eyepop
-```
-```shell
 export EYEPOP_POP_ID=<your pop id>
 ```
 ```shell
@@ -23,7 +20,6 @@ npx tsx examples/node/load_video_from_http.ts
 ## With Webpack
 ```shell
 cd examples/webpack
-npm link ../.. @eyepop.ai/eyepop
 npm install
 npm run dev
 ```

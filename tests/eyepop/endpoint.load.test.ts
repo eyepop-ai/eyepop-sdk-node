@@ -1,4 +1,4 @@
-import {EyePopSdk} from '../src'
+import {EyePop} from '../../src/eyepop'
 
 import {MockServer} from 'jest-mock-server'
 import {describe, expect, test} from '@jest/globals'
@@ -62,7 +62,7 @@ describe('EyePopSdk endpoint module loadFrom', () => {
             ctx.body = JSON.stringify({timestamp: fake_timestamp})
         })
 
-        const endpoint = EyePopSdk.endpoint({
+        const endpoint = EyePop.endpoint({
             eyepopUrl: server.getURL().toString(),
             auth: {secretKey: test_secret_key},
             popId: test_pop_id,

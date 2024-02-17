@@ -1,4 +1,4 @@
-import {EyePopSdk} from '../src'
+import {EyePop} from '../../src/eyepop'
 
 import {MockServer} from 'jest-mock-server'
 import {describe, expect, test} from '@jest/globals'
@@ -62,7 +62,7 @@ describe('EyePopSdk endpoint module upload', () => {
             ctx.body = JSON.stringify({timestamp: fake_timestamp})
         })
 
-        const endpoint = EyePopSdk.endpoint({
+        const endpoint = EyePop.endpoint({
             eyepopUrl: server.getURL().toString(),
             auth: {secretKey: test_secret_key},
             popId: test_pop_id,
@@ -94,7 +94,7 @@ describe('EyePopSdk endpoint module upload', () => {
         const image_path = './tests/does_not_exist.dummy'
         const {authenticationRoute, popConfigRoute} = prepMockServer(server, test_pop_id, test_pipeline_id)
 
-        const endpoint = EyePopSdk.endpoint({
+        const endpoint = EyePop.endpoint({
             eyepopUrl: server.getURL().toString(),
             auth: {secretKey: test_secret_key},
             popId: test_pop_id,
