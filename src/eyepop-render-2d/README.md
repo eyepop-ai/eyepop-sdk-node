@@ -32,13 +32,15 @@ const example_image_path = 'examples/example.jpg';
     const image = await loadImage(example_image_path)
     const canvas = createCanvas(image.width, image.height)
     const context = canvas.getContext("2d")
+    const renderer = Render2d.renderer(context)
+    
     context.drawImage(image, 0, 0)
 
     const endpoint = await EyePop.endpoint().connect()
     try {
         let results = await endpoint.process({path: example_image_path})
         for await (let result of results) {
-            Render2d.renderer(context).prediction(result)
+            renderer.draw(result)
         }        
     } finally {
         await endpoint.disconnect()
@@ -72,10 +74,12 @@ const example_image_path = 'examples/example.jpg';
     async uploadFile(event) {
         const fileChooser = document.getElementById('my-file-chooser');
         const context = document.getElementById('my-canvas').getContext("2d");
+        const renderer = Render2d.renderer(context);
+        
         const endpoint = await EyePop.endpoint({ auth: { oAuth2: true }, popId: '< Pop Id>' }).connect();
         endpoint.process({file: fileChooser.files[0]}).then(async (results) => {
             for await (let result of results) {
-                Render2d.renderer(context).prediction(result);
+                renderer.draw(result);
             }
         });
         await endpoint.disconnect();
@@ -86,21 +90,68 @@ const example_image_path = 'examples/example.jpg';
 
 ```
 ### Rendering Rules
-By default, the 2d renderer renders boxes and clasS-labels for every top level object in the prediction.
+By default, the 2d renderer renders boxes and class-labels for every top level object in the prediction.
 Change this rendering behaviour by passing in rendering rule(s), e.g.:
 ```javascript
 // ...
-    Render2d.renderer(context,[{
-        type: 'face',
-        target: '$..objects[?(@.classLabel=="face")]'
-    }]).prediction(result);
+    Render2d.renderer(context,[Render2.renderFace()]).draw(result);
 // ...
 ```
-Each rule has a `type` and a `target` attribute. Supported rule types are:
-* `box` draws a bounding box and a class label
-* `pose` draws person body key points 
-* `hand` draws person hand detailed key points 
-* `face` draws person face mesh and expression labels
-* `blur` blurs the bounding box of the selected object
+Each rule has a `render` object and a `target` attribute. All prebuild render classes accept a 
+JSONPath expression as `target` parameter to select which elements should be rendered from predictions. 
+See [JSONPath expression](https://www.npmjs.com/package/jsonpath)
 
-the `target` attribute is a [JSONPath expression](https://www.npmjs.com/package/jsonpath) that is applied to the prediction result to filter the objects to be rendered.
+Most prebuild render classes provide a reasonable default `target`.
+#### Rendering Bounding Boxes and Class Labels
+```typescript
+Render2d.renderBox(target = '$.objects.*')
+// or
+Render2d.renderBox()
+``` 
+#### Render Human Body Poses (2d or 3d)
+```typescript
+Render2d.renderPose(target = '$..objects[?(@.category=="person")]')
+// or
+Render2d.renderPose()
+```    
+#### Render Human Hand Details
+```typescript
+Render2d.renderHand(target = '$..objects[?(@.classLabel=="hand circumference")]')
+// or 
+Render2d.renderHand()
+```
+#### Render Human Faces
+```typescript
+Render2d.renderFace(target = '$..objects[?(@.classLabel=="face")]') 
+// or 
+Render2d.renderFace() 
+```
+#### Blur an Object (TODO does black-put instead of blur)
+```typescript
+Render2d.renderBlur(target = '$..objects[?(@.classLabel=="face")]')
+```
+#### Render a Trail of a traced object over time
+```typescript
+Render2d.renderTrail(1.0, target = '$..objects[?(@.traceId)]')
+// or
+Render2d.renderTrail()
+```
+By default, this traces the mid-point of the object's bounding box. Instead, one can also draw trails of 
+sub-objects or key points of the traced object. Use the optional parameter `traceDetails` for this purpose. 
+E.g. trail the nose of every person:
+```typescript
+Render2d.renderTrail(1.0, '$..points[?(@.classLabel.includes("nose"))]')
+```
+#### Custom render implementation
+To implement custom rendering rules, implement the `Render` interface and create your own `RenderRule` objects:  
+```typescript
+export interface Render {
+    start(context: CanvasRenderingContext2D, style: Style): void
+    draw(element: any, xOffset: number, yOffset: number, xScale: number, yScale: number, streamTime: StreamTime): void
+}
+
+export interface RenderRule {
+    readonly render: Render
+    readonly target : string
+}
+```

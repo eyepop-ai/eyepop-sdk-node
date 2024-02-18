@@ -137,6 +137,13 @@ async function startLocalStream(event) {
 
 function startLiveInference(ingressId) {
     endpoint.process({ingressId: ingressId}).then(async (results) => {
+        const remoteRender = Render2d.renderer(remoteOverlayContext,[
+          Render2d.renderFace(), Render2d.renderHand()
+        ])
+        const localRender = Render2d.renderer(localOverlayContext, [
+          Render2d.renderTrail(1.0,
+            '$..points[?(@.classLabel.includes("nose"))]'),
+        ])
         for await (let result of results) {
             resultSpan.textContent = JSON.stringify(result, " ", 2);
 
@@ -144,20 +151,14 @@ function startLiveInference(ingressId) {
                 localResultOverlay.width = result.source_width;
                 localResultOverlay.height = result.source_height;
                 localOverlayContext.clearRect(0, 0, localResultOverlay.width, localResultOverlay.height);
-                Render2d.renderer(localOverlayContext).prediction(result);
+                localRender.draw(result);
             }
 
             if (remoteVideo.srcObject) {
                 remoteResultOverlay.width = result.source_width;
                 remoteResultOverlay.height = result.source_height;
                 remoteOverlayContext.clearRect(0, 0, remoteResultOverlay.width, remoteResultOverlay.height);
-                Render2d.renderer(remoteOverlayContext,[{
-                    type: 'face',
-                    target: '$..objects[?(@.meshs[0].category=="3d-face-mesh")]'
-                }, {
-                    type: 'hand',
-                    target: '$..objects[?(@.keyPoints[0].category=="3d-hand-points")]'
-                }]).prediction(result);
+                remoteRender.draw(result);
             }
         }
     })

@@ -1,37 +1,42 @@
-import {PredictedObject} from "@eyepop.ai/eyepop";
+import {PredictedObject, StreamTime} from "@eyepop.ai/eyepop";
 import {Style} from "./style";
 import {CanvasRenderingContext2D} from "canvas";
 import {Render} from "./render";
 
 export class RenderBox implements Render {
-    private readonly context: CanvasRenderingContext2D
-    private readonly style: Style
+    private context: CanvasRenderingContext2D | undefined
+    private style: Style | undefined
 
-    constructor(context: CanvasRenderingContext2D, style: Style) {
+    start(context: CanvasRenderingContext2D, style: Style) {
         this.context = context
         this.style = style
     }
-    public render(element: PredictedObject, left: number = 0.0, top: number = 0.0, xScale: number = 1.0, yScale: number = 1.0) {
+    public draw(element: PredictedObject, xOffset: number, yOffset: number, xScale: number, yScale: number, streamTime: StreamTime): void {
         const context = this.context
-        const x = left + element.x * xScale
-        const y = top + element.y * yScale
+        const style = this.style
+        if (!context || !style) {
+            throw new Error('render() called before start()')
+        }
+
+        const x = xOffset + element.x * xScale
+        const y = yOffset + element.y * yScale
         const w = element.width * xScale
         const h = element.height * yScale
 
         //faded blue background
         context.beginPath()
-        context.rect(element.x, element.y, element.width, element.height)
+        context.rect(x, y, w, h)
         context.lineWidth = 1
-        context.strokeStyle = this.style.colors.opacity_color
-        context.fillStyle = this.style.colors.opacity_color
+        context.strokeStyle = style.colors.opacity_color
+        context.fillStyle = style.colors.opacity_color
         context.fill()
         context.stroke()
 
         const mindim = Math.min(element.height, element.width)
         let corner_size = Math.max(15, mindim / 5.33333)
 
-        var corners = [//top left corner
-            [{x: x, y: y + corner_size}, {x: x, y: y}, {x: x + corner_size, y: y},], //bottom left corner
+        var corners = [//top xOffset corner
+            [{x: x, y: y + corner_size}, {x: x, y: y}, {x: x + corner_size, y: y},], //bottom xOffset corner
             [{x: x, y: y + h - corner_size}, {x: x, y: y + h}, {x: x + corner_size, y: y + h},], //top right corner
             [{x: x + w - corner_size, y: y}, {x: x + w, y: y}, {x: x + w, y: y + corner_size},], //bottom right corner
             [{x: x + w, y: y + h - corner_size}, {x: x + w, y: y + h}, {x: x + w - corner_size, y: y + h},],]
@@ -41,7 +46,7 @@ export class RenderBox implements Render {
             context.moveTo(corner[0].x, corner[0].y)
             context.lineTo(corner[1].x, corner[1].y)
             context.lineTo(corner[2].x, corner[2].y)
-            context.strokeStyle = this.style.colors.primary_color
+            context.strokeStyle = style.colors.primary_color
             context.lineWidth = 1
             context.stroke()
         })
@@ -49,11 +54,11 @@ export class RenderBox implements Render {
         const padding = Math.max(mindim * 0.02, 5)
         corner_size = corner_size - padding
 
-        var corners2 = [//2nd top left corner
+        var corners2 = [//2nd top xOffset corner
             [{x: x + padding, y: y + padding + corner_size}, {
                 x: x + padding,
                 y: y + padding
-            }, {x: x + padding + corner_size, y: y + padding},], //2nd bottom left corner
+            }, {x: x + padding + corner_size, y: y + padding},], //2nd bottom xOffset corner
             [{x: x + padding, y: y - padding + h - corner_size}, {
                 x: x + padding,
                 y: y - padding + h
@@ -72,7 +77,7 @@ export class RenderBox implements Render {
             context.moveTo(corner[0].x, corner[0].y)
             context.lineTo(corner[1].x, corner[1].y)
             context.lineTo(corner[2].x, corner[2].y)
-            context.strokeStyle = this.style.colors.secondary_color
+            context.strokeStyle = style.colors.secondary_color
             context.lineWidth = 1
             context.stroke()
         })
@@ -82,7 +87,7 @@ export class RenderBox implements Render {
             trackingLabel = `#${element.traceId}`
         }
 
-        context.font = this.style.font
+        context.font = style.font
         context.fillStyle = '#ffffff'
         context.textAlign = 'left'
         context.textBaseline = 'top'

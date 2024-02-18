@@ -1,30 +1,30 @@
 import {CanvasRenderingContext2D} from "canvas";
 import {Style} from "./style";
-import {PredictedKeyPoint, PredictedKeyPoints, PredictedObject} from "@eyepop.ai/eyepop";
+import {PredictedKeyPoint, PredictedKeyPoints, PredictedObject, StreamTime} from "@eyepop.ai/eyepop";
 import {Render} from "./render";
 
 export class RenderHand implements Render {
-    private readonly context: CanvasRenderingContext2D
-    private readonly style: Style
+    private context: CanvasRenderingContext2D | undefined
+    private style: Style | undefined
 
-    constructor(context: CanvasRenderingContext2D, style: Style) {
+    start(context: CanvasRenderingContext2D, style: Style) {
         this.context = context
         this.style = style
     }
 
-    public render(element: PredictedObject, left: number = 0.0, top: number = 0.0, xScale: number = 1.0, yScale: number = 1.0) {
+    public draw(element: PredictedObject, xOffset: number, yOffset: number, xScale: number, yScale: number, streamTime: StreamTime): void {
         if (element.keyPoints) {
             let fillColor = this.getFillColor(element)
             for (let i = 0; i < element.keyPoints.length; i++) {
                 const keyPoints = element.keyPoints[i]
                 if (keyPoints.category == HAND_KEYPOINTS_CATEGORY) {
-                    this.renderKeyPoints(keyPoints, fillColor, Math.max(element.width, element.height), left, top, xScale, yScale)
+                    this.renderKeyPoints(keyPoints, fillColor, Math.max(element.width, element.height), xOffset, yOffset, xScale, yScale)
                 }
             }
         }
     }
 
-    private renderKeyPoints(keyPoints: PredictedKeyPoints, fillColor: string, width: number, left: number, top: number, xScale: number, yScale: number) {
+    private renderKeyPoints(keyPoints: PredictedKeyPoints, fillColor: string, width: number, xOffset: number, yOffset: number, xScale: number, yScale: number) {
         const labelsToPoints = new Map<string, PredictedKeyPoint>()
         let maxZ = 0;
         let minZ = 0;
@@ -41,6 +41,10 @@ export class RenderHand implements Render {
             }
         }
         const context = this.context
+        const style = this.style
+        if (!context || !style) {
+            throw new Error('render() called before start()')
+        }
         for (var i = 0; i < HAND_CONNECTIONS.length; i++) {
             const connection = HAND_CONNECTIONS[i]
             const point1 = labelsToPoints.get(connection[0])
@@ -50,15 +54,15 @@ export class RenderHand implements Render {
 
             if (!point2 || !point2.x) continue
 
-            const x1 = left + point1.x * xScale
-            const y1 = top + point1.y * yScale
-            const x2 = left + point2.x * xScale
-            const y2 = top + point2.y * yScale
+            const x1 = xOffset + point1.x * xScale
+            const y1 = yOffset + point1.y * yScale
+            const x2 = xOffset + point2.x * xScale
+            const y2 = yOffset + point2.y * yScale
 
             context.beginPath()
             context.lineWidth = 3
-            context.strokeStyle = this.style.colors.primary_color
-            context.fillStyle = this.style.colors.primary_color
+            context.strokeStyle = style.colors.primary_color
+            context.fillStyle = style.colors.primary_color
             context.moveTo(x1, y1)
             context.lineTo(x2, y2)
             context.stroke()
@@ -70,8 +74,8 @@ export class RenderHand implements Render {
 
         for (var i = 0; i < keyPoints.points.length; i++) {
             const p = keyPoints.points[i]
-            const x = left + p.x * xScale
-            const y = top + p.y * yScale
+            const x = xOffset + p.x * xScale
+            const y = yOffset + p.y * yScale
             const z = p.z ?? 0.0 * Math.max(xScale, yScale)
             const radius = MAX_RADIUS - (z - minZ) * (MAX_RADIUS - MIN_RADIUS) / (maxZ - minZ)
 
@@ -80,21 +84,25 @@ export class RenderHand implements Render {
             context.arc(x, y, radius, 0, Math.PI * 2, false)
             context.fillStyle = fillColor
             context.fill()
-            context.strokeStyle = this.style.colors.secondary_color
+            context.strokeStyle = style.colors.secondary_color
             context.stroke()
         }
     }
 
     private getFillColor(element: PredictedObject) {
-        let fillColor = this.style.colors.primary_color
+        const style = this.style
+        if (!style) {
+            throw new Error('render() called before start()')
+        }
+        let fillColor = style.colors.primary_color
         if (element.classes) {
             for (let i = 0; i < element.classes.length; i++) {
                 if (element.classes[i].category == HAND_KEYPOINTS_CATEGORY) {
                     if (element.classes[i].classLabel == "right") {
-                        fillColor = this.style.colors.right_color
+                        fillColor = style.colors.right_color
                         break
                     } else if (element.classes[i].classLabel == "left") {
-                        fillColor = this.style.colors.left_color
+                        fillColor = style.colors.left_color
                         break
                     }
                 }
