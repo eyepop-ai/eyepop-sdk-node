@@ -1,6 +1,5 @@
 import {EyePop} from '../../src/eyepop'
 import process from 'process'
-import {pino} from 'pino'
 
 async function upload_photos_sequentially(image_paths: Array<string>) {
     const endpoint = await EyePop.endpoint().connect()

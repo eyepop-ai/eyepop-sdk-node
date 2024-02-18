@@ -1,31 +1,35 @@
 import {CanvasRenderingContext2D} from "canvas";
 import {Style} from "./style";
 import {Render} from "./render";
-import {PredictedObject} from "@eyepop.ai/eyepop";
+import {StreamTime, PredictedObject} from "@eyepop.ai/eyepop";
 
 export class RenderBlur implements Render {
-    private readonly context: CanvasRenderingContext2D
-    private readonly style: Style
+    private context: CanvasRenderingContext2D | undefined
+    private style: Style | undefined
 
-    constructor(context: CanvasRenderingContext2D, style: Style) {
+    start(context: CanvasRenderingContext2D, style: Style) {
         this.context = context
         this.style = style
     }
-
-    public render(element: PredictedObject, left: number = 0.0, top: number = 0.0, xScale: number = 1.0, yScale: number = 1.0) {
+    public draw(object: PredictedObject, xOffset: number, yOffset: number, xScale: number, yScale: number, streamTime: StreamTime): void {
         const context = this.context
-        const x = left + element.x * xScale
-        const y = top + element.y * yScale
-        const w = element.width * xScale
-        const h = element.height * yScale
+        const style = this.style
+        if (!context || !style) {
+            throw new Error('render() called before start()')
+        }
+        const x = xOffset + object.x * xScale
+        const y = yOffset + object.y * yScale
+        const w = object.width * xScale
+        const h = object.height * yScale
 
         context.beginPath()
-        context.rect(element.x, element.y, element.width, element.height)
+        context.rect(x, y, w, h)
         context.lineWidth = 1
-        context.strokeStyle = this.style.colors.black
-        context.fillStyle = this.style.colors.black
+        context.strokeStyle = style.colors.black
+        context.fillStyle = style.colors.black
         context.fill()
         context.stroke()
-
     }
 }
+
+export default RenderBlur

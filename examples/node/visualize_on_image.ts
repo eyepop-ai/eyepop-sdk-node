@@ -9,7 +9,6 @@ import { tmpdir } from 'node:os'
 
 import { pino } from 'pino'
 import process from 'process'
-import json from "@rollup/plugin-json";
 
 const logger = pino({level: 'info', name: 'eyepop-example'})
 
@@ -31,7 +30,7 @@ const example_image_path = process.argv[2]
             canvas.width = result.source_width
             canvas.height = result.source_height
             context.drawImage(image, 0, 0)
-            Render2d.renderer(context).prediction(result)
+            Render2d.renderer(context).draw(result)
         }
     } finally {
         await endpoint.disconnect()

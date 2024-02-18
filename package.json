@@ -2,7 +2,10 @@
   "engines": {
     "node": ">=18.0.0"
   },
-  "workspaces": ["src/eyepop", "src/eyepop-render-2d"],
+  "workspaces": [
+    "src/eyepop",
+    "src/eyepop-render-2d"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/eyepop-ai/eyepop-sdk-node.git"
@@ -32,5 +35,7 @@
     "typescript": "^5.3.3",
     "uuid": "^9.0.1",
     "webpack-cli": "^5.1.4"
+  },
+  "dependencies": {
   }
 }

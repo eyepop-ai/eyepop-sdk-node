@@ -52,10 +52,12 @@ export interface UrlSource {
 
 export type Source = FileSource | StreamSource | PathSource | LiveSource | UrlSource
 
-export interface Prediction {
+export interface StreamTime {
     timestamp: number
     seconds: number
     offset: number
+}
+export interface Prediction extends StreamTime {
     source_width: number
     source_height: number
     source_id: string

@@ -7,6 +7,7 @@ export {
     LiveMedia,
     ResultStream,
     EndpointState,
+    StreamTime,
     Prediction,
     PredictedClass,
     PredictedObject,

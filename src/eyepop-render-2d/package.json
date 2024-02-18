@@ -31,6 +31,7 @@
   },
   "dependencies": {
     "@eyepop.ai/eyepop": "0.15.0",
+    "@juggle/resize-observer": "^3.4.0",
     "@types/jsonpath": "^0.2.4",
     "jsonpath": "^1.1.1"
   }

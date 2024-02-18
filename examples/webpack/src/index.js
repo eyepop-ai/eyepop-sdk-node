@@ -1,4 +1,5 @@
-import {EyePop} from '../../../dist/index'
+import {EyePop} from '../../src/eyepop'
+import {Render2d} from '../../src/eyepop-render-2d'
 
 let endpoint = undefined;
 let context = undefined;
@@ -37,6 +38,8 @@ async function upload(event) {
 
     reader.readAsDataURL(file);
 
+    const renderer = Render2d.renderer(context);
+
     const startTime = performance.now();
     timingSpan.innerHTML = "__ms";
     resultSpan.innerHTML = "<span class='text-muted'>processing</a>";
@@ -47,7 +50,7 @@ async function upload(event) {
             resultOverlay.width = result.source_width;
             resultOverlay.height = result.source_height;
             context.clearRect(0,0,resultOverlay.width, resultOverlay.height);
-            EyePopSdk.plot(context).prediction(result);
+            renderer.draw(result);
         }
         timingSpan.innerHTML = Math.floor(performance.now() - startTime) + "ms";
     });
