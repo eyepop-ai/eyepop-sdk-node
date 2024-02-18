@@ -11,6 +11,8 @@ interface TraceEntry {
     next: TraceEntry | null
 }
 
+// trim the traces every 10 seconds
+const TRIM_INTERVAL = 1000 * 1000 * 1000 * 10
 export class RenderTrail implements Render {
     private readonly traceDetails : string | undefined
     private readonly trailLengthNanos: number
@@ -19,9 +21,12 @@ export class RenderTrail implements Render {
 
     private traces : Map<number, TraceEntry>
 
+    private lastTrim : number
+
     constructor(trailLengthSeconds: number, traceDetails : string | undefined = undefined) {
         this.trailLengthNanos = (trailLengthSeconds * 1000 * 1000 * 1000)
         this.traceDetails = traceDetails
+        this.lastTrim = 0
         this.traces = new Map()
     }
 
@@ -76,8 +81,9 @@ export class RenderTrail implements Render {
         this.traces.set(element.traceId, head)
 
         const radius = element.width * xScale / 40
-
+        let n = 0
         for (let entry:TraceEntry|null = head; entry != null; entry = entry.next) {
+            n += 1
             const age = streamTime.timestamp - entry.timestamp
             if (age < this.trailLengthNanos) {
                 const alpha = 1.0 - (age / this.trailLengthNanos)
@@ -85,6 +91,15 @@ export class RenderTrail implements Render {
             } else {
                 entry.next = null
             }
+        }
+
+        if (streamTime.timestamp - this.lastTrim > TRIM_INTERVAL) {
+            this.traces.forEach((traceEntry: TraceEntry, traceId: number) => {
+                const age = streamTime.timestamp - traceEntry.timestamp
+                if (age > this.trailLengthNanos) {
+                    this.traces.delete(traceId)
+                }
+            })
         }
     }
 

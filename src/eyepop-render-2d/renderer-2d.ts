@@ -1,6 +1,6 @@
 import {Renderer} from './index'
 import {CanvasRenderingContext2D} from 'canvas'
-import {PredictedClass, PredictedKeyPoints, PredictedMesh, PredictedObject, Prediction} from '@eyepop.ai/eyepop'
+import {Prediction} from '@eyepop.ai/eyepop'
 import {Style} from "./style";
 import {Render} from "./render";
 import {RenderBox} from "./render-box";

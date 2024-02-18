@@ -138,9 +138,9 @@ Render2d.renderTrail()
 ```
 By default, this traces the mid-point of the object's bounding box. Instead, one can also draw trails of 
 sub-objects or key points of the traced object. Use the optional parameter `traceDetails` for this purpose. 
-E.g. trail the nose of every person:
+E.g. trail the nose of every traced person:
 ```typescript
-Render2d.renderTrail(1.0, '$..points[?(@.classLabel.includes("nose"))]')
+Render2d.renderTrail(1.0, '$..keyPoints[?(@.category=="3d-body-points")].points[?(@.classLabel.includes("nose"))]')
 ```
 #### Custom render implementation
 To implement custom rendering rules, implement the `Render` interface and create your own `RenderRule` objects:  

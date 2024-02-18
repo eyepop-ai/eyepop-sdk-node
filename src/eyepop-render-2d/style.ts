@@ -1,5 +1,5 @@
 import {CanvasRenderingContext2D} from "canvas";
-
+import { ResizeObserver } from '@juggle/resize-observer';
 export interface Colors {
         primary_color: string
         secondary_color: string
@@ -11,8 +11,8 @@ export interface Colors {
         blank_color: string
 }
 export class Style {
-    readonly font: string
-    readonly colors: Colors
+    public font: string
+    public colors: Colors
 
     private static defaultColors = {
         primary_color: '#2fa7d7',
@@ -25,8 +25,20 @@ export class Style {
         blank_color: '#000000',
     }
     constructor(context: CanvasRenderingContext2D) {
-        const textSize = Math.floor(Math.max(1, .03 * Math.min(context.canvas.width, context.canvas.height)))
-        this.font = textSize + "px Poppins"
         this.colors = Style.defaultColors
+        if ('document' in globalThis && 'implementation' in globalThis.document) {
+            const resizeObserver = new ResizeObserver(entries => {
+                const rect = entries[0].contentRect
+                this.font = this.calculateFont(rect.width, rect.height)
+            })
+            // @ts-ignore
+            resizeObserver.observe(context.canvas)
+        }
+        this.font = this.calculateFont(context.canvas.width, context.canvas.height)
+    }
+
+    private calculateFont(w: number, h: number): string {
+        const textSize = Math.floor(Math.max(1, .03 * Math.min(w, h)))
+        return textSize + "px Poppins"
     }
 }

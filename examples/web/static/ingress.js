@@ -141,8 +141,9 @@ function startLiveInference(ingressId) {
           Render2d.renderFace(), Render2d.renderHand()
         ])
         const localRender = Render2d.renderer(localOverlayContext, [
+          Render2d.renderBox('$..objects[?(@.classLabel=="face")]'),
           Render2d.renderTrail(1.0,
-            '$..points[?(@.classLabel.includes("nose"))]'),
+            '$..keyPoints[?(@.category=="3d-body-points")].points[?(@.classLabel.includes("nose"))]'),
         ])
         for await (let result of results) {
             resultSpan.textContent = JSON.stringify(result, " ", 2);
