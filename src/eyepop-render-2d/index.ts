@@ -20,8 +20,8 @@ export namespace Render2d {
     export function renderBlur(target: string) : RenderRule {
         return {render: new RenderBlur(), target: target}
     }
-    export function renderBox(target: string = '$.objects.*') : RenderRule {
-        return {render: new RenderBox(), target: target}
+    export function renderBox(includeSecondaryLabels: boolean = false, target: string = '$.objects.*') : RenderRule {
+        return {render: new RenderBox(includeSecondaryLabels), target: target}
     }
     export function renderFace(target: string = '$..objects[?(@.classLabel=="face")]') : RenderRule {
         return {render: new RenderFace(), target: target}

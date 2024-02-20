@@ -7,6 +7,12 @@ export class RenderBox implements Render {
     private context: CanvasRenderingContext2D | undefined
     private style: Style | undefined
 
+    private readonly includeSecondaryLabels: boolean
+
+    constructor(includeSecondaryLabels: boolean) {
+        this.includeSecondaryLabels = includeSecondaryLabels
+    }
+
     start(context: CanvasRenderingContext2D, style: Style) {
         this.context = context
         this.style = style
@@ -82,16 +88,36 @@ export class RenderBox implements Render {
             context.stroke()
         })
 
-        let trackingLabel = ''
+
+        let label
         if (element.traceId) {
-            trackingLabel = `#${element.traceId}`
+            label = `${RenderBox.toTitleCase(element.classLabel)} #${element.traceId}`
+        } else {
+            label = element.classLabel
         }
 
         context.font = style.font
         context.fillStyle = '#ffffff'
         context.textAlign = 'left'
         context.textBaseline = 'top'
-        context.fillText(RenderBox.toTitleCase(element.classLabel + ' ' + trackingLabel), element.x + 1.5*padding, element.y + 1.5* padding)
+        const tw = context.measureText(label)
+        let xPos = element.x * xScale + xOffset + 1.5*padding
+        let yPos = element.y * yScale + yOffset + 1.5*padding
+        context.fillText(label, xPos, yPos)
+        yPos += padding + tw.actualBoundingBoxAscent + tw.actualBoundingBoxDescent
+
+        if (element.labels) {
+            for (let i= 0; i < element.labels.length; i++) {
+                context.fillText(` - ${element.labels[i]}`, xPos, yPos)
+                yPos += padding + tw.actualBoundingBoxAscent + tw.actualBoundingBoxDescent
+            }
+        }
+        if (element.classes) {
+            for (let i= 0; i < element.classes.length; i++) {
+                context.fillText(` * ${element.classes[i].classLabel} ${Math.round(element.classes[i].confidence * 100)}%`, xPos, yPos)
+                yPos += padding + tw.actualBoundingBoxAscent + tw.actualBoundingBoxDescent
+            }
+        }
     }
 
     static toTitleCase(str: string) {

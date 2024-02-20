@@ -21,7 +21,7 @@ export class Renderer2d implements Renderer {
 
     private static readonly defaultRules:RenderRule[] = [
         {
-            render: new RenderBox(),
+            render: new RenderBox(true),
             target: '$.objects.*'
         }
     ]

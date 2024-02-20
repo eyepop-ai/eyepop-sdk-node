@@ -60,17 +60,16 @@ async function upload(event) {
     timingSpan.innerHTML = "__ms";
     resultSpan.innerHTML = "<span class='text-muted'>processing</a>";
 
-    const renderer = Render2d.renderer(context,[
-      Render2d.renderBlur('$..objects[?(@.classLabel=="face")]'),
-      Render2d.renderBox()
-    ])
-
     endpoint.process({file: file}).then(async (results) => {
         for await (let result of results) {
             resultSpan.textContent = JSON.stringify(result, " ", 2);
             resultOverlay.width = result.source_width;
             resultOverlay.height = result.source_height;
             context.clearRect(0,0,resultOverlay.width, resultOverlay.height);
+            const renderer = Render2d.renderer(context,[
+              Render2d.renderBox(true),
+              Render2d.renderBox(true, '$..objects[?(@.classLabel=="face")]')
+            ]);
             renderer.draw(result);
         }
         timingSpan.innerHTML = Math.floor(performance.now() - startTime) + "ms";
