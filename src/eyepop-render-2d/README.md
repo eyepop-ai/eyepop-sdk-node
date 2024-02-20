@@ -2,7 +2,7 @@
 This EyePop.ai Node Module provides convenient 2d rendering functions for predictions returned by 
 to the EyePop.ai's inference API from applications written in the TypeScript or JavaScript language.
 
-The module requires the [EyePop Node SDK](../eyepop/README.md)
+The module requires the [EyePop Node SDK](https://www.npmjs.com/package/@eyepop.ai/eyepop)
 ## Installation
 ### Node
 ```shell
