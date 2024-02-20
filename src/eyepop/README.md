@@ -138,7 +138,7 @@ until the entire file has been processed.
 ```
 ### Visualizing Results
 Visualization components are provided as separate modules. Please refer to the module's documentation for usage examples.
-* [EyePop Render 2d](../eyepop-render-2d/README.md)
+* [EyePop Render 2d](https://www.npmjs.com/package/@eyepop.ai/eyepop-render-2d)
 ### Asynchronous uploading and processing of images
 The above _synchronous_ way, process() then iterate all results, is great for individual images or reasonable 
 sized batches. For larger batch sizes, or continuous stream of images, don't `await` the results but instead 
