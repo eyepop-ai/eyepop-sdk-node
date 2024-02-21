@@ -1,5 +1,5 @@
-import {EyePop} from '../../src/eyepop'
-import {Render2d} from '../../src/eyepop-render-2d'
+import {EyePop} from '@eyepop.ai/eyepop'
+import {Render2d} from '@eyepop.ai/eyepop-render-2d'
 
 let endpoint = undefined;
 let context = undefined;

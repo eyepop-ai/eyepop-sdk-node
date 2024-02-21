@@ -2,8 +2,7 @@ import {CanvasRenderingContext2D} from "canvas";
 import {Style} from "./style";
 import {Render} from "./render";
 import {Point2d, PredictedObject, StreamTime} from "@eyepop.ai/eyepop";
-
-const jp = require('jsonpath');
+import * as jp from "jsonpath";
 
 interface TraceEntry {
     readonly timestamp: number
