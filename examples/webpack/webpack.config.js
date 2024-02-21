@@ -3,21 +3,33 @@ const path = require('path');
 const CopyPlugin = require("copy-webpack-plugin");
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const EmitFilePlugin = require('emit-file-webpack-plugin');
-const EyePopSdk = require('@eyepop.ai/eyepop').EyePopSdk;
+const EyePop = require('@eyepop.ai/eyepop').EyePop;
 const NodePolyfillPlugin = require("node-polyfill-webpack-plugin");
 
 const eyepopSession = async () => {
-    return JSON.stringify(await (await EyePopSdk.endpoint().connect()).session());
+    return JSON.stringify(await (await EyePop.endpoint().connect()).session());
 }
 
 module.exports = {
-    entry: './src/index.js', mode: 'development', output: {
-        path: path.resolve(__dirname, 'dist'), clean: true, filename: 'main.js',
+    entry: {
+      upload: './src/upload.js',
+      ingress: './src/ingress.js'
+    },
+    mode: 'development', output: {
+        path: path.resolve(__dirname, 'dist'), clean: true, filename: '[name].js',
     },
     plugins: [
       new HtmlWebpackPlugin({
-          template: "./src/index.html"
-      }), new CopyPlugin({
+          template: "./src/upload.html",
+          filename: "upload.html",
+          chunks: ["upload"]
+      }),
+      new HtmlWebpackPlugin({
+          template: "./src/ingress.html",
+          filename: "ingress.html",
+          chunks: ["ingress"]
+      }),
+      new CopyPlugin({
           patterns: ["static"],
       }), new EmitFilePlugin({
           filename: `eyepop-session.json`,

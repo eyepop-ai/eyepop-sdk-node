@@ -5,8 +5,7 @@ import {Style} from "./style";
 import {Render} from "./render";
 import {RenderBox} from "./render-box";
 import {StreamTime} from "EyePop";
-
-const jp = require('jsonpath');
+import * as jp from "jsonpath";
 
 export interface RenderRule {
     readonly render: Render
