@@ -41,8 +41,8 @@ export class RenderBox implements Render {
         const mindim = Math.min(element.height, element.width)
         let corner_size = Math.max(15, mindim / 5.33333)
 
-        var corners = [//top xOffset corner
-            [{x: x, y: y + corner_size}, {x: x, y: y}, {x: x + corner_size, y: y},], //bottom xOffset corner
+        var corners = [//top left corner
+            [{x: x, y: y + corner_size}, {x: x, y: y}, {x: x + corner_size, y: y},], //bottom left corner
             [{x: x, y: y + h - corner_size}, {x: x, y: y + h}, {x: x + corner_size, y: y + h},], //top right corner
             [{x: x + w - corner_size, y: y}, {x: x + w, y: y}, {x: x + w, y: y + corner_size},], //bottom right corner
             [{x: x + w, y: y + h - corner_size}, {x: x + w, y: y + h}, {x: x + w - corner_size, y: y + h},],]
@@ -60,11 +60,11 @@ export class RenderBox implements Render {
         const padding = Math.max(mindim * 0.02, 5)
         corner_size = corner_size - padding
 
-        var corners2 = [//2nd top xOffset corner
+        var corners2 = [//2nd top left corner
             [{x: x + padding, y: y + padding + corner_size}, {
                 x: x + padding,
                 y: y + padding
-            }, {x: x + padding + corner_size, y: y + padding},], //2nd bottom xOffset corner
+            }, {x: x + padding + corner_size, y: y + padding},], //2nd bottom left corner
             [{x: x + padding, y: y - padding + h - corner_size}, {
                 x: x + padding,
                 y: y - padding + h
