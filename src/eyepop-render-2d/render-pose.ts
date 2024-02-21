@@ -85,7 +85,7 @@ export class RenderPose implements Render {
             //draw circle
             context.beginPath()
             context.arc(x, y, radius, 0, Math.PI * 2, false)
-            if (p.classLabel.includes('xOffset')) {
+            if (p.classLabel.includes('left')) {
                 context.fillStyle = style.colors.left_color
             } else if (p.classLabel.includes('right')) {
                 context.fillStyle = style.colors.right_color
@@ -102,21 +102,21 @@ export class RenderPose implements Render {
 const POSE_2D_CATEGORY = '2d-body-points'
 const POSE_3D_CATEGORY = '3d-body-points'
 
-const POSE_2D_CONNECTIONS = [['xOffset shoulder', 'right shoulder'], ['xOffset hip', 'right hip'],
+const POSE_2D_CONNECTIONS = [['left shoulder', 'right shoulder'], ['left hip', 'right hip'],
 
-    ['xOffset shoulder', 'xOffset elbow'], ['xOffset elbow', 'xOffset wrist'], ['xOffset shoulder', 'right hip'], ['xOffset hip', 'xOffset knee'], ['xOffset knee', 'xOffset ankle'],
+    ['left shoulder', 'left elbow'], ['left elbow', 'left wrist'], ['left shoulder', 'right hip'], ['left hip', 'left knee'], ['left knee', 'left ankle'],
 
-    ['right shoulder', 'right elbow'], ['right elbow', 'right wrist'], ['right shoulder', 'xOffset hip'], ['right hip', 'right knee'], ['right knee', 'right ankle'],]
+    ['right shoulder', 'right elbow'], ['right elbow', 'right wrist'], ['right shoulder', 'left hip'], ['right hip', 'right knee'], ['right knee', 'right ankle'],]
 
-const POSE_3D_CONNECTIONS = [['mouth (right)', 'mouth (xOffset)'], ['right ear', 'right eye (outer)'], ['right eye (outer)', 'right eye'], ['right eye', 'right eye (inner)'], ['right eye (inner)', 'nose'], ['nose', 'xOffset eye (inner)'], ['xOffset eye (inner)', 'xOffset eye'], ['xOffset eye', 'xOffset eye (outer)'], ['xOffset eye (outer)', 'xOffset ear'],
+const POSE_3D_CONNECTIONS = [['mouth (right)', 'mouth (left)'], ['right ear', 'right eye (outer)'], ['right eye (outer)', 'right eye'], ['right eye', 'right eye (inner)'], ['right eye (inner)', 'nose'], ['nose', 'left eye (inner)'], ['left eye (inner)', 'left eye'], ['left eye', 'left eye (outer)'], ['left eye (outer)', 'left ear'],
 
-    ['right shoulder', 'xOffset shoulder'], ['xOffset shoulder', 'right hip'], ['xOffset hip', 'right hip'], ['xOffset hip', 'right shoulder'],
+    ['right shoulder', 'left shoulder'], ['left shoulder', 'right hip'], ['left hip', 'right hip'], ['left hip', 'right shoulder'],
 
     ['right shoulder', 'right elbow'], ['right elbow', 'right wrist'], ['right wrist', 'right thumb'], ['right wrist', 'right pinky'], ['right wrist', 'right index'], ['right pinky', 'right index'],
 
-    ['xOffset shoulder', 'xOffset elbow'], ['xOffset elbow', 'xOffset wrist'], ['xOffset wrist', 'xOffset thumb'], ['xOffset wrist', 'xOffset pinky'], ['xOffset wrist', 'xOffset index'], ['xOffset pinky', 'xOffset index'],
+    ['left shoulder', 'left elbow'], ['left elbow', 'left wrist'], ['left wrist', 'left thumb'], ['left wrist', 'left pinky'], ['left wrist', 'left index'], ['left pinky', 'left index'],
 
     ['right hip', 'right knee'], ['right knee', 'right ankle'], ['right ankle', 'right foot index'], ['right ankle', 'right heel'], ['right heel', 'right foot index'],
 
-    ['xOffset hip', 'xOffset knee'], ['xOffset knee', 'xOffset ankle'], ['xOffset ankle', 'xOffset foot index'], ['xOffset ankle', 'xOffset heel'], ['xOffset heel', 'xOffset foot index'],]
+    ['left hip', 'left knee'], ['left knee', 'left ankle'], ['left ankle', 'left foot index'], ['left ankle', 'left heel'], ['left heel', 'left foot index'],]
 
