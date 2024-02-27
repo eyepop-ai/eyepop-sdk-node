@@ -1,4 +1,4 @@
-import {Prediction, ResultStream, SessionPlus} from "./types"
+import {Prediction, ResultStream, SessionPlus, SourceParams} from "./types"
 import {Stream} from "./streaming"
 import {HttpClient} from './shims/http_client'
 
@@ -6,6 +6,8 @@ import {Logger} from "pino"
 
 export class AbstractJob implements ResultStream {
     protected _getSession: () => Promise<SessionPlus>
+
+    protected _params: SourceParams | null
 
     protected _responseStream: Promise<ReadableStream<Uint8Array>> | null = null
     protected _controller: AbortController = new AbortController()
@@ -21,8 +23,10 @@ export class AbstractJob implements ResultStream {
         return Stream.iterFromReadableStream(this._responseStream, this._controller)
     }
 
-    protected constructor(getSession: () => Promise<SessionPlus>, client: HttpClient, requestLogger: Logger) {
+    protected constructor(params: SourceParams | undefined, getSession: () => Promise<SessionPlus>,
+                          client: HttpClient, requestLogger: Logger) {
         this._getSession = getSession
+        this._params = params ?? null
         this._client = client
         this._requestLogger = requestLogger
     }
@@ -92,31 +96,56 @@ export class AbstractJob implements ResultStream {
 }
 
 export class UploadJob extends AbstractJob {
-    private readonly _uploadStream: ReadableStream<Uint8Array>
+    private readonly _uploadStream: Blob
     private readonly  _mimeType: string
 
     get [Symbol.toStringTag](): string {
         return 'uploadJob'
     }
 
-    constructor(stream: any, mimeType: string, getSession: () => Promise<SessionPlus>, client: HttpClient, requestLogger: Logger) {
-        super(getSession, client, requestLogger)
+    constructor(stream: any, mimeType: string, params: SourceParams | undefined,
+                getSession: () => Promise<SessionPlus>, client: HttpClient, requestLogger: Logger) {
+        super(params, getSession, client, requestLogger)
         this._uploadStream = stream
         this._mimeType = mimeType
     }
 
     protected override async startJob(): Promise<Response> {
         const session = await this._getSession()
-        const headers = {
-            'Authorization': `Bearer ${session.accessToken}`, 'Accept': 'application/jsonl', 'Content-Type': this._mimeType
-        }
         const postUrl: string = `${session.baseUrl.replace(/\/+$/, "")}/pipelines/${session.pipelineId}/source?mode=queue&processing=sync`
-        this._requestLogger.debug("before POST %s with stream as body")
-        const response = await this._client.fetch(postUrl, {
-            headers: headers, method: 'POST', body: this._uploadStream, signal: this._controller.signal, // @ts-ignore
-            'duplex': 'half', dispatcher: this._dispatcher
-        })
-        this._requestLogger.debug("after POST %s with stream as body")
+        let response
+        if (this._params) {
+            this._requestLogger.debug("before POST %s with multipart body because of params")
+            const params = JSON.stringify(this._params)
+            const paramBlob = new Blob([params], { type: 'application/json' })
+            const formData = new FormData()
+            formData.append('params', paramBlob)
+            formData.append('file', this._uploadStream)
+
+            const headers = {
+                'Authorization': `Bearer ${session.accessToken}`,
+                'Accept': 'application/jsonl'
+            }
+
+            response = await this._client.fetch(postUrl, {
+                headers: headers, method: 'POST', body: formData, signal: this._controller.signal, // @ts-ignore
+                'duplex': 'half', dispatcher: this._dispatcher
+            })
+            this._requestLogger.debug("after POST %s with multipart body because of params")
+        } else {
+            this._requestLogger.debug("before POST %s with stream as body")
+            const headers = {
+                'Authorization': `Bearer ${session.accessToken}`,
+                'Accept': 'application/jsonl',
+                'Content-Type': this._mimeType
+            }
+            response = await this._client.fetch(postUrl, {
+                headers: headers, method: 'POST', body: this._uploadStream, signal: this._controller.signal, // @ts-ignore
+                'duplex': 'half', dispatcher: this._dispatcher
+            })
+            this._requestLogger.debug("after POST %s with stream as body")
+        }
+
         return response
     }
 }
@@ -124,8 +153,9 @@ export class UploadJob extends AbstractJob {
 export class LoadFromJob extends AbstractJob {
     private readonly _location: string;
 
-    constructor(location: string, getSession: () => Promise<SessionPlus>, client: HttpClient, requestLogger: Logger) {
-        super(getSession, client, requestLogger)
+    constructor(location: string, params: SourceParams | undefined,
+                getSession: () => Promise<SessionPlus>, client: HttpClient, requestLogger: Logger) {
+        super(params, getSession, client, requestLogger)
         this._location = location
     }
 
@@ -135,7 +165,9 @@ export class LoadFromJob extends AbstractJob {
 
     protected override async startJob(): Promise<Response> {
         const body = {
-            'sourceType': 'URL', 'url': this._location
+            'sourceType': 'URL',
+            'url': this._location,
+            'params': this._params
         }
         const session = await this._getSession()
         const headers = {
@@ -161,8 +193,9 @@ export class LoadFromJob extends AbstractJob {
 export class LoadLiveIngressJob extends AbstractJob {
     private readonly _ingressId: string;
 
-    constructor(ingressId: string, getSession: () => Promise<SessionPlus>, client: HttpClient, requestLogger: Logger) {
-        super(getSession, client, requestLogger)
+    constructor(ingressId: string, params: SourceParams | undefined,
+                getSession: () => Promise<SessionPlus>, client: HttpClient, requestLogger: Logger) {
+        super(params, getSession, client, requestLogger)
         this._ingressId = ingressId
     }
 
@@ -172,7 +205,9 @@ export class LoadLiveIngressJob extends AbstractJob {
 
     protected override async startJob(): Promise<Response> {
         const body = {
-            'sourceType': 'LIVE_INGRESS', 'liveIngressId': this._ingressId
+            'sourceType': 'LIVE_INGRESS',
+            'liveIngressId': this._ingressId,
+            'params': this._params
         }
         const session = await this._getSession()
         const headers = {

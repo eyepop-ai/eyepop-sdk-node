@@ -52,6 +52,19 @@ export interface UrlSource {
 
 export type Source = FileSource | StreamSource | PathSource | LiveSource | UrlSource
 
+export interface Box {
+    readonly topLeft: Point2d
+    readonly bottomRight: Point2d
+}
+
+export interface Roi {
+    readonly points: Point2d[] | undefined
+    readonly boxes: Box[] | undefined
+}
+export interface SourceParams {
+    readonly roi: Roi | undefined
+}
+
 export interface StreamTime {
     timestamp: number
     seconds: number

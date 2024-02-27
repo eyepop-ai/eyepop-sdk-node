@@ -5,6 +5,7 @@ let context = undefined;
 let popNameElement = undefined;
 let connectButton = undefined;
 let fileChooser = undefined;
+let processButton = undefined;
 let imagePreview = undefined;
 let resultOverlay = undefined;
 let timingSpan = undefined;
@@ -14,6 +15,7 @@ async function setup() {
     popNameElement = document.getElementById("pop-name");
     connectButton = document.getElementById('connect');
     fileChooser = document.getElementById('file-upload');
+    processButton = document.getElementById('process');
     imagePreview = document.getElementById('image-preview');
     resultOverlay = document.getElementById('result-overlay');
     timingSpan = document.getElementById("timing");
@@ -21,7 +23,8 @@ async function setup() {
 
     connectButton.disabled = false;
     connectButton.addEventListener('click', connect);
-    fileChooser.addEventListener('change', upload);
+    fileChooser.addEventListener('change', fileChanged);
+    processButton.addEventListener('click', upload);
 
     context = resultOverlay.getContext("2d");
 }
@@ -46,6 +49,24 @@ async function connect(event) {
     fileChooser.disabled = false;
     popNameElement.innerHTML = endpoint.popName();
 }
+
+async function fileChanged(event) {
+    const file = fileChooser.files[0];
+    const reader = new FileReader();
+    reader.onload = function () {
+        context.clearRect(0,0,resultOverlay.width, resultOverlay.height);
+        imagePreview.src = reader.result;
+    };
+
+    try {
+        reader.readAsDataURL(file);
+        processButton.disabled = false;
+    } catch (e) {
+        console.log(e);
+        processButton.disabled = true;
+    }
+}
+
 async function upload(event) {
     const file = fileChooser.files[0];
     const reader = new FileReader();
@@ -60,15 +81,19 @@ async function upload(event) {
     timingSpan.innerHTML = "__ms";
     resultSpan.innerHTML = "<span class='text-muted'>processing</a>";
 
-    endpoint.process({file: file}).then(async (results) => {
+    endpoint.process({file: file},
+    {
+        roi:{points:[{x:100,y:100}]}
+    }
+    ).then(async (results) => {
         for await (let result of results) {
             resultSpan.textContent = JSON.stringify(result, " ", 2);
             resultOverlay.width = result.source_width;
             resultOverlay.height = result.source_height;
             context.clearRect(0,0,resultOverlay.width, resultOverlay.height);
             const renderer = Render2d.renderer(context,[
-              Render2d.renderBox(true),
-              Render2d.renderBox(true, '$..objects[?(@.classLabel=="face")]')
+              Render2d.renderOutline(),
+              Render2d.renderFace(),
             ]);
             renderer.draw(result);
         }

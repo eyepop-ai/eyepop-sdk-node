@@ -1,13 +1,13 @@
-import {Prediction} from '../eyepop'
-import {CanvasRenderingContext2D} from 'canvas'
-import {Renderer2d, RenderRule} from './renderer-2d'
-import {Render} from './render';
+import {Prediction} from '../eyepop';
+import {CanvasRenderingContext2D} from 'canvas';
+import {Renderer2d, RenderRule} from './renderer-2d';
 import {RenderBlur} from './render-blur';
 import {RenderBox} from './render-box';
-import {RenderFace} from './render-face'
-import {RenderHand} from './render-hand'
-import {RenderPose} from './render-pose'
-import {RenderTrail} from "EyePop/Render2d/render-trail";
+import {RenderFace} from './render-face';
+import {RenderHand} from './render-hand';
+import {RenderPose} from './render-pose';
+import {RenderTrail} from "./render-trail";
+import {RenderOutline} from "./render-outline";
 
 export interface Renderer {
     draw(p: Prediction): void
@@ -22,6 +22,9 @@ export namespace Render2d {
     }
     export function renderBox(includeSecondaryLabels: boolean = false, target: string = '$.objects.*') : RenderRule {
         return {render: new RenderBox(includeSecondaryLabels), target: target}
+    }
+    export function renderOutline(target: string = '$.objects[?(@.outline)]') : RenderRule {
+        return {render: new RenderOutline(), target: target}
     }
     export function renderFace(target: string = '$..objects[?(@.classLabel=="face")]') : RenderRule {
         return {render: new RenderFace(), target: target}
