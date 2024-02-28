@@ -7,7 +7,7 @@ import {RenderFace} from './render-face';
 import {RenderHand} from './render-hand';
 import {RenderPose} from './render-pose';
 import {RenderTrail} from "./render-trail";
-import {RenderOutline} from "./render-outline";
+import {RenderContour} from "./render-contour";
 
 export interface Renderer {
     draw(p: Prediction): void
@@ -23,8 +23,8 @@ export namespace Render2d {
     export function renderBox(includeSecondaryLabels: boolean = false, target: string = '$.objects.*') : RenderRule {
         return {render: new RenderBox(includeSecondaryLabels), target: target}
     }
-    export function renderOutline(target: string = '$.objects[?(@.outline)]') : RenderRule {
-        return {render: new RenderOutline(), target: target}
+    export function renderContour(target: string = '$.objects[?(@.outerContours)]') : RenderRule {
+        return {render: new RenderContour(), target: target}
     }
     export function renderFace(target: string = '$..objects[?(@.classLabel=="face")]') : RenderRule {
         return {render: new RenderFace(), target: target}

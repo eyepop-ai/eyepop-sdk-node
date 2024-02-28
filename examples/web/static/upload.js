@@ -127,7 +127,7 @@ async function upload(event) {
             resultOverlay.height = result.source_height;
             context.clearRect(0,0,resultOverlay.width, resultOverlay.height);
             const renderer = Render2d.renderer(context,[
-              Render2d.renderOutline(),
+              Render2d.renderContour(),
               Render2d.renderFace()
             ]);
             renderer.draw(result);
