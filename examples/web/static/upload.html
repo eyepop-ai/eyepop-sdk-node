@@ -29,12 +29,16 @@
         <!-- FORM UPLOAD ELEMENT: Centered, Full Width Row -->
         <div class="container-fluid mt-4">
             <div class="row justify-content-center">
-                <div id="drop-area" class="col-12">
-                    <div class="d-flex m-2 justify-content-md-end">
-                        <button disabled class="m-2 col form-control" id="connect">Connect</button>
-                        <input disabled type="file" col-6 class="m-2 form-control" id="file-upload">
-                        <button disabled class="m-2 col form-control" id="process">Process</button>
-                    </div>
+                <div class="d-flex justify-content-md-end">
+                    <button disabled class="m-2 col form-control" id="connect">Connect</button>
+                    <input disabled type="file" class="m-2 form-control" id="file-upload">
+                    <button disabled class="m-2 col form-control" id="process">Process</button>
+                </div>
+            </div>
+            <div class="row" id="roi-row" >
+                <div class="d-inline-flex justify-content-start">
+                    <label id="roi-label" for="clear-roi" class="form-control m-2">ROI:</label>
+                    <button class="form-control  col m-2" id="clear-roi">clear</button>
                 </div>
             </div>
         </div>

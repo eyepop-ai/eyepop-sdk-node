@@ -6,16 +6,25 @@ let popNameElement = undefined;
 let connectButton = undefined;
 let fileChooser = undefined;
 let processButton = undefined;
+let roiRow = undefined;
+let roiLabel = undefined;
+let roiClearButton = undefined;
 let imagePreview = undefined;
 let resultOverlay = undefined;
 let timingSpan = undefined;
 let resultSpan = undefined;
+
+let roiPoints = []
+let roiBoxes = []
 
 async function setup() {
     popNameElement = document.getElementById("pop-name");
     connectButton = document.getElementById('connect');
     fileChooser = document.getElementById('file-upload');
     processButton = document.getElementById('process');
+    roiRow = document.getElementById('roi-row');
+    roiLabel = document.getElementById('roi-label');
+    roiClearButton = document.getElementById('clear-roi');
     imagePreview = document.getElementById('image-preview');
     resultOverlay = document.getElementById('result-overlay');
     timingSpan = document.getElementById("timing");
@@ -27,6 +36,31 @@ async function setup() {
     processButton.addEventListener('click', upload);
 
     context = resultOverlay.getContext("2d");
+
+    roiRow.style.display = "none";
+
+    resultOverlay.addEventListener('click', roiEvent);
+    roiClearButton.addEventListener('click', roiClear);
+
+    imagePreview.addEventListener('load', (event => {
+        console.log(event)
+    }))
+}
+
+function roiEvent(event) {
+    console.log(event);
+    roiPoints.push({
+        x:(event.offsetX * resultOverlay.width / resultOverlay.clientWidth) | 0,
+        y:(event.offsetY * resultOverlay.height / resultOverlay.clientHeight) | 0
+    })
+    roiLabel.innerHTML = "ROI points: "+ JSON.stringify(roiPoints);
+    roiRow.style.display = "block";
+}
+
+function roiClear(event) {
+    roiPoints = []
+    roiBoxes = []
+    roiRow.style.display = "none";
 }
 
 async function connect(event) {
@@ -65,6 +99,7 @@ async function fileChanged(event) {
         console.log(e);
         processButton.disabled = true;
     }
+    roiClear();
 }
 
 async function upload(event) {
@@ -83,7 +118,7 @@ async function upload(event) {
 
     endpoint.process({file: file},
     {
-        roi:{points:[{x:100,y:100}]}
+        roi:{points:roiPoints}
     }
     ).then(async (results) => {
         for await (let result of results) {
@@ -93,7 +128,7 @@ async function upload(event) {
             context.clearRect(0,0,resultOverlay.width, resultOverlay.height);
             const renderer = Render2d.renderer(context,[
               Render2d.renderOutline(),
-              Render2d.renderFace(),
+              Render2d.renderFace()
             ]);
             renderer.draw(result);
         }

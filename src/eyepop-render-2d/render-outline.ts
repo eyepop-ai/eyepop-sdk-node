@@ -25,12 +25,21 @@ export class RenderOutline implements Render {
 
         //faded blue background
         context.beginPath()
-        context.lineWidth = 1
+        context.lineWidth = 5
         context.strokeStyle = style.colors.primary_color
         context.fillStyle = style.colors.opacity_color
         context.moveTo(element.outline[0].x, element.outline[0].y)
         for (let i = 1; i < element.outline.length; i++) {
-            context.lineTo(element.outline[i].x, element.outline[i].y)
+            const dist = Math.sqrt(
+                Math.pow((element.outline[i].x - element.outline[i-1].x), 2) +
+                Math.pow((element.outline[i].y - element.outline[i-1].y), 2)
+            )
+            if (dist > Math.max(element.width, element.height) / 10) {
+                context.closePath()
+                context.moveTo(element.outline[i].x, element.outline[i].y)
+            } else {
+                context.lineTo(element.outline[i].x, element.outline[i].y)
+            }
         }
         context.closePath()
         context.fill()
