@@ -6,27 +6,20 @@ let popNameElement = undefined;
 let connectButton = undefined;
 let fileChooser = undefined;
 let processButton = undefined;
-let roiRow = undefined;
-let roiLabel = undefined;
-let roiClearButton = undefined;
 let imagePreview = undefined;
 let resultOverlay = undefined;
+let roiOverlay = undefined;
 let timingSpan = undefined;
 let resultSpan = undefined;
-
-let roiPoints = []
-let roiBoxes = []
 
 async function setup() {
     popNameElement = document.getElementById("pop-name");
     connectButton = document.getElementById('connect');
     fileChooser = document.getElementById('file-upload');
     processButton = document.getElementById('process');
-    roiRow = document.getElementById('roi-row');
-    roiLabel = document.getElementById('roi-label');
-    roiClearButton = document.getElementById('clear-roi');
     imagePreview = document.getElementById('image-preview');
     resultOverlay = document.getElementById('result-overlay');
+    roiOverlay = document.getElementById('roi-overlay');
     timingSpan = document.getElementById("timing");
     resultSpan = document.getElementById('txt_json');
 
@@ -37,30 +30,9 @@ async function setup() {
 
     context = resultOverlay.getContext("2d");
 
-    roiRow.style.display = "none";
-
-    resultOverlay.addEventListener('click', roiEvent);
-    roiClearButton.addEventListener('click', roiClear);
-
     imagePreview.addEventListener('load', (event => {
         console.log(event)
     }))
-}
-
-function roiEvent(event) {
-    console.log(event);
-    roiPoints.push({
-        x:(event.offsetX * resultOverlay.width / resultOverlay.clientWidth) | 0,
-        y:(event.offsetY * resultOverlay.height / resultOverlay.clientHeight) | 0
-    })
-    roiLabel.innerHTML = "ROI points: "+ JSON.stringify(roiPoints);
-    roiRow.style.display = "block";
-}
-
-function roiClear(event) {
-    roiPoints = []
-    roiBoxes = []
-    roiRow.style.display = "none";
 }
 
 async function connect(event) {
@@ -90,6 +62,13 @@ async function fileChanged(event) {
     reader.onload = function () {
         context.clearRect(0,0,resultOverlay.width, resultOverlay.height);
         imagePreview.src = reader.result;
+        imagePreview.decode().then((i) => {
+            resultOverlay.width = imagePreview.naturalWidth;
+            resultOverlay.height = imagePreview.naturalHeight;
+            roiOverlay.width = imagePreview.naturalWidth;
+            roiOverlay.height = imagePreview.naturalHeight;
+            initForRoi();
+        })
     };
 
     try {
@@ -99,7 +78,6 @@ async function fileChanged(event) {
         console.log(e);
         processButton.disabled = true;
     }
-    roiClear();
 }
 
 async function upload(event) {
@@ -116,21 +94,36 @@ async function upload(event) {
     timingSpan.innerHTML = "__ms";
     resultSpan.innerHTML = "<span class='text-muted'>processing</a>";
 
-    endpoint.process({file: file},
-    {
-        roi:{points:roiPoints}
+    let params = undefined;
+    if (roiRect.top || roiPoints.length) {
+        params = {
+            roi: {}
+        };
+        if (roiPoints.length) {
+            params.roi["points"] = roiPoints;
+        }
+        if (roiRect.top) {
+            params.roi["boxes"] = [{
+                topLeft:{
+                    x:roiRect.left,
+                    y:roiRect.top
+                }, bottomRight:{
+                    x:roiRect.right,
+                    y:roiRect.bottom
+                }
+            }];
+        }
     }
-    ).then(async (results) => {
+    endpoint.process({file: file}, params=params).then(async (results) => {
         for await (let result of results) {
             resultSpan.textContent = JSON.stringify(result, " ", 2);
-            resultOverlay.width = result.source_width;
-            resultOverlay.height = result.source_height;
             context.clearRect(0,0,resultOverlay.width, resultOverlay.height);
             const renderer = Render2d.renderer(context,[
               Render2d.renderContour(),
               Render2d.renderFace()
             ]);
             renderer.draw(result);
+            initForRoi();
         }
         timingSpan.innerHTML = Math.floor(performance.now() - startTime) + "ms";
     });

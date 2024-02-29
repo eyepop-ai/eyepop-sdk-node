@@ -87,6 +87,10 @@ export interface PredictedClass {
     category: string
 }
 
+export interface Contour {
+    points: Array<Point2d>
+    cutouts: Array<Array<Point2d>>
+}
 export interface PredictedObject extends PredictedClass {
     traceId: number | undefined
     x: number
@@ -94,12 +98,13 @@ export interface PredictedObject extends PredictedClass {
     width: number
     height: number
     orientation: number
-    outline: Array<Point2d>
-    objects: Array<PredictedObject>
-    classes: Array<PredictedClass>
-    labels: Array<string>
-    meshs: Array<PredictedMesh>
-    keyPoints: Array<PredictedKeyPoints>
+    outline: Array<Point2d> | undefined
+    contours: Array<Contour> | undefined
+    objects: Array<PredictedObject> | undefined
+    classes: Array<PredictedClass> | undefined
+    labels: Array<string> | undefined
+    meshs: Array<PredictedMesh> | undefined
+    keyPoints: Array<PredictedKeyPoints> | undefined
 }
 
 export interface Point2d {

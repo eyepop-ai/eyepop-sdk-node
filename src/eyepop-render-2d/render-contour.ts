@@ -13,7 +13,7 @@ export class RenderContour implements Render {
     }
     public draw(element: PredictedObject, xOffset: number, yOffset: number, xScale: number, yScale: number, streamTime: StreamTime): void {
 
-        if (!element.outerContours || !element.outerContours.length) {
+        if (!element.contours || !element.contours.length) {
             return
         }
 
@@ -23,21 +23,48 @@ export class RenderContour implements Render {
             throw new Error('render() called before start()')
         }
 
-        for (let j = 0; j < element.outerContours.length; j++) {
-            const contour = element.outerContours[j].points
+        const lineWidth = Math.max(1, Math.max(context.canvas.width, context.canvas.height) / 360)
+        console.log("line width:", lineWidth, context.canvas.width, context.canvas.height)
+        for (let j = 0; j < element.contours.length; j++) {
+            const contour = element.contours[j]
 
+            if (contour.points.length < 2) {
+                continue;
+            }
             //faded blue background
             context.beginPath()
-            context.lineWidth = 5
+            context.lineWidth = lineWidth
             context.strokeStyle = style.colors.primary_color
             context.fillStyle = style.colors.opacity_color
-            context.moveTo(contour[0].x, contour[0].y)
-            for (let i = 1; i < contour.length; i++) {
-                context.lineTo(contour[i].x, contour[i].y)
+            let p = contour.points[0]
+            context.moveTo(p.x*xScale+xOffset, p.y*yScale+yOffset)
+            for (let i = contour.points.length-1; i > 0; i--) {
+                p = contour.points[i]
+                context.lineTo(p.x*xScale+xOffset, p.y*yScale+yOffset)
             }
+
             context.closePath()
-            context.fill()
             context.stroke()
+
+            if (contour.cutouts && contour.cutouts.length) {
+                for (let k = 0; k < contour.cutouts.length; k++) {
+                    const points = contour.cutouts[k]
+                    if (points.length < 2) {
+                        continue;
+                    }
+                    context.beginPath()
+                    p = points[0]
+                    context.moveTo(p.x*xScale+xOffset, p.y*yScale+yOffset)
+                    for (let i = points.length-1; i > 0; i--) {
+                        p = points[i]
+                        context.lineTo(p.x*xScale+xOffset, p.y*yScale+yOffset)
+                    }
+                    context.closePath()
+                    context.stroke()
+                }
+            }
+
+            context.fill()
         }
     }
 }

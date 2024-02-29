@@ -23,7 +23,7 @@ export namespace Render2d {
     export function renderBox(includeSecondaryLabels: boolean = false, target: string = '$.objects.*') : RenderRule {
         return {render: new RenderBox(includeSecondaryLabels), target: target}
     }
-    export function renderContour(target: string = '$.objects[?(@.outerContours)]') : RenderRule {
+    export function renderContour(target: string = '$.objects[?(@.contours)]') : RenderRule {
         return {render: new RenderContour(), target: target}
     }
     export function renderFace(target: string = '$..objects[?(@.classLabel=="face")]') : RenderRule {
