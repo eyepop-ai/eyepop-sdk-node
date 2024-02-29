@@ -119,6 +119,7 @@ async function upload(event) {
             resultSpan.textContent = JSON.stringify(result, " ", 2);
             context.clearRect(0,0,resultOverlay.width, resultOverlay.height);
             const renderer = Render2d.renderer(context,[
+              Render2d.renderMask(),
               Render2d.renderContour(),
               Render2d.renderFace()
             ]);

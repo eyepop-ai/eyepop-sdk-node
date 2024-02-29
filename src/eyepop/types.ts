@@ -91,6 +91,14 @@ export interface Contour {
     points: Array<Point2d>
     cutouts: Array<Array<Point2d>>
 }
+
+export interface Mask {
+    bitmap: string
+    width: number
+    height: number
+    stride: number
+}
+
 export interface PredictedObject extends PredictedClass {
     traceId: number | undefined
     x: number
@@ -100,6 +108,7 @@ export interface PredictedObject extends PredictedClass {
     orientation: number
     outline: Array<Point2d> | undefined
     contours: Array<Contour> | undefined
+    mask: Mask | undefined
     objects: Array<PredictedObject> | undefined
     classes: Array<PredictedClass> | undefined
     labels: Array<string> | undefined
