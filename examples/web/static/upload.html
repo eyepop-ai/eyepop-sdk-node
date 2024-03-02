@@ -16,7 +16,7 @@
 </head>
 
 <body>
-    <div class="container" style="max-width: 1200px;">
+    <div class="container">
         <!-- HEADER: Full width, Logo Image -->
         <header class="mt-4">
             <div class="container-fluid d-flex align-items-center">
@@ -29,18 +29,16 @@
 
         <!-- FORM UPLOAD ELEMENT: Centered, Full Width Row -->
         <div class="container-fluid mt-4">
-            <div class="row justify-content-center">
-                <div class="d-flex justify-content-md-end">
-                    <button disabled class="m-2 col form-control" id="connect">Connect</button>
-                    <input disabled type="file" class="m-2 form-control" id="file-upload">
-                    <button disabled class="m-2 col form-control" id="process">Process</button>
-                </div>
+            <div class="d-flex justify-content-md-end">
+                <button disabled class="m-2 col form-control" id="connect">Connect</button>
+                <input disabled type="file" class="m-2 form-control" id="file-upload">
+                <button disabled class="m-2 col form-control" id="process">Process</button>
             </div>
         </div>
 
         <div class="container-fluid mt-4">
             <div class="row">
-                <div class="col-md-12 d-flex">
+                <div class="col-md-24 d-flex">
                     Preview image:<h3 id="title" class="ms-auto"></h3>
                 </div>
             </div>
@@ -51,6 +49,17 @@
                         <canvas class="result-overlay" id="result-overlay"></canvas>
                         <canvas class="result-overlay" id="roi-overlay"></canvas>
                     </div>
+                </div>
+            </div>
+        </div>
+        <div class="container-fluid mt-4">
+            <div class="d-flex-inline justify-content-md-end">
+                <div class="m2 col">Pop Composition</div>
+            </div>
+            <div class="row">
+                <div class="col-md-12">
+                    <textarea id="pop-comp" class="form-control"></textarea>
+                    <button disabled class="m-2 col form-control" id="update-pop-comp">Update</button>
                 </div>
             </div>
         </div>
@@ -67,7 +76,6 @@
                 </div>
             </div>
         </div>
-
     </div>
 </body>
 

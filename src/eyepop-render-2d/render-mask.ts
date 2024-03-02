@@ -33,10 +33,10 @@ export class RenderMask implements Render {
 
         const aPixel = offscreenContext.createImageData(1,1)
         const d  = aPixel.data;
-        d[0] = 100;
-        d[1] = 100;
-        d[2] = 215;
-        d[3] = 255;
+        d[0] = 80;
+        d[1] = 80;
+        d[2] = 80;
+        d[3] = 128;
         for (let y = 0; y < element.mask.height; y++) {
             const line= y * element.mask.stride
             for (let s= 0; s < element.mask.stride; s++) {
