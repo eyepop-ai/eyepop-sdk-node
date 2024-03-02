@@ -7,10 +7,9 @@ let startButton = undefined;
 let stopButton = undefined;
 let timingSpan = undefined;
 let resultSpan = undefined;
+let popComp = undefined;
+let updatePopComp = undefined;
 
-let localVideo = undefined;
-let localResultOverlay = undefined;
-let localOverlayContext = undefined;
 let remoteVideo = undefined;
 let remoteResultOverlay = undefined;
 let remoteOverlayContext = undefined;
@@ -25,10 +24,8 @@ async function setup() {
     stopButton = document.getElementById('stop-stream');
     timingSpan = document.getElementById("timing");
     resultSpan = document.getElementById('txt_json');
-
-    localVideo = document.getElementById('local-video');
-    localResultOverlay = document.getElementById('local-result-overlay');
-    localOverlayContext = localResultOverlay.getContext("2d");
+    popComp = document.getElementById('pop-comp');
+    updatePopComp = document.getElementById('update-pop-comp');
 
     remoteVideo = document.getElementById('remote-video');
     remoteResultOverlay = document.getElementById('remote-result-overlay');
@@ -101,6 +98,22 @@ async function connect(event) {
    }
    popNameElement.innerHTML = endpoint.popName();
    startButton.disabled = false;
+   popComp.value = endpoint.popComp();
+   popComp.style.overflow = 'hidden';
+   popComp.style.height = 0;
+   popComp.style.height = popComp.scrollHeight + 'px';
+
+    popComp.addEventListener('change', async (event) => {
+       console.log('pop changed');
+       updatePopComp.disabled = false;
+       await endpoint.changePopComp(popComp.value);
+    });
+
+    updatePopComp.addEventListener('click', (event) => {
+       console.log('updated');
+       updatePopComp.disabled = true;
+    });
+
 }
 
 async function startRemoteStream(ingressId) {
@@ -128,8 +141,6 @@ async function startLocalStream(event) {
     } else {
         stream = await navigator.mediaDevices.getUserMedia({video: {deviceId: videoId}});
     }
-    localVideo.srcObject = stream;
-    localVideo.play();
     liveIngress = await endpoint.liveIngress(stream);
     timingSpan.innerHTML = Math.floor(performance.now() - startTime) + "ms";
     stopButton.disabled = false;
@@ -138,22 +149,12 @@ async function startLocalStream(event) {
 function startLiveInference(ingressId) {
     endpoint.process({ingressId: ingressId}).then(async (results) => {
         const remoteRender = Render2d.renderer(remoteOverlayContext,[
-          Render2d.renderFace(), Render2d.renderHand()
-        ])
-        const localRender = Render2d.renderer(localOverlayContext, [
-          Render2d.renderBox('$..objects[?(@.classLabel=="face")]'),
-          Render2d.renderTrail(1.0,
-            '$..keyPoints[?(@.category=="3d-body-points")].points[?(@.classLabel.includes("nose"))]'),
+            // Render2d.renderBox(),
+            Render2d.renderFace(),
+            Render2d.renderContour()
         ])
         for await (let result of results) {
             resultSpan.textContent = JSON.stringify(result, " ", 2);
-
-            if (localVideo.srcObject) {
-                localResultOverlay.width = result.source_width;
-                localResultOverlay.height = result.source_height;
-                localOverlayContext.clearRect(0, 0, localResultOverlay.width, localResultOverlay.height);
-                localRender.draw(result);
-            }
 
             if (remoteVideo.srcObject) {
                 remoteResultOverlay.width = result.source_width;
@@ -167,9 +168,6 @@ function startLiveInference(ingressId) {
 
 async function stopStream(event) {
     stopButton.disabled = true;
-    localVideo.pause();
-    localVideo.srcObject = null;
-    localOverlayContext.clearRect(0,0,localResultOverlay.width, localResultOverlay.height);
     await liveIngress.close();
     liveIngress = null;
     startButton.disabled = false;
