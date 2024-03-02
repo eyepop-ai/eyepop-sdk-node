@@ -14,6 +14,7 @@ export {
     PredictedMesh,
     PredictedKeyPoint,
     PredictedKeyPoints,
+    Contour,
     Point2d,
     Point3d,
     Source,

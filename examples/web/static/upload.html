@@ -12,6 +12,7 @@
 <!--    <script src="https://cdn.jsdelivr.net/npm/@eyepop.ai/eyepop-render-2d/dist/eyepop.render2d.min.js"></script>-->
     <script src="/src/eyepop-render-2d/dist/eyepop.render2d.min.js"></script>
     <script src="upload.js"></script>
+    <script src="roi_select.js"></script>
 </head>
 
 <body>
@@ -29,38 +30,44 @@
         <!-- FORM UPLOAD ELEMENT: Centered, Full Width Row -->
         <div class="container-fluid mt-4">
             <div class="row justify-content-center">
-                <div id="drop-area" class="col-12">
-                    <div class="d-md-flex col-12 justify-content-md-end">
-                        <button disabled class="form-control" id="connect">Connect</button>
-                        <input disabled type="file" class="form-control" id="file-upload">
-                    </div>
+                <div class="d-flex justify-content-md-end">
+                    <button disabled class="m-2 col form-control" id="connect">Connect</button>
+                    <input disabled type="file" class="m-2 form-control" id="file-upload">
+                    <button disabled class="m-2 col form-control" id="process">Process</button>
                 </div>
             </div>
         </div>
 
-        <!-- IMAGE PREVIEW AND TEXT AREA: Half and Half -->
         <div class="container-fluid mt-4">
             <div class="row">
-                <div class="col-md-6 d-flex">
+                <div class="col-md-12 d-flex">
                     Preview image:<h3 id="title" class="ms-auto"></h3>
                 </div>
-                <div class="col-md-6 d-flex">
+            </div>
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="preview-wrapper">
+                        <img id="image-preview" class="image-preview" src="images/empty.png" alt="Image Preview">
+                        <canvas class="result-overlay" id="result-overlay"></canvas>
+                        <canvas class="result-overlay" id="roi-overlay"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="container-fluid mt-4">
+            <div class="row">
+                <div class="col-md-12 d-flex">
                     EyePop.ai Results: <h3 id="timing" class="ms-auto">0ms</h3>
                 </div>
             </div>
             <div class="row">
-                <div class="col-md-6">
-                    <div class="preview-wrapper">
-                        <img id="image-preview" class="image-preview" src="images/empty.png" alt="Image Preview">
-                        <canvas class="result-overlay" id="result-overlay"></canvas>
-                    </div>
-                </div>
-                <div class="col-md-6">
+                <div class="col-md-12">
                     <pre id="txt_json"
                         class="form-control h-100"><span class="text-muted">{<br/> ...JSON Will appear Here...<br/>}</span></pre>
                 </div>
             </div>
         </div>
+
     </div>
 </body>
 

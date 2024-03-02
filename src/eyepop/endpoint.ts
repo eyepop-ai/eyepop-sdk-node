@@ -8,7 +8,7 @@ import {
     PathSource,
     ResultStream,
     SessionPlus,
-    Source,
+    Source, SourceParams,
     StreamSource,
     UrlSource
 } from "./types"
@@ -237,17 +237,17 @@ export class Endpoint {
         return whep.start()
     }
 
-    public async process(source: Source): Promise<ResultStream> {
+    public async process(source: Source, params: SourceParams | undefined = undefined): Promise<ResultStream> {
         if ((source as FileSource).file !== undefined) {
-            return this.uploadFile(source as FileSource)
+            return this.uploadFile(source as FileSource, params)
         } else if ((source as StreamSource).stream !== undefined) {
-            return this.uploadStream(source as StreamSource)
+            return this.uploadStream(source as StreamSource, params)
         } else if ((source as PathSource).path !== undefined) {
-            return this.uploadPath(source as PathSource)
+            return this.uploadPath(source as PathSource, params)
         } else if ((source as UrlSource).url !== undefined) {
-            return this.loadFrom(source as UrlSource)
+            return this.loadFrom(source as UrlSource, params)
         } else if ((source as LiveSource).ingressId !== undefined) {
-            return this.loadLiveIngress(source as LiveSource)
+            return this.loadLiveIngress(source as LiveSource, params)
         } else {
             return Promise.reject('unknown source type')
         }
@@ -293,14 +293,14 @@ export class Endpoint {
         }
     }
 
-    private async uploadFile(source: FileSource): Promise<ResultStream> {
+    private async uploadFile(source: FileSource, params: SourceParams | undefined): Promise<ResultStream> {
         if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
             return Promise.reject("endpoint not connected, use connect() before upload()")
         }
         await this._limit.acquire()
         try {
             this.updateState()
-            const job = new UploadJob(source.file, source.file.type, async () => {
+            const job = new UploadJob(source.file, source.file.type, params,async () => {
                 return this.session()
             }, this._client, this._requestLogger)
             return job.start(() => {
@@ -315,14 +315,14 @@ export class Endpoint {
         }
     }
 
-    private async uploadStream(source: StreamSource): Promise<ResultStream> {
+    private async uploadStream(source: StreamSource, params: SourceParams | undefined): Promise<ResultStream> {
         if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
             return Promise.reject("endpoint not connected, use connect() before upload()")
         }
         await this._limit.acquire()
         try {
             this.updateState()
-            const job = new UploadJob(source.stream, source.mimeType, async () => {
+            const job = new UploadJob(source.stream, source.mimeType, params,async () => {
                 return this.session()
             }, this._client, this._requestLogger)
             return job.start(() => {
@@ -337,7 +337,7 @@ export class Endpoint {
         }
     }
 
-    private async uploadPath(source: PathSource): Promise<ResultStream> {
+    private async uploadPath(source: PathSource, params: SourceParams | undefined): Promise<ResultStream> {
         if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
             throw new Error("endpoint not connected, use connect() before process()")
         }
@@ -345,7 +345,7 @@ export class Endpoint {
         try {
             this.updateState()
             const streamSource = await resolvePath(source as PathSource)
-            const job = new UploadJob(streamSource.stream, streamSource.mimeType, async () => {
+            const job = new UploadJob(streamSource.stream, streamSource.mimeType, params,async () => {
                 return this.session()
             }, this._client, this._requestLogger)
             return job.start(() => {
@@ -360,14 +360,14 @@ export class Endpoint {
         }
     }
 
-    private async loadFrom(source: UrlSource): Promise<ResultStream> {
+    private async loadFrom(source: UrlSource, params: SourceParams | undefined): Promise<ResultStream> {
         if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
             throw new Error("endpoint not connected, use connect() before loadFrom()")
         }
         await this._limit.acquire()
         try {
             this.updateState()
-            const job = new LoadFromJob(source.url, async () => {
+            const job = new LoadFromJob(source.url, params,async () => {
                 return this.session()
             }, this._client, this._requestLogger)
             return job.start(() => {
@@ -382,14 +382,14 @@ export class Endpoint {
         }
     }
 
-    private async loadLiveIngress(source: LiveSource): Promise<ResultStream> {
+    private async loadLiveIngress(source: LiveSource, params: SourceParams | undefined): Promise<ResultStream> {
         if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
             throw new Error("endpoint not connected, use connect() before loadLiveIngress()")
         }
         await this._limit.acquire()
         try {
             this.updateState()
-            const job = new LoadLiveIngressJob(source.ingressId, async () => {
+            const job = new LoadLiveIngressJob(source.ingressId, params,async () => {
                 return this.session()
             }, this._client, this._requestLogger)
             return job.start(() => {
