@@ -125,22 +125,27 @@ export class Endpoint {
     }
 
     public async changePopComp(popComp: string): Promise<void> {
-        if (!this._baseUrl || !this._client) {
+        const client = this._client
+        const baseUrl = this._baseUrl
+        if (!baseUrl || !client) {
             return Promise.reject("endpoint not connected, use connect() before changePopComp()")
         }
         const patch_url = `${this._baseUrl}/pipelines/${this._pipelineId}/inferencePipeline`
-        const headers = {
-            'Authorization': await this.authorizationHeader(),
-            'Content-Type': 'application/json'
-        }
         const body = {
             'pipeline': popComp
         }
+
         this._requestLogger.debug('before PATCH %s', patch_url)
-        let response = await this._client.fetch(patch_url, {
-            method: 'PATCH',
-            body: JSON.stringify(body),
-            headers: headers
+        let response = await this.fetchWithRetry(async () => {
+            let headers = {
+                'Authorization': await this.authorizationHeader(),
+                'Content-Type': 'application/json'
+            }
+            return client.fetch(patch_url, {
+                method: 'PATCH',
+                body: JSON.stringify(body),
+                headers: headers
+            })
         })
         if (response.status != 204) {
             const message = await response.text()
@@ -196,20 +201,24 @@ export class Endpoint {
         }
 
         this._client = await createHttpClient()
+        const client = this._client
 
         let result: Endpoint = await this.reconnect()
 
         if (this._baseUrl && this._options.stopJobs) {
             const stop_url = `${this._baseUrl}/pipelines/${this._pipelineId}/source?mode=preempt&processing=sync`
             const body = {'sourceType': 'NONE'}
-            const headers = {
-                'Authorization': await this.authorizationHeader(), 'Content-Type': 'application/json'
-            }
             this._requestLogger.debug('before PATCH %s', stop_url)
-            let response = await this._client.fetch(stop_url, {
-                method: 'PATCH',
-                headers: headers,
-                body: JSON.stringify(body)
+            let response = await this.fetchWithRetry(async () => {
+                const headers = {
+                    'Authorization': await this.authorizationHeader(),
+                    'Content-Type': 'application/json'
+                }
+                return client.fetch(stop_url, {
+                    method: 'PATCH',
+                    headers: headers,
+                    body: JSON.stringify(body)
+                })
             })
             if (response.status >= 300) {
                 const message = await response.text()
@@ -301,26 +310,19 @@ export class Endpoint {
     }
 
     private async startIngressWs(): Promise<void> {
-        if (this._ingressEventWs || !this._baseUrl || !this._client) {
+        const client = this._client
+        if (this._ingressEventWs || !this._baseUrl || !client) {
             return;
         }
         try {
             const getTokenUrl = `${this._baseUrl}/liveIngress/events/token`
-            const headers = {
-                'Authorization': await this.authorizationHeader()
-            }
             this._requestLogger.debug('before GET %s', getTokenUrl)
-            let response = await this._client.fetch(getTokenUrl, {headers: headers})
-            if (response.status == 401) {
-                this._requestLogger.debug('after GET %s: 401, about to retry with fresh access token', getTokenUrl)
-                // one retry, the token might have just expired
-                this._token = null
+            let response = await this.fetchWithRetry(async () => {
                 const headers = {
                     'Authorization': await this.authorizationHeader()
                 }
-                this.updateState(EndpointState.FetchConfig)
-                response = await this._client.fetch(getTokenUrl, {headers: headers})
-            }
+                return client.fetch(getTokenUrl, {headers: headers})
+            })
             if (response.status != 200) {
                 const message = await response.text()
                 return Promise.reject(`Unexpected status ${response.status}: ${message}`)
@@ -481,6 +483,39 @@ export class Endpoint {
         }
     }
 
+    private async fetchWithRetry(fetcher: () => Promise<Response>, retries: number = 1): Promise<Response> {
+        while (true) {
+            try {
+                const response = await fetcher()
+                if (response.status == 401) {
+                    this._token = null;
+                    this._expire_token_time = null;
+                    if (retries--) {
+                        this._requestLogger.info('received 401 response, attempt to reauthorize and retry')
+                    } else {
+                        return Promise.reject(`response ${response.status}: ${response.statusText}`)
+                    }
+                } else if (response.status == 404) {
+                    this._pipelineId = null;
+                    this._baseUrl = null;
+                    if (retries--) {
+                        this._requestLogger.info('received 404 response, attempt to restart pop and retry')
+                    } else {
+                        return Promise.reject(`response ${response.status}: ${response.statusText}`)
+                    }
+                } else {
+                    return response
+                }
+            } catch (error) {
+                this._pipelineId = null;
+                this._baseUrl = null;
+                if (retries--) {
+                    this._requestLogger.info('unknown, attempt to restart pop (as if we received 404)', error)
+                    return Promise.reject(error)
+                }
+            }
+        }
+    }
 
     private async reconnect(): Promise<Endpoint> {
         if (!this._client) {
@@ -507,7 +542,7 @@ export class Endpoint {
             }
             this.updateState(EndpointState.FetchConfig)
             response = await this._client.fetch(config_url, {
-                headers: headers, // @ts-ignore
+                headers: headers
             })
         }
 
@@ -526,7 +561,7 @@ export class Endpoint {
                 }
                 this.updateState(EndpointState.StartingPop)
                 response = await this._client.fetch(auto_start_config_url, {
-                    headers: headers, // @ts-ignore
+                    headers: headers
                 })
                 if (response.status != 200) {
                     this.updateState(EndpointState.Error)
