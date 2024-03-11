@@ -32,7 +32,27 @@ function prepMockServer(server: MockServer, test_pop_id: string, test_pipeline_i
             ctx.response.headers['content-type'] = 'application/json'
             ctx.body = JSON.stringify({base_url: `${server.getURL()}worker/`, pipeline_id: test_pipeline_id_2})
         })
-    return {authenticationRoute, popConfigRoute};
+
+    const getPipelineRoute1 = server
+        .get(`/worker/pipelines/${test_pipeline_id_1}`)
+        .mockImplementationOnce((ctx) => {
+            ctx.status = 200
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify({
+                id: test_pipeline_id_1
+            })
+        })
+    const getPipelineRoute2 = server
+        .get(`/worker/pipelines/${test_pipeline_id_2}`)
+        .mockImplementationOnce((ctx) => {
+            ctx.status = 200
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify({
+                id: test_pipeline_id_2
+            })
+        })
+
+    return {authenticationRoute, popConfigRoute ,getPipelineRoute1, getPipelineRoute2};
 }
 
 describe('EyePopSdk endpoint reconnect', () => {

@@ -126,6 +126,18 @@ Render2d.renderFace(target = '$..objects[?(@.classLabel=="face")]')
 // or 
 Render2d.renderFace() 
 ```
+#### Render Segmentation Masks
+```typescript
+Render2d.renderMask(target = '$..objects[?(@.mask)]') 
+// or 
+Render2d.renderMask() 
+```
+#### Render Segmentation Contours
+```typescript
+Render2d.renderContour(target = '$..objects[?(@.contours)]') 
+// or 
+Render2d.renderContour() 
+```
 #### Blur an Object (TODO does black-put instead of blur)
 ```typescript
 Render2d.renderBlur(target = '$..objects[?(@.classLabel=="face")]')

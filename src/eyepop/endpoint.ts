@@ -1,4 +1,4 @@
-import {Auth0Options, OAuth2Auth, Options, SecretKeyAuth, SessionAuth} from "./options"
+import {Auth0Options, OAuth2Auth, Options, SecretKeyAuth, SessionAuth, TransientPopId} from "./options"
 import {
     EndpointState,
     FileSource,
@@ -8,7 +8,8 @@ import {
     PathSource,
     ResultStream,
     SessionPlus,
-    Source, SourceParams,
+    Source,
+    SourceParams,
     StreamSource,
     UrlSource
 } from "./types"
@@ -485,7 +486,12 @@ export class Endpoint {
         if (!this._client) {
             return Promise.reject("endpoint not initialized")
         }
-        const config_url = `${this.eyepopUrl()}/pops/${this._options.popId}/config?auto_start=false`
+        let config_url
+        if (this._options.popId == TransientPopId.Transient) {
+            config_url = `${this.eyepopUrl()}/workers/config`
+        } else {
+            config_url = `${this.eyepopUrl()}/pops/${this._options.popId}/config?auto_start=false`
+        }
         const headers = {
             'Authorization': await this.authorizationHeader()
         }
@@ -532,8 +538,13 @@ export class Endpoint {
 
             const baseUrl = new URL(config.base_url, this.eyepopUrl())
             this._baseUrl = baseUrl.toString()
-            this._pipelineId = config.pipeline_id
-            this._popName = config.name
+            if (this._options.popId == TransientPopId.Transient) {
+                this._pipelineId = await this.startPopLessPipeline()
+                this._popName = this._options.popId
+            } else {
+                this._pipelineId = config.pipeline_id
+                this._popName = config.name
+            }
             this._requestLogger.debug('after GET %s: %s / %s', config_url, this._baseUrl, this._pipelineId)
             if (!this._pipelineId || !this._baseUrl) {
                 return Promise.reject(`Pop not started`)
@@ -608,5 +619,62 @@ export class Endpoint {
         }
         this._logger.debug('using access token, valid for at least %d seconds', <number>this._expire_token_time - now)
         return <string>this._token
+    }
+
+    private async startPopLessPipeline() : Promise<string> {
+        if (this._client == null || this._baseUrl == null) {
+            return Promise.reject("endpoint not initialized")
+        }
+
+        this.updateState(EndpointState.StartingPop)
+
+        let pipeline
+        if (this._pipeline) {
+            pipeline = this._pipeline.inferPipeline
+        } else {
+            pipeline = 'identity'
+        }
+
+        const body = {
+            'inferPipelineDef': {
+                'pipeline': pipeline
+            },
+            "source": {
+                "sourceType": "NONE",
+            },
+            "idleTimeoutSeconds": 30,
+            "logging": ["out_meta"],
+            "videoOutput": "no_output",
+        }
+
+        const post_url = `${this._baseUrl.replace(/\/+$/, "")}/pipelines`
+        let headers = {
+            'Content-Type': 'application/json',
+             'Authorization': await this.authorizationHeader()
+        }
+        this._requestLogger.debug('before POST %s', post_url)
+        let response = await this._client.fetch(post_url, {
+            method: 'POST', headers: headers, body: JSON.stringify(body)
+        })
+        if (response.status == 401) {
+            this._requestLogger.debug('after GET %s: 401, about to retry with fresh access token', post_url)
+            // one retry, the token might have just expired
+            this._token = null
+            headers = {
+                'Content-Type': 'application/json',
+                'Authorization': await this.authorizationHeader()
+            }
+            response = await this._client.fetch(post_url, {
+                method: 'POST', headers: headers, body: JSON.stringify(body)
+            })
+        }
+
+        if (response.status != 200) {
+            const message = await response.text()
+            return Promise.reject(`Unexpected status ${response.status}: ${message}`)
+        }
+        this._requestLogger.debug('after POST %s', post_url)
+        const pipelineId = (await response.json())['id']
+        return pipelineId
     }
 }
