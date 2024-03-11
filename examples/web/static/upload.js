@@ -9,6 +9,8 @@ let processButton = undefined;
 let imagePreview = undefined;
 let resultOverlay = undefined;
 let roiOverlay = undefined;
+let popComp = undefined;
+let updatePopComp = undefined;
 let timingSpan = undefined;
 let resultSpan = undefined;
 
@@ -20,6 +22,8 @@ async function setup() {
     imagePreview = document.getElementById('image-preview');
     resultOverlay = document.getElementById('result-overlay');
     roiOverlay = document.getElementById('roi-overlay');
+    popComp = document.getElementById('pop-comp');
+    updatePopComp = document.getElementById('update-pop-comp');
     timingSpan = document.getElementById("timing");
     resultSpan = document.getElementById('txt_json');
 
@@ -54,6 +58,21 @@ async function connect(event) {
     }
     fileChooser.disabled = false;
     popNameElement.innerHTML = endpoint.popName();
+    popComp.value = endpoint.popComp();
+    popComp.style.overflow = 'hidden';
+    popComp.style.height = 0;
+    popComp.style.height = popComp.scrollHeight + 'px';
+
+    popComp.addEventListener('change', async (event) => {
+       console.log('pop changed');
+       updatePopComp.disabled = false;
+       await endpoint.changePopComp(popComp.value);
+    });
+
+    updatePopComp.addEventListener('click', (event) => {
+       console.log('updated');
+       updatePopComp.disabled = true;
+    });
 }
 
 async function fileChanged(event) {
@@ -121,7 +140,7 @@ async function upload(event) {
             const renderer = Render2d.renderer(context,[
               Render2d.renderMask(),
               Render2d.renderContour(),
-              Render2d.renderFace()
+              Render2d.renderBox()
             ]);
             renderer.draw(result);
             initForRoi();
