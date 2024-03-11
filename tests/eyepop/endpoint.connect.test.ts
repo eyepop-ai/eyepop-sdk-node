@@ -46,6 +46,16 @@ describe('EyePopSdk endpoint module auth and connect', () => {
                 ctx.status = 204
             })
 
+        const getPipelineRoute = server
+            .get(`/worker/pipelines/${test_pipeline_id}`)
+            .mockImplementationOnce((ctx) => {
+                ctx.status = 200
+                ctx.response.headers['content-type'] = 'application/json'
+                ctx.body = JSON.stringify({
+                    id: test_pipeline_id
+                })
+            })
+
         const endpoint = EyePop.endpoint({
             eyepopUrl: server.getURL().toString(),
             popId: test_pop_id,
@@ -57,6 +67,7 @@ describe('EyePopSdk endpoint module auth and connect', () => {
             expect(authenticationRoute).toHaveBeenCalledTimes(1)
             expect(popConfigRoute).toHaveBeenCalledTimes(1)
             expect(stopRoute).toHaveBeenCalledTimes(1)
+            expect(getPipelineRoute).toHaveBeenCalledTimes(1)
         } finally {
             await endpoint.disconnect()
         }
@@ -88,6 +99,16 @@ describe('EyePopSdk endpoint module auth and connect', () => {
                 ctx.body = JSON.stringify({base_url: `${server.getURL()}worker/`, pipeline_id: test_pipeline_id})
             })
 
+        const getPipelineRoute = server
+            .get(`/worker/pipelines/${test_pipeline_id}`)
+            .mockImplementation((ctx) => {
+                ctx.status = 200
+                ctx.response.headers['content-type'] = 'application/json'
+                ctx.body = JSON.stringify({
+                    id: test_pipeline_id
+                })
+            })
+
         server
             .patch(`/worker/pipelines/${test_pipeline_id}/source`)
             .mockImplementation((ctx) => {
@@ -102,6 +123,7 @@ describe('EyePopSdk endpoint module auth and connect', () => {
             await endpoint.connect()
             expect(authenticationRoute).toHaveBeenCalledTimes(1)
             expect(popConfigRoute).toHaveBeenCalledTimes(1)
+            expect(getPipelineRoute).toHaveBeenCalledTimes(1)
         } finally {
             await endpoint.disconnect()
         }
@@ -110,6 +132,7 @@ describe('EyePopSdk endpoint module auth and connect', () => {
             await endpoint.connect()
             expect(authenticationRoute).toHaveBeenCalledTimes(1)
             expect(popConfigRoute).toHaveBeenCalledTimes(2)
+            expect(getPipelineRoute).toHaveBeenCalledTimes(2)
         } finally {
             await endpoint.disconnect()
         }
@@ -145,14 +168,25 @@ describe('EyePopSdk endpoint module auth and connect', () => {
                 ctx.body = JSON.stringify({base_url: `${server.getURL()}worker/`, pipeline_id: test_pipeline_id})
             })
 
+        const getPipelineRoute = server
+            .get(`/worker/pipelines/${test_pipeline_id}`)
+            .mockImplementation((ctx) => {
+                ctx.status = 200
+                ctx.response.headers['content-type'] = 'application/json'
+                ctx.body = JSON.stringify({
+                    id: test_pipeline_id
+                })
+            })
+
         const endpoint = EyePop.endpoint({
             eyepopUrl: server.getURL().toString(), popId: test_pop_id, stopJobs: false, auth: {secretKey: test_secret_key}
         })
         expect(endpoint).toBeDefined()
         try {
             await endpoint.connect()
-            expect(authenticationRoute).toHaveBeenCalledTimes(1)
+            expect(authenticationRoute).toHaveBeenCalledTimes(2)
             expect(popConfigRoute).toHaveBeenCalledTimes(1)
+            expect(getPipelineRoute).toHaveBeenCalledTimes(1)
         } finally {
             await endpoint.disconnect()
         }
@@ -161,6 +195,7 @@ describe('EyePopSdk endpoint module auth and connect', () => {
             await endpoint.connect()
             expect(authenticationRoute).toHaveBeenCalledTimes(2)
             expect(popConfigRoute).toHaveBeenCalledTimes(2)
+            expect(getPipelineRoute).toHaveBeenCalledTimes(2)
         } finally {
             await endpoint.disconnect()
         }
@@ -190,6 +225,16 @@ describe('EyePopSdk endpoint module auth and connect', () => {
                 ctx.body = JSON.stringify({base_url: `${server.getURL()}worker/`, pipeline_id: test_pipeline_id})
             })
 
+        const getPipelineRoute = server
+            .get(`/worker/pipelines/${test_pipeline_id}`)
+            .mockImplementationOnce((ctx) => {
+                ctx.status = 200
+                ctx.response.headers['content-type'] = 'application/json'
+                ctx.body = JSON.stringify({
+                    id: test_pipeline_id
+                })
+            })
+
         server
             .patch(`/worker/pipelines/${test_pipeline_id}/source`)
             .mockImplementation((ctx) => {
@@ -202,8 +247,9 @@ describe('EyePopSdk endpoint module auth and connect', () => {
         expect(endpoint).toBeDefined()
         try {
             await endpoint.connect()
-            expect(authenticationRoute).toHaveBeenCalledTimes(2)
+            expect(authenticationRoute).toHaveBeenCalledTimes(3)
             expect(popConfigRoute).toHaveBeenCalledTimes(2)
+            expect(getPipelineRoute).toHaveBeenCalledTimes(1)
         } finally {
             await endpoint.disconnect()
         }
@@ -230,6 +276,16 @@ describe('EyePopSdk endpoint module auth and connect', () => {
                 ctx.body = JSON.stringify({base_url: `${server.getURL()}worker/`, pipeline_id: test_pipeline_id})
             })
 
+        const getPipelineRoute = server
+            .get(`/worker/pipelines/${test_pipeline_id}`)
+            .mockImplementation((ctx) => {
+                ctx.status = 200
+                ctx.response.headers['content-type'] = 'application/json'
+                ctx.body = JSON.stringify({
+                    id: test_pipeline_id
+                })
+            })
+
         server
             .patch(`/worker/pipelines/${test_pipeline_id}/source`)
             .mockImplementation((ctx) => {
@@ -248,6 +304,7 @@ describe('EyePopSdk endpoint module auth and connect', () => {
             session = await endpoint1.session()
             expect(authenticationRoute).toHaveBeenCalledTimes(1)
             expect(popConfigRoute).toHaveBeenCalledTimes(1)
+            expect(getPipelineRoute).toHaveBeenCalledTimes(1)
         } finally {
             await endpoint1.disconnect()
         }
@@ -264,6 +321,7 @@ describe('EyePopSdk endpoint module auth and connect', () => {
             await endpoint2.connect()
             expect(authenticationRoute).toHaveBeenCalledTimes(0)
             expect(popConfigRoute).toHaveBeenCalledTimes(1)
+            expect(getPipelineRoute).toHaveBeenCalledTimes(2)
         } finally {
             await endpoint2.disconnect()
         }
