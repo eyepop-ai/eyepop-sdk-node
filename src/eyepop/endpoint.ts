@@ -135,11 +135,12 @@ export class Endpoint {
         }
 
         let response = await this.fetchWithRetry(async () => {
-            const patch_url = `${this._baseUrl}/pipelines/${this._pipelineId}/inferencePipeline`
+            const session = await this.session()
             let headers = {
-                'Authorization': await this.authorizationHeader(),
+                'Authorization': session.accessToken,
                 'Content-Type': 'application/json'
             }
+            const patch_url = `${session.baseUrl}/pipelines/${session.pipelineId}/inferencePipeline`
             return client.fetch(patch_url, {
                 method: 'PATCH',
                 body: JSON.stringify(body),
@@ -206,11 +207,12 @@ export class Endpoint {
         if (this._baseUrl && this._options.stopJobs) {
             const body = {'sourceType': 'NONE'}
             let response = await this.fetchWithRetry(async () => {
-                const stop_url = `${this._baseUrl}/pipelines/${this._pipelineId}/source?mode=preempt&processing=sync`
+                const session = await this.session()
                 const headers = {
-                    'Authorization': await this.authorizationHeader(),
+                    'Authorization': session.accessToken,
                     'Content-Type': 'application/json'
                 }
+                const stop_url = `${session.baseUrl}/pipelines/${session.pipelineId}/source?mode=preempt&processing=sync`
                 return client.fetch(stop_url, {
                     method: 'PATCH',
                     headers: headers,
@@ -311,12 +313,12 @@ export class Endpoint {
             return;
         }
         try {
-            const getTokenUrl = `${this._baseUrl}/liveIngress/events/token`
-            this._requestLogger.debug('before GET %s', getTokenUrl)
+            const session = await this.session()
             let response = await this.fetchWithRetry(async () => {
                 const headers = {
-                    'Authorization': await this.authorizationHeader()
+                    'Authorization': session.accessToken
                 }
+                const getTokenUrl = `${session.baseUrl}/liveIngress/events/token`
                 return client.fetch(getTokenUrl, {headers: headers})
             })
             if (response.status != 200) {
