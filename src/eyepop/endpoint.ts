@@ -130,17 +130,17 @@ export class Endpoint {
         if (!baseUrl || !client) {
             return Promise.reject("endpoint not connected, use connect() before changePopComp()")
         }
-        const patch_url = `${this._baseUrl}/pipelines/${this._pipelineId}/inferencePipeline`
         const body = {
             'pipeline': popComp
         }
 
-        this._requestLogger.debug('before PATCH %s', patch_url)
         let response = await this.fetchWithRetry(async () => {
+            const session = await this.session()
             let headers = {
-                'Authorization': await this.authorizationHeader(),
+                'Authorization': session.accessToken,
                 'Content-Type': 'application/json'
             }
+            const patch_url = `${session.baseUrl}/pipelines/${session.pipelineId}/inferencePipeline`
             return client.fetch(patch_url, {
                 method: 'PATCH',
                 body: JSON.stringify(body),
@@ -151,7 +151,6 @@ export class Endpoint {
             const message = await response.text()
             return Promise.reject(`Unexpected status ${response.status}: ${message}`)
         }
-        this._requestLogger.debug('after PATCH %s', patch_url)
         if (this._pipeline) {
             this._pipeline.inferPipeline = popComp
         }
@@ -206,14 +205,14 @@ export class Endpoint {
         let result: Endpoint = await this.reconnect()
 
         if (this._baseUrl && this._options.stopJobs) {
-            const stop_url = `${this._baseUrl}/pipelines/${this._pipelineId}/source?mode=preempt&processing=sync`
             const body = {'sourceType': 'NONE'}
-            this._requestLogger.debug('before PATCH %s', stop_url)
             let response = await this.fetchWithRetry(async () => {
+                const session = await this.session()
                 const headers = {
-                    'Authorization': await this.authorizationHeader(),
+                    'Authorization': session.accessToken,
                     'Content-Type': 'application/json'
                 }
+                const stop_url = `${session.baseUrl}/pipelines/${session.pipelineId}/source?mode=preempt&processing=sync`
                 return client.fetch(stop_url, {
                     method: 'PATCH',
                     headers: headers,
@@ -224,7 +223,6 @@ export class Endpoint {
                 const message = await response.text()
                 return Promise.reject(`Unexpected status ${response.status}: ${message}`)
             }
-            this._requestLogger.debug('after PATCH %s', stop_url)
         }
 
         if (!this._ingressEventWs && this._ingressEventHandler) {
@@ -315,12 +313,12 @@ export class Endpoint {
             return;
         }
         try {
-            const getTokenUrl = `${this._baseUrl}/liveIngress/events/token`
-            this._requestLogger.debug('before GET %s', getTokenUrl)
+            const session = await this.session()
             let response = await this.fetchWithRetry(async () => {
                 const headers = {
-                    'Authorization': await this.authorizationHeader()
+                    'Authorization': session.accessToken
                 }
+                const getTokenUrl = `${session.baseUrl}/liveIngress/events/token`
                 return client.fetch(getTokenUrl, {headers: headers})
             })
             if (response.status != 200) {
