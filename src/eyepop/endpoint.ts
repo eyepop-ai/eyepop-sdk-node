@@ -130,13 +130,12 @@ export class Endpoint {
         if (!baseUrl || !client) {
             return Promise.reject("endpoint not connected, use connect() before changePopComp()")
         }
-        const patch_url = `${this._baseUrl}/pipelines/${this._pipelineId}/inferencePipeline`
         const body = {
             'pipeline': popComp
         }
 
-        this._requestLogger.debug('before PATCH %s', patch_url)
         let response = await this.fetchWithRetry(async () => {
+            const patch_url = `${this._baseUrl}/pipelines/${this._pipelineId}/inferencePipeline`
             let headers = {
                 'Authorization': await this.authorizationHeader(),
                 'Content-Type': 'application/json'
@@ -151,7 +150,6 @@ export class Endpoint {
             const message = await response.text()
             return Promise.reject(`Unexpected status ${response.status}: ${message}`)
         }
-        this._requestLogger.debug('after PATCH %s', patch_url)
         if (this._pipeline) {
             this._pipeline.inferPipeline = popComp
         }
@@ -206,10 +204,9 @@ export class Endpoint {
         let result: Endpoint = await this.reconnect()
 
         if (this._baseUrl && this._options.stopJobs) {
-            const stop_url = `${this._baseUrl}/pipelines/${this._pipelineId}/source?mode=preempt&processing=sync`
             const body = {'sourceType': 'NONE'}
-            this._requestLogger.debug('before PATCH %s', stop_url)
             let response = await this.fetchWithRetry(async () => {
+                const stop_url = `${this._baseUrl}/pipelines/${this._pipelineId}/source?mode=preempt&processing=sync`
                 const headers = {
                     'Authorization': await this.authorizationHeader(),
                     'Content-Type': 'application/json'
@@ -224,7 +221,6 @@ export class Endpoint {
                 const message = await response.text()
                 return Promise.reject(`Unexpected status ${response.status}: ${message}`)
             }
-            this._requestLogger.debug('after PATCH %s', stop_url)
         }
 
         if (!this._ingressEventWs && this._ingressEventHandler) {
