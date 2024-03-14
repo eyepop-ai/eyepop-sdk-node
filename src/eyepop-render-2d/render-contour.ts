@@ -36,9 +36,9 @@ export class RenderContour implements Render {
             context.lineWidth = lineWidth
             context.strokeStyle = style.colors.primary_color
             context.fillStyle = style.colors.opacity_color
-            let p = contour.points[0]
+            let p = contour.points[contour.points.length-1]
             context.moveTo(p.x*xScale+xOffset, p.y*yScale+yOffset)
-            for (let i = contour.points.length-1; i > 0; i--) {
+            for (let i = 0; i < contour.points.length; i++) {
                 p = contour.points[i]
                 context.lineTo(p.x*xScale+xOffset, p.y*yScale+yOffset)
             }
@@ -52,10 +52,9 @@ export class RenderContour implements Render {
                     if (points.length < 2) {
                         continue;
                     }
-                    context.beginPath()
-                    p = points[0]
+                    p = points[points.length-1]
                     context.moveTo(p.x*xScale+xOffset, p.y*yScale+yOffset)
-                    for (let i = points.length-1; i > 0; i--) {
+                    for (let i = 0; i < points.length; i++) {
                         p = points[i]
                         context.lineTo(p.x*xScale+xOffset, p.y*yScale+yOffset)
                     }

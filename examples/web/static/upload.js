@@ -66,12 +66,12 @@ async function connect(event) {
     popComp.addEventListener('change', async (event) => {
        console.log('pop changed');
        updatePopComp.disabled = false;
-       await endpoint.changePopComp(popComp.value);
     });
 
-    updatePopComp.addEventListener('click', (event) => {
+    updatePopComp.addEventListener('click', async (event) => {
        console.log('updated');
        updatePopComp.disabled = true;
+       await endpoint.changePopComp(popComp.value);
     });
 }
 
@@ -140,7 +140,7 @@ async function upload(event) {
             const renderer = Render2d.renderer(context,[
               Render2d.renderMask(),
               Render2d.renderContour(),
-              Render2d.renderBox()
+              // Render2d.renderBox()
             ]);
             renderer.draw(result);
             initForRoi();
