@@ -137,7 +137,7 @@ export class Endpoint {
         let response = await this.fetchWithRetry(async () => {
             const session = await this.session()
             let headers = {
-                'Authorization': session.accessToken,
+                'Authorization': `Bearer ${session.accessToken}`,
                 'Content-Type': 'application/json'
             }
             const patch_url = `${session.baseUrl}/pipelines/${session.pipelineId}/inferencePipeline`
@@ -316,7 +316,7 @@ export class Endpoint {
             const session = await this.session()
             let response = await this.fetchWithRetry(async () => {
                 const headers = {
-                    'Authorization': session.accessToken
+                    'Authorization': `Bearer ${session.accessToken}`
                 }
                 const getTokenUrl = `${session.baseUrl}/liveIngress/events/token`
                 return client.fetch(getTokenUrl, {headers: headers})
