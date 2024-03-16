@@ -209,7 +209,7 @@ export class Endpoint {
             let response = await this.fetchWithRetry(async () => {
                 const session = await this.session()
                 const headers = {
-                    'Authorization': session.accessToken,
+                    'Authorization': `Bearer ${session.accessToken}`,
                     'Content-Type': 'application/json'
                 }
                 const stop_url = `${session.baseUrl}/pipelines/${session.pipelineId}/source?mode=preempt&processing=sync`
