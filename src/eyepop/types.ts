@@ -76,7 +76,7 @@ export interface Prediction extends StreamTime {
     source_id: string
     objects: Array<PredictedObject>
     classes: Array<PredictedClass>
-    labels: Array<string>
+    labels: Array<PredictedLabel>
     meshs: Array<PredictedMesh>
     keyPoints: Array<PredictedKeyPoints>
 }
@@ -84,6 +84,13 @@ export interface PredictedClass {
     id: number
     confidence: number
     classLabel: string
+    category: string
+}
+
+export interface PredictedLabel {
+    id: number
+    confidence: number
+    label: string
     category: string
 }
 
