@@ -36,6 +36,5 @@
     "uuid": "^9.0.1",
     "webpack-cli": "^5.1.4"
   },
-  "dependencies": {
-  }
+  "dependencies": {}
 }

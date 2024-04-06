@@ -108,7 +108,7 @@ export class RenderBox implements Render {
 
         if (element.labels) {
             for (let i= 0; i < element.labels.length; i++) {
-                context.fillText(` - ${element.labels[i]}`, xPos, yPos)
+                context.fillText(` - ${element.labels[i].label}`, xPos, yPos)
                 yPos += padding + tw.actualBoundingBoxAscent + tw.actualBoundingBoxDescent
             }
         }
