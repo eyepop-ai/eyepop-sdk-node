@@ -8,6 +8,7 @@ export interface Session {
 export interface SessionPlus extends Session {
     readonly baseUrl: string;
     readonly pipelineId: string;
+    readonly sandboxId: string | undefined;
 }
 
 export enum EndpointState {
