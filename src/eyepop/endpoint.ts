@@ -53,6 +53,7 @@ export class Endpoint {
     private _expire_token_time: number | null
     private _baseUrl: string | null
     private _pipelineId: string | null
+    private _sandboxId: string | null
 
     private _popName: string | null
 
@@ -83,6 +84,15 @@ export class Endpoint {
         this._stateChangeHandler = null
         this._ingressEventHandler = null
         this._ingressEventWs = null
+
+        this._sandboxId = null
+        const sessionAuth: SessionAuth = (options.auth as SessionAuth)
+        if (sessionAuth.session !== undefined) {
+            const sessionPlus = (sessionAuth.session as SessionPlus)
+            if (sessionPlus.sandboxId) {
+                this._sandboxId = sessionPlus.sandboxId
+            }
+        }
 
         this._limit = new Semaphore(this._options.jobQueueLength ?? 1024)
 
@@ -248,6 +258,7 @@ export class Endpoint {
         }
         this._baseUrl = null
         this._pipelineId = null
+        this._sandboxId = null
     }
 
     public async session(): Promise<SessionPlus> {
@@ -267,7 +278,8 @@ export class Endpoint {
             accessToken: this._token,
             validUntil: this._expire_token_time * 1000,
             baseUrl: this._baseUrl,
-            pipelineId: this._pipelineId
+            pipelineId: this._pipelineId,
+            sandboxId: this._sandboxId?? undefined
         }
     }
 
@@ -680,7 +692,12 @@ export class Endpoint {
             "videoOutput": "no_output",
         }
 
-        const post_url = `${this._baseUrl.replace(/\/+$/, "")}/pipelines`
+        let post_url
+        if (this._sandboxId) {
+            post_url = `${this._baseUrl.replace(/\/+$/, "")}/pipelines?sandboxId=${this._sandboxId}`
+        } else {
+            post_url = `${this._baseUrl.replace(/\/+$/, "")}/pipelines`
+        }
         let headers = {
             'Content-Type': 'application/json',
              'Authorization': await this.authorizationHeader()
