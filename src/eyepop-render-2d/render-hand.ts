@@ -26,8 +26,8 @@ export class RenderHand implements Render {
 
     private renderKeyPoints(keyPoints: PredictedKeyPoints, fillColor: string, width: number, xOffset: number, yOffset: number, xScale: number, yScale: number) {
         const labelsToPoints = new Map<string, PredictedKeyPoint>()
-        let maxZ = 0;
-        let minZ = 0;
+        let maxZ = 1.0
+        let minZ = -1.0
         for (let i = 0; i < keyPoints.points.length; i++) {
             const keyPoint = keyPoints.points[i]
             labelsToPoints.set(keyPoint.classLabel, keyPoint)

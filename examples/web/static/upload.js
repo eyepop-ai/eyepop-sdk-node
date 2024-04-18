@@ -140,6 +140,7 @@ async function upload(event) {
             const renderer = Render2d.renderer(context,[
               Render2d.renderMask(),
               Render2d.renderContour(),
+              Render2d.renderKeypoints(),
               // Render2d.renderBox()
             ]);
             renderer.draw(result);

@@ -9,6 +9,7 @@ import {RenderPose} from './render-pose';
 import {RenderTrail} from "./render-trail";
 import {RenderMask} from "./render-mask";
 import {RenderContour} from "./render-contour";
+import {RenderKeyPoints} from "EyePop/Render2d/render-keypoints";
 
 export interface Renderer {
     draw(p: Prediction): void
@@ -21,7 +22,7 @@ export namespace Render2d {
     export function renderBlur(target: string) : RenderRule {
         return {render: new RenderBlur(), target: target}
     }
-    export function renderBox(includeSecondaryLabels: boolean = false, target: string = '$.objects.*') : RenderRule {
+    export function renderBox(includeSecondaryLabels: boolean = false, target: string = '$..objects.*') : RenderRule {
         return {render: new RenderBox(includeSecondaryLabels), target: target}
     }
     export function renderMask(target: string = '$..objects[?(@.mask)]') : RenderRule {
@@ -32,6 +33,9 @@ export namespace Render2d {
     }
     export function renderFace(target: string = '$..objects[?(@.classLabel=="face")]') : RenderRule {
         return {render: new RenderFace(), target: target}
+    }
+    export function renderKeypoints(target: string = '$..objects[?(@.keyPoints)]') : RenderRule {
+        return {render: new RenderKeyPoints(), target: target}
     }
     export function renderHand(target: string = '$..objects[?(@.classLabel=="hand circumference")]') : RenderRule {
         return {render: new RenderHand(), target: target}

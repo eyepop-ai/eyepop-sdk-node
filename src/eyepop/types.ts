@@ -119,7 +119,7 @@ export interface PredictedObject extends PredictedClass {
     mask: Mask | undefined
     objects: Array<PredictedObject> | undefined
     classes: Array<PredictedClass> | undefined
-    labels: Array<string> | undefined
+    labels: Array<PredictedLabel> | undefined
     meshs: Array<PredictedMesh> | undefined
     keyPoints: Array<PredictedKeyPoints> | undefined
 }
@@ -147,6 +147,7 @@ export interface PredictedKeyPoints {
 }
 
 export interface PredictedKeyPoint extends Point3d, PredictedClass {
+    visible: boolean | undefined
 }
 
 export interface ResultStream extends AsyncIterable<Prediction> {
