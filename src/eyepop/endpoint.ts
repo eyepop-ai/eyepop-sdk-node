@@ -30,11 +30,12 @@ interface PopConfig {
 }
 
 interface Pipeline {
-  id: string
-  startTime: string
-  state: string
-  prePipeline: string
-  inferPipeline: string
+    id: string
+    startTime: string
+    state: string
+    prePipeline: string | null
+    inferPipeline: string
+    postTransform: string
 }
 
 interface AccessToken {
@@ -134,6 +135,14 @@ export class Endpoint {
         }
     }
 
+    public postTransform(): string | null {
+        if (this._pipeline) {
+            return this._pipeline.postTransform
+        } else {
+            return null
+        }
+    }
+
     public async changePopComp(popComp: string): Promise<void> {
         const client = this._client
         const baseUrl = this._baseUrl
@@ -163,6 +172,38 @@ export class Endpoint {
         }
         if (this._pipeline) {
             this._pipeline.inferPipeline = popComp
+        }
+    }
+
+    public async changePostTransform(postTransform: string): Promise<void> {
+        const client = this._client
+        const baseUrl = this._baseUrl
+        if (!baseUrl || !client) {
+            return Promise.reject("endpoint not connected, use connect() before changePopComp()")
+        }
+        const body = {
+            'transform': postTransform
+        }
+
+        let response = await this.fetchWithRetry(async () => {
+            const session = await this.session()
+            let headers = {
+                'Authorization': `Bearer ${session.accessToken}`,
+                'Content-Type': 'application/json'
+            }
+            const patch_url = `${session.baseUrl}/pipelines/${session.pipelineId}/postTransform`
+            return client.fetch(patch_url, {
+                method: 'PATCH',
+                body: JSON.stringify(body),
+                headers: headers
+            })
+        })
+        if (response.status != 204) {
+            const message = await response.text()
+            return Promise.reject(`Unexpected status ${response.status}: ${message}`)
+        }
+        if (this._pipeline) {
+            this._pipeline.postTransform = postTransform
         }
     }
 
@@ -680,16 +721,26 @@ export class Endpoint {
             pipeline = 'identity'
         }
 
+        let postTransform
+        if (this._pipeline && this._pipeline.postTransform) {
+            postTransform = this._pipeline.postTransform
+        } else {
+            postTransform = null
+        }
+
         const body = {
             'inferPipelineDef': {
                 'pipeline': pipeline
             },
-            "source": {
-                "sourceType": "NONE",
+            'postTransformDef': {
+                'transform': postTransform
             },
-            "idleTimeoutSeconds": 30,
-            "logging": ["out_meta"],
-            "videoOutput": "no_output",
+            'source': {
+                'sourceType': 'NONE',
+            },
+            'idleTimeoutSeconds': 30,
+            'logging': ['out_meta'],
+            'videoOutput': 'no_output',
         }
 
         let post_url
