@@ -229,7 +229,7 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
 
         const changePostTransformRoute = server
             .patch(`/worker/pipelines/${test_pipeline_id}/postTransform`)
-            .mockImplementationOnce((ctx) => {
+            .mockImplementation((ctx) => {
                 // @ts-ignore
                 postTransform = ctx.request.body['transform']
                 ctx.status = 204
@@ -257,8 +257,27 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
             expect(transform).toBe('"foo"')
             expect(postTransform).toBe('"foo"')
             expect(changePostTransformRoute).toHaveBeenCalledTimes(1)
+
+            await endpoint.changePostTransform("")
+            transform = await endpoint.postTransform()
+            expect(transform).toBeNull()
+            expect(postTransform).toBeNull()
+            expect(changePostTransformRoute).toHaveBeenCalledTimes(2)
+
+            await endpoint.changePostTransform('"foo"')
+            transform = await endpoint.postTransform()
+            expect(transform).toBe('"foo"')
+            expect(postTransform).toBe('"foo"')
+            expect(changePostTransformRoute).toHaveBeenCalledTimes(3)
+
+            await endpoint.changePostTransform(null)
+            transform = await endpoint.postTransform()
+            expect(transform).toBeNull()
+            expect(postTransform).toBeNull()
+            expect(changePostTransformRoute).toHaveBeenCalledTimes(4)
         } finally {
             await endpoint.disconnect()
         }
     })
 })
+
