@@ -35,7 +35,7 @@ interface Pipeline {
     state: string
     prePipeline: string | null
     inferPipeline: string
-    postTransform: string
+    postTransform: string | null
 }
 
 interface AccessToken {
@@ -175,12 +175,15 @@ export class Endpoint {
         }
     }
 
-    public async changePostTransform(postTransform: string): Promise<void> {
+    public async changePostTransform(postTransform: string | null): Promise<void> {
         const client = this._client
         const baseUrl = this._baseUrl
         if (!baseUrl || !client) {
             return Promise.reject("endpoint not connected, use connect() before changePopComp()")
         }
+
+        postTransform = postTransform? postTransform: null
+
         const body = {
             'transform': postTransform
         }
