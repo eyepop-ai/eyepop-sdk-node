@@ -1,52 +1,65 @@
-import {Prediction} from '@eyepop.ai/eyepop';
-import {CanvasRenderingContext2D} from 'canvas';
-import {Renderer2d, RenderRule} from './renderer-2d';
-import {RenderBlur} from './render-blur';
-import {RenderBox} from './render-box';
-import {RenderFace} from './render-face';
-import {RenderHand} from './render-hand';
-import {RenderPose} from './render-pose';
-import {RenderTrail} from "./render-trail";
-import {RenderMask} from "./render-mask";
-import {RenderContour} from "./render-contour";
-import {RenderKeyPoints} from "EyePop/Render2d/render-keypoints";
+import { Prediction } from '@eyepop.ai/eyepop';
+import { CanvasRenderingContext2D } from 'canvas';
+import { Renderer2d } from './renderer-2d';
+import { RenderBlur } from './render-blur';
+import { RenderBox } from './render-box';
+import { RenderFace } from './render-face';
+import { RenderHand } from './render-hand';
+import { RenderPose } from './render-pose';
+import { RenderTrail } from "./render-trail";
+import { RenderMask } from "./render-mask";
+import { RenderContour } from "./render-contour";
+import { RenderKeyPoints } from "EyePop/Render2d/render-keypoints";
+import { Render, RenderTarget } from './render';
 
-export interface Renderer {
+export interface Renderer extends RenderTarget
+{
     draw(p: Prediction): void
 }
 
-export namespace Render2d {
-    export function renderer(context: CanvasRenderingContext2D, rules: RenderRule[] | undefined = undefined): Renderer {
-        return new Renderer2d(context, rules)
+export namespace Render2d
+{
+    export function renderer(context: CanvasRenderingContext2D, rules: Render[] | undefined = undefined): Renderer
+    {
+        return new Renderer2d({ context, rules })
     }
-    export function renderBlur(target: string) : RenderRule {
-        return {render: new RenderBlur(), target: target}
+    export function renderBlur(target: string): Render
+    {
+        return new RenderBlur({ target })
     }
-    export function renderBox(includeSecondaryLabels: boolean = false, target: string = '$..objects.*') : RenderRule {
-        return {render: new RenderBox(includeSecondaryLabels), target: target}
+    export function renderBox(showClass: boolean = true, showText: boolean = true, showConfidence: boolean = true, showTraceId: boolean = true, showNestedClasses: boolean = true, target: string = '$..objects.*'): Render
+    {
+        return new RenderBox({ target, showClass, showText, showConfidence, showTraceId, showNestedClasses })
     }
-    export function renderMask(target: string = '$..objects[?(@.mask)]') : RenderRule {
-        return {render: new RenderMask(), target: target}
+    export function renderMask(target: string = '$..objects[?(@.mask)]'): Render
+    {
+        return new RenderMask({ target })
     }
-    export function renderContour(target: string = '$..objects[?(@.contours)]') : RenderRule {
-        return {render: new RenderContour(), target: target}
+    export function renderContour(target: string = '$..objects[?(@.contours)]'): Render
+    {
+        return new RenderContour({ target })
     }
-    export function renderFace(target: string = '$..objects[?(@.classLabel=="face")]') : RenderRule {
-        return {render: new RenderFace(), target: target}
+    export function renderFace(target: string = '$..objects[?(@.classLabel=="face")]'): Render
+    {
+        return new RenderFace({ target })
     }
-    export function renderKeypoints(target: string = '$..objects[?(@.keyPoints)]') : RenderRule {
-        return {render: new RenderKeyPoints(), target: target}
+    export function renderKeypoints(target: string = '$..objects[?(@.keyPoints)]'): Render
+    {
+        return new RenderKeyPoints({ target })
     }
-    export function renderHand(target: string = '$..objects[?(@.classLabel=="hand circumference")]') : RenderRule {
-        return {render: new RenderHand(), target: target}
+    export function renderHand(target: string = '$..objects[?(@.classLabel=="hand circumference")]'): Render
+    {
+        return new RenderHand({ target })
     }
-    export function renderPose(target: string = '$..objects[?(@.category=="person")]') : RenderRule {
-        return {render: new RenderPose(), target: target}
+    export function renderPose(target: string = '$..objects[?(@.category=="person")]'): Render
+    {
+        return new RenderPose({ target })
     }
-    export function renderTrail(durationSeconds: number = 1.0,
-                                traceDetails : string | undefined = undefined,
-                                target: string = '$..objects[?(@.traceId)]') : RenderRule {
-        return {render: new RenderTrail(durationSeconds, traceDetails), target: target}
+    export function renderTrail(trailLengthSeconds: number = 1.0,
+        traceDetails: string | undefined = undefined,
+        target: string = '$..objects[?(@.traceId)]'): Render
+    {
+        return new RenderTrail({ target, traceDetails, trailLengthSeconds })
     }
 }
 

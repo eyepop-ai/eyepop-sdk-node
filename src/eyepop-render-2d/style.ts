@@ -1,18 +1,21 @@
-import {CanvasRenderingContext2D} from "canvas";
+import { Canvas, CanvasRenderingContext2D } from "canvas";
 import { ResizeObserver } from '@juggle/resize-observer';
-export interface Colors {
-        primary_color: string
-        secondary_color: string
-        right_color: string
-        left_color: string
-        opacity_color: string
-        white: string
-        black: string
-        blank_color: string
+export interface Colors
+{
+    primary_color: string
+    secondary_color: string
+    right_color: string
+    left_color: string
+    opacity_color: string
+    white: string
+    black: string
+    blank_color: string
 }
-export class Style {
+export class Style
+{
     public font: string
     public colors: Colors
+    public scale: number = 1.0
 
     private static defaultColors = {
         primary_color: '#2fa7d7',
@@ -24,21 +27,37 @@ export class Style {
         black: "#111111",
         blank_color: '#000000',
     }
-    constructor(context: CanvasRenderingContext2D) {
+
+    constructor(context: CanvasRenderingContext2D)
+    {
         this.colors = Style.defaultColors
-        if ('document' in globalThis && 'implementation' in globalThis.document) {
-            const resizeObserver = new ResizeObserver(entries => {
-                const rect = entries[0].contentRect
+        if ('document' in globalThis && 'implementation' in globalThis.document)
+        {
+            const resizeObserver = new ResizeObserver(entries =>
+            {
+                const rect = entries[ 0 ].contentRect
                 this.font = this.calculateFont(rect.width, rect.height)
+                this.scale = this.calculateScale(context)
             })
             // @ts-ignore
             resizeObserver.observe(context.canvas)
         }
+
         this.font = this.calculateFont(context.canvas.width, context.canvas.height)
+        this.scale = this.calculateScale(context)
     }
 
-    private calculateFont(w: number, h: number): string {
-        const textSize = Math.floor(Math.max(1, .03 * Math.min(w, h)))
-        return textSize + "px Poppins"
+    private calculateFont(w: number, h: number): string
+    {
+        const textSize = Math.floor(Math.max(1, .05 * Math.min(w, h)))
+        return textSize + "px Arial";
+    }
+
+    private calculateScale(context: CanvasRenderingContext2D): number
+    {
+        const width = screen?.width ?? context.canvas.width;
+        const height = screen?.height ?? context.canvas.height;
+        const scale = Math.max(context.canvas.width / width, context.canvas.height / height) * (window.devicePixelRatio || 1);
+        return scale;
     }
 }
