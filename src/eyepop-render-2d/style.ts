@@ -57,6 +57,9 @@ export class Style
     {
         const width = screen?.width ?? context.canvas.width;
         const height = screen?.height ?? context.canvas.height;
+
+        // This scale provides a normalizing value of the canvas size to the screen size,
+        //   allowing context drawing of the same size objects on different sized canvases/screens.
         const scale = Math.max(context.canvas.width / width, context.canvas.height / height) * (window.devicePixelRatio || 1);
         return scale;
     }
