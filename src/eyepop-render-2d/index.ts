@@ -9,7 +9,7 @@ import { RenderPose } from './render-pose';
 import { RenderTrail } from "./render-trail";
 import { RenderMask } from "./render-mask";
 import { RenderContour } from "./render-contour";
-import { RenderKeyPoints } from "EyePop/Render2d/render-keypoints";
+import { RenderKeyPoints } from "./render-keypoints";
 import { Render, RenderTarget } from './render';
 
 export interface Renderer extends RenderTarget
@@ -27,7 +27,7 @@ export namespace Render2d
     {
         return new RenderBlur({ target })
     }
-    export function renderBox(showClass: boolean = true, showText: boolean = true, showConfidence: boolean = true, showTraceId: boolean = true, showNestedClasses: boolean = true, target: string = '$..objects.*'): Render
+    export function renderBox(showClass: boolean = true, showText: boolean = false, showConfidence: boolean = false, showTraceId: boolean = false, showNestedClasses: boolean = false, target: string = '$..objects.*'): Render
     {
         return new RenderBox({ target, showClass, showText, showConfidence, showTraceId, showNestedClasses })
     }
