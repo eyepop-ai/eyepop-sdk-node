@@ -137,7 +137,6 @@ export class RenderBox implements Render
                 label = element.labels[ i ]?.label
                 if (!label) continue
 
-                label = RenderBox.toTitleCase(label)
                 yOffset += this.drawLabel(label, context, element, yScale, xScale, yOffset, xOffset, style, boundingBoxWidth, padding, true, fontSize)
             }
         }
