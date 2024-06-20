@@ -26,7 +26,7 @@ export class RenderBox implements Render
 
     constructor(options: Partial<RenderBoxOptions> = {})
     {
-        const { target = DEFAULT_TARGET, showClass = true, showText = true, showConfidence = false, showTraceId = false, showNestedClasses = false } = options
+        const { showClass = true, showText = true, showConfidence = false, showTraceId = false, showNestedClasses = false, target = DEFAULT_TARGET } = options
         this.target = target
 
         this.showClass = showClass
@@ -121,45 +121,51 @@ export class RenderBox implements Render
         let fontSize = this.getMinFontSize(context, element, boundingBoxWidth, style)
         let label = ""
 
+
+        if (this.showClass && element.classLabel)
+        {
+            label = element.classLabel
+            label = RenderBox.toTitleCase(label)
+            yOffset += this.drawLabel(label, context, element, yScale, xScale, yOffset, xOffset, style, boundingBoxWidth, padding, false, fontSize)
+        }
+
         if (this.showText && element.labels)
         {
             fontSize = this.getMinFontSize(context, element, boundingBoxWidth, style, true)
             for (let i = 0; i < element.labels.length; i++)
             {
-                label = `${element.labels[ i ].label}`
-                label = `${label.charAt(0).toUpperCase() + label.slice(1)}`
+                label = element.labels[ i ]?.label
+                if (!label) continue
+
+                label = RenderBox.toTitleCase(label)
                 yOffset += this.drawLabel(label, context, element, yScale, xScale, yOffset, xOffset, style, boundingBoxWidth, padding, true, fontSize)
             }
-        }
-
-        if (this.showClass && element.classLabel)
-        {
-            label = element.classLabel
-            label = `${label.charAt(0).toUpperCase() + label.slice(1)}`
-            yOffset += this.drawLabel(label, context, element, yScale, xScale, yOffset, xOffset, style, boundingBoxWidth, padding, false, fontSize)
         }
 
         if (this.showNestedClasses && element?.classes)
         {
             for (let i = 0; i < element.classes.length; i++)
             {
-                label = element.classes[ i ].classLabel
-                label = `${label.charAt(0).toUpperCase() + label.slice(1)}`
+                label = element.classes[ i ]?.classLabel
+
+                if (!label) continue
+
+                label = RenderBox.toTitleCase(label)
                 yOffset += this.drawLabel(label, context, element, yScale, xScale, yOffset, xOffset, style, boundingBoxWidth, padding, false, fontSize)
             }
         }
 
         if (this.showTraceId && element.traceId)
         {
-            label = `Id: ${element.traceId}`
-            label = `${label.charAt(0).toUpperCase() + label.slice(1)}`
+            label = 'Id' + element.traceId
+            label = RenderBox.toTitleCase(label)
             yOffset += this.drawLabel(label, context, element, yScale, xScale, yOffset, xOffset, style, boundingBoxWidth, padding, false, fontSize)
         }
 
         if (this.showConfidence && element.confidence)
         {
-            label = `Confidence: ${Math.round(element.confidence * 100)}%`
-            label = `${label.charAt(0).toUpperCase() + label.slice(1)}`
+            label = Math.round(element.confidence * 100) + '%'
+            label = RenderBox.toTitleCase(label)
             yOffset += this.drawLabel(label, context, element, yScale, xScale, yOffset, xOffset, style, boundingBoxWidth, padding, false, fontSize)
         }
     }
@@ -230,8 +236,11 @@ export class RenderBox implements Render
         {
             for (let i = 0; i < element.labels.length; i++)
             {
-                const label = `${element.labels[ i ].label}`
-                const formattedLabel = `${label.charAt(0).toUpperCase() + label.slice(1)}`
+                const label = element.labels[ i ].label
+
+                if (!label) continue
+
+                const formattedLabel = `${RenderBox.toTitleCase(label)}`
                 if (formattedLabel.length > largestLabel.length)
                 {
                     largestLabel = formattedLabel
@@ -242,7 +251,7 @@ export class RenderBox implements Render
         if (this.showClass && element.classLabel)
         {
             const label = element.classLabel
-            const formattedLabel = `${label.charAt(0).toUpperCase() + label.slice(1)}`
+            const formattedLabel = `${RenderBox.toTitleCase(label)}`
             if (formattedLabel.length > largestLabel.length)
             {
                 largestLabel = formattedLabel
@@ -254,7 +263,7 @@ export class RenderBox implements Render
             for (let i = 0; i < element.classes.length; i++)
             {
                 const label = element.classes[ i ].classLabel
-                const formattedLabel = `${label.charAt(0).toUpperCase() + label.slice(1)}`
+                const formattedLabel = `${RenderBox.toTitleCase(label)}`
                 if (formattedLabel.length > largestLabel.length)
                 {
                     largestLabel = formattedLabel
@@ -264,8 +273,8 @@ export class RenderBox implements Render
 
         if (this.showTraceId && element.traceId)
         {
-            const label = `Id: ${element.traceId}`
-            const formattedLabel = `${label.charAt(0).toUpperCase() + label.slice(1)}`
+            const label = `ID: ${element.traceId}`
+            const formattedLabel = `${RenderBox.toTitleCase(label)}`
             if (formattedLabel.length > largestLabel.length)
             {
                 largestLabel = formattedLabel
@@ -274,8 +283,8 @@ export class RenderBox implements Render
 
         if (this.showConfidence && element.confidence)
         {
-            const label = `Confidence: ${Math.round(element.confidence * 100)}%`
-            const formattedLabel = `${label.charAt(0).toUpperCase() + label.slice(1)}`
+            const label = `${Math.round(element.confidence * 100)}%`
+            const formattedLabel = `${RenderBox.toTitleCase(label)}`
             if (formattedLabel.length > largestLabel.length)
             {
                 largestLabel = formattedLabel
