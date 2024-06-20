@@ -2,16 +2,20 @@ import 'eyepop'
 import 'eyepop-render-2d'
 
 import { pino } from 'pino'
+import image1Src from 'example.jpg'
+import image2Src from 'large_example.jpg'
 
 const logger = pino({ level: 'info', name: 'eyepop-example' })
 
 document.addEventListener('DOMContentLoaded', async () =>
 {
     const image = document.getElementById('image1') as HTMLImageElement
+    image.src = image1Src
     const canvas = document.getElementById('canvas1') as HTMLCanvasElement
     const context = canvas.getContext("2d")
 
     const image1 = document.getElementById('image2') as HTMLImageElement
+    image1.src = image2Src
     const canvas1 = document.getElementById('canvas2') as HTMLCanvasElement
     const context1 = canvas1.getContext("2d")
 
