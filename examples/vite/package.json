@@ -12,9 +12,7 @@
     "typescript": "^5.2.2",
     "vite": "^5.2.0"
   },
-  "dependencies": {
-    "canvas": "^2.11.2",
-    "openurl": "^1.1.1",
+  "peerDependencies": {
     "pino": "^9.2.0"
   }
 }
