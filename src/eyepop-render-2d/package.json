@@ -27,7 +27,7 @@
     "undici": false
   },
   "scripts": {
-    "build": "tsup && webpack --watch",
+    "build": "tsup && webpack",
     "dev": "npx chokidar '*.ts' -c 'npx tsup && webpack'"
   },
   "dependencies": {
