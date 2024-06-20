@@ -65,14 +65,18 @@ export class RenderBox implements Render
         context.fill()
         context.stroke()
 
-        const mindim = Math.min(element.height, element.width)
-        let corner_size = Math.max(15, mindim / 5.33333)
+        const scale = style.scale
+
+        const desiredPercentage = 0.25
+
+        let canvasDimension = Math.min(context.canvas.width, context.canvas.height);
+        let cornerSize = Math.min(w / 4, canvasDimension * desiredPercentage);
 
         var corners = [//top left corner
-            [ { x: x, y: y + corner_size }, { x: x, y: y }, { x: x + corner_size, y: y }, ], //bottom left corner
-            [ { x: x, y: y + h - corner_size }, { x: x, y: y + h }, { x: x + corner_size, y: y + h }, ], //top right corner
-            [ { x: x + w - corner_size, y: y }, { x: x + w, y: y }, { x: x + w, y: y + corner_size }, ], //bottom right corner
-            [ { x: x + w, y: y + h - corner_size }, { x: x + w, y: y + h }, { x: x + w - corner_size, y: y + h }, ], ]
+            [ { x: x, y: y + cornerSize }, { x: x, y: y }, { x: x + cornerSize, y: y }, ], //bottom left corner
+            [ { x: x, y: y + h - cornerSize }, { x: x, y: y + h }, { x: x + cornerSize, y: y + h }, ], //top right corner
+            [ { x: x + w - cornerSize, y: y }, { x: x + w, y: y }, { x: x + w, y: y + cornerSize }, ], //bottom right corner
+            [ { x: x + w, y: y + h - cornerSize }, { x: x + w, y: y + h }, { x: x + w - cornerSize, y: y + h }, ], ]
 
         corners.forEach((corner) =>
         {
@@ -85,26 +89,27 @@ export class RenderBox implements Render
             context.stroke()
         })
 
-        const padding = Math.max(mindim * 0.02, 5)
-        corner_size = corner_size - padding
+        const padding = Math.max(Math.min(w / 25, canvasDimension * (desiredPercentage / 4)), scale * 2)
+
+        cornerSize = cornerSize - padding
 
         var corners2 = [//2nd top left corner
-            [ { x: x + padding, y: y + padding + corner_size }, {
+            [ { x: x + padding, y: y + padding + cornerSize }, {
                 x: x + padding,
                 y: y + padding
-            }, { x: x + padding + corner_size, y: y + padding }, ], //2nd bottom left corner
-            [ { x: x + padding, y: y - padding + h - corner_size }, {
+            }, { x: x + padding + cornerSize, y: y + padding }, ], //2nd bottom left corner
+            [ { x: x + padding, y: y - padding + h - cornerSize }, {
                 x: x + padding,
                 y: y - padding + h
-            }, { x: x + padding + corner_size, y: y - padding + h }, ], //2nd top right corner
-            [ { x: x - padding + w - corner_size, y: y + padding }, {
+            }, { x: x + padding + cornerSize, y: y - padding + h }, ], //2nd top right corner
+            [ { x: x - padding + w - cornerSize, y: y + padding }, {
                 x: x - padding + w,
                 y: y + padding
-            }, { x: x - padding + w, y: y + padding + corner_size }, ], //2nd bottom right corner
-            [ { x: x - padding + w, y: y - padding + h - corner_size }, {
+            }, { x: x - padding + w, y: y + padding + cornerSize }, ], //2nd bottom right corner
+            [ { x: x - padding + w, y: y - padding + h - cornerSize }, {
                 x: x - padding + w,
                 y: y - padding + h
-            }, { x: x - padding + w - corner_size, y: y - padding + h }, ], ]
+            }, { x: x - padding + w - cornerSize, y: y - padding + h }, ], ]
 
         corners2.forEach((corner) =>
         {
