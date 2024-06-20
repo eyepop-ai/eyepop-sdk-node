@@ -1,5 +1,5 @@
-import './eyepop.min.js'
-import './eyepop.render2d.min.js'
+import 'eyepop'
+import 'eyepop-render-2d'
 
 import { pino } from 'pino'
 
@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', async () =>
                     Render2d.renderPose(),
                     Render2d.renderFace(),
                     Render2d.renderHand(),
-                    Render2d.renderBox(),
+                    Render2d.renderBox(true, true, true, true, true),
                 ]
             ).draw(result)
         }
@@ -63,7 +63,7 @@ document.addEventListener('DOMContentLoaded', async () =>
                     Render2d.renderPose(),
                     Render2d.renderFace(),
                     Render2d.renderHand(),
-                    Render2d.renderBox(),
+                    Render2d.renderBox(true, true, true, true, true),
                 ]
             ).draw(result)
         }
