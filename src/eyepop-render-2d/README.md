@@ -104,47 +104,47 @@ See [JSONPath expression](https://www.npmjs.com/package/jsonpath)
 Most prebuild render classes provide a reasonable default `target`.
 #### Rendering Bounding Boxes and Class Labels
 ```typescript
-Render2d.renderBox(target = '$.objects.*')
+Render2d.renderBox({target: '$.objects.*'})
 // or
 Render2d.renderBox()
 ``` 
 #### Render Human Body Poses (2d or 3d)
 ```typescript
-Render2d.renderPose(target = '$..objects[?(@.category=="person")]')
+Render2d.renderPose({target: '$..objects[?(@.category=="person")]'})
 // or
 Render2d.renderPose()
 ```    
 #### Render Human Hand Details
 ```typescript
-Render2d.renderHand(target = '$..objects[?(@.classLabel=="hand circumference")]')
+Render2d.renderHand({target: '$..objects[?(@.classLabel=="hand circumference")]'})
 // or 
 Render2d.renderHand()
 ```
 #### Render Human Faces
 ```typescript
-Render2d.renderFace(target = '$..objects[?(@.classLabel=="face")]') 
+Render2d.renderFace({target: '$..objects[?(@.classLabel=="face")]'}) 
 // or 
 Render2d.renderFace() 
 ```
 #### Render Segmentation Masks
 ```typescript
-Render2d.renderMask(target = '$..objects[?(@.mask)]') 
+Render2d.renderMask({target: '$..objects[?(@.mask)]'}) 
 // or 
 Render2d.renderMask() 
 ```
 #### Render Segmentation Contours
 ```typescript
-Render2d.renderContour(target = '$..objects[?(@.contours)]') 
+Render2d.renderContour({target: '$..objects[?(@.contours)]'}) 
 // or 
 Render2d.renderContour() 
 ```
 #### Blur an Object (TODO does black-put instead of blur)
 ```typescript
-Render2d.renderBlur(target = '$..objects[?(@.classLabel=="face")]')
+Render2d.renderBlur({target: '$..objects[?(@.classLabel=="face")]'})
 ```
 #### Render a Trail of a traced object over time
 ```typescript
-Render2d.renderTrail(1.0, target = '$..objects[?(@.traceId)]')
+Render2d.renderTrail({target: '$..objects[?(@.traceId)]', trailLengthSeconds:1})
 // or
 Render2d.renderTrail()
 ```
@@ -152,18 +152,74 @@ By default, this traces the mid-point of the object's bounding box. Instead, one
 sub-objects or key points of the traced object. Use the optional parameter `traceDetails` for this purpose. 
 E.g. trail the nose of every traced person:
 ```typescript
-Render2d.renderTrail(1.0, '$..keyPoints[?(@.category=="3d-body-points")].points[?(@.classLabel.includes("nose"))]')
+Render2d.renderTrail({
+    target: '$..objects[?(@.traceId)]', 
+    trailLengthSeconds:1, 
+    traceDetails:'$..keyPoints[?(@.category=="3d-body-points")].points[?(@.classLabel.includes("nose"))]'
+})
 ```
 #### Custom render implementation
-To implement custom rendering rules, implement the `Render` interface and create your own `RenderRule` objects:  
+To implement custom rendering rules, create a custom class as follows:  
 ```typescript
+import { PredictedObject, StreamTime } from '@eyepop.ai/eyepop'
+
 export interface Render {
+    target: string
     start(context: CanvasRenderingContext2D, style: Style): void
     draw(element: any, xOffset: number, yOffset: number, xScale: number, yScale: number, streamTime: StreamTime): void
 }
 
-export interface RenderRule {
-    readonly render: Render
-    readonly target : string
+export class RenderCustomImage implements Render
+{
+  public target: string = "$..objects[?(@.category=='person')]"
+
+  private context: CanvasRenderingContext2D | undefined
+  private style: any
+
+  // Optionally, add a constructor here. ie: constructor(...) { }
+
+  // The start method sets the context and style properties.
+  start(context: CanvasRenderingContext2D, style: any)
+  {
+    this.context = context
+    this.style = style
+  }
+
+  // The draw method draws the image and line on the canvas based on the positions of the points in the PredictedObject.
+  public draw(
+    element: PredictedObject, // The object containing the keypoints
+    xOffset: number, // The x offset for the drawing
+    yOffset: number, // The y offset for the drawing
+    xScale: number, // The x scale factor for the drawing
+    yScale: number, // The y scale factor for the drawing
+    streamTime: StreamTime // The timestamp for the stream of predicted objects
+  ): void
+  {
+    // Check if the context and style properties have been set
+    if (!this.context || !this.style)
+    {
+      throw new Error('render() called before start()')
+    }
+
+    // Check if the keypoints are defined
+    if (!element.keyPoints) return
+    if (!element.keyPoints.length) return
+
+    // Find the points of interest in the keypoints
+    for (let i = 0; i < element.keyPoints.length; i++)
+    {
+      const kp = element.keyPoints[ i ]
+      for (let j = 0; j < kp.points.length; j++)
+      {
+        const point = kp.points[ j ]
+        if (point.classLabel === 'left eye' || point.classLabel === 'right eye')
+        {
+            // Draw with the canvas context here
+        }
+      }
+    }
+  }
 }
+
+
 ```
