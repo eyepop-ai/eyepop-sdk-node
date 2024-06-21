@@ -9,17 +9,17 @@ module.exports = {
     library: {
       name: "Render2d",
       type: "umd",
-      export: ['default']
+      export: [ 'default' ]
     },
   },
   plugins: [
     // Work around for Buffer is undefined:
     // https://github.com/webpack/changelog-v5/issues/10
     new webpack.ProvidePlugin({
-        Buffer: ['buffer', 'Buffer'],
+      Buffer: [ 'buffer', 'Buffer' ],
     }),
     new webpack.ProvidePlugin({
-        process: 'process/browser',
+      process: 'process/browser',
     })
   ]
 };
