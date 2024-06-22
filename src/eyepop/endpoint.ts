@@ -1,5 +1,6 @@
-import {Auth0Options, OAuth2Auth, Options, SecretKeyAuth, SessionAuth, TransientPopId} from "./options"
-import {
+import { Auth0Options, OAuth2Auth, Options, SecretKeyAuth, SessionAuth, TransientPopId } from "./options"
+import
+{
     EndpointState,
     FileSource,
     IngressEvent,
@@ -10,26 +11,29 @@ import {
     SessionPlus,
     Source,
     SourceParams,
+    SourcesEntry,
     StreamSource,
     UrlSource
 } from "./types"
-import {AbstractJob, LoadFromJob, LoadLiveIngressJob, UploadJob} from "./jobs"
-import {createHttpClient, HttpClient} from './shims/http_client'
-import {Semaphore} from "./semaphore"
-import {WebrtcWhip} from "./webrtc_whip"
-import {WebrtcWhep} from "./webrtc_whep"
-import {resolvePath} from "./shims/local_file"
+import { AbstractJob, LoadFromJob, LoadLiveIngressJob, UploadJob } from "./jobs"
+import { createHttpClient, HttpClient } from './shims/http_client'
+import { Semaphore } from "./semaphore"
+import { WebrtcWhip } from "./webrtc_whip"
+import { WebrtcWhep } from "./webrtc_whep"
+import { resolvePath } from "./shims/local_file"
 
-import {Logger, pino} from "pino"
-import {authenticateBrowserSession} from "./shims/browser_session"
+import { Logger, pino } from "pino"
+import { authenticateBrowserSession } from "./shims/browser_session"
 
-interface PopConfig {
+interface PopConfig
+{
     base_url: string;
     pipeline_id: string;
     name: string;
 }
 
-interface Pipeline {
+interface Pipeline
+{
     id: string
     startTime: string
     state: string
@@ -38,17 +42,20 @@ interface Pipeline {
     postTransform: string | null
 }
 
-interface AccessToken {
+interface AccessToken
+{
     access_token: string;
     expires_in: number;
     token_type: string;
 }
 
-interface WsAuthToken {
+interface WsAuthToken
+{
     token: string;
 }
 
-export class Endpoint {
+export class Endpoint
+{
     private _options: Options
     private _token: string | null
     private _expire_token_time: number | null
@@ -72,7 +79,8 @@ export class Endpoint {
     private _logger: Logger
     private readonly _requestLogger: Logger
 
-    constructor(options: Options) {
+    constructor(options: Options)
+    {
         this._options = options
         this._baseUrl = null
         this._pipelineId = null
@@ -88,9 +96,11 @@ export class Endpoint {
 
         this._sandboxId = null
         const sessionAuth: SessionAuth = (options.auth as SessionAuth)
-        if (sessionAuth.session !== undefined) {
+        if (sessionAuth.session !== undefined)
+        {
             const sessionPlus = (sessionAuth.session as SessionPlus)
-            if (sessionPlus.sandboxId) {
+            if (sessionPlus.sandboxId)
+            {
                 this._sandboxId = sessionPlus.sandboxId
                 this._options.isSandbox = true
             }
@@ -99,133 +109,166 @@ export class Endpoint {
         this._limit = new Semaphore(this._options.jobQueueLength ?? 1024)
 
         let rootLogger
-        if (options.logger) {
+        if (options.logger)
+        {
             rootLogger = options.logger
-        } else {
+        } else
+        {
             rootLogger = pino()
         }
-        this._logger = rootLogger.child({module: 'eyepop'})
-        this._requestLogger = this._logger.child({module: 'requests'})
+        this._logger = rootLogger.child({ module: 'eyepop' })
+        this._requestLogger = this._logger.child({ module: 'requests' })
     }
 
-    public eyepopUrl(): string {
-        if (this._options.eyepopUrl) {
+    public eyepopUrl(): string
+    {
+        if (this._options.eyepopUrl)
+        {
             return this._options.eyepopUrl.replace(/\/+$/, '')
-        } else {
+        } else
+        {
             return 'https://api.eyepop.ai'
         }
     }
 
-    public state(): EndpointState {
+    public state(): EndpointState
+    {
         return this._state
     }
 
-    public pendingJobs(): number {
+    public pendingJobs(): number
+    {
         return (this._options.jobQueueLength ?? 1024) - this._limit.getPermits()
     }
 
-    public popName(): string | null {
+    public popName(): string | null
+    {
         return this._popName
     }
 
-    public popComp(): string | null {
-        if (this._pipeline) {
+    public popComp(): string | null
+    {
+        if (this._pipeline)
+        {
             return this._pipeline.inferPipeline
-        } else {
+        } else
+        {
             return null
         }
     }
 
-    public postTransform(): string | null {
-        if (this._pipeline) {
+    public postTransform(): string | null
+    {
+        if (this._pipeline)
+        {
             return this._pipeline.postTransform
-        } else {
+        } else
+        {
             return null
         }
     }
 
-    public async manifest(): Promise<any> {
+    public async manifest(): Promise<SourcesEntry[]>
+    {
         console.warn("getManifest for development use only");
         const client = this._client;
         const baseUrl = this._baseUrl;
-        if (!baseUrl || !client) {
+        if (!baseUrl || !client)
+        {
             return Promise.reject("endpoint not connected, use connect() before getManifest()");
         }
         let get_path: string;
-        if (this._sandboxId === null) {
+        if (this._sandboxId === null)
+        {
             get_path = `${baseUrl}/models/sources`;
-        } else {
+        } else
+        {
             get_path = `${baseUrl}/models/sources?sandboxId=${this._sandboxId}`;
         }
-        let response = await this.fetchWithRetry(async () => {
+        let response = await this.fetchWithRetry(async () =>
+        {
             const session = await this.session();
             let headers = {
                 'Authorization': `Bearer ${session.accessToken}`,
                 'Content-Type': 'application/json'
             }
-            return client.fetch(get_path, {headers: headers});
+            return client.fetch(get_path, { headers: headers });
         });
-        if (!response.ok) {
+        if (!response.ok)
+        {
             const message = await response.text();
             return Promise.reject(`Unexpected status ${response.status}: ${message}`);
         }
         const data = await response.json();
-        if (!data) {
+        if (!data)
+        {
             console.warn("getManifest: no data");
         }
         return data;
     }
 
-    
-    public async models(): Promise<string|void> {
+
+    public async models(): Promise<string | void>
+    {
         console.warn("listModels for development use only");
         const client = this._client;
         const baseUrl = this._baseUrl;
-        if (!baseUrl || !client) {
+        if (!baseUrl || !client)
+        {
             return Promise.reject("endpoint not connected, use connect() before listModels()");
         }
         let get_path: string;
-        if (this._sandboxId === null) {
+        if (this._sandboxId === null)
+        {
             get_path = `${baseUrl}/models/instances`;
-        } else {
+        } else
+        {
             get_path = `${baseUrl}/models/instances?sandboxId=${this._sandboxId}`;
         }
-        let response = await this.fetchWithRetry(async () => {
+        let response = await this.fetchWithRetry(async () =>
+        {
             const session = await this.session();
             let headers = {
                 'Authorization': `Bearer ${session.accessToken}`,
                 'Content-Type': 'application/json'
             }
-            return client.fetch(get_path, {headers: headers});
+            return client.fetch(get_path, { headers: headers });
         });
-        if (!response.ok) {
+        if (!response.ok)
+        {
             const message = await response.text();
             return Promise.reject(`Unexpected status ${response.status}: ${message}`);
         }
         const data = await response.json();
-        if (!data) {
+        if (!data)
+        {
             console.warn("listModels: no data");
         }
         return data;
     }
 
-    public async changeManifest(manifests: JSON): Promise<string|void> {
+    public async changeManifest(manifests: JSON): Promise<string | void>
+    {
         console.warn("setManifest for development use only");
         const client = this._client;
         const baseUrl = this._baseUrl;
-        if (!baseUrl || !client) {
+        if (!baseUrl || !client)
+        {
             return Promise.reject("endpoint not connected, use connect() before setManifest()");
         }
-        let response = await this.fetchWithRetry(async () => {
+        let response = await this.fetchWithRetry(async () =>
+        {
             const session = await this.session();
             let headers = {
                 'Authorization': `Bearer ${session.accessToken}`,
                 'Content-Type': 'application/json'
             }
-            let put_url : string;
-            if(this._sandboxId === null) {
+            let put_url: string;
+            if (this._sandboxId === null)
+            {
                 put_url = `${session.baseUrl}/models/sources`;
-            } else {
+            } else
+            {
                 put_url = `${session.baseUrl}/models/sources?sandboxId=${this._sandboxId}`;
             }
             return client.fetch(put_url, {
@@ -234,29 +277,35 @@ export class Endpoint {
                 headers: headers
             });
         });
-        if(!response.ok) {
+        if (!response.ok)
+        {
             const message = await response.text();
             return Promise.reject(`Unexpected status ${response.status}: ${message}`);
         }
     }
 
-    public async loadModel(model: JSON): Promise<string|void> {
+    public async loadModel(model: JSON): Promise<string | void>
+    {
         console.warn("loadModel for development use only");
         const client = this._client;
         const baseUrl = this._baseUrl;
-        if (!baseUrl || !client) {
+        if (!baseUrl || !client)
+        {
             return Promise.reject("endpoint not connected, use connect() before loadModel()");
         }
-        let response = await this.fetchWithRetry(async () => {
+        let response = await this.fetchWithRetry(async () =>
+        {
             const session = await this.session();
             let headers = {
                 'Authorization': `Bearer ${session.accessToken}`,
                 'Content-Type': 'application/json'
             }
-            let post_url:string;
-            if(this._sandboxId === null) {
+            let post_url: string;
+            if (this._sandboxId === null)
+            {
                 post_url = `${session.baseUrl}/models/instances`;
-            } else {
+            } else
+            {
                 post_url = `${session.baseUrl}/models/instances?sandboxId=${this._sandboxId}`;
             }
             return client.fetch(post_url, {
@@ -265,62 +314,74 @@ export class Endpoint {
                 headers: headers
             });
         });
-        
-        if(!response.ok) {
+
+        if (!response.ok)
+        {
             const message = await response.text();
             return Promise.reject(`Unexpected status ${response.status}: ${message}`);
         }
         return await response.json();
     }
 
-    public async unloadModel(modelId: string): Promise<string|void> {
+    public async unloadModel(modelId: string): Promise<string | void>
+    {
         console.warn("purgeModel for development use only");
         const client = this._client;
         const baseUrl = this._baseUrl;
-        if (!baseUrl || !client) {
+        if (!baseUrl || !client)
+        {
             return Promise.reject("endpoint not connected, use connect() before unloadModel()");
         }
-        let response = await this.fetchWithRetry(async () => {
+        let response = await this.fetchWithRetry(async () =>
+        {
             const session = await this.session();
             let headers = {
                 'Authorization': `Bearer ${session.accessToken}`,
                 'Content-Type': 'application/json'
             }
-            let delete_url:string;
-            if(this._sandboxId === null) {
+            let delete_url: string;
+            if (this._sandboxId === null)
+            {
                 delete_url = `${session.baseUrl}/models/instances/${modelId}`;
-            } else {
+            } else
+            {
                 delete_url = `${session.baseUrl}/models/instances/${modelId}?sandboxId=${this._sandboxId}`;
             }
             return client.fetch(delete_url, { method: 'DELETE', headers: headers });
         });
-        if(!response.ok) {
+        if (!response.ok)
+        {
             const message = await response.text();
             return Promise.reject(`Unexpected status ${response.status}: ${message}`);
         }
     }
 
 
-    public async changePopComp(popComp: string): Promise<void> {
+    public async changePopComp(popComp: string): Promise<void>
+    {
         const client = this._client
         const baseUrl = this._baseUrl
-        if (!baseUrl || !client) {
+        if (!baseUrl || !client)
+        {
             return Promise.reject("endpoint not connected, use connect() before changePopComp()")
         }
         const body = {
             'pipeline': popComp
         }
 
-        let response = await this.fetchWithRetry(async () => {
+        let response = await this.fetchWithRetry(async () =>
+        {
             const session = await this.session()
             let headers = {
                 'Authorization': `Bearer ${session.accessToken}`,
                 'Content-Type': 'application/json'
             }
-            let patch_url:string;
-            if(this._sandboxId === null) {
+            let patch_url: string;
+            if (this._sandboxId === null)
+            {
                 patch_url = `${session.baseUrl}/pipelines/${session.pipelineId}/inferencePipeline`;
-            } else {
+            } else
+            {
                 patch_url = `${session.baseUrl}/pipelines/${session.pipelineId}/inferencePipeline?sandboxId=${this._sandboxId}`;
             }
             return client.fetch(patch_url, {
@@ -329,38 +390,45 @@ export class Endpoint {
                 headers: headers
             })
         })
-        if (response.status != 204) {
+        if (response.status != 204)
+        {
             const message = await response.text()
             return Promise.reject(`Unexpected status ${response.status}: ${message}`)
         }
-        if (this._pipeline) {
+        if (this._pipeline)
+        {
             this._pipeline.inferPipeline = popComp
         }
     }
 
-    public async changePostTransform(postTransform: string | null): Promise<void> {
+    public async changePostTransform(postTransform: string | null): Promise<void>
+    {
         const client = this._client
         const baseUrl = this._baseUrl
-        if (!baseUrl || !client) {
+        if (!baseUrl || !client)
+        {
             return Promise.reject("endpoint not connected, use connect() before changePopComp()")
         }
 
-        postTransform = postTransform? postTransform: null
+        postTransform = postTransform ? postTransform : null
 
         const body = {
             'transform': postTransform
         }
 
-        let response = await this.fetchWithRetry(async () => {
+        let response = await this.fetchWithRetry(async () =>
+        {
             const session = await this.session()
             let headers = {
                 'Authorization': `Bearer ${session.accessToken}`,
                 'Content-Type': 'application/json'
             }
-            let patch_url:string;
-            if(this._sandboxId === null) {
+            let patch_url: string;
+            if (this._sandboxId === null)
+            {
                 patch_url = `${session.baseUrl}/pipelines/${session.pipelineId}/inferencePipeline`;
-            } else {
+            } else
+            {
                 patch_url = `${session.baseUrl}/pipelines/${session.pipelineId}/inferencePipeline?sandboxId=${this._sandboxId}`;
             }
             return client.fetch(patch_url, {
@@ -369,55 +437,71 @@ export class Endpoint {
                 headers: headers
             })
         })
-        if (response.status != 204) {
+        if (response.status != 204)
+        {
             const message = await response.text()
             return Promise.reject(`Unexpected status ${response.status}: ${message}`)
         }
-        if (this._pipeline) {
+        if (this._pipeline)
+        {
             this._pipeline.postTransform = postTransform
         }
     }
 
-    public popId(): string | null {
+    public popId(): string | null
+    {
         return this._options.popId || null
     }
 
-    public onStateChanged(handler: (fromState: EndpointState, toState: EndpointState) => void): Endpoint {
+    public onStateChanged(handler: (fromState: EndpointState, toState: EndpointState) => void): Endpoint
+    {
         this._stateChangeHandler = handler
         return this
     }
 
-    public onIngressEvent(handler: (event: IngressEvent) => void): Endpoint {
+    public onIngressEvent(handler: (event: IngressEvent) => void): Endpoint
+    {
         this._ingressEventHandler = handler
-        this.startIngressWs().then(() => {
-        }).catch((reason) => {
+        this.startIngressWs().then(() =>
+        {
+        }).catch((reason) =>
+        {
             this._logger.warn('unexpected error starting the ingress event handler: %s', reason)
         })
         return this
     }
 
-    public async connect(): Promise<Endpoint> {
-        if (this._client) {
+    public async connect(): Promise<Endpoint>
+    {
+        if (this._client)
+        {
             this._logger.warn('endpoint already connected')
             return this
         }
-        if (!this._options.eyepopUrl) {
+        if (!this._options.eyepopUrl)
+        {
             return Promise.reject("option eyepopUrl or environment variable EYEPOP_URL is required")
         }
-        if (!this._options.popId) {
+        if (!this._options.popId)
+        {
             return Promise.reject("option popId or environment variable EYEPOP_POP_ID is required")
         }
-        if (this._options.auth === undefined) {
+        if (this._options.auth === undefined)
+        {
             return Promise.reject("cannot connect without defined auth option")
         }
-        if ((this._options.auth as SessionAuth).session !== undefined) {
+        if ((this._options.auth as SessionAuth).session !== undefined)
+        {
             this._token = (this._options.auth as SessionAuth).session.accessToken
             this._expire_token_time = (this._options.auth as SessionAuth).session.validUntil / 1000
-        } else if ((this._options.auth as OAuth2Auth).oAuth2 !== undefined) {
+        } else if ((this._options.auth as OAuth2Auth).oAuth2 !== undefined)
+        {
 
-        } else if ((this._options.auth as SecretKeyAuth).secretKey !== undefined) {
+        } else if ((this._options.auth as SecretKeyAuth).secretKey !== undefined)
+        {
 
-        } else {
+        } else
+        {
             return Promise.reject("option secretKey or environment variable EYEPOP_SECRET_KEY is required")
         }
 
@@ -426,9 +510,11 @@ export class Endpoint {
 
         let result: Endpoint = await this.reconnect()
 
-        if (this._baseUrl && this._options.stopJobs) {
-            const body = {'sourceType': 'NONE'}
-            let response = await this.fetchWithRetry(async () => {
+        if (this._baseUrl && this._options.stopJobs)
+        {
+            const body = { 'sourceType': 'NONE' }
+            let response = await this.fetchWithRetry(async () =>
+            {
                 const session = await this.session()
                 const headers = {
                     'Authorization': `Bearer ${session.accessToken}`,
@@ -441,30 +527,36 @@ export class Endpoint {
                     body: JSON.stringify(body)
                 })
             })
-            if (response.status >= 300) {
+            if (response.status >= 300)
+            {
                 const message = await response.text()
                 return Promise.reject(`Unexpected status ${response.status}: ${message}`)
             }
         }
 
-        if (!this._ingressEventWs && this._ingressEventHandler) {
+        if (!this._ingressEventWs && this._ingressEventHandler)
+        {
             await this.startIngressWs()
         }
 
         return result;
     }
 
-    public async disconnect(wait: boolean = true): Promise<void> {
-        if (wait && this._limit) {
+    public async disconnect(wait: boolean = true): Promise<void>
+    {
+        if (wait && this._limit)
+        {
             // @ts-ignore
-            for (let j = 0; j < this._options.jobQueueLength; j++) {
+            for (let j = 0; j < this._options.jobQueueLength; j++)
+            {
                 await this._limit.acquire()
             }
         }
 
         this._limit = new Semaphore(this._options.jobQueueLength ?? 1024)
 
-        if(this._sandboxId) {
+        if (this._sandboxId)
+        {
             const sandboxUrl = `${this._baseUrl}/sandboxes/${this._sandboxId}`;
             const headers = {
                 'Authorization': await this.authorizationHeader()
@@ -475,13 +567,15 @@ export class Endpoint {
                 headers: headers
             });
             this._requestLogger.debug('after DELETE %s', sandboxUrl);
-            if (response?.status != 204) {
+            if (response?.status != 204)
+            {
                 const message = await response?.text()
                 return Promise.reject(`Unexpected status ${response?.status}: ${message}`)
             }
         }
 
-        if (this._client) {
+        if (this._client)
+        {
             await this._client.close()
             this._client = null
         }
@@ -490,14 +584,18 @@ export class Endpoint {
         this._sandboxId = null
     }
 
-    public async session(): Promise<SessionPlus> {
+    public async session(): Promise<SessionPlus>
+    {
         await this.currentAccessToken()
-        if (this._token == null || this._expire_token_time == null) {
+        if (this._token == null || this._expire_token_time == null)
+        {
             return Promise.reject("endpoint not connected")
         }
-        if (this._baseUrl == null || this._pipelineId == null) {
+        if (this._baseUrl == null || this._pipelineId == null)
+        {
             await this.reconnect()
-            if (this._baseUrl == null || this._pipelineId == null) {
+            if (this._baseUrl == null || this._pipelineId == null)
+            {
                 return Promise.reject("endpoint not connected")
             }
         }
@@ -508,61 +606,79 @@ export class Endpoint {
             validUntil: this._expire_token_time * 1000,
             baseUrl: this._baseUrl,
             pipelineId: this._pipelineId,
-            sandboxId: this._sandboxId?? undefined
+            sandboxId: this._sandboxId ?? undefined
         }
     }
 
-    public async liveIngress(stream: MediaStream): Promise<LiveMedia> {
-        if (!this._baseUrl || !this._client) {
+    public async liveIngress(stream: MediaStream): Promise<LiveMedia>
+    {
+        if (!this._baseUrl || !this._client)
+        {
             return Promise.reject("endpoint not connected, use connect() before ingress()")
         }
-        const whip = new WebrtcWhip(stream, async () => {
+        const whip = new WebrtcWhip(stream, async () =>
+        {
             return this.session()
         }, this._client, this._requestLogger)
         return whip.start()
     }
 
-    public async liveEgress(ingressId: string): Promise<LiveMedia> {
-        if (!this._baseUrl || !this._client) {
+    public async liveEgress(ingressId: string): Promise<LiveMedia>
+    {
+        if (!this._baseUrl || !this._client)
+        {
             return Promise.reject("endpoint not connected, use connect() before ingress()")
         }
-        const whep = new WebrtcWhep(ingressId, async () => {
+        const whep = new WebrtcWhep(ingressId, async () =>
+        {
             return this.session()
         }, this._client, this._requestLogger)
         return whep.start()
     }
 
-    public async process(source: Source, params: SourceParams | undefined = undefined): Promise<ResultStream> {
-        if ((source as FileSource).file !== undefined) {
+    public async process(source: Source, params: SourceParams | undefined = undefined): Promise<ResultStream>
+    {
+        if ((source as FileSource).file !== undefined)
+        {
             return this.uploadFile(source as FileSource, params)
-        } else if ((source as StreamSource).stream !== undefined) {
+        } else if ((source as StreamSource).stream !== undefined)
+        {
             return this.uploadStream(source as StreamSource, params)
-        } else if ((source as PathSource).path !== undefined) {
+        } else if ((source as PathSource).path !== undefined)
+        {
             return this.uploadPath(source as PathSource, params)
-        } else if ((source as UrlSource).url !== undefined) {
+        } else if ((source as UrlSource).url !== undefined)
+        {
             return this.loadFrom(source as UrlSource, params)
-        } else if ((source as LiveSource).ingressId !== undefined) {
+        } else if ((source as LiveSource).ingressId !== undefined)
+        {
             return this.loadLiveIngress(source as LiveSource, params)
-        } else {
+        } else
+        {
             return Promise.reject('unknown source type')
         }
     }
 
-    private async startIngressWs(): Promise<void> {
+    private async startIngressWs(): Promise<void>
+    {
         const client = this._client
-        if (this._ingressEventWs || !this._baseUrl || !client) {
+        if (this._ingressEventWs || !this._baseUrl || !client)
+        {
             return;
         }
-        try {
+        try
+        {
             const session = await this.session()
-            let response = await this.fetchWithRetry(async () => {
+            let response = await this.fetchWithRetry(async () =>
+            {
                 const headers = {
                     'Authorization': `Bearer ${session.accessToken}`
                 }
                 const getTokenUrl = `${session.baseUrl}/liveIngress/events/token`
-                return client.fetch(getTokenUrl, {headers: headers})
+                return client.fetch(getTokenUrl, { headers: headers })
             })
-            if (response.status != 200) {
+            if (response.status != 200)
+            {
                 const message = await response.text()
                 return Promise.reject(`Unexpected status ${response.status}: ${message}`)
             }
@@ -570,185 +686,244 @@ export class Endpoint {
             const wsUrl = this._baseUrl.startsWith('https://') ? `${this._baseUrl.replace('https://', 'wss://')}/liveIngress/events/${wsAuthToken.token}` : `${this._baseUrl.replace('http://', 'ws://')}/liveIngress/events/${wsAuthToken.token}`;
 
             this._ingressEventWs = new WebSocket(wsUrl)
-            this._ingressEventWs.addEventListener('message', (event: MessageEvent) => {
+            this._ingressEventWs.addEventListener('message', (event: MessageEvent) =>
+            {
                 const ingressEvent = JSON.parse(event.data) as IngressEvent;
-                if (this._ingressEventHandler) {
+                if (this._ingressEventHandler)
+                {
                     this._ingressEventHandler(ingressEvent)
                 }
             })
-        } finally {
+        } finally
+        {
             this.updateState()
         }
     }
 
-    private async uploadFile(source: FileSource, params: SourceParams | undefined): Promise<ResultStream> {
-        if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
+    private async uploadFile(source: FileSource, params: SourceParams | undefined): Promise<ResultStream>
+    {
+        if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit)
+        {
             return Promise.reject("endpoint not connected, use connect() before upload()")
         }
         await this._limit.acquire()
-        try {
+        try
+        {
             this.updateState()
-            const job = new UploadJob(source.file, source.file.type, params,async () => {
+            const job = new UploadJob(source.file, source.file.type, params, async () =>
+            {
                 return this.session()
             }, this._client, this._requestLogger)
-            return job.start(() => {
+            return job.start(() =>
+            {
                 this.jobDone(job)
-            }, (statusCode: number) => {
+            }, (statusCode: number) =>
+            {
                 this.jobStatus(job, statusCode)
             })
-        } catch (e) {
+        } catch (e)
+        {
             // we'll have to reset our queue counter in case the job canot be started
             this._limit.release()
             throw e
         }
     }
 
-    private async uploadStream(source: StreamSource, params: SourceParams | undefined): Promise<ResultStream> {
-        if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
+    private async uploadStream(source: StreamSource, params: SourceParams | undefined): Promise<ResultStream>
+    {
+        if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit)
+        {
             return Promise.reject("endpoint not connected, use connect() before upload()")
         }
         await this._limit.acquire()
-        try {
+        try
+        {
             this.updateState()
-            const job = new UploadJob(source.stream, source.mimeType, params,async () => {
+            const job = new UploadJob(source.stream, source.mimeType, params, async () =>
+            {
                 return this.session()
             }, this._client, this._requestLogger)
-            return job.start(() => {
+            return job.start(() =>
+            {
                 this.jobDone(job)
-            }, (statusCode: number) => {
+            }, (statusCode: number) =>
+            {
                 this.jobStatus(job, statusCode)
             })
-        } catch (e) {
+        } catch (e)
+        {
             // we'll have to reset our queue counter in case the job canot be started
             this._limit.release()
             throw e
         }
     }
 
-    private async uploadPath(source: PathSource, params: SourceParams | undefined): Promise<ResultStream> {
-        if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
+    private async uploadPath(source: PathSource, params: SourceParams | undefined): Promise<ResultStream>
+    {
+        if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit)
+        {
             throw new Error("endpoint not connected, use connect() before process()")
         }
         await this._limit.acquire()
-        try {
+        try
+        {
             this.updateState()
             const streamSource = await resolvePath(source as PathSource)
-            const job = new UploadJob(streamSource.stream, streamSource.mimeType, params,async () => {
+            const job = new UploadJob(streamSource.stream, streamSource.mimeType, params, async () =>
+            {
                 return this.session()
             }, this._client, this._requestLogger)
-            return job.start(() => {
+            return job.start(() =>
+            {
                 this.jobDone(job)
-            }, (statusCode: number) => {
+            }, (statusCode: number) =>
+            {
                 this.jobStatus(job, statusCode)
             })
-        } catch (e) {
+        } catch (e)
+        {
             // we'll have to reset our queue counter in case the job canot be started
             this._limit.release()
             throw e
         }
     }
 
-    private async loadFrom(source: UrlSource, params: SourceParams | undefined): Promise<ResultStream> {
-        if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
+    private async loadFrom(source: UrlSource, params: SourceParams | undefined): Promise<ResultStream>
+    {
+        if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit)
+        {
             throw new Error("endpoint not connected, use connect() before loadFrom()")
         }
         await this._limit.acquire()
-        try {
+        try
+        {
             this.updateState()
-            const job = new LoadFromJob(source.url, params,async () => {
+            const job = new LoadFromJob(source.url, params, async () =>
+            {
                 return this.session()
             }, this._client, this._requestLogger)
-            return job.start(() => {
+            return job.start(() =>
+            {
                 this.jobDone(job)
-            }, (statusCode: number) => {
+            }, (statusCode: number) =>
+            {
                 this.jobStatus(job, statusCode)
             })
-        } catch (e) {
+        } catch (e)
+        {
             // we'll have to reset our queue counter in case the job canot be started
             this._limit.release()
             throw e
         }
     }
 
-    private async loadLiveIngress(source: LiveSource, params: SourceParams | undefined): Promise<ResultStream> {
-        if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
+    private async loadLiveIngress(source: LiveSource, params: SourceParams | undefined): Promise<ResultStream>
+    {
+        if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit)
+        {
             throw new Error("endpoint not connected, use connect() before loadLiveIngress()")
         }
         await this._limit.acquire()
-        try {
+        try
+        {
             this.updateState()
-            const job = new LoadLiveIngressJob(source.ingressId, params,async () => {
+            const job = new LoadLiveIngressJob(source.ingressId, params, async () =>
+            {
                 return this.session()
             }, this._client, this._requestLogger)
-            return job.start(() => {
+            return job.start(() =>
+            {
                 this.jobDone(job)
-            }, (statusCode: number) => {
+            }, (statusCode: number) =>
+            {
                 this.jobStatus(job, statusCode)
             })
-        } catch (e) {
+        } catch (e)
+        {
             // we'll have to reset our queue counter in case the job canot be started
             this._limit.release()
             throw e
         }
     }
 
-    private jobDone(job: AbstractJob) {
+    private jobDone(job: AbstractJob)
+    {
         this._limit?.release()
         this.updateState()
     }
 
-    private updateState(newState: EndpointState | undefined = undefined) {
+    private updateState(newState: EndpointState | undefined = undefined)
+    {
         const fromState = this._state
-        if (newState == undefined) {
-            if (this._limit.getPermits() == this._options.jobQueueLength) {
+        if (newState == undefined)
+        {
+            if (this._limit.getPermits() == this._options.jobQueueLength)
+            {
                 newState = EndpointState.Idle
-            } else {
+            } else
+            {
                 newState = EndpointState.Busy
             }
         }
         this._state = newState
-        if (this._stateChangeHandler) {
+        if (this._stateChangeHandler)
+        {
             this._stateChangeHandler(fromState, this._state)
         }
     }
 
-    private jobStatus(job: AbstractJob, statusCode: number) {
-        if (statusCode == 404) {
+    private jobStatus(job: AbstractJob, statusCode: number)
+    {
+        if (statusCode == 404)
+        {
             this._pipelineId = null;
             this._baseUrl = null;
-        } else if (statusCode == 401) {
+        } else if (statusCode == 401)
+        {
             this._token = null;
             this._expire_token_time = null;
         }
     }
 
-    private async fetchWithRetry(fetcher: () => Promise<Response>, retries: number = 1): Promise<Response> {
-        while (true) {
-            try {
+    private async fetchWithRetry(fetcher: () => Promise<Response>, retries: number = 1): Promise<Response>
+    {
+        while (true)
+        {
+            try
+            {
                 const response = await fetcher()
-                if (response.status == 401) {
+                if (response.status == 401)
+                {
                     this._token = null;
                     this._expire_token_time = null;
-                    if (retries--) {
+                    if (retries--)
+                    {
                         this._requestLogger.info('received 401 response, attempt to reauthorize and retry')
-                    } else {
+                    } else
+                    {
                         return Promise.reject(`response ${response.status}: ${response.statusText}`)
                     }
-                } else if (response.status == 404) {
+                } else if (response.status == 404)
+                {
                     this._pipelineId = null;
                     this._baseUrl = null;
-                    if (retries--) {
+                    if (retries--)
+                    {
                         this._requestLogger.info('received 404 response, attempt to restart pop and retry')
-                    } else {
+                    } else
+                    {
                         return Promise.reject(`response ${response.status}: ${response.statusText}`)
                     }
-                } else {
+                } else
+                {
                     return response
                 }
-            } catch (error) {
+            } catch (error)
+            {
                 this._pipelineId = null;
                 this._baseUrl = null;
-                if (retries--) {
+                if (retries--)
+                {
                     this._requestLogger.info('unknown, attempt to restart pop (as if we received 404)', error)
                     return Promise.reject(error)
                 }
@@ -756,14 +931,18 @@ export class Endpoint {
         }
     }
 
-    private async reconnect(): Promise<Endpoint> {
-        if (!this._client) {
+    private async reconnect(): Promise<Endpoint>
+    {
+        if (!this._client)
+        {
             return Promise.reject("endpoint not initialized")
         }
         let config_url
-        if (this._options.popId == TransientPopId.Transient) {
+        if (this._options.popId == TransientPopId.Transient)
+        {
             config_url = `${this.eyepopUrl()}/workers/config`
-        } else {
+        } else
+        {
             config_url = `${this.eyepopUrl()}/pops/${this._options.popId}/config?auto_start=false`
         }
         const headers = {
@@ -771,8 +950,9 @@ export class Endpoint {
         }
         this.updateState(EndpointState.FetchConfig)
         this._requestLogger.debug('before GET %s', config_url)
-        let response = await this._client.fetch(config_url, {headers: headers})
-        if (response.status == 401) {
+        let response = await this._client.fetch(config_url, { headers: headers })
+        if (response.status == 401)
+        {
             this._requestLogger.debug('after GET %s: 401, about to retry with fresh access token', config_url)
             // one retry, the token might have just expired
             this._token = null
@@ -785,13 +965,16 @@ export class Endpoint {
             })
         }
 
-        if (response.status != 200) {
+        if (response.status != 200)
+        {
             this.updateState(EndpointState.Error)
             const message = await response.text()
             return Promise.reject(`Unexpected status ${response.status}: ${message}`)
-        } else {
+        } else
+        {
             let config = (await response.json()) as PopConfig
-            if (!config.base_url && this._options.autoStart) {
+            if (!config.base_url && this._options.autoStart)
+            {
                 const auto_start_config_url = `${this.eyepopUrl()}/pops/${this._options.popId}/config?auto_start=true`
                 this._requestLogger.debug('pop was not running, trying to autostart with: %s', auto_start_config_url)
                 // one retry the pop might just have stopped
@@ -802,7 +985,8 @@ export class Endpoint {
                 response = await this._client.fetch(auto_start_config_url, {
                     headers: headers
                 })
-                if (response.status != 200) {
+                if (response.status != 200)
+                {
                     this.updateState(EndpointState.Error)
                     const message = await response.text()
                     return Promise.reject(`Unexpected status ${response.status}: ${message}`)
@@ -812,14 +996,16 @@ export class Endpoint {
             const baseUrl = new URL(config.base_url, this.eyepopUrl())
             this._baseUrl = baseUrl.toString()
 
-            if (this._baseUrl) {
+            if (this._baseUrl)
+            {
                 this._baseUrl = this._baseUrl.replace(/\/+$/, "")
 
                 let headers = {
                     'Authorization': await this.authorizationHeader()
                 };
                 // create a sandbox if needed
-                if (this._options.isSandbox && this._sandboxId === null) {
+                if (this._options.isSandbox && this._sandboxId === null)
+                {
                     const createSandboxUrl = `${this._baseUrl}/sandboxes`;
                     this._requestLogger.debug('before POST %s', createSandboxUrl);
                     const response = await this._client.fetch(createSandboxUrl, {
@@ -831,15 +1017,18 @@ export class Endpoint {
                     this._sandboxId = responseJson;
                 }
 
-                if (this._options.popId == TransientPopId.Transient) {
+                if (this._options.popId == TransientPopId.Transient)
+                {
                     this._pipelineId = await this.startPopLessPipeline()
                     this._popName = this._options.popId
-                } else {
+                } else
+                {
                     this._pipelineId = config.pipeline_id
                     this._popName = config.name
                 }
                 this._requestLogger.debug('after GET %s: %s / %s', config_url, this._baseUrl, this._pipelineId)
-                if (!this._pipelineId || !this._baseUrl) {
+                if (!this._pipelineId || !this._baseUrl)
+                {
                     return Promise.reject(`Pop not started`)
                 }
                 const get_url = `${this._baseUrl}/pipelines/${this._pipelineId}`
@@ -851,7 +1040,8 @@ export class Endpoint {
                     method: 'GET',
                     headers: headers
                 })
-                if (response.status > 200) {
+                if (response.status > 200)
+                {
                     const message = await response.text()
                     return Promise.reject(`Unexpected status ${response.status}: ${message}`)
                 }
@@ -864,35 +1054,44 @@ export class Endpoint {
         }
     }
 
-    private async authorizationHeader(): Promise<string> {
+    private async authorizationHeader(): Promise<string>
+    {
         return `Bearer ${await this.currentAccessToken()}`;
     }
 
-    private async currentAccessToken(): Promise<string> {
+    private async currentAccessToken(): Promise<string>
+    {
         const now = Date.now() / 1000;
-        if (!this._token || <number>this._expire_token_time < now) {
+        if (!this._token || <number>this._expire_token_time < now)
+        {
             this.updateState(EndpointState.Authenticating)
-            try {
-                if (!this._client) {
+            try
+            {
+                if (!this._client)
+                {
                     return Promise.reject("endpoint not connected")
-                } else if ((this._options.auth as SessionAuth).session !== undefined) {
+                } else if ((this._options.auth as SessionAuth).session !== undefined)
+                {
                     return Promise.reject("temporary access token expired")
                 } else if ((this._options.auth as OAuth2Auth).oAuth2 !== undefined &&
-                    this._options.eyepopUrl && this._options.popId) {
+                    this._options.eyepopUrl && this._options.popId)
+                {
                     const session = await authenticateBrowserSession(((this._options.auth as OAuth2Auth).oAuth2 as Auth0Options),
                         this._options.eyepopUrl, this._options.popId)
                     this._token = session.accessToken
                     this._expire_token_time = session.validUntil / 1000
-                } else if ((this._options.auth as SecretKeyAuth).secretKey !== undefined && this._options.eyepopUrl) {
+                } else if ((this._options.auth as SecretKeyAuth).secretKey !== undefined && this._options.eyepopUrl)
+                {
                     const secretKeyAuth = this._options.auth as SecretKeyAuth
-                    const body = {'secret_key': secretKeyAuth.secretKey}
-                    const headers = {'Content-Type': 'application/json'}
+                    const body = { 'secret_key': secretKeyAuth.secretKey }
+                    const headers = { 'Content-Type': 'application/json' }
                     const post_url = `${this.eyepopUrl()}/authentication/token`
                     this._requestLogger.debug('before POST %s', post_url)
                     const response = await this._client.fetch(post_url, {
                         method: 'POST', headers: headers, body: JSON.stringify(body)
                     })
-                    if (response.status != 200) {
+                    if (response.status != 200)
+                    {
                         const message = await response.text()
                         return Promise.reject(`Unexpected status ${response.status}: ${message}`)
                     }
@@ -901,10 +1100,12 @@ export class Endpoint {
                     const token: AccessToken = data as AccessToken
                     this._token = token.access_token
                     this._expire_token_time = now + token.expires_in - 60
-                } else {
+                } else
+                {
                     return Promise.reject("no valid auth option")
                 }
-            } finally {
+            } finally
+            {
                 this.updateState()
             }
         }
@@ -912,24 +1113,30 @@ export class Endpoint {
         return <string>this._token
     }
 
-    private async startPopLessPipeline() : Promise<string> {
-        if (this._client == null || this._baseUrl == null) {
+    private async startPopLessPipeline(): Promise<string>
+    {
+        if (this._client == null || this._baseUrl == null)
+        {
             return Promise.reject("endpoint not initialized")
         }
 
         this.updateState(EndpointState.StartingPop)
 
         let pipeline
-        if (this._pipeline) {
+        if (this._pipeline)
+        {
             pipeline = this._pipeline.inferPipeline
-        } else {
+        } else
+        {
             pipeline = 'identity'
         }
 
         let postTransform
-        if (this._pipeline && this._pipeline.postTransform) {
+        if (this._pipeline && this._pipeline.postTransform)
+        {
             postTransform = this._pipeline.postTransform
-        } else {
+        } else
+        {
             postTransform = null
         }
 
@@ -944,25 +1151,28 @@ export class Endpoint {
                 'sourceType': 'NONE',
             },
             'idleTimeoutSeconds': 30,
-            'logging': ['out_meta'],
+            'logging': [ 'out_meta' ],
             'videoOutput': 'no_output',
         }
 
         let post_url
-        if (this._sandboxId) {
+        if (this._sandboxId)
+        {
             post_url = `${this._baseUrl.replace(/\/+$/, "")}/pipelines?sandboxId=${this._sandboxId}`
-        } else {
+        } else
+        {
             post_url = `${this._baseUrl.replace(/\/+$/, "")}/pipelines`
         }
         let headers = {
             'Content-Type': 'application/json',
-             'Authorization': await this.authorizationHeader()
+            'Authorization': await this.authorizationHeader()
         }
         this._requestLogger.debug('before POST %s', post_url)
         let response = await this._client.fetch(post_url, {
             method: 'POST', headers: headers, body: JSON.stringify(body)
         })
-        if (response.status == 401) {
+        if (response.status == 401)
+        {
             this._requestLogger.debug('after GET %s: 401, about to retry with fresh access token', post_url)
             // one retry, the token might have just expired
             this._token = null
@@ -975,12 +1185,13 @@ export class Endpoint {
             })
         }
 
-        if (response.status != 200) {
+        if (response.status != 200)
+        {
             const message = await response.text()
             return Promise.reject(`Unexpected status ${response.status}: ${message}`)
         }
         this._requestLogger.debug('after POST %s', post_url)
-        const pipelineId = (await response.json())['id']
+        const pipelineId = (await response.json())[ 'id' ]
         return pipelineId
     }
 }
