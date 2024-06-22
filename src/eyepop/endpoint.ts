@@ -1012,6 +1012,13 @@ export class Endpoint
                         method: 'POST',
                         headers: headers
                     });
+
+                    if (!response.ok)
+                    {
+                        const message = await response.text();
+                        return Promise.reject(`Unexpected status ${response.status}: ${message}`);
+                    }
+
                     const responseJson = await response.json();
                     this._requestLogger.debug('after POST %s', createSandboxUrl);
                     this._sandboxId = responseJson;
