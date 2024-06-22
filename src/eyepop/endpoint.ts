@@ -247,7 +247,7 @@ export class Endpoint
         return data;
     }
 
-    public async changeManifest(manifests: JSON): Promise<string | void>
+    public async changeManifest(manifests: JSON): Promise<void>
     {
         console.warn("setManifest for development use only");
         const client = this._client;
