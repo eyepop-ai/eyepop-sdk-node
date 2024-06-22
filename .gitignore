@@ -135,3 +135,5 @@ coverage.data
 coverage/
 
 .idea/
+
+examples/vite/public
