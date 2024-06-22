@@ -842,19 +842,12 @@ export class Endpoint {
                 if (!this._pipelineId || !this._baseUrl) {
                     return Promise.reject(`Pop not started`)
                 }
-
-                let start_pipeline_url;
-                if (this._sandboxId === null) {
-                    start_pipeline_url = `${this._baseUrl}/pipelines`;
-                } else {
-                    start_pipeline_url = `${this._baseUrl}/pipelines?sandboxId=${this._sandboxId}`;
-                }
-
+                const get_url = `${this._baseUrl}/pipelines/${this._pipelineId}`
                 headers = {
                     'Authorization': await this.authorizationHeader()
                 }
-                this._requestLogger.debug('before GET %s', start_pipeline_url)
-                let response = await this._client.fetch(start_pipeline_url, {
+                this._requestLogger.debug('before GET %s', get_url)
+                let response = await this._client.fetch(get_url, {
                     method: 'GET',
                     headers: headers
                 })
@@ -862,18 +855,8 @@ export class Endpoint {
                     const message = await response.text()
                     return Promise.reject(`Unexpected status ${response.status}: ${message}`)
                 }
-                this._requestLogger.debug('after GET %s', start_pipeline_url)
-
-                // ////////////////////////////////////////////////////////
-                //
-                //
-                //
-                // NOTE: json()[0] is a hack that should be removed
-                //        
-                //
-                //
-                // ////////////////////////////////////////////////////////
-                this._pipeline = (await response.json())[0] as Pipeline
+                this._requestLogger.debug('after GET %s', get_url)
+                this._pipeline = (await response.json()) as Pipeline
             }
 
             this.updateState()
