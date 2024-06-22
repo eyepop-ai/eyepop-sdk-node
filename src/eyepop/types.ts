@@ -68,6 +68,19 @@ export type SourcesEntry = {
     readonly Manifest: string;
 };
 
+export interface ModelInstanceDef
+{
+    model_id: string;
+    dataset: string;
+    version: string;
+    format: ModelFormat;
+    type: ModelType;
+}
+
+export type ModelFormat = string;
+
+export type ModelType = string;
+
 export interface Box
 {
     readonly topLeft: Point2d
