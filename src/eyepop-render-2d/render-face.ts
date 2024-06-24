@@ -4,20 +4,21 @@ import { PredictedMesh, PredictedObject, StreamTime } from "@eyepop.ai/eyepop";
 import { Render, DEFAULT_TARGET, RenderTarget } from './render';
 
 
-type RenderFaceOptions = {} & RenderTarget
+export type RenderFaceOptions = { showLabels: boolean } & RenderTarget
 
 export class RenderFace implements Render
 {
+    public target: string = '$..objects[?(@.classLabel=="face")]'
+    public showLabels: boolean = false
+
     private context: CanvasRenderingContext2D | undefined
     private style: Style | undefined
 
-    public target: string = DEFAULT_TARGET
-
-
     constructor(options: Partial<RenderFaceOptions> = {})
     {
-        const { target = DEFAULT_TARGET } = options;
+        const { showLabels = false, target = DEFAULT_TARGET } = options;
         this.target = target;
+        this.showLabels = showLabels
     }
 
     start(context: CanvasRenderingContext2D, style: Style)
@@ -90,12 +91,15 @@ export class RenderFace implements Render
 
             context.fill()
 
-            context.fillStyle = style.colors.secondary_color
-            context.fillText(
-                label,
-                Math.max(0, x) + padding,
-                Math.max(0, y)
-            )
+            if (this.showLabels)
+            {
+                context.fillStyle = style.colors.secondary_color
+                context.fillText(
+                    label,
+                    Math.max(0, x) + padding,
+                    Math.max(0, y)
+                )
+            }
             context.closePath()
         }
     }
