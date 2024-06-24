@@ -8,7 +8,7 @@ export type RenderFaceOptions = { showLabels: boolean } & RenderTarget
 
 export class RenderFace implements Render
 {
-    public target: string = '$..objects[?(@.classLabel=="face")]'
+    public target: string = DEFAULT_TARGET
     public showLabels: boolean = false
 
     private context: CanvasRenderingContext2D | undefined
@@ -16,7 +16,7 @@ export class RenderFace implements Render
 
     constructor(options: Partial<RenderFaceOptions> = {})
     {
-        const { showLabels = false, target = DEFAULT_TARGET } = options;
+        const { showLabels = false, target = '$..objects[?(@.classLabel=="face")]' } = options;
         this.target = target;
         this.showLabels = showLabels
     }
