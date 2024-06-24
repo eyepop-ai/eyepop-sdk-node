@@ -1,17 +1,20 @@
-export interface Session {
+export interface Session
+{
     readonly eyepopUrl: string;
     readonly popId: string;
     readonly accessToken: string;
     readonly validUntil: number;
 }
 
-export interface SessionPlus extends Session {
+export interface SessionPlus extends Session
+{
     readonly baseUrl: string;
     readonly pipelineId: string;
     readonly sandboxId: string | undefined;
 }
 
-export enum EndpointState {
+export enum EndpointState
+{
     Idle = "Idle",
     Busy = "Busy",
     Authenticating = "Authenticating",
@@ -20,58 +23,89 @@ export enum EndpointState {
     Error = "Error"
 }
 
-export interface LiveMedia {
+export interface LiveMedia
+{
     ingressId(): string
     stream(): Promise<MediaStream>
     close(): Promise<void>
 }
-export interface IngressEvent {
+export interface IngressEvent
+{
     readonly ingressId: string
     readonly event: "stream-ready" | "stream-ready"
 }
 
-export interface FileSource {
+export interface FileSource
+{
     readonly file: File;
 }
 
-export interface StreamSource {
+export interface StreamSource
+{
     readonly stream: ReadableStream<Uint8Array>;
     readonly mimeType: string;
 }
 
-export interface PathSource {
+export interface PathSource
+{
     readonly path: string;
 }
 
-export interface LiveSource {
+export interface LiveSource
+{
     readonly ingressId: string;
 }
 
-export interface UrlSource {
+export interface UrlSource
+{
     readonly url: string;
 }
 
 export type Source = FileSource | StreamSource | PathSource | LiveSource | UrlSource
 
-export interface Box {
+export type SourcesEntry = {
+    readonly Authority: string;
+    readonly Manifest: string;
+};
+
+export interface ModelInstanceDef
+{
+    model_id: string;
+    dataset: string;
+    version: string;
+    format: ModelFormat;
+    type: ModelType;
+}
+
+export type ModelFormat = string;
+
+export type ModelType = string;
+
+export interface Box
+{
     readonly topLeft: Point2d
     readonly bottomRight: Point2d
 }
 
-export interface Roi {
+export interface Roi
+{
     readonly points: Point2d[] | undefined
     readonly boxes: Box[] | undefined
 }
-export interface SourceParams {
+
+export interface SourceParams
+{
     readonly roi: Roi | undefined
 }
 
-export interface StreamTime {
+export interface StreamTime
+{
     timestamp: number
     seconds: number
     offset: number
 }
-export interface Prediction extends StreamTime {
+export interface Prediction extends StreamTime
+{
     source_width: number
     source_height: number
     source_id: string
@@ -81,33 +115,38 @@ export interface Prediction extends StreamTime {
     meshs: Array<PredictedMesh>
     keyPoints: Array<PredictedKeyPoints>
 }
-export interface PredictedClass {
+export interface PredictedClass
+{
     id: number
     confidence: number
     classLabel: string
     category: string
 }
 
-export interface PredictedLabel {
+export interface PredictedLabel
+{
     id: number
     confidence: number
     label: string
     category: string
 }
 
-export interface Contour {
+export interface Contour
+{
     points: Array<Point2d>
     cutouts: Array<Array<Point2d>>
 }
 
-export interface Mask {
+export interface Mask
+{
     bitmap: string
     width: number
     height: number
     stride: number
 }
 
-export interface PredictedObject extends PredictedClass {
+export interface PredictedObject extends PredictedClass
+{
     traceId: number | undefined
     x: number
     y: number
@@ -124,32 +163,38 @@ export interface PredictedObject extends PredictedClass {
     keyPoints: Array<PredictedKeyPoints> | undefined
 }
 
-export interface Point2d {
+export interface Point2d
+{
     x: number
     y: number
 }
 
-export interface PredictedMesh {
+export interface PredictedMesh
+{
     category: string
     id: number
     confidence: number
     points: Array<Point3d>
 }
 
-export interface Point3d extends Point2d {
+export interface Point3d extends Point2d
+{
     z: number | undefined
 }
 
-export interface PredictedKeyPoints {
+export interface PredictedKeyPoints
+{
     category: string
     type: string
     points: Array<PredictedKeyPoint>
 }
 
-export interface PredictedKeyPoint extends Point3d, PredictedClass {
+export interface PredictedKeyPoint extends Point3d, PredictedClass
+{
     visible: boolean | undefined
 }
 
-export interface ResultStream extends AsyncIterable<Prediction> {
+export interface ResultStream extends AsyncIterable<Prediction>
+{
     cancel(): void
 }
