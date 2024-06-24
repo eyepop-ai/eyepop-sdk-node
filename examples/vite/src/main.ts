@@ -46,6 +46,16 @@ async function run(useDefault = true)
             canvas.width = result.source_width
             canvas.height = result.source_height
             console.log(result)
+            let hasText = false
+            for (let obj of result.objects)
+            {
+                if (obj.category === 'text')
+                {
+                    hasText = true
+                    break
+                }
+            }
+
             context?.drawImage(image, 0, 0)
             Render2d?.renderer(context,
                 [
@@ -53,11 +63,11 @@ async function run(useDefault = true)
                     Render2d.renderFace(),
                     Render2d.renderHand(),
                     Render2d.renderBox({
-                        showClass: true,
-                        showText: true,
-                        showConfidence: true,
-                        showTraceId: true,
-                        showNestedClasses: true,
+                        showClass: !hasText,
+                        showText: !hasText,
+                        showConfidence: !hasText,
+                        showTraceId: !hasText,
+                        showNestedClasses: !hasText,
                     }),
                     Render2d.renderText()
                 ]
@@ -71,6 +81,15 @@ async function run(useDefault = true)
             canvas1.width = result.source_width
             canvas1.height = result.source_height
             console.log(result)
+            let hasText = false
+            for (let obj of result.objects)
+            {
+                if (obj.category === 'text')
+                {
+                    hasText = true
+                    break
+                }
+            }
             context1?.drawImage(image1, 0, 0)
             Render2d?.renderer(context1,
                 [
@@ -78,11 +97,11 @@ async function run(useDefault = true)
                     Render2d.renderFace(),
                     Render2d.renderHand(),
                     Render2d.renderBox({
-                        showClass: true,
-                        showText: true,
-                        showConfidence: true,
-                        showTraceId: true,
-                        showNestedClasses: true,
+                        showClass: !hasText,
+                        showText: !hasText,
+                        showConfidence: !hasText,
+                        showTraceId: !hasText,
+                        showNestedClasses: !hasText,
                     }),
                     Render2d.renderText()
                 ]
