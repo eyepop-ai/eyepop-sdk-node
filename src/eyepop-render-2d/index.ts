@@ -1,16 +1,17 @@
 import { Prediction } from '@eyepop.ai/eyepop';
 import { CanvasRenderingContext2D } from 'canvas';
 import { Renderer2d } from './renderer-2d';
-import { RenderBlur } from './render-blur';
-import { RenderBox } from './render-box';
-import { RenderFace } from './render-face';
-import { RenderHand } from './render-hand';
-import { RenderPose } from './render-pose';
-import { RenderTrail } from "./render-trail";
-import { RenderMask } from "./render-mask";
-import { RenderContour } from "./render-contour";
-import { RenderKeyPoints } from "./render-keypoints";
+import { RenderBlur, RenderBlurOptions } from './render-blur';
+import { RenderBox, RenderBoxOptions } from './render-box';
+import { RenderFace, RenderFaceOptions } from './render-face';
+import { RenderHand, RenderHandOptions } from './render-hand';
+import { RenderPose, RenderPoseOptions } from './render-pose';
+import { RenderTrail, RenderTrailOptions } from "./render-trail";
+import { RenderMask, RenderMaskOptions } from "./render-mask";
+import { RenderContour, RenderContourOptions } from "./render-contour";
+import { RenderKeyPoints, RenderKeyPointsOptions } from "./render-keypoints";
 import { Render, RenderTarget } from './render';
+import { RenderText, RenderTextOptions } from './render-text';
 
 export interface Renderer extends RenderTarget
 {
@@ -23,43 +24,45 @@ export namespace Render2d
     {
         return new Renderer2d({ context, rules })
     }
-    export function renderBlur(target: string): Render
+    export function renderBlur(options: Partial<RenderBlurOptions> = {}): Render
     {
-        return new RenderBlur({ target })
+        return new RenderBlur(options)
     }
-    export function renderBox(showClass: boolean = true, showText: boolean = false, showConfidence: boolean = false, showTraceId: boolean = false, showNestedClasses: boolean = false, target: string = '$..objects.*'): Render
+    export function renderBox(options: Partial<RenderBoxOptions> = {}): Render
     {
-        return new RenderBox({ target, showClass, showText, showConfidence, showTraceId, showNestedClasses })
+        return new RenderBox(options)
     }
-    export function renderMask(target: string = '$..objects[?(@.mask)]'): Render
+    export function renderText(options: Partial<RenderTextOptions> = {}): Render
     {
-        return new RenderMask({ target })
+        return new RenderText(options)
     }
-    export function renderContour(target: string = '$..objects[?(@.contours)]'): Render
+    export function renderMask(options: Partial<RenderMaskOptions> = {}): Render
     {
-        return new RenderContour({ target })
+        return new RenderMask(options)
     }
-    export function renderFace(target: string = '$..objects[?(@.classLabel=="face")]'): Render
+    export function renderContour(options: Partial<RenderContourOptions> = {}): Render
     {
-        return new RenderFace({ target })
+        return new RenderContour(options)
     }
-    export function renderKeypoints(target: string = '$..objects[?(@.keyPoints)]'): Render
+    export function renderFace(options: Partial<RenderFaceOptions> = {}): Render
     {
-        return new RenderKeyPoints({ target })
+        return new RenderFace(options)
     }
-    export function renderHand(target: string = '$..objects[?(@.classLabel=="hand circumference")]'): Render
+    export function renderKeypoints(options: Partial<RenderKeyPointsOptions> = {}): Render
     {
-        return new RenderHand({ target })
+        return new RenderKeyPoints(options)
     }
-    export function renderPose(target: string = '$..objects[?(@.category=="person")]'): Render
+    export function renderHand(options: Partial<RenderHandOptions> = {}): Render
     {
-        return new RenderPose({ target })
+        return new RenderHand(options)
     }
-    export function renderTrail(trailLengthSeconds: number = 1.0,
-        traceDetails: string | undefined = undefined,
-        target: string = '$..objects[?(@.traceId)]'): Render
+    export function renderPose(options: Partial<RenderPoseOptions> = {}): Render
     {
-        return new RenderTrail({ target, traceDetails, trailLengthSeconds })
+        return new RenderPose(options)
+    }
+    export function renderTrail(options: Partial<RenderTrailOptions> = {}): Render
+    {
+        return new RenderTrail(options)
     }
 }
 
