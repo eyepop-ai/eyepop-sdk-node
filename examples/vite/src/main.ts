@@ -7,15 +7,18 @@ import image2Src from 'large_example.jpg'
 
 const logger = pino({ level: 'info', name: 'eyepop-example' })
 
-document.addEventListener('DOMContentLoaded', async () =>
+async function run(useDefault = true)
 {
     const image = document.getElementById('image1') as HTMLImageElement
-    image.src = image1Src
     const canvas = document.getElementById('canvas1') as HTMLCanvasElement
     const context = canvas.getContext("2d")
 
     const image1 = document.getElementById('image2') as HTMLImageElement
-    image1.src = image2Src
+    if (useDefault)
+    {
+        image.src = image1Src
+        image1.src = image2Src
+    }
     const canvas1 = document.getElementById('canvas2') as HTMLCanvasElement
     const context1 = canvas1.getContext("2d")
 
@@ -49,7 +52,14 @@ document.addEventListener('DOMContentLoaded', async () =>
                     Render2d.renderPose(),
                     Render2d.renderFace(),
                     Render2d.renderHand(),
-                    Render2d.renderBox(true, true, true, true, true),
+                    Render2d.renderBox({
+                        showClass: true,
+                        showText: true,
+                        showConfidence: true,
+                        showTraceId: true,
+                        showNestedClasses: true,
+                    }),
+                    Render2d.renderText()
                 ]
             ).draw(result)
         }
@@ -67,7 +77,14 @@ document.addEventListener('DOMContentLoaded', async () =>
                     Render2d.renderPose(),
                     Render2d.renderFace(),
                     Render2d.renderHand(),
-                    Render2d.renderBox(true, true, true, true, true),
+                    Render2d.renderBox({
+                        showClass: true,
+                        showText: true,
+                        showConfidence: true,
+                        showTraceId: true,
+                        showNestedClasses: true,
+                    }),
+                    Render2d.renderText()
                 ]
             ).draw(result)
         }
@@ -75,6 +92,27 @@ document.addEventListener('DOMContentLoaded', async () =>
     {
         await endpoint.disconnect()
     }
+}
+
+document.addEventListener('DOMContentLoaded', async () =>
+{
+
+    document.getElementById('url-input').addEventListener('input', async (event) =>
+    {
+        const imageUrl = (event.target as HTMLInputElement).value;
+        const image1 = document.getElementById('image1') as HTMLImageElement;
+        const newImage = new Image()
+        newImage.src = imageUrl
+        image1.crossOrigin = "Anonymous"
+        newImage.crossOrigin = "Anonymous"
+
+        newImage.onload = () =>
+        {
+            image1.src = imageUrl
+            console.log(image1.src)
+            run(false)
+        }
+    })
+
+    run()
 })
-
-
