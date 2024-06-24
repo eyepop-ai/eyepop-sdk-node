@@ -55,18 +55,25 @@ export class RenderBox implements Render
 
         // Sort the element's objects based on the element.object.category
         if (element.objects)
-            element.objects.sort((a, b) => a.category.localeCompare(b.category))
+        {
+            element.objects.sort((a, b) =>
+            {
+                if (!a.category || !b.category) return 0
+
+                return a.category.localeCompare(b.category)
+            })
+        }
+        const scale = style.scale
 
         //faded blue background
         context.beginPath()
         context.rect(x, y, w, h)
-        context.lineWidth = style.scale
+        context.lineWidth = scale * 2
         context.strokeStyle = style.colors.opacity_color
         context.fillStyle = style.colors.opacity_color
         context.fill()
         context.stroke()
 
-        const scale = style.scale
 
         const desiredPercentage = style.cornerPadding
 
@@ -86,7 +93,7 @@ export class RenderBox implements Render
             context.lineTo(corner[ 1 ].x, corner[ 1 ].y)
             context.lineTo(corner[ 2 ].x, corner[ 2 ].y)
             context.strokeStyle = style.colors.primary_color
-            context.lineWidth = style.scale
+            context.lineWidth = scale * 2
             context.stroke()
         })
 
@@ -119,7 +126,7 @@ export class RenderBox implements Render
             context.lineTo(corner[ 1 ].x, corner[ 1 ].y)
             context.lineTo(corner[ 2 ].x, corner[ 2 ].y)
             context.strokeStyle = style.colors.secondary_color
-            context.lineWidth = style.scale
+            context.lineWidth = scale * 2
             context.stroke()
         })
 
