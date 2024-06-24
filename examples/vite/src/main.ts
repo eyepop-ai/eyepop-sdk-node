@@ -47,8 +47,9 @@ async function run(useDefault = true)
             canvas.height = result.source_height
             console.log(result)
             let hasText = false
-            for (let obj of result.objects)
+            for (let i = 0; i < result?.objects?.length; i++)
             {
+                let obj = result.objects[ i ]
                 if (obj.category === 'text')
                 {
                     hasText = true
@@ -82,8 +83,10 @@ async function run(useDefault = true)
             canvas1.height = result.source_height
             console.log(result)
             let hasText = false
-            for (let obj of result.objects)
+
+            for (let i = 0; i < result?.objects?.length; i++)
             {
+                let obj = result.objects[ i ]
                 if (obj.category === 'text')
                 {
                     hasText = true
