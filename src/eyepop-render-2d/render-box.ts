@@ -53,6 +53,10 @@ export class RenderBox implements Render
         const w = element.width * xScale
         const h = element.height * yScale
 
+        // Sort the element's objects based on the element.object.category
+        if (element.objects)
+            element.objects.sort((a, b) => a.category.localeCompare(b.category))
+
         //faded blue background
         context.beginPath()
         context.rect(x, y, w, h)
@@ -145,7 +149,7 @@ export class RenderBox implements Render
 
         if (this.showTraceId && element.traceId)
         {
-            label = 'Id' + element.traceId
+            label = 'ID: ' + element.traceId
             label = RenderBox.toTitleCase(label)
             yOffset += this.drawLabel(label, context, element, yScale, xScale, yOffset, xOffset, style, boundingBoxWidth, padding, false, fontSize)
         }
