@@ -32,10 +32,6 @@ export namespace Render2d
     {
         return new RenderBox(options)
     }
-    export function renderText(options: Partial<RenderTextOptions> = {}): Render
-    {
-        return new RenderText(options)
-    }
     export function renderMask(options: Partial<RenderMaskOptions> = {}): Render
     {
         return new RenderMask(options)
@@ -59,6 +55,10 @@ export namespace Render2d
     export function renderPose(options: Partial<RenderPoseOptions> = {}): Render
     {
         return new RenderPose(options)
+    }
+    export function renderText(options: Partial<RenderTextOptions> = {}): Render
+    {
+        return new RenderText(options)
     }
     export function renderTrail(options: Partial<RenderTrailOptions> = {}): Render
     {
