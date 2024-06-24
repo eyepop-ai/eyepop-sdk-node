@@ -5,23 +5,22 @@ import { Render, DEFAULT_TARGET, RenderTarget } from './render'
 
 export type RenderTextOptions = {
     showText: boolean // Whether to show labels, such as OCR text
-    showClass: boolean // Whether to show class labels, such as "person"
-    showNestedClasses: boolean // Whether to show nested classes, such as "person" + "necklace"
-    showConfidence: boolean // Whether to show confidence, such as "0.95"
-    showTraceId: boolean // Whether to show trace ID, such as "132"
+    fitToBounds: boolean // Whether to scale the font size to fit the bounding box
 } & RenderTarget
 
 export class RenderText implements Render
 {
     public target: string = DEFAULT_TARGET
+    public fitToBounds: boolean = true
 
     private context: CanvasRenderingContext2D | undefined
     private style: Style | undefined
 
     constructor(options: Partial<RenderTextOptions> = {})
     {
-        const { target = '$..objects[?(@.classLabel=="text")]' } = options
+        const { target = '$..objects[?(@.classLabel=="text")]', fitToBounds = true } = options
         this.target = target
+        this.fitToBounds = fitToBounds
     }
 
     start(context: CanvasRenderingContext2D, style: Style)
@@ -57,7 +56,7 @@ export class RenderText implements Render
             label = element.labels[ i ]?.label
             if (!label) continue
 
-            yOffset += this.drawLabel(label, context, element, yScale, xScale, yOffset, xOffset, style, boundingBoxWidth, padding, true, fontSize)
+            yOffset += this.drawLabel(label, context, element, yScale, xScale, yOffset, xOffset, style, boundingBoxWidth, padding, this.fitToBounds, fontSize)
         }
 
     }
