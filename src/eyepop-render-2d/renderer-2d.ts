@@ -8,7 +8,11 @@ import { StreamTime } from "EyePop";
 import * as jp from "jsonpath";
 
 
+<<<<<<< HEAD
 export type Renderer2dOptions = {
+=======
+type Renderer2dOptions = {
+>>>>>>> main
     context: CanvasRenderingContext2D
     rules?: Render[] | Render | undefined
 }
