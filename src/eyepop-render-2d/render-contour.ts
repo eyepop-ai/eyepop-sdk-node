@@ -3,18 +3,18 @@ import { Style } from "./style";
 import { CanvasRenderingContext2D } from "canvas";
 import { Render, DEFAULT_TARGET, RenderTarget } from "./render";
 
-type RenderContourOptions = {} & RenderTarget
+export type RenderContourOptions = {} & RenderTarget
 
 export class RenderContour implements Render
 {
+    public target: string = DEFAULT_TARGET
+
     private context: CanvasRenderingContext2D | undefined
     private style: Style | undefined
 
-    public target: string = DEFAULT_TARGET
-
     constructor(options: Partial<RenderContourOptions> = {})
     {
-        const { target = DEFAULT_TARGET } = options;
+        const { target = '$..objects[?(@.contours)]' } = options;
         this.target = target;
     }
 

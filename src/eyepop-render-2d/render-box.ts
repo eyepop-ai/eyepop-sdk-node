@@ -3,8 +3,7 @@ import { Style } from "./style"
 import { CanvasRenderingContext2D } from "canvas"
 import { Render, DEFAULT_TARGET, RenderTarget } from './render'
 
-
-type RenderBoxOptions = {
+export type RenderBoxOptions = {
     showText: boolean // Whether to show labels, such as OCR text
     showClass: boolean // Whether to show class labels, such as "person"
     showNestedClasses: boolean // Whether to show nested classes, such as "person" + "necklace"
@@ -18,7 +17,6 @@ export class RenderBox implements Render
 
     private context: CanvasRenderingContext2D | undefined
     private style: Style | undefined
-    private showText: boolean
     private showClass: boolean
     private showNestedClasses: boolean
     private showConfidence: boolean
@@ -26,12 +24,11 @@ export class RenderBox implements Render
 
     constructor(options: Partial<RenderBoxOptions> = {})
     {
-        const { showClass = true, showText = true, showConfidence = false, showTraceId = false, showNestedClasses = false, target = DEFAULT_TARGET } = options
+        const { showClass = true, showConfidence = false, showTraceId = false, showNestedClasses = false, target = '$..objects.*' } = options
         this.target = target
 
         this.showClass = showClass
         this.showNestedClasses = showNestedClasses
-        this.showText = showText
         this.showConfidence = showConfidence
         this.showTraceId = showTraceId
     }
@@ -56,18 +53,29 @@ export class RenderBox implements Render
         const w = element.width * xScale
         const h = element.height * yScale
 
+        // Sort the element's objects based on the element.object.category
+        if (element.objects)
+        {
+            element.objects.sort((a, b) =>
+            {
+                if (!a.category || !b.category) return 0
+
+                return a.category.localeCompare(b.category)
+            })
+        }
+        const scale = style.scale
+
         //faded blue background
         context.beginPath()
         context.rect(x, y, w, h)
-        context.lineWidth = style.scale
+        context.lineWidth = scale * 2
         context.strokeStyle = style.colors.opacity_color
         context.fillStyle = style.colors.opacity_color
         context.fill()
         context.stroke()
 
-        const scale = style.scale
 
-        const desiredPercentage = 0.25
+        const desiredPercentage = style.cornerPadding
 
         let canvasDimension = Math.min(context.canvas.width, context.canvas.height);
         let cornerSize = Math.min(w / 4, canvasDimension * desiredPercentage);
@@ -85,11 +93,11 @@ export class RenderBox implements Render
             context.lineTo(corner[ 1 ].x, corner[ 1 ].y)
             context.lineTo(corner[ 2 ].x, corner[ 2 ].y)
             context.strokeStyle = style.colors.primary_color
-            context.lineWidth = style.scale
+            context.lineWidth = scale * 2
             context.stroke()
         })
 
-        const padding = Math.max(Math.min(w / 25, canvasDimension * (desiredPercentage / 4)), scale * 2)
+        const padding = Math.max(Math.min(w / 25, canvasDimension * (style.cornerWidth)), scale * 2)
 
         cornerSize = cornerSize - padding
 
@@ -118,32 +126,19 @@ export class RenderBox implements Render
             context.lineTo(corner[ 1 ].x, corner[ 1 ].y)
             context.lineTo(corner[ 2 ].x, corner[ 2 ].y)
             context.strokeStyle = style.colors.secondary_color
-            context.lineWidth = style.scale
+            context.lineWidth = scale * 2
             context.stroke()
         })
 
-        const boundingBoxWidth = element.width * xScale - 3 * padding
+        const boundingBoxWidth = (element.width * xScale) - (3 * padding);
         let fontSize = this.getMinFontSize(context, element, boundingBoxWidth, style)
         let label = ""
-
 
         if (this.showClass && element.classLabel)
         {
             label = element.classLabel
             label = RenderBox.toTitleCase(label)
             yOffset += this.drawLabel(label, context, element, yScale, xScale, yOffset, xOffset, style, boundingBoxWidth, padding, false, fontSize)
-        }
-
-        if (this.showText && element.labels)
-        {
-            fontSize = this.getMinFontSize(context, element, boundingBoxWidth, style, true)
-            for (let i = 0; i < element.labels.length; i++)
-            {
-                label = element.labels[ i ]?.label
-                if (!label) continue
-
-                yOffset += this.drawLabel(label, context, element, yScale, xScale, yOffset, xOffset, style, boundingBoxWidth, padding, true, fontSize)
-            }
         }
 
         if (this.showNestedClasses && element?.classes)
@@ -161,7 +156,7 @@ export class RenderBox implements Render
 
         if (this.showTraceId && element.traceId)
         {
-            label = 'Id' + element.traceId
+            label = 'ID: ' + element.traceId
             label = RenderBox.toTitleCase(label)
             yOffset += this.drawLabel(label, context, element, yScale, xScale, yOffset, xOffset, style, boundingBoxWidth, padding, false, fontSize)
         }
@@ -236,21 +231,6 @@ export class RenderBox implements Render
     getMinFontSize(context: CanvasRenderingContext2D, element: any, width: number, style: any, scaleToWidth: boolean = false): number
     {
         let largestLabel = ''
-        if (this.showText && element.labels)
-        {
-            for (let i = 0; i < element.labels.length; i++)
-            {
-                const label = element.labels[ i ].label
-
-                if (!label) continue
-
-                const formattedLabel = `${RenderBox.toTitleCase(label)}`
-                if (formattedLabel.length > largestLabel.length)
-                {
-                    largestLabel = formattedLabel
-                }
-            }
-        }
 
         if (this.showClass && element.classLabel)
         {

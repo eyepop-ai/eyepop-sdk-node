@@ -11,7 +11,7 @@ interface TraceEntry
     next: TraceEntry | null
 }
 
-type RenderTrailOptions = {
+export type RenderTrailOptions = {
     trailLengthSeconds: number
     traceDetails?: string | undefined
 } & RenderTarget
@@ -28,13 +28,12 @@ export class RenderTrail implements Render
     private style: Style | undefined
 
     private traces: Map<number, TraceEntry>
-
     private lastTrim: number
 
 
     constructor(options: Partial<RenderTrailOptions> = {})
     {
-        const { target = DEFAULT_TARGET, trailLengthSeconds = 1, traceDetails } = options;
+        const { target = '$..objects[?(@.traceId)]', trailLengthSeconds = 1, traceDetails } = options;
         this.target = target;
 
         this.trailLengthNanos = (trailLengthSeconds * 1000 * 1000 * 1000)

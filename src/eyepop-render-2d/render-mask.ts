@@ -3,7 +3,7 @@ import { Style } from "./style";
 import { CanvasRenderingContext2D } from "canvas";
 import { Render, DEFAULT_TARGET, RenderTarget } from "./render";
 
-type RenderMaskOptions = {} & RenderTarget
+export type RenderMaskOptions = {} & RenderTarget
 
 export class RenderMask implements Render
 {
@@ -14,7 +14,7 @@ export class RenderMask implements Render
 
     constructor(options: Partial<RenderMaskOptions> = {})
     {
-        const { target = DEFAULT_TARGET } = options;
+        const { target = '$..objects[?(@.mask)]' } = options;
         this.target = target;
     }
 
@@ -24,6 +24,7 @@ export class RenderMask implements Render
         this.context = context
         this.style = style
     }
+
     public draw(element: PredictedObject, xOffset: number, yOffset: number, xScale: number, yScale: number, streamTime: StreamTime): void
     {
 
