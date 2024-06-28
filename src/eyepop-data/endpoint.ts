@@ -5,8 +5,6 @@ import { authenticateBrowserSession } from './shims/browser_session';
 
 //TODO 
 // test other functions (create)
-// Implement websocket for events
-// Register on events (account / dataset)
 // clean up
 
 interface AccessToken {
@@ -63,7 +61,7 @@ interface ModelUpdate {
   type: string;
 }
 
-class Endpoint { //TODO
+class Endpoint {
   private _token: string | null
   private _options: Options
   private _expire_token_time: number | null
@@ -142,12 +140,17 @@ class Endpoint { //TODO
       throw new Error('Client not initialized yet')
     }
 
-    console.log('url', `${this._baseUrl}${path}`)
+    //console.log('url', `${this._baseUrl}${path}`)
+
+    if(!options.body) {
+      //console.log('no body')
+      options.body = null
+    }
 
     const ri = {
       headers: headers,
       method: options.method || 'GET',
-      body: options.body instanceof Blob ? options.body : options.body ? JSON.stringify(options.body) : null
+      body: options.body //instanceof Blob ? options.body : options.body ? JSON.stringify(options.body) : null
     };
 
     const response = await this._client.fetch(`${this._baseUrl}${path}`, ri);
@@ -252,6 +255,7 @@ class Endpoint { //TODO
   }
 
   async createDataset(account_uuid: string, data: DatasetCreate) {
+    console.log('data', data)
     return this.request(`/datasets?account_uuid=${account_uuid}`, {
       method: 'POST',
       body: JSON.stringify(data),
@@ -400,7 +404,7 @@ class Endpoint { //TODO
 
   private async subscribeCallbackToWsEvents(type:string, uuid: string, callback: (event: any) => void) {
 
-    if(this._clientWsDataset != null)
+    if(this._clientWsDataset !== null)
     {
       this._clientWsDataset.close();
     }

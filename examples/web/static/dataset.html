@@ -251,12 +251,8 @@
                     });
                 });
 
-                console.log("Subbing to account", account_uuid)
-                endpoint.subscribeCallbackToAccountEvents(account_uuid, SubscriberDataset);
-
-            }
-
-
+            console.log("Subbing to account", account_uuid)
+            endpoint.subscribeCallbackToAccountEvents(account_uuid, SubscriberDataset);
 
             //implement the new dataset button
             var newDatasetsButton = document.getElementById('new-datasets-btn');
@@ -276,28 +272,34 @@
                     });
             }
 
-            // }
 
-            setup();
+        }
 
-            async function createFileFromLocalURL(fileURL) {
-                try {
-                    // Fetch the file data
-                    const response = await fetch(fileURL);
-                    const blob = await response.blob();
 
-                    // Extract the filename from the URL
-                    const urlParts = fileURL.split('/');
-                    const filename = urlParts[urlParts.length - 1];
 
-                    // Create a File object
-                    const file = new File([blob], filename, { type: blob.type });
 
-                    return file;
-                } catch (error) {
-                    console.error('Error creating file from local URL:', error);
-                }
+        // }
+
+        setup();
+
+        async function createFileFromLocalURL(fileURL) {
+            try {
+                // Fetch the file data
+                const response = await fetch(fileURL);
+                const blob = await response.blob();
+
+                // Extract the filename from the URL
+                const urlParts = fileURL.split('/');
+                const filename = urlParts[urlParts.length - 1];
+
+                // Create a File object
+                const file = new File([blob], filename, { type: blob.type });
+
+                return file;
+            } catch (error) {
+                console.error('Error creating file from local URL:', error);
             }
+        }
     </script>
 </body>
 
