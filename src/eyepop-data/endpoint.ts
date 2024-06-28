@@ -4,8 +4,9 @@ import { HttpClient, createHttpClient } from './shims/http_client';
 import { authenticateBrowserSession } from './shims/browser_session';
 
 //TODO 
-// test other functions
+// test other functions (create)
 // Implement websocket for events
+// Register on events (account / dataset)
 // clean up
 
 interface AccessToken {
@@ -70,6 +71,9 @@ class Endpoint { //TODO
   private _eyepopUrl: string = 'https://staging-api.eyepop.ai'
 
   private _client: HttpClient | null
+  private _clientWsDataset: WebSocket | null
+  private _clientWsAccount: WebSocket | null
+  
   //private _limit: Semaphore
 
   // private _state: EndpointState
@@ -82,23 +86,13 @@ class Endpoint { //TODO
 
 
 
-  //TODO: Convert token to session token
-  //TODO: Refetch token if expired
-  //TODO: Endpoint
-  //TODO: .connect etc....
   //TODO: SIMILAR PATTERN for config for endpoint for account (Give me my dataset endpoint)
   //data.eyepop.api.eyepo.xyz
   //andy@eyepop.ai (auth0 permission)
   //foo organization
 
 
-  //websocket https://data.api.eyepop.xyz/events
-  //First authenticate same as header auth
-  //{"authentication": "Bearer ...."}
-  // Response: status 201 
-  //{"subscribe":{"account_uuid":"..."}}   //ONLY DATASET CHANGES
-  //{"subscribe":{"dataset_uuid":"..."}}   //Asset and model changes
-  //End of connection alert - because even an empty line will break it
+
 
 
   constructor(options: Options) {
@@ -132,6 +126,9 @@ class Endpoint { //TODO
     // }
     // this._logger = rootLogger.child({ module: 'eyepop' })
     // this._requestLogger = this._logger.child({ module: 'requests' })
+    this._clientWsDataset = null
+    this._clientWsAccount = null
+
   }
 
   private async request(path: string, options: RequestInit = {}) {
@@ -195,95 +192,10 @@ class Endpoint { //TODO
     return this
   }
 
-  //   private async reconnect(): Promise<Endpoint> {
-  //     if (!this._client) {
-  //         return Promise.reject("endpoint not initialized")
-  //     }
-
-  //     const headers = {
-  //         'Authorization': await this.authorizationHeader()
-  //     }
-  //     this.updateState(EndpointState.FetchConfig)
-  //     this._requestLogger.debug('before GET %s', config_url)
-  //     let response = await this._client.fetch(config_url, {headers: headers})
-  //     if (response.status == 401) {
-  //         this._requestLogger.debug('after GET %s: 401, about to retry with fresh access token', config_url)
-  //         // one retry, the token might have just expired
-  //         this._token = null
-  //         const headers = {
-  //             'Authorization': await this.authorizationHeader()
-  //         }
-  //         this.updateState(EndpointState.FetchConfig)
-  //         response = await this._client.fetch(config_url, {
-  //             headers: headers
-  //         })
-  //     }
-
-  //     if (response.status != 200) {
-  //         this.updateState(EndpointState.Error)
-  //         const message = await response.text()
-  //         return Promise.reject(`Unexpected status ${response.status}: ${message}`)
-  //     } else {
-  //         let config = (await response.json()) as PopConfig
-  //         if (!config.base_url && this._options.autoStart) {
-  //             const auto_start_config_url = `${this.eyepopUrl()}/pops/${this._options.popId}/config?auto_start=true`
-  //             this._requestLogger.debug('pop was not running, trying to autostart with: %s', auto_start_config_url)
-  //             // one retry the pop might just have stopped
-  //             const headers = {
-  //                 'Authorization': await this.authorizationHeader()
-  //             }
-  //             this.updateState(EndpointState.StartingPop)
-  //             response = await this._client.fetch(auto_start_config_url, {
-  //                 headers: headers
-  //             })
-  //             if (response.status != 200) {
-  //                 this.updateState(EndpointState.Error)
-  //                 const message = await response.text()
-  //                 return Promise.reject(`Unexpected status ${response.status}: ${message}`)
-  //             }
-  //             config = (await response.json()) as PopConfig
-  //         }
-
-  //         const baseUrl = new URL(config.base_url, this.eyepopUrl())
-  //         this._baseUrl = baseUrl.toString()
-  //         if (this._options.popId == TransientPopId.Transient) {
-  //             this._pipelineId = await this.startPopLessPipeline()
-  //             this._popName = this._options.popId
-  //         } else {
-  //             this._pipelineId = config.pipeline_id
-  //             this._popName = config.name
-  //         }
-  //         this._requestLogger.debug('after GET %s: %s / %s', config_url, this._baseUrl, this._pipelineId)
-  //         if (!this._pipelineId || !this._baseUrl) {
-  //             return Promise.reject(`Pop not started`)
-  //         }
-  //         this._baseUrl = this._baseUrl.replace(/\/+$/, "")
-
-  //         if (this._baseUrl) {
-  //             const get_url = `${this._baseUrl}/pipelines/${this._pipelineId}`
-  //             const headers = {
-  //                 'Authorization': await this.authorizationHeader()
-  //             }
-  //             this._requestLogger.debug('before GET %s', get_url)
-  //             let response = await this._client.fetch(get_url, {
-  //                 method: 'GET',
-  //                 headers: headers
-  //             })
-  //             if (response.status > 200) {
-  //                 const message = await response.text()
-  //                 return Promise.reject(`Unexpected status ${response.status}: ${message}`)
-  //             }
-  //             this._requestLogger.debug('after GET %s', get_url)
-  //             this._pipeline = (await response.json()) as Pipeline
-  //         }
-
-  //         this.updateState()
-  //         return Promise.resolve(this)
-  //     }
-  // }
   private async authorizationHeader(): Promise<string> {
     return `Bearer ${await this.currentAccessToken()}`;
   }
+
   private async currentAccessToken(): Promise<string> {
 
     this._client = await createHttpClient()
@@ -324,205 +236,19 @@ class Endpoint { //TODO
     }
     return <string>this._token;
   }
-  //   const now = Date.now() / 1000;
-  //   if (!this._token || <number>this._expire_token_time < now) {
-  //       //this.updateState(EndpointState.Authenticating)
-  //       try {
-  //           if (!this._client) {
-  //               return Promise.reject("endpoint not connected")
-  //           } else if ((this._options.auth as SessionAuth).session !== undefined) {
-  //               return Promise.reject("temporary access token expired")
-  //           } else if ((this._options.auth as OAuth2Auth).oAuth2 !== undefined &&
-  //               this._options.eyepopUrl && this._options.popId) {
-  //               const session = await authenticateBrowserSession(((this._options.auth as OAuth2Auth).oAuth2 as Auth0Options),
-  //                   this._options.eyepopUrl, this._options.popId)
-  //               this._token = session.accessToken
-  //               this._expire_token_time = session.validUntil / 1000
-  //           } else if ((this._options.auth as SecretKeyAuth).secretKey !== undefined && this._options.eyepopUrl) {
-  //               const secretKeyAuth = this._options.auth as SecretKeyAuth
-  //               const body = {'secret_key': secretKeyAuth.secretKey}
-  //               const headers = {'Content-Type': 'application/json'}
-  //               const post_url = `${this.eyepopUrl()}/authentication/token`
-  //               this._requestLogger.debug('before POST %s', post_url)
-  //               const response = await this._client.fetch(post_url, {
-  //                   method: 'POST', headers: headers, body: JSON.stringify(body)
-  //               })
-  //               if (response.status != 200) {
-  //                   const message = await response.text()
-  //                   return Promise.reject(`Unexpected status ${response.status}: ${message}`)
-  //               }
-  //               this._requestLogger.debug('after POST %s', post_url)
-  //               const data = await response.json()
-  //               const token: AccessToken = data as AccessToken
-  //               this._token = token.access_token
-  //               this._expire_token_time = now + token.expires_in - 60
-  //           } else {
-  //               return Promise.reject("no valid auth option")
-  //           }
-  //       } finally {
-  //           this.updateState()
-  //       }
-  //   }
-  //   this._logger.debug('using access token, valid for at least %d seconds', <number>this._expire_token_time - now)
-  //   return <string>this._token
-  // }
-
-
-  // private async fetchWithRetry(fetcher: () => Promise<Response>, retries: number = 1): Promise<Response> {
-  //   while (true) {
-  //     try {
-  //       const response = await fetcher()
-  //       if (response.status == 401) {
-  //         this._token = null;
-  //         this._expire_token_time = null;
-  //         if (retries--) {
-  //           this._requestLogger.info('received 401 response, attempt to reauthorize and retry')
-  //         } else {
-  //           return Promise.reject(`response ${response.status}: ${response.statusText}`)
-  //         }
-  //       } else if (response.status == 404) {
-  //         this._pipelineId = null;
-  //         this._baseUrl = null;
-  //         if (retries--) {
-  //           this._requestLogger.info('received 404 response, attempt to restart pop and retry')
-  //         } else {
-  //           return Promise.reject(`response ${response.status}: ${response.statusText}`)
-  //         }
-  //       } else {
-  //         return response
-  //       }
-  //     } catch (error) {
-  //       this._pipelineId = null;
-  //       this._baseUrl = null;
-  //       if (retries--) {
-  //         this._requestLogger.info('unknown, attempt to restart pop (as if we received 404)', error)
-  //         return Promise.reject(error)
-  //       }
-  //     }
-  //   }
-  // }
-
-  // private async reconnect(): Promise<Endpoint> {
-  //   if (!this._client) {
-  //     return Promise.reject("endpoint not initialized")
-  //   }
-  //   let config_url
-  //   if (this._options.popId == TransientPopId.Transient) {
-  //     config_url = `${this.eyepopUrl()}/workers/config`
-  //   } else {
-  //     config_url = `${this.eyepopUrl()}/pops/${this._options.popId}/config?auto_start=false`
-  //   }
-  //   const headers = {
-  //     'Authorization': await this.authorizationHeader()
-  //   }
-  //   this.updateState(EndpointState.FetchConfig)
-  //   this._requestLogger.debug('before GET %s', config_url)
-  //   let response = await this._client.fetch(config_url, { headers: headers })
-  //   if (response.status == 401) {
-  //     this._requestLogger.debug('after GET %s: 401, about to retry with fresh access token', config_url)
-  //     // one retry, the token might have just expired
-  //     this._token = null
-  //     const headers = {
-  //       'Authorization': await this.authorizationHeader()
-  //     }
-  //     this.updateState(EndpointState.FetchConfig)
-  //     response = await this._client.fetch(config_url, {
-  //       headers: headers
-  //     })
-  //   }
-
-  //   if (response.status != 200) {
-  //     this.updateState(EndpointState.Error)
-  //     const message = await response.text()
-  //     return Promise.reject(`Unexpected status ${response.status}: ${message}`)
-  //   } else {
-  //     let config = (await response.json()) as PopConfig
-  //     if (!config.base_url && this._options.autoStart) {
-  //       const auto_start_config_url = `${this.eyepopUrl()}/pops/${this._options.popId}/config?auto_start=true`
-  //       this._requestLogger.debug('pop was not running, trying to autostart with: %s', auto_start_config_url)
-  //       // one retry the pop might just have stopped
-  //       const headers = {
-  //         'Authorization': await this.authorizationHeader()
-  //       }
-  //       this.updateState(EndpointState.StartingPop)
-  //       response = await this._client.fetch(auto_start_config_url, {
-  //         headers: headers
-  //       })
-  //       if (response.status != 200) {
-  //         this.updateState(EndpointState.Error)
-  //         const message = await response.text()
-  //         return Promise.reject(`Unexpected status ${response.status}: ${message}`)
-  //       }
-  //       config = (await response.json()) as PopConfig
-  //     }
-
-  //     const baseUrl = new URL(config.base_url, this.eyepopUrl())
-  //     this._baseUrl = baseUrl.toString()
-  //     if (this._options.popId == TransientPopId.Transient) {
-  //       this._pipelineId = await this.startPopLessPipeline()
-  //       this._popName = this._options.popId
-  //     } else {
-  //       this._pipelineId = config.pipeline_id
-  //       this._popName = config.name
-  //     }
-  //     this._requestLogger.debug('after GET %s: %s / %s', config_url, this._baseUrl, this._pipelineId)
-  //     if (!this._pipelineId || !this._baseUrl) {
-  //       return Promise.reject(`Pop not started`)
-  //     }
-  //     this._baseUrl = this._baseUrl.replace(/\/+$/, "")
-
-  //     if (this._baseUrl) {
-  //       const get_url = `${this._baseUrl}/pipelines/${this._pipelineId}`
-  //       const headers = {
-  //         'Authorization': await this.authorizationHeader()
-  //       }
-  //       this._requestLogger.debug('before GET %s', get_url)
-  //       let response = await this._client.fetch(get_url, {
-  //         method: 'GET',
-  //         headers: headers
-  //       })
-  //       if (response.status > 200) {
-  //         const message = await response.text()
-  //         return Promise.reject(`Unexpected status ${response.status}: ${message}`)
-  //       }
-  //       this._requestLogger.debug('after GET %s', get_url)
-  //       this._pipeline = (await response.json()) as Pipeline
-  //     }
-
-  //     this.updateState()
-  //     return Promise.resolve(this)
-  //   }
-  // }
-  // public async session(): Promise<SessionPlus> {
-  //   await this.currentAccessToken()
-  //   if (this._token == null || this._expire_token_time == null) {
-  //     return Promise.reject("endpoint not connected")
-  //   }
-  //   if (this._baseUrl == null || this._pipelineId == null) {
-  //     await this.reconnect()
-  //     if (this._baseUrl == null || this._pipelineId == null) {
-  //       return Promise.reject("endpoint not connected")
-  //     }
-  //   }
-  //   return {
-  //     eyepopUrl: <string>this._options.eyepopUrl,
-  //     popId: <string>this._options.popId,
-  //     accessToken: this._token,
-  //     validUntil: this._expire_token_time * 1000,
-  //     baseUrl: this._baseUrl,
-  //     pipelineId: this._pipelineId,
-  //     sandboxId: this._sandboxId ?? undefined
-  //   }
-  // }
 
   // Health Check
   async healthz() {
-    return this.request('/healthz', { method: 'GET' });
+    return this.request('/healthz', {
+      method: 'GET'
+    });
   }
 
   // Dataset methods
   async listDatasets(account_uuid: string) {
-    return this.request(`/datasets?account_uuid=${account_uuid}`, { method: 'GET' });
+    return this.request(`/datasets?account_uuid=${account_uuid}`, {
+      method: 'GET'
+    });
   }
 
   async createDataset(account_uuid: string, data: DatasetCreate) {
@@ -533,7 +259,9 @@ class Endpoint { //TODO
   }
 
   async getDataset(dataset_uuid: string) {
-    return this.request(`/datasets/${dataset_uuid}`, { method: 'GET' });
+    return this.request(`/datasets/${dataset_uuid}`, {
+      method: 'GET'
+    });
   }
 
   async updateDataset(dataset_uuid: string, data: DatasetUpdate) {
@@ -544,24 +272,26 @@ class Endpoint { //TODO
   }
 
   async deleteDataset(dataset_uuid: string) {
-    return this.request(`/datasets/${dataset_uuid}`, { method: 'DELETE' });
+    return this.request(`/datasets/${dataset_uuid}`, {
+      method: 'DELETE'
+    });
   }
 
   async freezeDatasetVersion(dataset_uuid: string, dataset_version?: number) {
     const versionQuery = dataset_version ? `&dataset_version=${dataset_version}` : '';
-    return this.request(`/datasets/${dataset_uuid}/freeze?${versionQuery}`, { method: 'POST' });
+    return this.request(`/datasets/${dataset_uuid}/freeze?${versionQuery}`, {
+      method: 'POST'
+    });
   }
 
   async deleteDatasetVersion(dataset_uuid: string, dataset_version: number) {
-    return this.request(`/datasets/${dataset_uuid}/delete?dataset_version=${dataset_version}`, { method: 'POST' });
+    return this.request(`/datasets/${dataset_uuid}/delete?dataset_version=${dataset_version}`, {
+      method: 'POST'
+    });
   }
 
   // Asset methods
   async uploadAsset(dataset_uuid: string, dataset_version: number | undefined, file: File) {
-    
-    
-    console.log('file in node', file.type, file.size, file.name)
-    //console.log("formdata", formData.get(''))
 
     return this.request(`/assets?dataset_uuid=${dataset_uuid}&dataset_version=${dataset_version}`, {
       method: 'POST',
@@ -575,25 +305,33 @@ class Endpoint { //TODO
   async listAssets(dataset_uuid: string, dataset_version?: number, include_annotations: boolean = false) {
     const versionQuery = dataset_version ? `&dataset_version=${dataset_version}` : '';
     const annotationsQuery = include_annotations ? '&include_annotations=true' : '';
-    return this.request(`/assets?dataset_uuid=${dataset_uuid}${versionQuery}${annotationsQuery}`, { method: 'GET' });
+    return this.request(`/assets?dataset_uuid=${dataset_uuid}${versionQuery}${annotationsQuery}`, {
+      method: 'GET'
+    });
   }
 
   async getAsset(asset_uuid: string, dataset_uuid?: string, dataset_version?: number, include_annotations: boolean = false) {
     const versionQuery = dataset_version ? `&dataset_version=${dataset_version}` : '';
     const annotationsQuery = include_annotations ? '&include_annotations=true' : '';
     const datasetQuery = dataset_uuid ? `&dataset_uuid=${dataset_uuid}` : '';
-    return this.request(`/assets/${asset_uuid}?${datasetQuery}${versionQuery}${annotationsQuery}`, { method: 'GET' });
+    return this.request(`/assets/${asset_uuid}?${datasetQuery}${versionQuery}${annotationsQuery}`, {
+      method: 'GET'
+    });
   }
 
   async deleteAsset(asset_uuid: string, dataset_uuid?: string, dataset_version?: number) {
     const versionQuery = dataset_version ? `&dataset_version=${dataset_version}` : '';
     const datasetQuery = dataset_uuid ? `&dataset_uuid=${dataset_uuid}` : '';
-    return this.request(`/assets/${asset_uuid}?${datasetQuery}${versionQuery}`, { method: 'DELETE' });
+    return this.request(`/assets/${asset_uuid}?${datasetQuery}${versionQuery}`, {
+      method: 'DELETE'
+    });
   }
 
   async resurrectAsset(asset_uuid: string, dataset_uuid: string, from_dataset_version: number, into_dataset_version?: number) {
     const intoVersionQuery = into_dataset_version ? `&into_dataset_version=${into_dataset_version}` : '';
-    return this.request(`/assets/${asset_uuid}/resurrect?dataset_uuid=${dataset_uuid}&from_dataset_version=${from_dataset_version}${intoVersionQuery}`, { method: 'POST' });
+    return this.request(`/assets/${asset_uuid}/resurrect?dataset_uuid=${dataset_uuid}&from_dataset_version=${from_dataset_version}${intoVersionQuery}`, {
+      method: 'POST'
+    });
   }
 
   async updateAssetManualAnnotation(asset_uuid: string, dataset_uuid?: string, dataset_version?: number, annotation?: any) {
@@ -608,12 +346,16 @@ class Endpoint { //TODO
   async downloadAsset(asset_uuid: string, dataset_uuid?: string, dataset_version?: number, transcode_mode: string = 'original') {
     const versionQuery = dataset_version ? `&dataset_version=${dataset_version}` : '';
     const datasetQuery = dataset_uuid ? `&dataset_uuid=${dataset_uuid}` : '';
-    return this.request(`/assets/${asset_uuid}/download?${datasetQuery}${versionQuery}&transcode_mode=${transcode_mode}`, { method: 'GET' });
+    return this.request(`/assets/${asset_uuid}/download?${datasetQuery}${versionQuery}&transcode_mode=${transcode_mode}`, {
+      method: 'GET'
+    });
   }
 
   // Model methods
   async listModels(account_uuid: string) {
-    return this.request(`/models?account_uuid=${account_uuid}`, { method: 'GET' });
+    return this.request(`/models?account_uuid=${account_uuid}`, {
+      method: 'GET'
+    });
   }
 
   async createModel(dataset_uuid: string, dataset_version: number, data: ModelCreate) {
@@ -624,7 +366,9 @@ class Endpoint { //TODO
   }
 
   async getModel(model_uuid: string) {
-    return this.request(`/models/${model_uuid}`, { method: 'GET' });
+    return this.request(`/models/${model_uuid}`, {
+      method: 'GET'
+    });
   }
 
   async updateModel(model_uuid: string, data: ModelUpdate) {
@@ -635,12 +379,59 @@ class Endpoint { //TODO
   }
 
   async deleteModel(model_uuid: string) {
-    return this.request(`/models/${model_uuid}`, { method: 'DELETE' });
+    return this.request(`/models/${model_uuid}`, {
+      method: 'DELETE'
+    });
   }
 
   async publishModel(model_uuid: string) {
-    return this.request(`/models/${model_uuid}/publish`, { method: 'POST' });
+    return this.request(`/models/${model_uuid}/publish`, {
+      method: 'POST'
+    });
   }
+
+  async subscribeCallbackToAccountEvents(account_uuid: string, callback: (event: any) => void) {
+    this.subscribeCallbackToWsEvents('dataset', account_uuid, callback);
+  }
+
+  async subscribeCallbackToDatasetEvents(dataset_uuid: string, callback: (event: any) => void) {
+    this.subscribeCallbackToWsEvents('dataset', dataset_uuid, callback);
+  }
+
+  private async subscribeCallbackToWsEvents(type:string, uuid: string, callback: (event: any) => void) {
+
+    if(this._clientWsDataset != null)
+    {
+      this._clientWsDataset.close();
+    }
+
+    const ws = this._clientWsDataset = new WebSocket('wss://data.api.eyepop.xyz/events');
+    const auth_header = await this.authorizationHeader();
+    
+    ws.onopen = () => {
+      console.log("DATA EVENT CHANNEL [OPEN]")
+
+      ws.send(JSON.stringify({ authentication: auth_header }));
+      if(type == 'account')
+        ws.send(JSON.stringify({ subscribe: { account_uuid: uuid } }));
+      else if(type == 'dataset')
+        ws.send(JSON.stringify({ subscribe: { dataset_uuid: uuid } }));
+    };
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      console.log("DATA EVENT CHANNEL [EVENT]:",event)
+      if (data.subscribe && data.subscribe.account_uuid) {
+        callback(data);
+      }
+    };
+    
+    ws.onclose = () => {
+      // handle websocket close event
+      console.log("DATA EVENT CHANNEL [CLOSED]")
+    };
+  }
+
 }
 
 export { Endpoint, DatasetCreate, DatasetUpdate, ModelCreate, ModelUpdate, DatasetResponse, ModelResponse };

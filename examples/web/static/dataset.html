@@ -37,6 +37,10 @@
 
         const account_uuid = "foo";
 
+        async function SubscriberDataset(data) {
+            console.log("SubscriberDataset", data);
+        }
+
         async function setup() {
             // auth: {'secretKey': api_key} 
             var endpoint = await EyePopData.endpoint({
@@ -125,6 +129,10 @@
                         const version = dataset.versions.find(v => v.modifiable)?.version || null;
 
                         listAssetsButton.onclick = function () {
+
+                            console.log("Subbing to dataset", dataset.uuid)
+                            endpoint.subscribeCallbackToDatasetEvents(dataset.uuid, SubscriberDataset);
+
                             endpoint.listAssets(dataset.uuid, version, true)
                                 .then((res) => {
                                     console.log("TEST LIST ASSETS", res);
@@ -158,6 +166,7 @@
                                                     console.log("res", res)
 
                                                     img.src = URL.createObjectURL(res);
+                                                    assetDiv.appendChild(document.createElement('br'));
                                                     assetDiv.appendChild(img);
                                                 });
                                         }
@@ -213,6 +222,7 @@
                                         };
                                         listAssetsResult.appendChild(updateAssetManualAnnotationButton);
                                         listAssetsResult.appendChild(document.createElement('br'));
+                                        listAssetsResult.appendChild(document.createElement('br'));
                                     });
                                 });
                         };
@@ -240,188 +250,50 @@
                         };
                     });
                 });
-
-            //         //implement the new dataset button
-            //         var newDatasetsButton = document.getElementById('new-datasets-btn');
-            //         newDatasetsButton.onclick = function() {
-            //             //create a new dataset
-            //             const datasetCreateData = {
-            //                 // dataset create data
-            //                 "name": "ds 1",
-            //                 "description": "test dataset from Torsten",
-            //                 "tags": [
-            //                     "test1"
-            //                 ]
-            //             };
-            //             endpoint.createDataset(account_uuid, datasetCreateData)
-            //                 .then((res) => {
-            //                     console.log("TEST CREATE DATASET", res);
-            //                     //add the new dataset to the list
-            //                     var listDatasetsResult = document.getElementById('list-datasets-result');
-            //                     var datasetDiv = document.createElement('div');
-            //                     datasetDiv.innerHTML = datasetCreateData.name;
-            //                     listDatasetsResult.appendChild(datasetDiv);
-            //                     //add delete button to the new dataset
-            //                     var deleteButton = document.createElement('button');
-            //                     deleteButton.innerHTML = "Delete";
-            //                     deleteButton.onclick = function() {
-            //                         endpoint.deleteDataset(res.uuid)
-            //                             .then((res) => {
-            //                                 console.log("TEST DELETE DATASET", res);
-            //                                 //remove the dataset from the list
-            //                                 datasetDiv.remove();
-            //                                 deleteButton.remove();
-            //                             });
-            //                     };
-            //                     listDatasetsResult.appendChild(deleteButton);
-
-            //                     //add upload button to the new dataset
-            //                     var uploadButton = document.createElement('button');
-            //                     uploadButton.innerHTML = "Upload";
-            //                     uploadButton.onclick = function() {
-            //                         //upload the file images/Hot_dog_with_mustard.png
-            //                         const file = new File(['images/Hot_dog_with_mustard.png'], 'Hot_dog_with_mustard.png');
-            //                         endpoint.uploadAsset(res.uuid, 1, file)
-            //                             .then((res) => {
-            //                                 console.log("TEST UPLOAD ASSET", res);
-            //                             });
-            //                     };
-            //                     listDatasetsResult.appendChild(uploadButton);
-
-            //                     //add list assets button to the new dataset
-            //                     var listAssetsButton = document.createElement('button');
-            //                     listAssetsButton.innerHTML = "List Assets";
-            //                     listAssetsButton.onclick = function() {
-            //                         endpoint.listAssets(res.uuid, 1, true)
-            //                             .then((res) => {
-            //                                 console.log("TEST LIST ASSETS", res);
-            //                                 //add assets to the list
-            //                                 var listAssetsResult = document.getElementById('list-assets-result');
-            //                                 listAssetsResult.innerHTML = '';
-            //                                 //for each asset in the dataset
-            //                                 res.forEach((asset) => {
-            //                                     var assetDiv = document.createElement('div');
-            //                                     assetDiv.innerHTML = asset
-            //                                 }
-            //                             });
-            //                     };
-
-        }
-        // // Test createDataset function
-        // const datasetCreateData = {
-        //     // dataset create data
-        // };
-        // endpoint.createDataset('account_uuid', datasetCreateData)
-        //     .then((res) => console.log(res));
-
-        // // Test getDataset function
-        // endpoint.getDataset('dataset_uuid')
-        //     .then((res) => console.log(res));
-
-        // // Test updateDataset function
-        // const datasetUpdateData = {
-        //     // dataset update data
-        // };
-        // endpoint.updateDataset('dataset_uuid', datasetUpdateData)
-        //     .then((res) => console.log(res));
-
-        // // Test deleteDataset function
-        // endpoint.deleteDataset('dataset_uuid')
-        //     .then((res) => console.log(res));
-
-        // // Test freezeDatasetVersion function
-        // endpoint.freezeDatasetVersion('dataset_uuid', dataset_version)
-        //     .then((res) => console.log(res));
-
-        // // Test deleteDatasetVersion function
-        // endpoint.deleteDatasetVersion('dataset_uuid', dataset_version)
-        //     .then((res) => console.log(res));
-
-        // // Test uploadAsset function
-        // const file = new File(['file'], 'filename');
-        // endpoint.uploadAsset('dataset_uuid', dataset_version, file)
-        //     .then((res) => console.log(res));
-
-        // // Test listAssets function
-        // endpoint.listAssets('dataset_uuid', dataset_version, true)
-        //     .then((res) => console.log(res));
-
-        // // Test getAsset function
-        // endpoint.getAsset('asset_uuid', 'dataset_uuid', dataset_version, true)
-        //     .then((res) => console.log(res));
-
-        // // Test deleteAsset function
-        // endpoint.deleteAsset('asset_uuid', 'dataset_uuid', dataset_version)
-        //     .then((res) => console.log(res));
-
-        // // Test resurrectAsset function
-        // endpoint.resurrectAsset('asset_uuid', 'dataset_uuid', from_dataset_version, into_dataset_version)
-        //     .then((res) => console.log(res));
-
-        // // Test updateAssetManualAnnotation function
-        // const annotation = {
-        //     // annotation data
-        // };
-        // endpoint.updateAssetManualAnnotation('asset_uuid', 'dataset_uuid', dataset_version, annotation)
-        //     .then((res) => console.log(res));
-
-        // // Test downloadAsset function
-        // endpoint.downloadAsset('asset_uuid', 'dataset_uuid', dataset_version, 'original')
-        //     .then((res) => console.log(res));
-
-        // // Test listModels function
-        // endpoint.listModels('account_uuid')
-        //     .then((res) => console.log(res));
-
-        // // Test createModel function
-        // const modelCreateData = {
-        //     // model create data
-        // };
-        // endpoint.createModel('dataset_uuid', dataset_version, modelCreateData)
-        //     .then((res) => console.log(res));
-
-        // // Test getModel function
-        // endpoint.getModel('model_uuid')
-        //     .then((res) => console.log(res));
-
-        // // Test updateModel function
-        // const modelUpdateData = {
-        //     // model update data
-        // };
-        // endpoint.updateModel('model_uuid', modelUpdateData)
-        //     .then((res) => console.log(res));
-
-        // // Test deleteModel function
-        // endpoint.deleteModel('model_uuid')
-        //     .then((res) => console.log(res));
-
-        // // Test publishModel function
-        // endpoint.publishModel('model_uuid')
-        //     .then((res) => console.log(res));
-
-
-        // }
-
-        setup();
-
-        async function createFileFromLocalURL(fileURL) {
-            try {
-                // Fetch the file data
-                const response = await fetch(fileURL);
-                const blob = await response.blob();
-
-                // Extract the filename from the URL
-                const urlParts = fileURL.split('/');
-                const filename = urlParts[urlParts.length - 1];
-
-                // Create a File object
-                const file = new File([blob], filename, { type: blob.type });
-
-                return file;
-            } catch (error) {
-                console.error('Error creating file from local URL:', error);
             }
-        }
+
+
+
+            //implement the new dataset button
+            var newDatasetsButton = document.getElementById('new-datasets-btn');
+            newDatasetsButton.onclick = function () {
+                //create a new dataset
+                const datasetCreateData = {
+                    // dataset create data
+                    "name": "Andy Dataset",
+                    "description": "test dataset from Andy",
+                    "tags": [
+                        "test1"
+                    ]
+                };
+                endpoint.createDataset(account_uuid, datasetCreateData)
+                    .then((res) => {
+                        console.log("TEST CREATE DATASET", res);
+                    });
+            }
+
+            // }
+
+            setup();
+
+            async function createFileFromLocalURL(fileURL) {
+                try {
+                    // Fetch the file data
+                    const response = await fetch(fileURL);
+                    const blob = await response.blob();
+
+                    // Extract the filename from the URL
+                    const urlParts = fileURL.split('/');
+                    const filename = urlParts[urlParts.length - 1];
+
+                    // Create a File object
+                    const file = new File([blob], filename, { type: blob.type });
+
+                    return file;
+                } catch (error) {
+                    console.error('Error creating file from local URL:', error);
+                }
+            }
     </script>
 </body>
 
