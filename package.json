@@ -4,7 +4,8 @@
   },
   "workspaces": [
     "src/eyepop",
-    "src/eyepop-render-2d"
+    "src/eyepop-render-2d",
+    "src/eyepop-data"
   ],
   "repository": {
     "type": "git",
@@ -34,7 +35,10 @@
     "typedoc": "^0.25.8",
     "typescript": "^5.3.3",
     "uuid": "^9.0.1",
-    "webpack-cli": "^5.1.4"
+    "webpack-cli": "^5.1.4",
+    "@types/node-fetch": "^2.5.7"    
   },
-  "dependencies": {}
+  "dependencies": {
+     "node-fetch": "^2.6.1"
+  }
 }
