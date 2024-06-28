@@ -1,12 +1,12 @@
-import fetch, { RequestInit } from 'node-fetch';
 import { Auth0Options, OAuth2Auth, Options, SecretKeyAuth, SessionAuth } from "./options"
 import { SessionPlus } from './types';
 import { HttpClient, createHttpClient } from './shims/http_client';
 import { authenticateBrowserSession } from './shims/browser_session';
 
 //TODO 
+// test other functions
 // Implement websocket for events
-// 
+// clean up
 
 interface AccessToken {
   access_token: string;
