@@ -391,7 +391,7 @@ class Endpoint { //TODO
   }
 
   async subscribeCallbackToAccountEvents(account_uuid: string, callback: (event: any) => void) {
-    this.subscribeCallbackToWsEvents('dataset', account_uuid, callback);
+    this.subscribeCallbackToWsEvents('account', account_uuid, callback);
   }
 
   async subscribeCallbackToDatasetEvents(dataset_uuid: string, callback: (event: any) => void) {
@@ -409,7 +409,7 @@ class Endpoint { //TODO
     const auth_header = await this.authorizationHeader();
     
     ws.onopen = () => {
-      console.log("DATA EVENT CHANNEL [OPEN]")
+      console.log("DATA EVENT CHANNEL ["+type+"] [OPEN]")
 
       ws.send(JSON.stringify({ authentication: auth_header }));
       if(type == 'account')
@@ -420,7 +420,7 @@ class Endpoint { //TODO
 
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
-      console.log("DATA EVENT CHANNEL [EVENT]:",event)
+      console.log("DATA EVENT CHANNEL ["+type+"] [EVENT]:",event)
       if (data.subscribe && data.subscribe.account_uuid) {
         callback(data);
       }
@@ -428,7 +428,7 @@ class Endpoint { //TODO
     
     ws.onclose = () => {
       // handle websocket close event
-      console.log("DATA EVENT CHANNEL [CLOSED]")
+      console.log("DATA EVENT CHANNEL ["+type+"] [CLOSED]")
     };
   }
 

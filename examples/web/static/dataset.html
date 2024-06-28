@@ -250,6 +250,10 @@
                         };
                     });
                 });
+
+                console.log("Subbing to account", account_uuid)
+                endpoint.subscribeCallbackToAccountEvents(account_uuid, SubscriberDataset);
+
             }
 
 
