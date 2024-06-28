@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Stream your Webcam - Only</title>
+    <title>Dataset Testing </title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="main.css" rel="stylesheet">
 
@@ -17,7 +17,7 @@
             <div class="row" style="width: 100%">
                 <div class="col text-center" id="list-datasets">
                     <h1 class="display-4">List Datasets</h1>
-                    <button class="btn btn-primary" id="new-datasets-btn">+ Dataset</button>
+                    <button class="btn btn-primary" id="new-datasets-btn">+ Dataset</button><br /><br />
                     <div id="list-datasets-result"></div>
                 </div>
             </div>
@@ -53,7 +53,132 @@
             endpoint.healthz()
                 .then((res) => console.log("TEST HEALTHZ", res));
 
+            listDatasets(endpoint);
 
+            console.log("Subbing to account", account_uuid)
+            endpoint.subscribeCallbackToAccountEvents(account_uuid, SubscriberDataset);
+
+            //implement the new dataset button
+            var newDatasetsButton = document.getElementById('new-datasets-btn');
+            newDatasetsButton.onclick = function () {
+                //create a new dataset
+                const datasetCreateData = {
+                    // dataset create data
+                    "name": "Andy Dataset",
+                    "description": "test dataset from Andy",
+                    "tags": [
+                        "test1"
+                    ]
+                };
+                endpoint.createDataset(account_uuid, datasetCreateData)
+                    .then((res) => {
+                        console.log("TEST CREATE DATASET", res);
+                        listAssets(endpoint);
+                    });
+            }
+
+
+        }
+
+        function listAssets(endpoint, dataset, version) {
+            endpoint.listAssets(dataset.uuid, version, true)
+                .then((res) => {
+                    console.log("TEST LIST ASSETS", res);
+                    //add assets to the list
+                    var listAssetsResult = document.getElementById('list-assets-result');
+                    listAssetsResult.innerHTML = '';
+
+                    const version = dataset.versions.find(v => v.modifiable)?.version || null;
+
+
+                    //for each asset in the dataset
+                    res.forEach((asset) => {
+                        var assetDiv = document.createElement('div');
+                        assetDiv.innerHTML = asset.uuid;
+
+
+                        listAssetsResult.appendChild(assetDiv);
+                        if (asset.status == "rejected") {
+                            assetDiv.innerHTML += "(rejected)"
+                            return;
+
+                        } if (asset.status == "transform_in_progress") {
+                            assetDiv.innerHTML += "(loading...)"
+                        } else {
+                            //download the asset and show in img tag
+                            endpoint.downloadAsset(asset.uuid, dataset.uuid, version, 'image_cover_224')
+                                .then((res) => {
+                                    console.log("TEST DOWNLOAD ASSET", res);
+                                    var img = document.createElement('img');
+
+                                    console.log("res", res)
+
+                                    img.src = URL.createObjectURL(res);
+                                    assetDiv.appendChild(document.createElement('br'));
+                                    assetDiv.appendChild(img);
+                                });
+                        }
+
+
+                        //add delete button to each asset
+                        var deleteAssetButton = document.createElement('button');
+                        deleteAssetButton.innerHTML = "Delete";
+                        deleteAssetButton.onclick = function () {
+                            endpoint.deleteAsset(asset.uuid, dataset.uuid, version)
+                                .then((res) => {
+                                    console.log("TEST DELETE ASSET", res);
+                                    //remove the asset from the list
+                                    assetDiv.remove();
+                                    deleteAssetButton.remove();
+                                });
+                        };
+                        listAssetsResult.appendChild(deleteAssetButton);
+
+                        //add download button to each asset
+                        var downloadAssetButton = document.createElement('button');
+                        downloadAssetButton.innerHTML = "Download";
+                        downloadAssetButton.onclick = function () {
+                            endpoint.downloadAsset(asset.uuid, dataset.uuid, version, 'original')
+                                .then((res) => {
+                                    console.log("TEST DOWNLOAD ASSET", res);
+                                });
+                        };
+                        listAssetsResult.appendChild(downloadAssetButton);
+
+                        //add get asset button to each asset
+                        var getAssetButton = document.createElement('button');
+                        getAssetButton.innerHTML = "Get Asset";
+                        getAssetButton.onclick = function () {
+                            endpoint.getAsset(asset.uuid, dataset.uuid, version, true)
+                                .then((res) => {
+                                    console.log("TEST GET ASSET", res);
+                                });
+                        };
+                        listAssetsResult.appendChild(getAssetButton);
+
+                        //add update asset manual annotation button to each asset
+                        var updateAssetManualAnnotationButton = document.createElement('button');
+                        updateAssetManualAnnotationButton.innerHTML = "Update Asset Manual Annotation";
+                        updateAssetManualAnnotationButton.onclick = function () {
+                            const annotation = {
+                                // annotation data
+                            };
+                            endpoint.updateAssetManualAnnotation(asset.uuid, dataset.uuid, version, annotation)
+                                .then((res) => {
+                                    console.log("TEST UPDATE ASSET MANUAL ANNOTATION", res);
+                                });
+                        };
+                        listAssetsResult.appendChild(updateAssetManualAnnotationButton);
+                        listAssetsResult.appendChild(document.createElement('br'));
+                        listAssetsResult.appendChild(document.createElement('br'));
+                    });
+
+                    
+                });
+                        
+        }
+
+        function listDatasets(endpoint) {
             // Test listDatasets function
             //on page load load the datasets into the list
             endpoint.listDatasets(account_uuid)
@@ -63,7 +188,7 @@
                     listDatasetsResult.innerHTML = '';
                     res.forEach((dataset) => {
                         var datasetDiv = document.createElement('div');
-                        datasetDiv.innerHTML = dataset.name;
+                        datasetDiv.innerHTML = "<span style='font-weight: bold; font-size: larger;'>" + dataset.name + "</span><br /> " + dataset.uuid;
                         listDatasetsResult.appendChild(datasetDiv);
                         //add delete button to each dataset
                         var deleteButton = document.createElement('button');
@@ -72,9 +197,7 @@
                             endpoint.deleteDataset(dataset.uuid)
                                 .then((res) => {
                                     console.log("TEST DELETE DATASET", res);
-                                    //remove the dataset from the list
-                                    datasetDiv.remove();
-                                    deleteButton.remove();
+                                    listAssets(endpoint);
                                 });
                         };
                         listDatasetsResult.appendChild(deleteButton);
@@ -83,34 +206,7 @@
                         var uploadButton = document.createElement('button');
                         uploadButton.innerHTML = "Upload";
                         uploadButton.onclick = function () {
-
-                            // Example dataset object
-                            // {
-                            //     "uuid": "0667cb6ebce3738d800064b6c5c1d549",
-                            //     "name": "ds 1",
-                            //     "description": "test dataset from Torsten",
-                            //     "tags": [
-                            //         "test1"
-                            //     ],
-                            //     "account_uuid": "foo",
-                            //     "created_at": "2024-06-27T00:48:44",
-                            //     "updated_at": "2024-06-27T00:48:44",
-                            //     "versions": [
-                            //         {
-                            //             "version": 1,
-                            //             "modifiable": true,
-                            //             "created_at": "2024-06-27T00:48:44",
-                            //             "updated_at": "2024-06-27T00:48:44",
-                            //             "asset_count": 7
-                            //         }
-                            //     ]
-                            // }
-
                             const version = dataset.versions.find(v => v.modifiable)?.version || null;
-
-
-                            //upload the file images/Hot_dog_with_mustard.png
-
 
                             const file = createFileFromLocalURL('./images/Hot_dog_with_mustard.png')
                                 .then((file) => {
@@ -133,100 +229,11 @@
                             console.log("Subbing to dataset", dataset.uuid)
                             endpoint.subscribeCallbackToDatasetEvents(dataset.uuid, SubscriberDataset);
 
-                            endpoint.listAssets(dataset.uuid, version, true)
-                                .then((res) => {
-                                    console.log("TEST LIST ASSETS", res);
-                                    //add assets to the list
-                                    var listAssetsResult = document.getElementById('list-assets-result');
-                                    listAssetsResult.innerHTML = '';
+                            listAssets(endpoint, dataset, version)
 
-                                    const version = dataset.versions.find(v => v.modifiable)?.version || null;
-
-
-                                    //for each asset in the dataset
-                                    res.forEach((asset) => {
-                                        var assetDiv = document.createElement('div');
-                                        assetDiv.innerHTML = asset.uuid;
-
-
-                                        listAssetsResult.appendChild(assetDiv);
-                                        if (asset.status == "rejected") {
-                                            assetDiv.innerHTML += "(rejected)"
-                                            return;
-
-                                        } if (asset.status == "transform_in_progress") {
-                                            assetDiv.innerHTML += "(loading...)"
-                                        } else {
-                                            //download the asset and show in img tag
-                                            endpoint.downloadAsset(asset.uuid, dataset.uuid, version, 'image_cover_224')
-                                                .then((res) => {
-                                                    console.log("TEST DOWNLOAD ASSET", res);
-                                                    var img = document.createElement('img');
-
-                                                    console.log("res", res)
-
-                                                    img.src = URL.createObjectURL(res);
-                                                    assetDiv.appendChild(document.createElement('br'));
-                                                    assetDiv.appendChild(img);
-                                                });
-                                        }
-
-
-                                        //add delete button to each asset
-                                        var deleteAssetButton = document.createElement('button');
-                                        deleteAssetButton.innerHTML = "Delete";
-                                        deleteAssetButton.onclick = function () {
-                                            endpoint.deleteAsset(asset.uuid, dataset.uuid, version)
-                                                .then((res) => {
-                                                    console.log("TEST DELETE ASSET", res);
-                                                    //remove the asset from the list
-                                                    assetDiv.remove();
-                                                    deleteAssetButton.remove();
-                                                });
-                                        };
-                                        listAssetsResult.appendChild(deleteAssetButton);
-
-                                        //add download button to each asset
-                                        var downloadAssetButton = document.createElement('button');
-                                        downloadAssetButton.innerHTML = "Download";
-                                        downloadAssetButton.onclick = function () {
-                                            endpoint.downloadAsset(asset.uuid, dataset.uuid, version, 'original')
-                                                .then((res) => {
-                                                    console.log("TEST DOWNLOAD ASSET", res);
-                                                });
-                                        };
-                                        listAssetsResult.appendChild(downloadAssetButton);
-
-                                        //add get asset button to each asset
-                                        var getAssetButton = document.createElement('button');
-                                        getAssetButton.innerHTML = "Get Asset";
-                                        getAssetButton.onclick = function () {
-                                            endpoint.getAsset(asset.uuid, dataset.uuid, version, true)
-                                                .then((res) => {
-                                                    console.log("TEST GET ASSET", res);
-                                                });
-                                        };
-                                        listAssetsResult.appendChild(getAssetButton);
-
-                                        //add update asset manual annotation button to each asset
-                                        var updateAssetManualAnnotationButton = document.createElement('button');
-                                        updateAssetManualAnnotationButton.innerHTML = "Update Asset Manual Annotation";
-                                        updateAssetManualAnnotationButton.onclick = function () {
-                                            const annotation = {
-                                                // annotation data
-                                            };
-                                            endpoint.updateAssetManualAnnotation(asset.uuid, dataset.uuid, version, annotation)
-                                                .then((res) => {
-                                                    console.log("TEST UPDATE ASSET MANUAL ANNOTATION", res);
-                                                });
-                                        };
-                                        listAssetsResult.appendChild(updateAssetManualAnnotationButton);
-                                        listAssetsResult.appendChild(document.createElement('br'));
-                                        listAssetsResult.appendChild(document.createElement('br'));
-                                    });
-                                });
-                        };
+                        }
                         listDatasetsResult.appendChild(listAssetsButton);
+
 
                         //add list models button to each dataset
                         var listModelsButton = document.createElement('button');
@@ -248,30 +255,11 @@
                                     console.log("TEST GET DATASET", res);
                                 });
                         };
+
+                        listDatasetsResult.appendChild(document.createElement('br'));
+                        listDatasetsResult.appendChild(document.createElement('br'));
                     });
                 });
-
-            console.log("Subbing to account", account_uuid)
-            endpoint.subscribeCallbackToAccountEvents(account_uuid, SubscriberDataset);
-
-            //implement the new dataset button
-            var newDatasetsButton = document.getElementById('new-datasets-btn');
-            newDatasetsButton.onclick = function () {
-                //create a new dataset
-                const datasetCreateData = {
-                    // dataset create data
-                    "name": "Andy Dataset",
-                    "description": "test dataset from Andy",
-                    "tags": [
-                        "test1"
-                    ]
-                };
-                endpoint.createDataset(account_uuid, datasetCreateData)
-                    .then((res) => {
-                        console.log("TEST CREATE DATASET", res);
-                    });
-            }
-
 
         }
 

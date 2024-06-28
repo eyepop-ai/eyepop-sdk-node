@@ -65,13 +65,15 @@ class Endpoint {
   private _token: string | null
   private _options: Options
   private _expire_token_time: number | null
-  private _baseUrl: string | null = 'https://data.api.eyepop.xyz'
+  //private _baseUrl: string | null = 'https://data.api.eyepop.xyz'
+  private _baseUrl: string | null = 'https://sandbox-data.api.eyepop.xyz'
+
   private _eyepopUrl: string = 'https://staging-api.eyepop.ai'
 
   private _client: HttpClient | null
   private _clientWsDataset: WebSocket | null
   private _clientWsAccount: WebSocket | null
-  
+
   //private _limit: Semaphore
 
   // private _state: EndpointState
@@ -140,9 +142,7 @@ class Endpoint {
       throw new Error('Client not initialized yet')
     }
 
-    //console.log('url', `${this._baseUrl}${path}`)
-
-    if(!options.body) {
+    if (!options.body) {
       //console.log('no body')
       options.body = null
     }
@@ -154,6 +154,10 @@ class Endpoint {
     };
 
     const response = await this._client.fetch(`${this._baseUrl}${path}`, ri);
+
+    if (response.status === 204) {
+      return null; // Return null if the response is completely empty
+    }
 
     if (!response.ok) {
       const errorData = await response.json() as any;
@@ -195,7 +199,7 @@ class Endpoint {
     return this
   }
 
-  private async authorizationHeader(): Promise<string> {
+  private async  authorizationHeader(): Promise<string> {
     return `Bearer ${await this.currentAccessToken()}`;
   }
 
@@ -402,37 +406,42 @@ class Endpoint {
     this.subscribeCallbackToWsEvents('dataset', dataset_uuid, callback);
   }
 
-  private async subscribeCallbackToWsEvents(type:string, uuid: string, callback: (event: any) => void) {
+  private async subscribeCallbackToWsEvents(type: string, uuid: string, callback: (event: any) => void) {
 
-    if(this._clientWsDataset !== null)
-    {
+    if (this._clientWsDataset !== null) {
       this._clientWsDataset.close();
     }
 
-    const ws = this._clientWsDataset = new WebSocket('wss://data.api.eyepop.xyz/events');
-    const auth_header = await this.authorizationHeader();
-    
-    ws.onopen = () => {
-      console.log("DATA EVENT CHANNEL ["+type+"] [OPEN]")
+    //const ws = this._clientWsDataset = new WebSocket('wss://data.api.eyepop.xyz/events');
+    const ws = this._clientWsDataset = new WebSocket('wss://sandbox-data.api.eyepop.xyz/events');
 
-      ws.send(JSON.stringify({ authentication: auth_header }));
-      if(type == 'account')
+    const auth_header = await this.authorizationHeader();
+
+    ws.onopen = () => {
+      console.log("DATA EVENT CHANNEL [" + type + "] [OPEN]")
+      console.log("DATA EVENT CHANNEL [" + type + "] [AUTHORIZATION HEADER]:", JSON.stringify({ authentication: auth_header }))
+
+      ws.send(JSON.stringify({ authorization: auth_header }));
+      if (type == 'account') {
+        console.log("DATA EVENT CHANNEL [" + type + "] [SUBSCRIBE]:", JSON.stringify({ subscribe: { account_uuid: uuid } }))
         ws.send(JSON.stringify({ subscribe: { account_uuid: uuid } }));
-      else if(type == 'dataset')
+      } else if (type == 'dataset') {
+        console.log("DATA EVENT CHANNEL [" + type + "] [SUBSCRIBE]:", JSON.stringify({ subscribe: { dataset_uuid: uuid } }))
         ws.send(JSON.stringify({ subscribe: { dataset_uuid: uuid } }));
+      }
     };
 
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
-      console.log("DATA EVENT CHANNEL ["+type+"] [EVENT]:",event)
+      console.log("DATA EVENT CHANNEL [" + type + "] [EVENT]:", event)
       if (data.subscribe && data.subscribe.account_uuid) {
         callback(data);
       }
     };
-    
+
     ws.onclose = () => {
       // handle websocket close event
-      console.log("DATA EVENT CHANNEL ["+type+"] [CLOSED]")
+      console.log("DATA EVENT CHANNEL [" + type + "] [CLOSED]")
     };
   }
 
