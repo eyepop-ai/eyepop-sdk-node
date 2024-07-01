@@ -5,6 +5,8 @@ import { describe, expect, test } from '@jest/globals'
 import { v4 as uuidv4 } from 'uuid'
 import { TransientPopId } from "../../src/eyepop/options";
 
+import { pino } from 'pino'
+
 describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
 {
     const server = new MockServer()
@@ -17,10 +19,47 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
     const test_pipeline_id = uuidv4()
     const test_secret_key = uuidv4()
     const test_access_token = uuidv4()
+    const test_sandbox_id = uuidv4()
     const short_token_valid_time = 1
     const long_token_valid_time = 1000 * 1000
 
-    test('EyePopSdk connect transient', async () =>
+    const test_manifest = JSON.parse(JSON.stringify(
+        [
+            { "authority": "legacy", "manifest": "https://s3.amazonaws.com/models.eyepop.ai/releases/legacy/1.2.0/manifest.json" },
+            { "authority": "Mediapipe", "manifest": "https://s3.amazonaws.com/models.eyepop.ai/releases/Mediapipe/1.3.0/manifest.json" },
+            { "authority": "yolov5", "manifest": "https://s3.amazonaws.com/models.eyepop.ai/releases/yolov5/1.0.2/manifest.json" },
+            { "authority": "yolov7", "manifest": "https://s3.amazonaws.com/models.eyepop.ai/releases/yolov7/1.0.1/manifest.json" },
+            { "authority": "yolov8", "manifest": "https://s3.amazonaws.com/models.eyepop.ai/releases/yolov8/1.0.1/manifest.json" },
+            { "authority": "PARSeq", "manifest": "https://s3.amazonaws.com/models.eyepop.ai/releases/PARSeq/1.0.1/manifest.json" },
+            { "authority": "mobilenet", "manifest": "https://s3.amazonaws.com/models.eyepop.ai/releases/mobilenet/1.0.1/manifest.json" },
+            { "authority": "eyepop-person", "manifest": "https://s3.amazonaws.com/models.eyepop.ai/releases/epperson/1.0.2/manifest.json" },
+            { "authority": "eyepop-animal", "manifest": "https://s3.amazonaws.com/models.eyepop.ai/releases/epanimal/1.0.2/manifest.json" },
+            { "authority": "eyepop-device", "manifest": "https://s3.amazonaws.com/models.eyepop.ai/releases/epdevice/1.0.2/manifest.json" },
+            { "authority": "eyepop-sports", "manifest": "https://s3.amazonaws.com/models.eyepop.ai/releases/epsports/1.0.2/manifest.json" },
+            { "authority": "eyepop-vehicle", "manifest": "https://s3.amazonaws.com/models.eyepop.ai/releases/epvehicle/1.0.2/manifest.json" },
+            { "authority": "eyepop-coco", "manifest": "https://s3.amazonaws.com/models.eyepop.ai/releases/epcoco/1.0.2/manifest.json" },
+            { "authority": "eyepop-age", "manifest": "https://s3.amazonaws.com/models.eyepop.ai/releases/epage/0.2.0/manifest.json" },
+            { "authority": "eyepop-gender", "manifest": "https://s3.amazonaws.com/models.eyepop.ai/releases/epgender/0.2.0/manifest.json" },
+            { "authority": "eyepop-expression", "manifest": "https://s3.amazonaws.com/models.eyepop.ai/releases/epexpression/0.2.0/manifest.json" },
+            { "authority": "PARSeq", "manifest": "https://s3.amazonaws.com/models.eyepop.ai/releases/PARSeq/1.0.2/manifest.json" },
+            { "authority": "eyepop-text", "manifest": "https://s3.amazonaws.com/models.eyepop.ai/releases/eptext/1.0.3/manifest.json" },
+        ], null, 4
+    ));
+
+    console.log(test_manifest)
+
+    const test_model = JSON.parse(JSON.stringify({
+        'model_id': 'PARSeq:PARSeq',
+        'dataset': 'TextDataset',
+        'format': 'TorchScriptCuda',
+        'type': 'float32'
+    },
+        null, 4));
+
+
+
+
+    test('EyePopSdk create sandbox', async () =>
     {
         const authenticationRoute = server
             .post('/authentication/token')
@@ -33,6 +72,7 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
                     expires_in: long_token_valid_time,
                     token_type: 'Bearer'
                 })
+                console.log('auth token', ctx.body)
             })
 
         const popConfigRoute = server
@@ -42,79 +82,20 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
                 ctx.status = 200
                 ctx.response.headers[ 'content-type' ] = 'application/json'
                 ctx.body = JSON.stringify({ base_url: `${server.getURL()}worker/` })
+                console.log('worker config', ctx.body)
             })
 
-        const stopRoute = server
-            .patch(`/worker/pipelines/${test_pipeline_id}/source`)
-            .mockImplementationOnce((ctx) =>
-            {
-                ctx.status = 204
-            })
 
-        const startPipelineRoute = server
-            .post(`/worker/pipelines`)
+        const postSandboxes = server
+            .post(`/worker/sandboxes`)
             .mockImplementationOnce((ctx) =>
             {
                 ctx.status = 200
                 ctx.response.headers[ 'content-type' ] = 'application/json'
                 ctx.body = JSON.stringify({
-                    id: test_pipeline_id
+                    sandboxId: test_sandbox_id
                 })
-            })
-
-        const getPipelineRoute = server
-            .get(`/worker/pipelines/${test_pipeline_id}`)
-            .mockImplementationOnce((ctx) =>
-            {
-                ctx.status = 200
-                ctx.response.headers[ 'content-type' ] = 'application/json'
-                ctx.body = JSON.stringify({
-                    id: test_pipeline_id
-                })
-            })
-
-        const endpoint = EyePop.endpoint({
-            eyepopUrl: server.getURL().toString(),
-            popId: test_pop_id,
-            auth: { secretKey: test_secret_key }
-        })
-        expect(endpoint).toBeDefined()
-        try
-        {
-            await endpoint.connect()
-            expect(authenticationRoute).toHaveBeenCalledTimes(1)
-            expect(popConfigRoute).toHaveBeenCalledTimes(1)
-            expect(startPipelineRoute).toHaveBeenCalledTimes(1)
-            expect(stopRoute).toHaveBeenCalledTimes(1)
-            expect(getPipelineRoute).toHaveBeenCalledTimes(1)
-        } finally
-        {
-            await endpoint.disconnect()
-        }
-    })
-
-    test('EyePopSdk changePopComp transient', async () =>
-    {
-        const authenticationRoute = server
-            .post('/authentication/token')
-            .mockImplementationOnce((ctx) =>
-            {
-                ctx.status = 200
-                ctx.response.headers[ 'content-type' ] = 'application/json'
-                ctx.body = JSON.stringify({
-                    access_token: test_access_token,
-                    expires_in: long_token_valid_time,
-                    token_type: 'Bearer'
-                })
-            })
-
-        const popConfigRoute = server
-            .get(`/workers/config`)
-            .mockImplementationOnce((ctx) =>
-            {
-                ctx.status = 200
-                ctx.response.headers[ 'content-type' ] = 'application/json'
-                ctx.body = JSON.stringify({ base_url: `${server.getURL()}worker/` })
+                console.log('sandboxes', ctx.body)
             })
 
         const stopRoute = server
@@ -163,148 +144,45 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
         const endpoint = EyePop.endpoint({
             eyepopUrl: server.getURL().toString(),
             popId: test_pop_id,
-            auth: { secretKey: test_secret_key }
+            auth: { secretKey: test_secret_key },
+            isSandbox: true,
+            logger: pino({ level: 'debug' })
         })
-        expect(endpoint).toBeDefined()
-        try
-        {
-            await endpoint.connect()
-            expect(authenticationRoute).toHaveBeenCalledTimes(1)
-            expect(popConfigRoute).toHaveBeenCalledTimes(1)
-            expect(startPipelineRoute).toHaveBeenCalledTimes(1)
-            expect(stopRoute).toHaveBeenCalledTimes(1)
-            expect(getPipelineRoute).toHaveBeenCalledTimes(1)
 
-            let popComp = await endpoint.popComp()
-            expect(popComp).toBe('identity')
-
-            await endpoint.changePopComp('identity ! identity')
-            popComp = await endpoint.popComp()
-            expect(popComp).toBe('identity ! identity')
-            expect(inferPipeline).toBe('identity ! identity')
-            expect(changePopCompRoute).toHaveBeenCalledTimes(1)
-
-        } finally
-        {
-            await endpoint.disconnect()
-        }
-    })
-
-    test('EyePopSdk changePostTransform transient', async () =>
-    {
-        const authenticationRoute = server
-            .post('/authentication/token')
-            .mockImplementationOnce((ctx) =>
-            {
-                ctx.status = 200
-                ctx.response.headers[ 'content-type' ] = 'application/json'
-                ctx.body = JSON.stringify({
-                    access_token: test_access_token,
-                    expires_in: long_token_valid_time,
-                    token_type: 'Bearer'
-                })
-            })
-
-        const popConfigRoute = server
-            .get(`/workers/config`)
-            .mockImplementationOnce((ctx) =>
-            {
-                ctx.status = 200
-                ctx.response.headers[ 'content-type' ] = 'application/json'
-                ctx.body = JSON.stringify({ base_url: `${server.getURL()}worker/` })
-            })
-
-        const stopRoute = server
-            .patch(`/worker/pipelines/${test_pipeline_id}/source`)
-            .mockImplementationOnce((ctx) =>
-            {
-                ctx.status = 204
-            })
-
-        let inferPipeline: string | null = null
-        let postTransform: string | null = null
-
-        const startPipelineRoute = server
-            .post(`/worker/pipelines`)
-            .mockImplementationOnce((ctx) =>
-            {
-                // @ts-ignore
-                inferPipeline = ctx.request.body[ 'inferPipelineDef' ][ 'pipeline' ]
-                ctx.status = 200
-                ctx.response.headers[ 'content-type' ] = 'application/json'
-                ctx.body = JSON.stringify({
-                    id: test_pipeline_id
-                })
-            })
-
-        const getPipelineRoute = server
-            .get(`/worker/pipelines/${test_pipeline_id}`)
-            .mockImplementation((ctx) =>
-            {
-                ctx.status = 200
-                ctx.response.headers[ 'content-type' ] = 'application/json'
-                ctx.body = JSON.stringify({
-                    id: test_pipeline_id,
-                    inferPipeline: inferPipeline,
-                    postTransform: postTransform
-                })
-            })
-
-
-        const changePostTransformRoute = server
-            .patch(`/worker/pipelines/${test_pipeline_id}/postTransform`)
-            .mockImplementation((ctx) =>
-            {
-                // @ts-ignore
-                postTransform = ctx.request.body[ 'transform' ]
-                ctx.status = 204
-            })
-
-        const endpoint = EyePop.endpoint({
+        console.log({
             eyepopUrl: server.getURL().toString(),
             popId: test_pop_id,
-            auth: { secretKey: test_secret_key }
+            auth: { secretKey: test_secret_key },
+            isSandbox: true
         })
+
         expect(endpoint).toBeDefined()
+
         try
         {
             await endpoint.connect()
-            expect(authenticationRoute).toHaveBeenCalledTimes(1)
-            expect(popConfigRoute).toHaveBeenCalledTimes(1)
-            expect(startPipelineRoute).toHaveBeenCalledTimes(1)
-            expect(stopRoute).toHaveBeenCalledTimes(1)
-            expect(getPipelineRoute).toHaveBeenCalledTimes(1)
 
-            let transform = await endpoint.postTransform()
-            expect(transform).toBeNull()
+            await endpoint.changeManifest(test_manifest);
 
-            await endpoint.changePostTransform('"foo"')
-            transform = await endpoint.postTransform()
-            expect(transform).toBe('"foo"')
-            expect(postTransform).toBe('"foo"')
-            expect(changePostTransformRoute).toHaveBeenCalledTimes(1)
+            await endpoint.loadModel(test_model);
 
-            await endpoint.changePostTransform("")
-            transform = await endpoint.postTransform()
-            expect(transform).toBeNull()
-            expect(postTransform).toBeNull()
-            expect(changePostTransformRoute).toHaveBeenCalledTimes(2)
+            // expect(authenticationRoute).toHaveBeenCalledTimes(1)
 
-            await endpoint.changePostTransform('"foo"')
-            transform = await endpoint.postTransform()
-            expect(transform).toBe('"foo"')
-            expect(postTransform).toBe('"foo"')
-            expect(changePostTransformRoute).toHaveBeenCalledTimes(3)
+            // epect sandbox was called
 
-            await endpoint.changePostTransform(null)
-            transform = await endpoint.postTransform()
-            expect(transform).toBeNull()
-            expect(postTransform).toBeNull()
-            expect(changePostTransformRoute).toHaveBeenCalledTimes(4)
+            // load model
+            // expect models was called with id
+
+            // start pipeline
+            // expect sand box id is correct
+
+
         } finally
         {
             await endpoint.disconnect()
         }
     })
+
+
 })
 

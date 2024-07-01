@@ -555,7 +555,9 @@ export class Endpoint
 
         this._limit = new Semaphore(this._options.jobQueueLength ?? 1024)
 
-        if (this._sandboxId)
+        console.log('disconnecting,', this._sandboxId, this._baseUrl, this._pipelineId)
+
+        if (this._sandboxId && this._baseUrl)
         {
             const sandboxUrl = `${this._baseUrl}/sandboxes/${this._sandboxId}`;
             const headers = {
