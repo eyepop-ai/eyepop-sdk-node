@@ -50,6 +50,8 @@ export interface Options {
    * Defaults to process.env['EYEPOP_URL'].
    */
   eyepopUrl?: string;
+  
+  isSandbox?: boolean;
 
   autoStart?: boolean;
   stopJobs?: boolean;
