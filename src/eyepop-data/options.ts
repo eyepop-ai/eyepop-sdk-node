@@ -48,7 +48,8 @@ export interface Options {
    * Defaults to process.env['EYEPOP_URL'].
    */
   eyepopUrl?: string;
-
+  eyepopDataUrl?: string;
+  
   autoStart?: boolean;
   stopJobs?: boolean;
   jobQueueLength?: number;

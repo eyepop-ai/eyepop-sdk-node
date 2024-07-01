@@ -65,8 +65,9 @@ class Endpoint {
   private _token: string | null
   private _options: Options
   private _expire_token_time: number | null
-  //private _baseUrl: string | null = 'https://data.api.eyepop.xyz'
-  private _baseUrl: string | null = 'https://sandbox-data.api.eyepop.xyz'
+  //private _eyepopDataUrl: string | null = 'https://data.api.eyepop.xyz'
+  private _eyepopDataUrl: string | null = 'https://sandbox-data.api.eyepop.xyz'
+
 
   private _eyepopUrl: string = 'https://staging-api.eyepop.ai'
 
@@ -99,7 +100,7 @@ class Endpoint {
     this._client = null
     this._options = options
     //this._options.eyepopUrl = 'https://staging-api.eyepop.xyz'
-    //this._baseUrl = null
+    //this._eyepopDataUrl = null
 
     this._token = null
     this._expire_token_time = null
@@ -115,6 +116,12 @@ class Endpoint {
     if (sessionAuth.session !== undefined) {
       const sessionPlus = (sessionAuth.session as SessionPlus)
     }
+
+    if(options.eyepopDataUrl) {
+      this._eyepopDataUrl = options.eyepopDataUrl;
+    }
+
+    
 
     //this._limit = new Semaphore(this._options.jobQueueLength ?? 1024)
 
@@ -153,7 +160,7 @@ class Endpoint {
       body: options.body //instanceof Blob ? options.body : options.body ? JSON.stringify(options.body) : null
     };
 
-    const response = await this._client.fetch(`${this._baseUrl}${path}`, ri);
+    const response = await this._client.fetch(`${this._eyepopDataUrl}${path}`, ri);
 
     if (response.status === 204) {
       return null; // Return null if the response is completely empty
@@ -413,7 +420,7 @@ class Endpoint {
     }
 
     //const ws = this._clientWsDataset = new WebSocket('wss://data.api.eyepop.xyz/events');
-    const ws = this._clientWsDataset = new WebSocket('wss://sandbox-data.api.eyepop.xyz/events');
+    const ws = this._clientWsDataset = new WebSocket(this._eyepopDataUrl+'/events');
 
     const auth_header = await this.authorizationHeader();
 
