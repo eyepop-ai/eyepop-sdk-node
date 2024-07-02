@@ -441,9 +441,7 @@ class Endpoint {
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
       console.log("DATA EVENT CHANNEL [" + type + "] [EVENT]:", event)
-      if (data.subscribe && data.subscribe.account_uuid) {
-        callback(data);
-      }
+      callback(data);      
     };
 
     ws.onclose = () => {
