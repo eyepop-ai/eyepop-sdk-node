@@ -34,6 +34,7 @@
     "@eyepop.ai/eyepop": "0.19.0",
     "@juggle/resize-observer": "^3.4.0",
     "@types/jsonpath": "^0.2.4",
+    "canvas": "^2.11.2",
     "jsonpath": "^1.1.1",
     "webpack": "^5.92.0"
   },

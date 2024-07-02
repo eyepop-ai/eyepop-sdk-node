@@ -9,6 +9,8 @@
 
     <!--    <script src="https://cdn.jsdelivr.net/npm/@eyepop.ai/eyepop/dist/eyepop.min.js"></script>-->
     <script src="/src/eyepop-data/dist/eyepopdata.min.js"></script>
+    <script src="/src/eyepop-data/dist/eyepop-render-2d.min.js"></script>
+    
 </head>
 
 <body>
@@ -33,7 +35,7 @@
         //console.log(EyePopData);
 
         const api_key = 'AAGcsWj8N2PlKQl9c9ydz3QFZ0FBQUFBQm1mZDB5eDUwalNlYi12NWotd3hsVGJiMW1sVXF1dE9aOU9oSGVBOWtBQXoxZmNjUE5Nb1YzY3RROUdzbVUwUkZtcDhZcG5vSWROTzR1TU8ybGhZckx6RTgzYVZwMjZEREZjalZubnpYaUNMWVdBODg9';
-        const token = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InZUdzF6bi02cjFPcXg0NmNxRl9PMiJ9.eyJodHRwczovL2NsYWltcy5leWVwb3AuYWkvZ3JhbnRzIjpbeyJwZXJtaXNzaW9uIjoiYWNjZXNzOmRhdGFzZXRzIiwidGFyZ2V0IjoiYWNjb3VudDphbmR5In0seyJwZXJtaXNzaW9uIjoiYWNjZXNzOmRhdGFzZXRzIiwidGFyZ2V0IjoiYWNjb3VudDpmb28ifSx7InBlcm1pc3Npb24iOiJhY2Nlc3M6aW5mZXJlbmNlLWFwaSIsInRhcmdldCI6InVzZXI6YXV0aDB8NjRjNDJhYjk4NzRkZTc4ZDJlOWYzZTRhIn1dLCJpc3MiOiJodHRwczovL2Rldi1leWVwb3AudXMuYXV0aDAuY29tLyIsInN1YiI6ImF1dGgwfDY0YzQyYWI5ODc0ZGU3OGQyZTlmM2U0YSIsImF1ZCI6Imh0dHBzOi8vZGV2LWFwcC5leWVwb3AuYWkiLCJpYXQiOjE3MTk5NDE2ODQsImV4cCI6MTcxOTk0ODg4NCwic2NvcGUiOiJhY2Nlc3M6ZGF0YXNldHMiLCJhenAiOiJJVXQwcHMybWFXWlVkRW1FT1BSYVBKS3ZrUVRzNllVRSIsInBlcm1pc3Npb25zIjpbImFjY2VzczpkYXRhc2V0cyIsImFkbWluOmNsb3VkcyJdfQ.cP8xDurzGhd0RH_YKOyekpSQULx3_GSNtU2DePaK4tmwsiqA0o4hAAwgXbflS9RlyaXLVqIPmioyYF_riHzDwgcLNzrE2UZ4pQWJCn-gaNLS6Z9kBQvOdmmaFDL7dQ1S80bQYkjsvJmrfch10piwzpFPAQfFaeCG_JEux6I1wCCyZzTmNpEq2jhqd_H0hfq6p3aoZsZSlDtC0JZizZnoAG78O-bFznbDdtznPxXABh49oSKtvh1UOkpI1kOVuBrVGMw3oZDisYdpCfQOi_wQDr9SmS2Dc2OUpsRo4JFaK-w-s6vJ9aWL3EQYW7m9ypCM5uMFBN6UDr764XZKyUkzCw"
+        const token = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InZUdzF6bi02cjFPcXg0NmNxRl9PMiJ9.eyJodHRwczovL2NsYWltcy5leWVwb3AuYWkvZ3JhbnRzIjpbeyJwZXJtaXNzaW9uIjoiYWNjZXNzOmRhdGFzZXRzIiwidGFyZ2V0IjoiYWNjb3VudDphbmR5In0seyJwZXJtaXNzaW9uIjoiYWNjZXNzOmRhdGFzZXRzIiwidGFyZ2V0IjoiYWNjb3VudDpmb28ifSx7InBlcm1pc3Npb24iOiJhY2Nlc3M6aW5mZXJlbmNlLWFwaSIsInRhcmdldCI6InVzZXI6YXV0aDB8NjRjNDJhYjk4NzRkZTc4ZDJlOWYzZTRhIn1dLCJpc3MiOiJodHRwczovL2Rldi1leWVwb3AudXMuYXV0aDAuY29tLyIsInN1YiI6ImF1dGgwfDY0YzQyYWI5ODc0ZGU3OGQyZTlmM2U0YSIsImF1ZCI6Imh0dHBzOi8vZGV2LWFwcC5leWVwb3AuYWkiLCJpYXQiOjE3MTk5NDkyOTUsImV4cCI6MTcxOTk1NjQ5NSwic2NvcGUiOiJhY2Nlc3M6ZGF0YXNldHMiLCJhenAiOiJJVXQwcHMybWFXWlVkRW1FT1BSYVBKS3ZrUVRzNllVRSIsInBlcm1pc3Npb25zIjpbImFjY2VzczpkYXRhc2V0cyIsImFkbWluOmNsb3VkcyJdfQ.d3X1n9u0IxmuEY-K39kIIdoR956MUjX1OES9mqQPpakbWo8sqlhlARSRSdDue1B4WTwDQ6OvIVow--Bmb5CwH-vO713MQjWBm21a8td0ePCYjHyxblgkaDl7BfdJQAK4RB1xYpTtlQtYxxeTAcgf6KDtnmsekDuFE3EtJ3KBtX-ho4UY9psRhQs8yx30uFqZf0eVhn4ekZEjrJr2XoyAa-WxwZYXjxs1aQC0sdPnSo0z3R6zcpSTLoMe3XsQWCNXlwpZA2670B-vcBL-UhuVnRYy7DwBoguugDsv_ZSML1iMcl3ZxNfWm1SJ4ZebIaceOMtZcW2Wam94d3Vjaxs08A"
 
         const account_uuid = "foo";
 
@@ -91,6 +93,7 @@
 
                     const version = dataset.versions.find(v => v.modifiable)?.version || null;
 
+                    
 
                     //for each asset in the dataset
                     res.forEach((asset) => {
@@ -114,9 +117,22 @@
 
                                     console.log("res", res)
 
+                                    //instead of an img I want a canvas here
+                                    var canvas = document.createElement('canvas');
+                                    var ctx = canvas.getContext('2d');
+                                    var img = new Image();
+                                    img.onload = function () {
+                                        canvas.width = img.width;
+                                        canvas.height = img.height;
+                                        ctx.drawImage(img, 0, 0);
+                                    };
                                     img.src = URL.createObjectURL(res);
-                                    assetDiv.appendChild(document.createElement('br'));
-                                    assetDiv.appendChild(img);
+                                    const renderer = Render2d.renderer(context)
+                                    context.drawImage(image, 0, 0)
+                                    renderer.draw(result);
+
+                                    listAssetsResult.appendChild(canvas);
+                                    listAssetsResult.appendChild(document.createElement('br'));
                                 });
                         }
 
