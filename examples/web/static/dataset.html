@@ -32,10 +32,8 @@
         </div>
     </div>
     <script>
-        //console.log(EyePopData);
-
         const api_key = 'AAGcsWj8N2PlKQl9c9ydz3QFZ0FBQUFBQm1mZDB5eDUwalNlYi12NWotd3hsVGJiMW1sVXF1dE9aOU9oSGVBOWtBQXoxZmNjUE5Nb1YzY3RROUdzbVUwUkZtcDhZcG5vSWROTzR1TU8ybGhZckx6RTgzYVZwMjZEREZjalZubnpYaUNMWVdBODg9';
-        const token = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InZUdzF6bi02cjFPcXg0NmNxRl9PMiJ9.eyJodHRwczovL2NsYWltcy5leWVwb3AuYWkvZ3JhbnRzIjpbeyJwZXJtaXNzaW9uIjoiYWNjZXNzOmRhdGFzZXRzIiwidGFyZ2V0IjoiYWNjb3VudDphbmR5In0seyJwZXJtaXNzaW9uIjoiYWNjZXNzOmRhdGFzZXRzIiwidGFyZ2V0IjoiYWNjb3VudDpmb28ifSx7InBlcm1pc3Npb24iOiJhY2Nlc3M6aW5mZXJlbmNlLWFwaSIsInRhcmdldCI6InVzZXI6YXV0aDB8NjRjNDJhYjk4NzRkZTc4ZDJlOWYzZTRhIn1dLCJpc3MiOiJodHRwczovL2Rldi1leWVwb3AudXMuYXV0aDAuY29tLyIsInN1YiI6ImF1dGgwfDY0YzQyYWI5ODc0ZGU3OGQyZTlmM2U0YSIsImF1ZCI6Imh0dHBzOi8vZGV2LWFwcC5leWVwb3AuYWkiLCJpYXQiOjE3MTk5NDkyOTUsImV4cCI6MTcxOTk1NjQ5NSwic2NvcGUiOiJhY2Nlc3M6ZGF0YXNldHMiLCJhenAiOiJJVXQwcHMybWFXWlVkRW1FT1BSYVBKS3ZrUVRzNllVRSIsInBlcm1pc3Npb25zIjpbImFjY2VzczpkYXRhc2V0cyIsImFkbWluOmNsb3VkcyJdfQ.d3X1n9u0IxmuEY-K39kIIdoR956MUjX1OES9mqQPpakbWo8sqlhlARSRSdDue1B4WTwDQ6OvIVow--Bmb5CwH-vO713MQjWBm21a8td0ePCYjHyxblgkaDl7BfdJQAK4RB1xYpTtlQtYxxeTAcgf6KDtnmsekDuFE3EtJ3KBtX-ho4UY9psRhQs8yx30uFqZf0eVhn4ekZEjrJr2XoyAa-WxwZYXjxs1aQC0sdPnSo0z3R6zcpSTLoMe3XsQWCNXlwpZA2670B-vcBL-UhuVnRYy7DwBoguugDsv_ZSML1iMcl3ZxNfWm1SJ4ZebIaceOMtZcW2Wam94d3Vjaxs08A"
+        const token = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InZUdzF6bi02cjFPcXg0NmNxRl9PMiJ9.eyJodHRwczovL2NsYWltcy5leWVwb3AuYWkvZ3JhbnRzIjpbeyJwZXJtaXNzaW9uIjoiYWNjZXNzOmRhdGFzZXRzIiwidGFyZ2V0IjoiYWNjb3VudDphbmR5In0seyJwZXJtaXNzaW9uIjoiYWNjZXNzOmRhdGFzZXRzIiwidGFyZ2V0IjoiYWNjb3VudDpmb28ifSx7InBlcm1pc3Npb24iOiJhY2Nlc3M6aW5mZXJlbmNlLWFwaSIsInRhcmdldCI6InVzZXI6YXV0aDB8NjRjNDJhYjk4NzRkZTc4ZDJlOWYzZTRhIn1dLCJpc3MiOiJodHRwczovL2Rldi1leWVwb3AudXMuYXV0aDAuY29tLyIsInN1YiI6ImF1dGgwfDY0YzQyYWI5ODc0ZGU3OGQyZTlmM2U0YSIsImF1ZCI6Imh0dHBzOi8vZGV2LWFwcC5leWVwb3AuYWkiLCJpYXQiOjE3MTk5NTc5ODAsImV4cCI6MTcxOTk2NTE4MCwic2NvcGUiOiJhY2Nlc3M6ZGF0YXNldHMiLCJhenAiOiJJVXQwcHMybWFXWlVkRW1FT1BSYVBKS3ZrUVRzNllVRSIsInBlcm1pc3Npb25zIjpbImFjY2VzczpkYXRhc2V0cyIsImFkbWluOmNsb3VkcyJdfQ.N3oLhHllqlBuKHOCyfH0zMKQVYl6Zaypr6iPXFnO_flHRTVV6rQZ2N-JSvJ-z3gITl4YUZRYUA-RSF1DShT01kGZ9WZG_bB-NrkQqfGyCbs1_S_XkhWWNq8wehzohKLowxNxrpj-ihsLvnMOr9Gs0_ELad8GGwopk9v4akFKAUk3tuuyriDjuuur-zSDc-5KZbT7AxcniesTspm_NAg5qD33eRQikuajvU1fO0uG_XpJIWAKjuK0SkW3OgdWBCNI4DcMwZCDtki2wXvMKdurvt0hSmiqClOy78NyVQ3jqWAGLC6hbxM2SmDPNfIHXno0R13IWhn3XY-d1KiUOdGB8g"
 
         const account_uuid = "foo";
 
@@ -70,8 +68,7 @@
             }).connect();
 
             // Test healthz function
-            endpoint.healthz()
-                .then((res) => console.log("TEST HEALTHZ", res));
+            endpoint.healthz();
 
             listDatasets(endpoint);
 
@@ -110,6 +107,7 @@
 
         function listAssets(endpoint, dataset, version)
         {
+            currDataset = dataset;
             endpoint.listAssets(dataset.uuid, version, true)
                 .then((res) =>
                 {
@@ -269,6 +267,10 @@
 
                                     listDatasets(endpoint);
                                     currDataset = null;
+                                    //clear the assets list
+                                    var listAssetsResult = document.getElementById('list-assets-result');
+                                    listAssetsResult.innerHTML = '';
+                                    
                                 });
                         };
                         listDatasetsResult.appendChild(deleteButton);

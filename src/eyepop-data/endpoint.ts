@@ -2,6 +2,7 @@ import { Auth0Options, OAuth2Auth, Options, SecretKeyAuth, SessionAuth } from ".
 import { SessionPlus } from './types';
 import { HttpClient, createHttpClient } from './shims/http_client';
 import { authenticateBrowserSession } from './shims/browser_session';
+import { Logger, pino } from "pino"
 
 //TODO 
 // test other functions (create)
@@ -78,29 +79,12 @@ class Endpoint {
   private _clientWsDataset: WebSocket | null
   private _clientWsAccount: WebSocket | null
 
-  //private _limit: Semaphore
-
-  // private _state: EndpointState
-  // private _stateChangeHandler: null | ((fromState: EndpointState, toState: EndpointState) => void)
-  // private _ingressEventHandler: null | ((event: IngressEvent) => void)
-  // private _ingressEventWs: WebSocket | null
-
-  //private _logger: Logger
-  //private readonly _requestLogger: Logger
-
-
-
-  //TODO: SIMILAR PATTERN for config for endpoint for account (Give me my dataset endpoint)
-  //data.eyepop.api.eyepo.xyz
-  //andy@eyepop.ai (auth0 permission)
-  //foo organization
+  private _logger: Logger
+  private readonly _requestLogger: Logger
 
   constructor(options: Options) {
     this._client = null
     this._options = options
-    //this._options.eyepopUrl = 'https://staging-api.eyepop.xyz'
-    //this._eyepopDataUrl = null
-
     this._token = null
     this._expire_token_time = null
 
@@ -118,26 +102,24 @@ class Endpoint {
 
     if(options.eyepopDataUrl) {
       this._eyepopDataUrl = options.eyepopDataUrl;
+    }    
+
+    let rootLogger
+    if (options.logger)
+    {
+        rootLogger = options.logger
+    } else
+    {
+        rootLogger = pino()
     }
-
-    
-
-    //this._limit = new Semaphore(this._options.jobQueueLength ?? 1024)
-
-    // let rootLogger
-    // if (options.logger) {
-    //   rootLogger = options.logger
-    // } else {
-    //   rootLogger = pino()
-    // }
-    // this._logger = rootLogger.child({ module: 'eyepop' })
-    // this._requestLogger = this._logger.child({ module: 'requests' })
+    this._logger = rootLogger.child({ module: 'eyepopdata' })
+    this._requestLogger = this._logger.child({ module: 'requests' })
     this._clientWsDataset = null
     this._clientWsAccount = null
 
   }
 
-  private async request(path: string, options: RequestInit = {}) {
+  private async request(path: string, options: RequestInit = {}) {    
     const headers = {
       'Content-Type': 'application/json',
       'Authorization': await this.authorizationHeader(),
@@ -149,7 +131,6 @@ class Endpoint {
     }
 
     if (!options.body) {
-      //console.log('no body')
       options.body = null
     }
 
@@ -158,6 +139,8 @@ class Endpoint {
       method: options.method || 'GET',
       body: options.body //instanceof Blob ? options.body : options.body ? JSON.stringify(options.body) : null
     };
+
+    this._requestLogger.info('Request - '+ri.method +path+(ri.body ? ri.body : ''))
 
     const response = await this._client.fetch(`${this._eyepopDataUrl}${path}`, ri);
 
@@ -236,13 +219,13 @@ class Endpoint {
           const message = await response.text()
           return Promise.reject(`Unexpected status ${response.status}: ${message}`)
         }
-        //this._requestLogger.debug('after POST %s', post_url)
+        
         const data = await response.json()
         const token: AccessToken = data as AccessToken
         this._token = token.access_token
         this._expire_token_time = now + token.expires_in - 60
 
-        console.log('token', this._token)
+        
       } else {
         return Promise.reject("no valid auth option")
       }
@@ -264,8 +247,7 @@ class Endpoint {
     });
   }
 
-  async createDataset(account_uuid: string, data: DatasetCreate) {
-    console.log('data', data)
+  async createDataset(account_uuid: string, data: DatasetCreate) {    
     return this.request(`/datasets?account_uuid=${account_uuid}`, {
       method: 'POST',
       body: JSON.stringify(data),
@@ -423,28 +405,28 @@ class Endpoint {
     const auth_header = await this.authorizationHeader();
 
     ws.onopen = () => {
-      console.log("DATA EVENT CHANNEL [" + type + "] [OPEN]")
-      console.log("DATA EVENT CHANNEL [" + type + "] [AUTHORIZATION HEADER]:", JSON.stringify({ authentication: auth_header }))
+      this._requestLogger.info("DATA EVENT CHANNEL [" + type + "] [OPEN]")
+      this._requestLogger.info("DATA EVENT CHANNEL [" + type + "] [AUTHORIZATION HEADER]:", JSON.stringify({ authentication: auth_header }))
 
       ws.send(JSON.stringify({ authorization: auth_header }));
       if (type == 'account') {
-        console.log("DATA EVENT CHANNEL [" + type + "] [SUBSCRIBE]:", JSON.stringify({ subscribe: { account_uuid: uuid } }))
+        this._requestLogger.info("DATA EVENT CHANNEL [" + type + "] [SUBSCRIBE]:", JSON.stringify({ subscribe: { account_uuid: uuid } }))
         ws.send(JSON.stringify({ subscribe: { account_uuid: uuid } }));
       } else if (type == 'dataset') {
-        console.log("DATA EVENT CHANNEL [" + type + "] [SUBSCRIBE]:", JSON.stringify({ subscribe: { dataset_uuid: uuid } }))
+        this._requestLogger.info("DATA EVENT CHANNEL [" + type + "] [SUBSCRIBE]:", JSON.stringify({ subscribe: { dataset_uuid: uuid } }))
         ws.send(JSON.stringify({ subscribe: { dataset_uuid: uuid } }));
       }
     };
 
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
-      console.log("DATA EVENT CHANNEL [" + type + "] [EVENT]:", event)
+      this._requestLogger.info("DATA EVENT CHANNEL [" + type + "] [EVENT]:", event)
       callback(data);      
     };
 
     ws.onclose = () => {
       // handle websocket close event
-      console.log("DATA EVENT CHANNEL [" + type + "] [CLOSED]")
+      this._requestLogger.info("DATA EVENT CHANNEL [" + type + "] [CLOSED]")
     };
   }
 

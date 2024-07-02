@@ -1,4 +1,4 @@
-//import {Logger} from "pino"
+import {Logger} from "pino"
 
 import {Session} from "./types";
 
@@ -56,5 +56,5 @@ export interface Options {
 
   passedToken?: string;
 
-  //logger?: Logger | undefined;
+  logger?: Logger | undefined;
 }
