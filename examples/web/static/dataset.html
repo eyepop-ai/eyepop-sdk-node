@@ -39,13 +39,27 @@
 
         const account_uuid = "foo";
 
+        var currDataset = null;
+        var endpoint = null;
+
         async function SubscriberDataset(data) {
             console.log("SubscriberDataset", data);
+
+            if(currDataset)
+            {
+                listAssets(endpoint,currDataset);
+            }            
+        }
+
+        async function SubscriberAccount(data) {
+            console.log("SubscriberDataset", data);
+
+            listDatasets(endpoint);
         }
 
         async function setup() {
             // auth: {'secretKey': api_key} 
-            var endpoint = await EyePopData.endpoint({
+            endpoint = await EyePopData.endpoint({
                 //auth: {oAuth2: true},
                 auth: { 'secretKey': api_key },
                 passedToken: token,
@@ -79,7 +93,10 @@
                 endpoint.createDataset(account_uuid, datasetCreateData)
                     .then((res) => {
                         console.log("TEST CREATE DATASET", res);
-                        listAssets(endpoint);
+                        listDatasets(endpoint);
+                        listAssets(endpoint, res);
+
+                        currDataset = res;
                     });
             }
 
@@ -95,7 +112,6 @@
                     listAssetsResult.innerHTML = '';
 
                     const version = dataset.versions.find(v => v.modifiable)?.version || null;
-
                     
 
                     //for each asset in the dataset
@@ -155,6 +171,8 @@
                                     //remove the asset from the list
                                     assetDiv.remove();
                                     deleteAssetButton.remove();
+
+                                    listAssets(endpoint, currDataset, version);
                                 });
                         };
                         listAssetsResult.appendChild(deleteAssetButton);
@@ -222,7 +240,9 @@
                             endpoint.deleteDataset(dataset.uuid)
                                 .then((res) => {
                                     console.log("TEST DELETE DATASET", res);
-                                    listAssets(endpoint);
+                                    
+                                    listDatasets(endpoint);
+                                    currDataset=null;
                                 });
                         };
                         listDatasetsResult.appendChild(deleteButton);
