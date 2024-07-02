@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Model Test</title>
+    <script src="/src/eyepop/dist/eyepop.min.js"></script>
+</head>
+
+<body>
+    <div class="container">
+    </div>
+
+    <script>
+
+        const apiKey = 'AAGcsWj8N2PlKQl9c9ydz3QFZ0FBQUFBQm1mZDB5eDUwalNlYi12NWotd3hsVGJiMW1sVXF1dE9aOU9oSGVBOWtBQXoxZmNjUE5Nb1YzY3RROUdzbVUwUkZtcDhZcG5vSWROTzR1TU8ybGhZckx6RTgzYVZwMjZEREZjalZubnpYaUNMWVdBODg9';
+
+        const model_uuid = "preview";
+        const auth = apiKey ? { secretKey: apiKey } : { oAuth2: true };
+
+        const image_url = "https://www.newsnationnow.com/wp-content/uploads/sites/108/2022/07/Cat.jpg?w=1752&h=986&crop=1";
+
+        EyePop.endpoint({
+            isSandbox: true,
+            auth: auth,
+            popId: "transient",
+            eyepopUrl: "https://staging-api.eyepop.ai"
+        }).connect().then((endpoint) => postConnect(endpoint))
+
+        function postConnect(endpoint) {
+
+            console.log("Connected to EyePop endpoint", endpoint);
+
+            endpoint.loadModel({
+                model_id: `self-service:${model_uuid}`,
+                model_folder_url: "gs://ep-modeling-workflows/workflows/coco-detection/coco-workflow-gflt5/export-model/models/EPCocoB1/EPCOCO/Latest/TorchScript/float32"
+            }).then((model) => postLoadModel(model, endpoint))
+
+        }
+
+        function postLoadModel(model, endpoint) {
+            console.log("Model loaded", model);
+
+            endpoint.changePopComp(`ep_infer id=1 category-name="preview" model=self-service:${model_uuid}`)
+                .then(() => postChangePopComp(endpoint));
+        }
+
+        function postChangePopComp(endpoint) {
+            console.log("Pop component changed");
+            endpoint.process({
+                url: image_url
+            }).then(async (results) => {
+                console.log("Results", results);
+                for await (let result of results) {
+                    console.log(`result for #`, result)
+                }
+            });
+        }
+
+    </script>
+</body>
+
+</html>
