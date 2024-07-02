@@ -405,21 +405,20 @@ class Endpoint {
   }
 
   async subscribeCallbackToAccountEvents(account_uuid: string, callback: (event: any) => void) {
-    this.subscribeCallbackToWsEvents('account', account_uuid, callback);
+    this.subscribeCallbackToWsEvents('account', account_uuid, callback, this._clientWsAccount);
   }
 
   async subscribeCallbackToDatasetEvents(dataset_uuid: string, callback: (event: any) => void) {
-    this.subscribeCallbackToWsEvents('dataset', dataset_uuid, callback);
+    this.subscribeCallbackToWsEvents('dataset', dataset_uuid, callback, this._clientWsDataset);
   }
 
-  private async subscribeCallbackToWsEvents(type: string, uuid: string, callback: (event: any) => void) {
+  private async subscribeCallbackToWsEvents(type: string, uuid: string, callback: (event: any) => void, ws: WebSocket | null) {
 
-    if (this._clientWsDataset !== null) {
-      this._clientWsDataset.close();
+    if (ws !== null) {
+      ws.close();
     }
 
-    //const ws = this._clientWsDataset = new WebSocket('wss://data.api.eyepop.xyz/events');
-    const ws = this._clientWsDataset = new WebSocket(this._eyepopDataUrl+'/events');
+    ws = new WebSocket(this._eyepopDataUrl+'/events');
 
     const auth_header = await this.authorizationHeader();
 
