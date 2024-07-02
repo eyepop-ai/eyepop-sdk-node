@@ -9,7 +9,7 @@
 
     <!--    <script src="https://cdn.jsdelivr.net/npm/@eyepop.ai/eyepop/dist/eyepop.min.js"></script>-->
     <script src="/src/eyepop-data/dist/eyepopdata.min.js"></script>
-    <script src="/src/eyepop-data/dist/eyepop-render-2d.min.js"></script>
+    <script src="/src/eyepop-render-2d/dist/eyepop.render2d.min.js"></script>
     
 </head>
 
@@ -124,15 +124,23 @@
                                     img.onload = function () {
                                         canvas.width = img.width;
                                         canvas.height = img.height;
-                                        ctx.drawImage(img, 0, 0);
+                                        ctx.drawImage(img, 0, 0);                                       
+                                    
+                                        if(asset.annotations)
+                                        {
+                                            const renderer = Render2d.renderer(ctx)
+                                            asset.annotations.forEach((ann) => {
+                                                console.log("ann", ann.annotation);
+                                                renderer.draw(ann.annotation);
+                                            });
+                                        }
+                                            
                                     };
                                     img.src = URL.createObjectURL(res);
-                                    const renderer = Render2d.renderer(context)
-                                    context.drawImage(image, 0, 0)
-                                    renderer.draw(result);
-
-                                    listAssetsResult.appendChild(canvas);
-                                    listAssetsResult.appendChild(document.createElement('br'));
+                                    
+                                    assetDiv.appendChild(document.createElement('br'));
+                                    assetDiv.appendChild(canvas);
+                                    assetDiv.appendChild(document.createElement('br'));
                                 });
                         }
 
