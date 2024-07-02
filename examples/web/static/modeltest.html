@@ -4,12 +4,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    
     <title>Model Test</title>
     <script src="/src/eyepop/dist/eyepop.min.js"></script>
-</head>
+    <script src="/src/eyepop-render-2d/dist/eyepop.render2d.min.js"></script>
 
+</head>
 <body>
-    <div class="container">
+    <div class="jumbotron vertical-center">
+        <div class="container-fluid mt-4">
+            <div class="row" style="width: 100%">
+                <div class="col text-center">
+                    <h1>Model Test</h1>
+                    <p>Image URL: <span id="image"></span></p>
+                    <p>Model URL: <span id="model"></span></p>
+                </div>
+            </div>
+            <div class="row" style="width: 100%">            
+                <div class="col text-center">
+                    <canvas id="canvas" width="800" height="600"></canvas>
+                </div>
+            </div>
+        </div>
+       
     </div>
 
     <script>
@@ -18,8 +36,13 @@
 
         const model_uuid = "preview";
         const auth = apiKey ? { secretKey: apiKey } : { oAuth2: true };
+       
+        const urlParams = new URLSearchParams(window.location.search);
+        const model_url = urlParams.get('model_url') || 'gs://ep-modeling-workflows/workflows/coco-detection/coco-workflow-gflt5/export-model/models/EPCocoB1/EPCOCO/Latest/TorchScript/float32';
+        const image_url = urlParams.get('image_url') ||"https://www.newsnationnow.com/wp-content/uploads/sites/108/2022/07/Cat.jpg?w=1752&h=986&crop=1";
 
-        const image_url = "https://www.newsnationnow.com/wp-content/uploads/sites/108/2022/07/Cat.jpg?w=1752&h=986&crop=1";
+        document.getElementById('image').innerHTML = image_url;
+        document.getElementById('model').innerHTML = model_url;
 
         EyePop.endpoint({
             isSandbox: true,
@@ -34,7 +57,7 @@
 
             endpoint.loadModel({
                 model_id: `self-service:${model_uuid}`,
-                model_folder_url: "gs://ep-modeling-workflows/workflows/coco-detection/coco-workflow-gflt5/export-model/models/EPCocoB1/EPCOCO/Latest/TorchScript/float32"
+                model_folder_url: model_url
             }).then((model) => postLoadModel(model, endpoint))
 
         }
@@ -52,8 +75,25 @@
                 url: image_url
             }).then(async (results) => {
                 console.log("Results", results);
-                for await (let result of results) {
-                    console.log(`result for #`, result)
+
+                // Draw img to canvas
+                const canvas = document.getElementById('canvas');
+                const ctx = canvas.getContext('2d');
+                const img = new Image();
+                img.src = image_url;
+
+                img.onload = async function () {
+                    
+                    const aspectRatio = img.width / img.height;
+                    const canvasWidth = canvas.width;
+                    const canvasHeight = canvasWidth / aspectRatio;
+                    ctx.drawImage(img, 0, 0, canvasWidth, canvasHeight);
+                    const renderer = Render2d.renderer(ctx);
+                
+                    for await (let result of results) {
+                        renderer.draw(result);
+                    }
+                
                 }
             });
         }

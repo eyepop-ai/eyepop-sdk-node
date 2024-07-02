@@ -4,9 +4,6 @@ import { HttpClient, createHttpClient } from './shims/http_client';
 import { authenticateBrowserSession } from './shims/browser_session';
 import { Logger, pino } from "pino"
 
-//TODO 
-// test other functions (create)
-// clean up
 
 interface AccessToken {
   access_token: string;
@@ -23,7 +20,7 @@ interface DatasetResponse {
   account_uuid: string;
   created_at: string;
   updated_at: string;
-  versions: any[]; // Define specific type if available
+  versions: any[]; 
 }
 
 interface DatasetCreate {
@@ -69,10 +66,7 @@ class Endpoint {
   private _token: string | null
   private _options: Options
   private _expire_token_time: number | null
-  //private _eyepopDataUrl: string | null = 'https://data.api.eyepop.xyz'
-  private _eyepopDataUrl: string | null = 'https://sandbox-data.api.eyepop.xyz'
-
-
+  private _eyepopDataUrl: string | null = 'https://data.api.eyepop.xyz'
   private _eyepopUrl: string = 'https://staging-api.eyepop.ai'
 
   private _client: HttpClient | null
@@ -104,7 +98,7 @@ class Endpoint {
       this._eyepopDataUrl = options.eyepopDataUrl;
     }    
 
-    let rootLogger
+    let rootLogger:any = null
     if (options.logger)
     {
         rootLogger = options.logger
@@ -164,7 +158,7 @@ class Endpoint {
 
   public async connect(): Promise<Endpoint> {
     if (this._client) {
-      //this._logger.warn('endpoint already connected')
+      this._logger.warn('endpoint already connected')
       return this
     }
     if (this._options.auth === undefined) {
