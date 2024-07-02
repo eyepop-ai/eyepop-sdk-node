@@ -17,6 +17,7 @@ interface DatasetResponse {
   uuid: string;
   name: string;
   description: string;
+  auto_annotates: string[];
   tags: string[];
   account_uuid: string;
   created_at: string;
@@ -28,12 +29,14 @@ interface DatasetCreate {
   name: string;
   description: string;
   tags: string[];
+  auto_annotates: string[];
 }
 
 interface DatasetUpdate {
   name: string;
   description: string;
   tags: string[];
+  auto_annotates: string[];
 }
 
 interface ModelResponse {
@@ -91,10 +94,6 @@ class Endpoint {
   //data.eyepop.api.eyepo.xyz
   //andy@eyepop.ai (auth0 permission)
   //foo organization
-
-
-
-
 
   constructor(options: Options) {
     this._client = null

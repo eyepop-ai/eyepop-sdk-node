@@ -71,6 +71,9 @@
                     "description": "test dataset from Andy",
                     "tags": [
                         "test1"
+                    ],
+                    "auto_annotates": [
+                        "ep_coco", "ep_rapid_medical"
                     ]
                 };
                 endpoint.createDataset(account_uuid, datasetCreateData)
@@ -102,12 +105,9 @@
 
 
                         listAssetsResult.appendChild(assetDiv);
-                        if (asset.status == "rejected") {
-                            assetDiv.innerHTML += "(rejected)"
+                        if (["rejected", "upload_in_progress", "upload_failed", "transform_failed"].includes(asset.status)) {
+                            assetDiv.innerHTML += "(" + asset.status +")";
                             return;
-
-                        } if (asset.status == "transform_in_progress") {
-                            assetDiv.innerHTML += "(loading...)"
                         } else {
                             //download the asset and show in img tag
                             endpoint.downloadAsset(asset.uuid, dataset.uuid, version, 'image_cover_224')
