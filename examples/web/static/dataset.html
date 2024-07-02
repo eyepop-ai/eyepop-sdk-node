@@ -10,7 +10,7 @@
     <!--    <script src="https://cdn.jsdelivr.net/npm/@eyepop.ai/eyepop/dist/eyepop.min.js"></script>-->
     <script src="/src/eyepop-data/dist/eyepopdata.min.js"></script>
     <script src="/src/eyepop-render-2d/dist/eyepop.render2d.min.js"></script>
-    
+
 </head>
 
 <body>
@@ -42,22 +42,25 @@
         var currDataset = null;
         var endpoint = null;
 
-        async function SubscriberDataset(data) {
+        async function SubscriberDataset(data)
+        {
             console.log("SubscriberDataset", data);
 
-            if(currDataset)
+            if (currDataset)
             {
-                listAssets(endpoint,currDataset);
-            }            
+                listAssets(endpoint, currDataset);
+            }
         }
 
-        async function SubscriberAccount(data) {
+        async function SubscriberAccount(data)
+        {
             console.log("SubscriberDataset", data);
 
             listDatasets(endpoint);
         }
 
-        async function setup() {
+        async function setup()
+        {
             // auth: {'secretKey': api_key} 
             endpoint = await EyePopData.endpoint({
                 //auth: {oAuth2: true},
@@ -77,7 +80,8 @@
 
             //implement the new dataset button
             var newDatasetsButton = document.getElementById('new-datasets-btn');
-            newDatasetsButton.onclick = function () {
+            newDatasetsButton.onclick = function ()
+            {
                 //create a new dataset
                 const datasetCreateData = {
                     // dataset create data
@@ -91,7 +95,8 @@
                     ]
                 };
                 endpoint.createDataset(account_uuid, datasetCreateData)
-                    .then((res) => {
+                    .then((res) =>
+                    {
                         console.log("TEST CREATE DATASET", res);
                         listDatasets(endpoint);
                         listAssets(endpoint, res);
@@ -103,31 +108,37 @@
 
         }
 
-        function listAssets(endpoint, dataset, version) {
+        function listAssets(endpoint, dataset, version)
+        {
             endpoint.listAssets(dataset.uuid, version, true)
-                .then((res) => {
+                .then((res) =>
+                {
                     console.log("TEST LIST ASSETS", res);
                     //add assets to the list
                     var listAssetsResult = document.getElementById('list-assets-result');
                     listAssetsResult.innerHTML = '';
 
                     const version = dataset.versions.find(v => v.modifiable)?.version || null;
-                    
+
 
                     //for each asset in the dataset
-                    res.forEach((asset) => {
+                    res.forEach((asset) =>
+                    {
                         var assetDiv = document.createElement('div');
                         assetDiv.innerHTML = asset.uuid;
 
 
                         listAssetsResult.appendChild(assetDiv);
-                        if (["rejected", "upload_in_progress", "upload_failed", "transform_failed"].includes(asset.status)) {
-                            assetDiv.innerHTML += "(" + asset.status +")";
+                        if ([ "rejected", "upload_in_progress", "upload_failed", "transform_failed", "transform_in_progress" ].includes(asset.status))
+                        {
+                            assetDiv.innerHTML += "(" + asset.status + ")";
                             return;
-                        } else {
+                        } else
+                        {
                             //download the asset and show in img tag
                             endpoint.downloadAsset(asset.uuid, dataset.uuid, version, 'image_cover_224')
-                                .then((res) => {
+                                .then((res) =>
+                                {
                                     console.log("TEST DOWNLOAD ASSET", res);
                                     var img = document.createElement('img');
 
@@ -137,23 +148,25 @@
                                     var canvas = document.createElement('canvas');
                                     var ctx = canvas.getContext('2d');
                                     var img = new Image();
-                                    img.onload = function () {
+                                    img.onload = function ()
+                                    {
                                         canvas.width = img.width;
                                         canvas.height = img.height;
-                                        ctx.drawImage(img, 0, 0);                                       
-                                    
-                                        if(asset.annotations)
+                                        ctx.drawImage(img, 0, 0);
+
+                                        if (asset.annotations)
                                         {
                                             const renderer = Render2d.renderer(ctx)
-                                            asset.annotations.forEach((ann) => {
+                                            asset.annotations.forEach((ann) =>
+                                            {
                                                 console.log("ann", ann.annotation);
                                                 renderer.draw(ann.annotation);
                                             });
                                         }
-                                            
+
                                     };
                                     img.src = URL.createObjectURL(res);
-                                    
+
                                     assetDiv.appendChild(document.createElement('br'));
                                     assetDiv.appendChild(canvas);
                                     assetDiv.appendChild(document.createElement('br'));
@@ -164,9 +177,11 @@
                         //add delete button to each asset
                         var deleteAssetButton = document.createElement('button');
                         deleteAssetButton.innerHTML = "Delete";
-                        deleteAssetButton.onclick = function () {
+                        deleteAssetButton.onclick = function ()
+                        {
                             endpoint.deleteAsset(asset.uuid, dataset.uuid, version)
-                                .then((res) => {
+                                .then((res) =>
+                                {
                                     console.log("TEST DELETE ASSET", res);
                                     //remove the asset from the list
                                     assetDiv.remove();
@@ -180,9 +195,11 @@
                         //add download button to each asset
                         var downloadAssetButton = document.createElement('button');
                         downloadAssetButton.innerHTML = "Download";
-                        downloadAssetButton.onclick = function () {
+                        downloadAssetButton.onclick = function ()
+                        {
                             endpoint.downloadAsset(asset.uuid, dataset.uuid, version, 'original')
-                                .then((res) => {
+                                .then((res) =>
+                                {
                                     console.log("TEST DOWNLOAD ASSET", res);
                                 });
                         };
@@ -191,9 +208,11 @@
                         //add get asset button to each asset
                         var getAssetButton = document.createElement('button');
                         getAssetButton.innerHTML = "Get Asset";
-                        getAssetButton.onclick = function () {
+                        getAssetButton.onclick = function ()
+                        {
                             endpoint.getAsset(asset.uuid, dataset.uuid, version, true)
-                                .then((res) => {
+                                .then((res) =>
+                                {
                                     console.log("TEST GET ASSET", res);
                                 });
                         };
@@ -202,12 +221,14 @@
                         //add update asset manual annotation button to each asset
                         var updateAssetManualAnnotationButton = document.createElement('button');
                         updateAssetManualAnnotationButton.innerHTML = "Update Asset Manual Annotation";
-                        updateAssetManualAnnotationButton.onclick = function () {
+                        updateAssetManualAnnotationButton.onclick = function ()
+                        {
                             const annotation = {
                                 // annotation data
                             };
                             endpoint.updateAssetManualAnnotation(asset.uuid, dataset.uuid, version, annotation)
-                                .then((res) => {
+                                .then((res) =>
+                                {
                                     console.log("TEST UPDATE ASSET MANUAL ANNOTATION", res);
                                 });
                         };
@@ -216,33 +237,38 @@
                         listAssetsResult.appendChild(document.createElement('br'));
                     });
 
-                    
+
                 });
-                        
+
         }
 
-        function listDatasets(endpoint) {
+        function listDatasets(endpoint)
+        {
             // Test listDatasets function
             //on page load load the datasets into the list
             endpoint.listDatasets(account_uuid)
-                .then((res) => {
+                .then((res) =>
+                {
                     console.log("TEST LIST DATASETS", res);
                     var listDatasetsResult = document.getElementById('list-datasets-result');
                     listDatasetsResult.innerHTML = '';
-                    res.forEach((dataset) => {
+                    res.forEach((dataset) =>
+                    {
                         var datasetDiv = document.createElement('div');
                         datasetDiv.innerHTML = "<span style='font-weight: bold; font-size: larger;'>" + dataset.name + "</span><br /> " + dataset.uuid;
                         listDatasetsResult.appendChild(datasetDiv);
                         //add delete button to each dataset
                         var deleteButton = document.createElement('button');
                         deleteButton.innerHTML = "Delete";
-                        deleteButton.onclick = function () {
+                        deleteButton.onclick = function ()
+                        {
                             endpoint.deleteDataset(dataset.uuid)
-                                .then((res) => {
+                                .then((res) =>
+                                {
                                     console.log("TEST DELETE DATASET", res);
-                                    
+
                                     listDatasets(endpoint);
-                                    currDataset=null;
+                                    currDataset = null;
                                 });
                         };
                         listDatasetsResult.appendChild(deleteButton);
@@ -250,14 +276,17 @@
                         //add upload button to each dataset
                         var uploadButton = document.createElement('button');
                         uploadButton.innerHTML = "Upload";
-                        uploadButton.onclick = function () {
+                        uploadButton.onclick = function ()
+                        {
                             const version = dataset.versions.find(v => v.modifiable)?.version || null;
 
                             const file = createFileFromLocalURL('./images/Hot_dog_with_mustard.png')
-                                .then((file) => {
+                                .then((file) =>
+                                {
                                     console.log("file", file)
                                     endpoint.uploadAsset(dataset.uuid, version, file)
-                                        .then((res) => {
+                                        .then((res) =>
+                                        {
                                             console.log("TEST UPLOAD ASSET", res);
                                         });
                                 });
@@ -269,7 +298,8 @@
                         listAssetsButton.innerHTML = "List Assets";
                         const version = dataset.versions.find(v => v.modifiable)?.version || null;
 
-                        listAssetsButton.onclick = function () {
+                        listAssetsButton.onclick = function ()
+                        {
 
                             console.log("Subbing to dataset", dataset.uuid)
                             endpoint.subscribeCallbackToDatasetEvents(dataset.uuid, SubscriberDataset);
@@ -283,9 +313,11 @@
                         //add list models button to each dataset
                         var listModelsButton = document.createElement('button');
                         listModelsButton.innerHTML = "List Models";
-                        listModelsButton.onclick = function () {
+                        listModelsButton.onclick = function ()
+                        {
                             endpoint.listModels(account_uuid)
-                                .then((res) => {
+                                .then((res) =>
+                                {
                                     console.log("TEST LIST MODELS", res);
                                 });
                         };
@@ -294,9 +326,11 @@
                         //add get dataset button to each dataset
                         var getDatasetButton = document.createElement('button');
                         getDatasetButton.innerHTML = "Get Dataset";
-                        getDatasetButton.onclick = function () {
+                        getDatasetButton.onclick = function ()
+                        {
                             endpoint.getDataset(dataset.uuid)
-                                .then((res) => {
+                                .then((res) =>
+                                {
                                     console.log("TEST GET DATASET", res);
                                 });
                         };
@@ -315,21 +349,24 @@
 
         setup();
 
-        async function createFileFromLocalURL(fileURL) {
-            try {
+        async function createFileFromLocalURL(fileURL)
+        {
+            try
+            {
                 // Fetch the file data
                 const response = await fetch(fileURL);
                 const blob = await response.blob();
 
                 // Extract the filename from the URL
                 const urlParts = fileURL.split('/');
-                const filename = urlParts[urlParts.length - 1];
+                const filename = urlParts[ urlParts.length - 1 ];
 
                 // Create a File object
-                const file = new File([blob], filename, { type: blob.type });
+                const file = new File([ blob ], filename, { type: blob.type });
 
                 return file;
-            } catch (error) {
+            } catch (error)
+            {
                 console.error('Error creating file from local URL:', error);
             }
         }
