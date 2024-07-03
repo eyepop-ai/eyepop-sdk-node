@@ -34,7 +34,7 @@
     <script>
 
         const api_key = null //'AAGcsWj8N2PlKQl9c9ydz3QFZ0FBQUFBQm1mZDB5eDUwalNlYi12NWotd3hsVGJiMW1sVXF1dE9aOU9oSGVBOWtBQXoxZmNjUE5Nb1YzY3RROUdzbVUwUkZtcDhZcG5vSWROTzR1TU8ybGhZckx6RTgzYVZwMjZEREZjalZubnpYaUNMWVdBODg9';
-        const token = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InZUdzF6bi02cjFPcXg0NmNxRl9PMiJ9.eyJodHRwczovL2NsYWltcy5leWVwb3AuYWkvZ3JhbnRzIjpbeyJwZXJtaXNzaW9uIjoiYWNjZXNzOmRhdGFzZXRzIiwidGFyZ2V0IjoiYWNjb3VudDphbmR5In0seyJwZXJtaXNzaW9uIjoiYWNjZXNzOmRhdGFzZXRzIiwidGFyZ2V0IjoiYWNjb3VudDpmb28ifSx7InBlcm1pc3Npb24iOiJhY2Nlc3M6aW5mZXJlbmNlLWFwaSIsInRhcmdldCI6InVzZXI6YXV0aDB8NjRjNDJhYjk4NzRkZTc4ZDJlOWYzZTRhIn1dLCJpc3MiOiJodHRwczovL2Rldi1leWVwb3AudXMuYXV0aDAuY29tLyIsInN1YiI6ImF1dGgwfDY0YzQyYWI5ODc0ZGU3OGQyZTlmM2U0YSIsImF1ZCI6Imh0dHBzOi8vZGV2LWFwcC5leWVwb3AuYWkiLCJpYXQiOjE3MjAwMzA0NDIsImV4cCI6MTcyMDAzNzY0Miwic2NvcGUiOiJhY2Nlc3M6ZGF0YXNldHMiLCJhenAiOiJJVXQwcHMybWFXWlVkRW1FT1BSYVBKS3ZrUVRzNllVRSIsInBlcm1pc3Npb25zIjpbImFjY2VzczpkYXRhc2V0cyIsImFkbWluOmNsb3VkcyJdfQ.aMTg10xUcCvS7UH9HI_o-HYq2VM_yTTvn7Ue87gWdKLMYnYzs1AYGVF3jv3PWVrhW70e8YMLhNP5LDahq1gXhBlUE_8LkZB79OUs2h5SChChemqxVopR9UOXcjT8HFvJEKUO2wIuxfJ9iFzu8Mez63UWye1-N-37R2NKpJsI3UjMM66b0_KLb0Z9yErmro37eHtUhBVVabCRa3u0QvJVm_p1J3SFgth1vApzu449hulw8gBGLrRzM6RkOdYeoqnfJkCIw9dSVLAeg7o9oamNMNX93d6c2e4OUEUA7ZZ4SZasNlirJcZupaEpy540xyga0l_N4zAdAHNTWUWJNYqFWA";
+        const token = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InZUdzF6bi02cjFPcXg0NmNxRl9PMiJ9.eyJodHRwczovL2NsYWltcy5leWVwb3AuYWkvZ3JhbnRzIjpbeyJwZXJtaXNzaW9uIjoiYWNjZXNzOmRhdGFzZXRzIiwidGFyZ2V0IjoiYWNjb3VudDphbmR5In0seyJwZXJtaXNzaW9uIjoiYWNjZXNzOmRhdGFzZXRzIiwidGFyZ2V0IjoiYWNjb3VudDpmb28ifSx7InBlcm1pc3Npb24iOiJhY2Nlc3M6aW5mZXJlbmNlLWFwaSIsInRhcmdldCI6InVzZXI6YXV0aDB8NjRjNDJhYjk4NzRkZTc4ZDJlOWYzZTRhIn1dLCJpc3MiOiJodHRwczovL2Rldi1leWVwb3AudXMuYXV0aDAuY29tLyIsInN1YiI6ImF1dGgwfDY0YzQyYWI5ODc0ZGU3OGQyZTlmM2U0YSIsImF1ZCI6Imh0dHBzOi8vZGV2LWFwcC5leWVwb3AuYWkiLCJpYXQiOjE3MjAwMzgyMzAsImV4cCI6MTcyMDA0NTQzMCwic2NvcGUiOiJhY2Nlc3M6ZGF0YXNldHMiLCJhenAiOiJJVXQwcHMybWFXWlVkRW1FT1BSYVBKS3ZrUVRzNllVRSIsInBlcm1pc3Npb25zIjpbImFjY2VzczpkYXRhc2V0cyIsImFkbWluOmNsb3VkcyJdfQ.jw2mYEqjd230bYubytTpY4qb0GnYMKGuY0WdX8gJtkr_-yhzAV9MR8A4cOYC1yyUAtFggoCTHMDLGLcSptihbaTvCpk_U65QJ61PEXdIEav5sD6F0risL1QCSYVwDAs3aarqnoXzXpqASQ7qH0lCRfMuEHMI7GZpVnLJXjShrKYduSH0lcYi2LM18eeLwXBIvYnEenQFBi1hTmPUfs-qkjPoRJNFfbjRxzXXUZF9uNAIfsAlD3Xe4URbkg8XMkvAxjsaeLXDeg1LOsRydFotBw7kKvz8_uYjLumDIln3spF2yy9VFA0zji6xa0-C1iI_75xz_7tFmH8jBRFKw8bfYw";
         const account_uuid = "foo";
 
         var currDataset = null;
@@ -73,7 +73,7 @@
             listDatasets(endpoint);
 
             console.log("Subbing to account", account_uuid)
-            endpoint.subscribeCallbackToAccountEvents(account_uuid, SubscriberDataset);
+            endpoint.subscribeCallbackToAccountEvents(account_uuid, SubscriberDataset,false);
 
             //implement the new dataset button
             var newDatasetsButton = document.getElementById('new-datasets-btn');
@@ -127,7 +127,16 @@
 
 
                         listAssetsResult.appendChild(assetDiv);
-                        if ([ "rejected", "upload_in_progress", "upload_failed", "transform_failed", "transform_in_progress" ].includes(asset.status))
+                        // if (asset.status === AssetStatus.REJECTED || 
+                        //     asset.status === AssetStatus.UPLOAD_IN_PROGRESS || 
+                        //     asset.status === AssetStatus.UPLOAD_FAILED || 
+                        //     asset.status === AssetStatus.TRANSFORM_FAILED || 
+                        //     asset.status === AssetStatus.TRANSFORM_IN_PROGRESS)
+                        if (asset.status === "rejected" || 
+                            asset.status === "upload_in_progress" || 
+                            asset.status === "upload_failed" || 
+                            asset.status === "transform_failed" || 
+                            asset.status === "transform_in_progress")
                         {
                             assetDiv.innerHTML += "(" + asset.status + ")";
                             return;
@@ -218,12 +227,29 @@
 
                         //add update asset manual annotation button to each asset
                         var updateAssetManualAnnotationButton = document.createElement('button');
-                        updateAssetManualAnnotationButton.innerHTML = "Update Asset Manual Annotation";
+                        updateAssetManualAnnotationButton.innerHTML = "Approve Auto Annotation (Rapid)";
                         updateAssetManualAnnotationButton.onclick = function ()
                         {
-                            const annotation = {
-                                // annotation data
-                            };
+                            //const approve_type = "ep_rapid_medical";
+                            const approve_type = "ep_coco";
+
+                            let annotation = null;
+                            //find asset.annotation that is Rapid Medical
+                            asset.annotations.forEach((ann) =>
+                            {
+                                
+                                if (ann.auto_annotate === approve_type)
+                                {
+                                    annotation = ann.annotation;
+                                }
+                            });
+
+                            if(!annotation)
+                            {
+                                console.log("No "+approve_type+" annotation found");
+                                return;
+                            }
+
                             endpoint.updateAssetManualAnnotation(asset.uuid, dataset.uuid, version, annotation)
                                 .then((res) =>
                                 {
@@ -304,7 +330,7 @@
                         {
 
                             console.log("Subbing to dataset", dataset.uuid)
-                            endpoint.subscribeCallbackToDatasetEvents(dataset.uuid, SubscriberDataset);
+                            endpoint.subscribeCallbackToDatasetEvents(dataset.uuid, SubscriberDataset,false);
 
                             listAssets(endpoint, dataset, version)
 
@@ -324,6 +350,30 @@
                                 });
                         };
                         listDatasetsResult.appendChild(listModelsButton);
+
+                        //make a create model button
+                        var createModelButton = document.createElement('button');
+                        createModelButton.innerHTML = "Create Model";
+                        createModelButton.onclick = function ()
+                        {
+                            endpoint.freezeDatasetVersion(dataset.uuid)
+                                .then((res) =>
+                                {
+                                    console.log("TEST FREEZE DATASET", res);
+                                }).then(() =>
+                                {
+                                    endpoint.createModel(dataset.uuid, 1, {
+                                        name: "Andy Model",
+                                        description: new Date().toString(),
+                                        type: "epdet_b1"
+                                    }).then((res) =>
+                                        {
+                                            console.log("TEST CREATE MODEL", res);
+                                        });
+                                });
+                        };
+                        listDatasetsResult.appendChild(createModelButton);
+
 
                         //add get dataset button to each dataset
                         var getDatasetButton = document.createElement('button');
@@ -372,6 +422,9 @@
                 console.error('Error creating file from local URL:', error);
             }
         }
+
+        //TODO: Approve Rapid Medical annotation
+
     </script>
 </body>
 

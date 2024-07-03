@@ -30,6 +30,11 @@ interface DatasetCreate {
   auto_annotates: string[];
 }
 
+enum auto_annotates {
+  "ep_coco", 
+  "ep_rapid_medical"
+}
+
 interface DatasetUpdate {
   name: string;
   description: string;
@@ -48,6 +53,19 @@ interface ModelResponse {
   updated_at: string;
   dataset_uuid: string;
   dataset_version: number;
+}
+ 
+enum AssetStatus {
+  rejected = "rejected",
+  upload_in_progress = "upload_in_progress",
+  upload_failed = "upload_failed",
+  transform_failed = "transform_failed",
+  transform_in_progress = "transform_in_progress",
+  accepted = "accepted"
+}
+
+enum ModelStatus {
+  requested = "requested",
 }
 
 interface ModelCreate {
@@ -327,7 +345,7 @@ class Endpoint {
   async updateAssetManualAnnotation(asset_uuid: string, dataset_uuid?: string, dataset_version?: number, annotation?: any) {
     const versionQuery = dataset_version ? `&dataset_version=${dataset_version}` : '';
     const datasetQuery = dataset_uuid ? `&dataset_uuid=${dataset_uuid}` : '';
-    return this.request(`/assets/${asset_uuid}/manual_annotation?${datasetQuery}${versionQuery}`, {
+    return this.request(`/assets/${asset_uuid}/manual_annotate?${datasetQuery}${versionQuery}`, {
       method: 'PATCH',
       body: JSON.stringify(annotation),
     });
@@ -464,4 +482,4 @@ class Endpoint {
   }
 }
 
-export { Endpoint, DatasetCreate, DatasetUpdate, ModelCreate, ModelUpdate, DatasetResponse, ModelResponse };
+export { Endpoint, DatasetCreate, DatasetUpdate, ModelCreate, ModelUpdate, DatasetResponse, ModelResponse, AssetStatus, ModelStatus};
