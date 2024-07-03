@@ -380,15 +380,15 @@ class Endpoint {
     });
   }
 
-  async subscribeCallbackToAccountEvents(account_uuid: string, callback: (event: any) => void) {
-    this.subscribeCallbackToWsEvents('account', account_uuid, callback, this._clientWsAccount);
+  async subscribeCallbackToAccountEvents(account_uuid: string, callback: (event: any) => void, reconnectOnClose: boolean = true) {
+    this.subscribeCallbackToWsEvents('account', account_uuid, callback, this._clientWsAccount, reconnectOnClose);
   }
 
-  async subscribeCallbackToDatasetEvents(dataset_uuid: string, callback: (event: any) => void) {
-    this.subscribeCallbackToWsEvents('dataset', dataset_uuid, callback, this._clientWsDataset);
+  async subscribeCallbackToDatasetEvents(dataset_uuid: string, callback: (event: any) => void, reconnectOnClose: boolean = true) {
+    this.subscribeCallbackToWsEvents('dataset', dataset_uuid, callback, this._clientWsDataset, reconnectOnClose);
   }
 
-  private async subscribeCallbackToWsEvents(type: string, uuid: string, callback: (event: any) => void, ws: WebSocket | null) {
+  private async subscribeCallbackToWsEvents(type: string, uuid: string, callback: (event: any) => void, ws: WebSocket | null, reconnectOnClose:boolean = true) {
 
     if (ws !== null) {
       ws.close();
@@ -415,15 +415,53 @@ class Endpoint {
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
       this._requestLogger.info("DATA EVENT CHANNEL [" + type + "] [EVENT]:", event)
+
+      //check that callback is a function
+      if (typeof callback !== 'function') {
+        return;
+      }
       callback(data);      
     };
 
-    ws.onclose = () => {
+    ws.onclose = (event: CloseEvent) => {
+      const { code, reason } = event;
+      this._requestLogger.info("DATA EVENT CHANNEL [" + type + "] [CLOSED] [CODE]:", code)
+      this._requestLogger.info("DATA EVENT CHANNEL [" + type + "] [CLOSED] [REASON]:", reason)
+      
+      if (reconnectOnClose && reason !== 'unsubscribe') {
+        this._requestLogger.info("DATA EVENT CHANNEL [" + type + "] [RE-SUBSCRIBE]:", JSON.stringify({ subscribe: { account_uuid: uuid } }))
+        this.subscribeCallbackToWsEvents(type, uuid, callback, ws, reconnectOnClose);
+      }
+
       // handle websocket close event
       this._requestLogger.info("DATA EVENT CHANNEL [" + type + "] [CLOSED]")
     };
   }
 
+  async unsubscribeCallbackToAccountEvents() {
+    this._requestLogger.info("DATA EVENT CHANNEL [ACCOUNT] [UNSUBSCRIBED]");
+    this.unsubscribeCallbackToWsEvents(this._clientWsAccount);
+  }
+
+  async unsubscribeCallbackToDatasetEvents() {
+    this._requestLogger.info("DATA EVENT CHANNEL [DATASET] [UNSUBSCRIBED]");
+    this.unsubscribeCallbackToWsEvents(this._clientWsDataset);
+  }
+
+  private async unsubscribeCallbackToWsEvents(ws: WebSocket | null) {
+    
+    if (ws == null) {
+      return;
+    }
+
+    ws.onclose = null;
+    ws.onmessage = null;
+    ws.onopen = null;
+
+    this._requestLogger.info("DATA EVENT CHANNEL [WEB SOCKET CLOSED]");
+    ws.close(1000, 'unsubscribe');
+    ws = null;
+  }
 }
 
 export { Endpoint, DatasetCreate, DatasetUpdate, ModelCreate, ModelUpdate, DatasetResponse, ModelResponse };
