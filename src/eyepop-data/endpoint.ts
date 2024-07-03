@@ -398,11 +398,11 @@ class Endpoint {
     });
   }
 
-  async subscribeCallbackToAccountEvents(account_uuid: string, callback: (event: any) => void, reconnectOnClose: boolean = true) {
+  async subscribeCallbackToAccountEvents(account_uuid: string, callback: (event: any) => void, reconnectOnClose: boolean = false) {
     this.subscribeCallbackToWsEvents('account', account_uuid, callback, this._clientWsAccount, reconnectOnClose);
   }
 
-  async subscribeCallbackToDatasetEvents(dataset_uuid: string, callback: (event: any) => void, reconnectOnClose: boolean = true) {
+  async subscribeCallbackToDatasetEvents(dataset_uuid: string, callback: (event: any) => void, reconnectOnClose: boolean = false) {
     this.subscribeCallbackToWsEvents('dataset', dataset_uuid, callback, this._clientWsDataset, reconnectOnClose);
   }
 
