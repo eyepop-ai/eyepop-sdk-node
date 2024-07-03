@@ -112,6 +112,57 @@
                 .then((res) =>
                 {
                     console.log("TEST LIST ASSETS", res);
+
+                    //create a list of all manual annotations
+                    //for each asset in the dataset
+                    let labels = [];
+                    res.forEach((asset) =>
+                    {
+                        //find asset.annotation that is Rapid Medical
+                        asset.annotations.forEach((ann) =>
+                        {
+                            if (ann.type === "manual")
+                            {
+                                if(!ann.annotation || !ann.annotation.objects)
+                                {
+                                    return;
+                                }
+                                //for each object in the annotation
+                                ann.annotation.objects.forEach((obj) =>
+                                {
+                                    //for each label in the object
+                                    labels.push(obj.classLabel)
+
+                                });
+                            }
+                        });
+                    });
+                    console.log("labels", labels)
+
+
+                    let count_approval = 0;
+                    res.forEach((asset) =>
+                    {
+                        //find asset.annotation that is Rapid Medical
+                        asset.annotations.forEach((ann) =>
+                        {
+                            if (ann.type === "manual")
+                            {
+                                if(!ann.annotation || !ann.annotation.objects)
+                                {
+                                    return;
+                                }
+                                //for each object in the annotation
+                                ann.annotation.objects.forEach((obj) =>
+                                {
+                                    count_approval++;
+                                });
+                            }
+                        });
+                    });
+                    console.log("count_approved", count_approval)
+
+
                     //add assets to the list
                     var listAssetsResult = document.getElementById('list-assets-result');
                     listAssetsResult.innerHTML = '';
