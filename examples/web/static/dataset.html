@@ -34,31 +34,27 @@
     <script>
 
         const api_key = null //'AAGcsWj8N2PlKQl9c9ydz3QFZ0FBQUFBQm1mZDB5eDUwalNlYi12NWotd3hsVGJiMW1sVXF1dE9aOU9oSGVBOWtBQXoxZmNjUE5Nb1YzY3RROUdzbVUwUkZtcDhZcG5vSWROTzR1TU8ybGhZckx6RTgzYVZwMjZEREZjalZubnpYaUNMWVdBODg9';
-        const token = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InZUdzF6bi02cjFPcXg0NmNxRl9PMiJ9.eyJodHRwczovL2NsYWltcy5leWVwb3AuYWkvZ3JhbnRzIjpbeyJwZXJtaXNzaW9uIjoiYWNjZXNzOmRhdGFzZXRzIiwidGFyZ2V0IjoiYWNjb3VudDphbmR5In0seyJwZXJtaXNzaW9uIjoiYWNjZXNzOmRhdGFzZXRzIiwidGFyZ2V0IjoiYWNjb3VudDpmb28ifSx7InBlcm1pc3Npb24iOiJhY2Nlc3M6aW5mZXJlbmNlLWFwaSIsInRhcmdldCI6InVzZXI6YXV0aDB8NjRjNDJhYjk4NzRkZTc4ZDJlOWYzZTRhIn1dLCJpc3MiOiJodHRwczovL2Rldi1leWVwb3AudXMuYXV0aDAuY29tLyIsInN1YiI6ImF1dGgwfDY0YzQyYWI5ODc0ZGU3OGQyZTlmM2U0YSIsImF1ZCI6Imh0dHBzOi8vZGV2LWFwcC5leWVwb3AuYWkiLCJpYXQiOjE3MjAwMzgyMzAsImV4cCI6MTcyMDA0NTQzMCwic2NvcGUiOiJhY2Nlc3M6ZGF0YXNldHMiLCJhenAiOiJJVXQwcHMybWFXWlVkRW1FT1BSYVBKS3ZrUVRzNllVRSIsInBlcm1pc3Npb25zIjpbImFjY2VzczpkYXRhc2V0cyIsImFkbWluOmNsb3VkcyJdfQ.jw2mYEqjd230bYubytTpY4qb0GnYMKGuY0WdX8gJtkr_-yhzAV9MR8A4cOYC1yyUAtFggoCTHMDLGLcSptihbaTvCpk_U65QJ61PEXdIEav5sD6F0risL1QCSYVwDAs3aarqnoXzXpqASQ7qH0lCRfMuEHMI7GZpVnLJXjShrKYduSH0lcYi2LM18eeLwXBIvYnEenQFBi1hTmPUfs-qkjPoRJNFfbjRxzXXUZF9uNAIfsAlD3Xe4URbkg8XMkvAxjsaeLXDeg1LOsRydFotBw7kKvz8_uYjLumDIln3spF2yy9VFA0zji6xa0-C1iI_75xz_7tFmH8jBRFKw8bfYw";
+        const token = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InZUdzF6bi02cjFPcXg0NmNxRl9PMiJ9.eyJodHRwczovL2NsYWltcy5leWVwb3AuYWkvZ3JhbnRzIjpbeyJwZXJtaXNzaW9uIjoiYWNjZXNzOmRhdGFzZXRzIiwidGFyZ2V0IjoiYWNjb3VudDphbmR5In0seyJwZXJtaXNzaW9uIjoiYWNjZXNzOmRhdGFzZXRzIiwidGFyZ2V0IjoiYWNjb3VudDpmb28ifSx7InBlcm1pc3Npb24iOiJhY2Nlc3M6aW5mZXJlbmNlLWFwaSIsInRhcmdldCI6InVzZXI6YXV0aDB8NjRjNDJhYjk4NzRkZTc4ZDJlOWYzZTRhIn1dLCJpc3MiOiJodHRwczovL2Rldi1leWVwb3AudXMuYXV0aDAuY29tLyIsInN1YiI6ImF1dGgwfDY0YzQyYWI5ODc0ZGU3OGQyZTlmM2U0YSIsImF1ZCI6Imh0dHBzOi8vZGV2LWFwcC5leWVwb3AuYWkiLCJpYXQiOjE3MjAwNDYwOTAsImV4cCI6MTcyMDA1MzI5MCwic2NvcGUiOiJhY2Nlc3M6ZGF0YXNldHMiLCJhenAiOiJJVXQwcHMybWFXWlVkRW1FT1BSYVBKS3ZrUVRzNllVRSIsInBlcm1pc3Npb25zIjpbImFjY2VzczpkYXRhc2V0cyIsImFkbWluOmNsb3VkcyJdfQ.MKo1N6JZ475Utcc3oPMaPCGM4CWCw_m-1PBn6A2YsXid9GY3vk5lEuHBJr1nR5dPmQyzNxHZu7pvL9gt3WEjP1t5Jvr1X9NFRVotAynhrt709aWE3_xTbH3uA7xAA_L8Qe54zJhrsghYZIOTZbSrM_Yr_HnsGLb-WW16hCqhcGMr8tlJvfY1RqioCPvLU8tr6EgIhwQrcJJpy4dTnFE0PWluAw6FMo4rrMrVn_MVHHmLqqAMm_OD2RlotoK5qbCk7V76tTgGSPJCDHeUocywFvu6Od4rvv2461O54QyzB50Oo6DUdakcwzuzTQEL5gDHsxnfWNSqJFKyw01uzncCMw";
         const account_uuid = "foo";
 
         var currDataset = null;
         var endpoint = null;
 
-        async function SubscriberDataset(data)
-        {
+        async function SubscriberDataset(data) {
             console.log("SubscriberDataset", data);
 
-            if (currDataset)
-            {
+            if (currDataset) {
                 listAssets(endpoint, currDataset);
             }
         }
 
-        async function SubscriberAccount(data)
-        {
+        async function SubscriberAccount(data) {
             console.log("SubscriberDataset", data);
 
             listDatasets(endpoint);
         }
 
-        async function setup()
-        {
+        async function setup() {
             // auth: {'secretKey': api_key} 
             endpoint = await EyePopData.endpoint({
                 //auth: {oAuth2: true},
@@ -73,12 +69,11 @@
             listDatasets(endpoint);
 
             console.log("Subbing to account", account_uuid)
-            endpoint.subscribeCallbackToAccountEvents(account_uuid, SubscriberDataset,false);
+            endpoint.subscribeCallbackToAccountEvents(account_uuid, SubscriberDataset, false);
 
             //implement the new dataset button
             var newDatasetsButton = document.getElementById('new-datasets-btn');
-            newDatasetsButton.onclick = function ()
-            {
+            newDatasetsButton.onclick = function () {
                 //create a new dataset
                 const datasetCreateData = {
                     // dataset create data
@@ -92,8 +87,7 @@
                     ]
                 };
                 endpoint.createDataset(account_uuid, datasetCreateData)
-                    .then((res) =>
-                    {
+                    .then((res) => {
                         console.log("TEST CREATE DATASET", res);
                         listDatasets(endpoint);
                         listAssets(endpoint, res);
@@ -105,31 +99,24 @@
 
         }
 
-        function listAssets(endpoint, dataset, version)
-        {
+        function listAssets(endpoint, dataset, version) {
             currDataset = dataset;
             endpoint.listAssets(dataset.uuid, version, true)
-                .then((res) =>
-                {
+                .then((res) => {
                     console.log("TEST LIST ASSETS", res);
 
                     //create a list of all manual annotations
                     //for each asset in the dataset
                     let labels = [];
-                    res.forEach((asset) =>
-                    {
+                    res.forEach((asset) => {
                         //find asset.annotation that is Rapid Medical
-                        asset.annotations.forEach((ann) =>
-                        {
-                            if (ann.type === "manual")
-                            {
-                                if(!ann.annotation || !ann.annotation.objects)
-                                {
+                        asset.annotations.forEach((ann) => {
+                            if (ann.type === "manual") {
+                                if (!ann.annotation || !ann.annotation.objects) {
                                     return;
                                 }
                                 //for each object in the annotation
-                                ann.annotation.objects.forEach((obj) =>
-                                {
+                                ann.annotation.objects.forEach((obj) => {
                                     //for each label in the object
                                     labels.push(obj.classLabel)
 
@@ -141,20 +128,15 @@
 
 
                     let count_approval = 0;
-                    res.forEach((asset) =>
-                    {
+                    res.forEach((asset) => {
                         //find asset.annotation that is Rapid Medical
-                        asset.annotations.forEach((ann) =>
-                        {
-                            if (ann.type === "manual")
-                            {
-                                if(!ann.annotation || !ann.annotation.objects)
-                                {
+                        asset.annotations.forEach((ann) => {
+                            if (ann.type === "manual") {
+                                if (!ann.annotation || !ann.annotation.objects) {
                                     return;
                                 }
                                 //for each object in the annotation
-                                ann.annotation.objects.forEach((obj) =>
-                                {
+                                ann.annotation.objects.forEach((obj) => {
                                     count_approval++;
                                 });
                             }
@@ -171,8 +153,7 @@
 
 
                     //for each asset in the dataset
-                    res.forEach((asset) =>
-                    {
+                    res.forEach((asset) => {
                         var assetDiv = document.createElement('div');
                         assetDiv.innerHTML = asset.uuid;
 
@@ -183,20 +164,17 @@
                         //     asset.status === AssetStatus.UPLOAD_FAILED || 
                         //     asset.status === AssetStatus.TRANSFORM_FAILED || 
                         //     asset.status === AssetStatus.TRANSFORM_IN_PROGRESS)
-                        if (asset.status === "rejected" || 
-                            asset.status === "upload_in_progress" || 
-                            asset.status === "upload_failed" || 
-                            asset.status === "transform_failed" || 
-                            asset.status === "transform_in_progress")
-                        {
+                        if (asset.status === "rejected" ||
+                            asset.status === "upload_in_progress" ||
+                            asset.status === "upload_failed" ||
+                            asset.status === "transform_failed" ||
+                            asset.status === "transform_in_progress") {
                             assetDiv.innerHTML += "(" + asset.status + ")";
                             return;
-                        } else
-                        {
+                        } else {
                             //download the asset and show in img tag
                             endpoint.downloadAsset(asset.uuid, dataset.uuid, version, 'image_cover_224')
-                                .then((res) =>
-                                {
+                                .then((res) => {
                                     console.log("TEST DOWNLOAD ASSET", res);
                                     var img = document.createElement('img');
 
@@ -206,20 +184,30 @@
                                     var canvas = document.createElement('canvas');
                                     var ctx = canvas.getContext('2d');
                                     var img = new Image();
-                                    img.onload = function ()
-                                    {
+                                    img.onload = function () {
                                         canvas.width = img.width;
                                         canvas.height = img.height;
                                         ctx.drawImage(img, 0, 0);
 
-                                        if (asset.annotations)
-                                        {
-                                            const renderer = Render2d.renderer(ctx)
-                                            asset.annotations.forEach((ann) =>
-                                            {
-                                                console.log("ann", ann.annotation);
-                                                renderer.draw(ann.annotation);
-                                            });
+                                        if (asset.annotations) {
+                                            if(hasApproval(asset)){
+                                                const renderer = Render2d.renderer(ctx)
+                                                asset.annotations.forEach((ann) => {
+                                                    if(ann.type !== "manual"){
+                                                        return;
+                                                    }
+                                                    console.log("ann", ann.annotation);
+                                                    renderer.draw(ann.annotation);
+                                                });
+                                            } else {
+                                                const renderer = Render2d.renderer(ctx)
+                                                asset.annotations.forEach((ann) => {
+                                                    console.log("ann", ann.annotation);
+                                                    renderer.draw(ann.annotation);
+                                                });
+                                            }
+
+                                            
                                         }
 
                                     };
@@ -235,11 +223,9 @@
                         //add delete button to each asset
                         var deleteAssetButton = document.createElement('button');
                         deleteAssetButton.innerHTML = "Delete";
-                        deleteAssetButton.onclick = function ()
-                        {
+                        deleteAssetButton.onclick = function () {
                             endpoint.deleteAsset(asset.uuid, dataset.uuid, version)
-                                .then((res) =>
-                                {
+                                .then((res) => {
                                     console.log("TEST DELETE ASSET", res);
                                     //remove the asset from the list
                                     assetDiv.remove();
@@ -253,11 +239,9 @@
                         //add download button to each asset
                         var downloadAssetButton = document.createElement('button');
                         downloadAssetButton.innerHTML = "Download";
-                        downloadAssetButton.onclick = function ()
-                        {
+                        downloadAssetButton.onclick = function () {
                             endpoint.downloadAsset(asset.uuid, dataset.uuid, version, 'original')
-                                .then((res) =>
-                                {
+                                .then((res) => {
                                     console.log("TEST DOWNLOAD ASSET", res);
                                 });
                         };
@@ -266,48 +250,66 @@
                         //add get asset button to each asset
                         var getAssetButton = document.createElement('button');
                         getAssetButton.innerHTML = "Get Asset";
-                        getAssetButton.onclick = function ()
-                        {
+                        getAssetButton.onclick = function () {
                             endpoint.getAsset(asset.uuid, dataset.uuid, version, true)
-                                .then((res) =>
-                                {
+                                .then((res) => {
                                     console.log("TEST GET ASSET", res);
                                 });
                         };
                         listAssetsResult.appendChild(getAssetButton);
 
-                        //add update asset manual annotation button to each asset
-                        var updateAssetManualAnnotationButton = document.createElement('button');
-                        updateAssetManualAnnotationButton.innerHTML = "Approve Auto Annotation (Rapid)";
-                        updateAssetManualAnnotationButton.onclick = function ()
-                        {
-                            //const approve_type = "ep_rapid_medical";
-                            const approve_type = "ep_coco";
 
-                            let annotation = null;
-                            //find asset.annotation that is Rapid Medical
-                            asset.annotations.forEach((ann) =>
-                            {
-                                
-                                if (ann.auto_annotate === approve_type)
-                                {
-                                    annotation = ann.annotation;
+
+                        //if asset has manual annotation, show an approved checkmark
+                        if (hasApproval(asset)) {
+                            var approvedButton = document.createElement('button');
+                            approvedButton.innerHTML = "Approved";
+                            approvedButton.style.backgroundColor = "green";
+                            listAssetsResult.appendChild(approvedButton);
+                        } else {
+
+                            //create a select box with all annotations.auto_annotate
+                            var select = document.createElement('select');
+                            select.id = "select_" + asset.uuid;
+                            asset.annotations.forEach((ann) => {
+                                if (ann.auto_annotate) {
+                                    var option = document.createElement('option');
+                                    option.value = ann.auto_annotate;
+                                    option.text = ann.auto_annotate;
+                                    select.appendChild(option);
                                 }
-                            });
+                            }); 
+                            listAssetsResult.appendChild(select);
 
-                            if(!annotation)
-                            {
-                                console.log("No "+approve_type+" annotation found");
-                                return;
-                            }
+                            //add update asset manual annotation button to each asset
+                            var updateAssetManualAnnotationButton = document.createElement('button');
+                            updateAssetManualAnnotationButton.innerHTML = "Approve Auto Annotation";
+                            updateAssetManualAnnotationButton.onclick = function () {
+                                //const approve_type = "ep_rapid_medical";
+                                const selectBox = document.getElementById("select_" + asset.uuid);
+                                const approve_type = selectBox.value;
 
-                            endpoint.updateAssetManualAnnotation(asset.uuid, dataset.uuid, version, annotation)
-                                .then((res) =>
-                                {
-                                    console.log("TEST UPDATE ASSET MANUAL ANNOTATION", res);
+                                let annotation = null;
+                                //find asset.annotation that is Rapid Medical
+                                asset.annotations.forEach((ann) => {
+
+                                    if (ann.auto_annotate === approve_type) {
+                                        annotation = ann.annotation;
+                                    }
                                 });
-                        };
-                        listAssetsResult.appendChild(updateAssetManualAnnotationButton);
+
+                                if (!annotation) {
+                                    console.log("No " + approve_type + " annotation found");
+                                    return;
+                                }
+
+                                endpoint.updateAssetManualAnnotation(asset.uuid, dataset.uuid, version, annotation)
+                                    .then((res) => {
+                                        console.log("TEST UPDATE ASSET MANUAL ANNOTATION", res);
+                                    });
+                            };
+                            listAssetsResult.appendChild(updateAssetManualAnnotationButton);
+                        }
                         listAssetsResult.appendChild(document.createElement('br'));
                         listAssetsResult.appendChild(document.createElement('br'));
                     });
@@ -317,29 +319,24 @@
 
         }
 
-        function listDatasets(endpoint)
-        {
+        function listDatasets(endpoint) {
             // Test listDatasets function
             //on page load load the datasets into the list
             endpoint.listDatasets(account_uuid)
-                .then((res) =>
-                {
+                .then((res) => {
                     console.log("TEST LIST DATASETS", res);
                     var listDatasetsResult = document.getElementById('list-datasets-result');
                     listDatasetsResult.innerHTML = '';
-                    res.forEach((dataset) =>
-                    {
+                    res.forEach((dataset) => {
                         var datasetDiv = document.createElement('div');
                         datasetDiv.innerHTML = "<span style='font-weight: bold; font-size: larger;'>" + dataset.name + "</span><br /> " + dataset.uuid;
                         listDatasetsResult.appendChild(datasetDiv);
                         //add delete button to each dataset
                         var deleteButton = document.createElement('button');
                         deleteButton.innerHTML = "Delete";
-                        deleteButton.onclick = function ()
-                        {
+                        deleteButton.onclick = function () {
                             endpoint.deleteDataset(dataset.uuid)
-                                .then((res) =>
-                                {
+                                .then((res) => {
                                     console.log("TEST DELETE DATASET", res);
 
                                     listDatasets(endpoint);
@@ -347,7 +344,7 @@
                                     //clear the assets list
                                     var listAssetsResult = document.getElementById('list-assets-result');
                                     listAssetsResult.innerHTML = '';
-                                    
+
                                 });
                         };
                         listDatasetsResult.appendChild(deleteButton);
@@ -355,20 +352,25 @@
                         //add upload button to each dataset
                         var uploadButton = document.createElement('button');
                         uploadButton.innerHTML = "Upload";
-                        uploadButton.onclick = function ()
-                        {
+                        uploadButton.onclick = function () {
                             const version = dataset.versions.find(v => v.modifiable)?.version || null;
 
-                            const file = createFileFromLocalURL('./images/Hot_dog_with_mustard.png')
-                                .then((file) =>
-                                {
-                                    console.log("file", file)
+                            const fileInput = document.createElement('input');
+                            fileInput.type = 'file';
+                            fileInput.accept = 'image/*';
+                            fileInput.multiple = true;
+                            fileInput.onchange = function (event) {
+                                const files = event.target.files;
+                                console.log("files", files);
+                                Array.from(files).forEach(file => {
                                     endpoint.uploadAsset(dataset.uuid, version, file)
-                                        .then((res) =>
-                                        {
+                                        .then((res) => {
                                             console.log("TEST UPLOAD ASSET", res);
                                         });
                                 });
+                            };
+
+                            fileInput.click();
                         };
                         listDatasetsResult.appendChild(uploadButton);
 
@@ -377,11 +379,10 @@
                         listAssetsButton.innerHTML = "List Assets";
                         const version = dataset.versions.find(v => v.modifiable)?.version || null;
 
-                        listAssetsButton.onclick = function ()
-                        {
+                        listAssetsButton.onclick = function () {
 
                             console.log("Subbing to dataset", dataset.uuid)
-                            endpoint.subscribeCallbackToDatasetEvents(dataset.uuid, SubscriberDataset,false);
+                            endpoint.subscribeCallbackToDatasetEvents(dataset.uuid, SubscriberDataset, false);
 
                             listAssets(endpoint, dataset, version)
 
@@ -392,11 +393,9 @@
                         //add list models button to each dataset
                         var listModelsButton = document.createElement('button');
                         listModelsButton.innerHTML = "List Models";
-                        listModelsButton.onclick = function ()
-                        {
+                        listModelsButton.onclick = function () {
                             endpoint.listModels(account_uuid)
-                                .then((res) =>
-                                {
+                                .then((res) => {
                                     console.log("TEST LIST MODELS", res);
                                 });
                         };
@@ -405,22 +404,18 @@
                         //make a create model button
                         var createModelButton = document.createElement('button');
                         createModelButton.innerHTML = "Create Model";
-                        createModelButton.onclick = function ()
-                        {
+                        createModelButton.onclick = function () {
                             endpoint.freezeDatasetVersion(dataset.uuid)
-                                .then((res) =>
-                                {
+                                .then((res) => {
                                     console.log("TEST FREEZE DATASET", res);
-                                }).then(() =>
-                                {
+                                }).then(() => {
                                     endpoint.createModel(dataset.uuid, 1, {
                                         name: "Andy Model",
                                         description: new Date().toString(),
                                         type: "epdet_b1"
-                                    }).then((res) =>
-                                        {
-                                            console.log("TEST CREATE MODEL", res);
-                                        });
+                                    }).then((res) => {
+                                        console.log("TEST CREATE MODEL", res);
+                                    });
                                 });
                         };
                         listDatasetsResult.appendChild(createModelButton);
@@ -429,11 +424,9 @@
                         //add get dataset button to each dataset
                         var getDatasetButton = document.createElement('button');
                         getDatasetButton.innerHTML = "Get Dataset";
-                        getDatasetButton.onclick = function ()
-                        {
+                        getDatasetButton.onclick = function () {
                             endpoint.getDataset(dataset.uuid)
-                                .then((res) =>
-                                {
+                                .then((res) => {
                                     console.log("TEST GET DATASET", res);
                                 });
                         };
@@ -452,29 +445,35 @@
 
         setup();
 
-        async function createFileFromLocalURL(fileURL)
-        {
-            try
-            {
+        async function createFileFromLocalURL(fileURL) {
+            try {
                 // Fetch the file data
                 const response = await fetch(fileURL);
                 const blob = await response.blob();
 
                 // Extract the filename from the URL
                 const urlParts = fileURL.split('/');
-                const filename = urlParts[ urlParts.length - 1 ];
+                const filename = urlParts[urlParts.length - 1];
 
                 // Create a File object
-                const file = new File([ blob ], filename, { type: blob.type });
+                const file = new File([blob], filename, { type: blob.type });
 
                 return file;
-            } catch (error)
-            {
+            } catch (error) {
                 console.error('Error creating file from local URL:', error);
             }
         }
 
-        //TODO: Approve Rapid Medical annotation
+        function hasApproval(asset) {
+            let hasApproval = false;
+            asset.annotations.forEach((ann) => {
+                console.log("HAS APPROVAL ann", ann.type);
+                if (ann.type === "manual") {
+                    hasApproval = true;
+                }
+            });
+            return hasApproval;
+        }
 
     </script>
 </body>
