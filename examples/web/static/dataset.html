@@ -29,6 +29,13 @@
                     <div id="list-assets-result"></div>
                 </div>
             </div>
+
+            <div class="row mt-2" style="width: 100%">
+                <div class="col text-center" id="list-models">
+                    <h1 class="display-4">Model Viewer</h1>
+                    <div id="list-models-result"></div>
+                </div>
+            </div>
         </div>
     </div>
     <script>
@@ -52,6 +59,8 @@
             console.log("SubscriberDataset", data);
 
             listDatasets(endpoint);
+            listModels(endpoint);
+            
         }
 
         async function setup() {
@@ -67,6 +76,7 @@
             endpoint.healthz();
 
             listDatasets(endpoint);
+            listModels(endpoint);
 
             console.log("Subbing to account", account_uuid)
             endpoint.subscribeCallbackToAccountEvents(account_uuid, SubscriberDataset, false);
@@ -438,11 +448,6 @@
 
         }
 
-
-
-
-        // }
-
         setup();
 
         async function createFileFromLocalURL(fileURL) {
@@ -474,6 +479,66 @@
             });
             return hasApproval;
         }
+
+        function listModels(endpoint) {
+            // Test listModels function
+            endpoint.listModels(account_uuid)
+                .then((res) => {
+                    console.log("TEST LIST MODELS", res);
+
+                    var listModelsResult = document.getElementById('list-models-result');
+                    listModelsResult.innerHTML = '';
+
+                    //show model uuid and name
+                    res.forEach((model) => {
+                        var modelDiv = document.createElement('div');
+                        modelDiv.innerHTML = "<span style='font-weight: bold; font-size: larger;'>" + model.name + "</span><br /> " + model.uuid;
+
+                        listModelsResult.appendChild(modelDiv);
+
+                        //add delete button to each model
+                        var deleteModelButton = document.createElement('button');
+                        deleteModelButton.innerHTML = "Delete";
+                        deleteModelButton.onclick = function () {
+                            endpoint.deleteModel(model.uuid)
+                                .then((res) => {
+                                    console.log("TEST DELETE MODEL", res);
+                                    listModels(endpoint);
+                                });
+                        };
+                        listModelsResult.appendChild(deleteModelButton);
+
+                        //add get model button to each model
+                        var getModelButton = document.createElement('button');
+                        getModelButton.innerHTML = "Get Model";
+                        getModelButton.onclick = function () {
+                            endpoint.getModel(model.uuid)
+                                .then((res) => {
+                                    console.log("TEST GET MODEL", res);
+                                });
+                        };
+                        listModelsResult.appendChild(getModelButton);
+
+                        //add publish model button to each model
+                        var publishModelButton = document.createElement('button');
+                        publishModelButton.innerHTML = "Publish Model";
+                        publishModelButton.onclick = function () {
+                            endpoint.publishModel(model.uuid)
+                                .then((res) => {
+                                    console.log("TEST PUBLISH MODEL", res);
+                                });
+                        };
+                        listModelsResult.appendChild(publishModelButton);
+                        listModelsResult.appendChild(document.createElement('br'));
+                        listModelsResult.appendChild(document.createElement('br'));
+                        
+
+
+
+                });
+        });
+    }
+    
 
     </script>
 </body>
