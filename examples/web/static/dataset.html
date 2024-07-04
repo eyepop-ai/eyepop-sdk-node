@@ -22,15 +22,15 @@
                     <button class="btn btn-primary" id="new-datasets-btn">+ Dataset</button><br /><br />
                     <div id="list-datasets-result"></div>
                 </div>
-            </div>
-            <div class="row mt-2" style="width: 100%">
+            
                 <div class="col text-center" id="list-assets">
                     <h1 class="display-4">Asset Viewer</h1>
+                    <h2 class="display-6" id="list-assets-model-info"></h2>
                     <div id="list-assets-result"></div>
                 </div>
             </div>
-
-            <div class="row mt-2" style="width: 100%">
+            <div class="row" style="width: 100%">
+            
                 <div class="col text-center" id="list-models">
                     <h1 class="display-4">Model Viewer</h1>
                     <div id="list-models-result"></div>
@@ -40,9 +40,11 @@
     </div>
     <script>
 
-        const api_key = null //'AAGcsWj8N2PlKQl9c9ydz3QFZ0FBQUFBQm1mZDB5eDUwalNlYi12NWotd3hsVGJiMW1sVXF1dE9aOU9oSGVBOWtBQXoxZmNjUE5Nb1YzY3RROUdzbVUwUkZtcDhZcG5vSWROTzR1TU8ybGhZckx6RTgzYVZwMjZEREZjalZubnpYaUNMWVdBODg9';
-        const token = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InZUdzF6bi02cjFPcXg0NmNxRl9PMiJ9.eyJodHRwczovL2NsYWltcy5leWVwb3AuYWkvZ3JhbnRzIjpbeyJwZXJtaXNzaW9uIjoiYWNjZXNzOmRhdGFzZXRzIiwidGFyZ2V0IjoiYWNjb3VudDphbmR5In0seyJwZXJtaXNzaW9uIjoiYWNjZXNzOmRhdGFzZXRzIiwidGFyZ2V0IjoiYWNjb3VudDpmb28ifSx7InBlcm1pc3Npb24iOiJhY2Nlc3M6aW5mZXJlbmNlLWFwaSIsInRhcmdldCI6InVzZXI6YXV0aDB8NjRjNDJhYjk4NzRkZTc4ZDJlOWYzZTRhIn1dLCJpc3MiOiJodHRwczovL2Rldi1leWVwb3AudXMuYXV0aDAuY29tLyIsInN1YiI6ImF1dGgwfDY0YzQyYWI5ODc0ZGU3OGQyZTlmM2U0YSIsImF1ZCI6Imh0dHBzOi8vZGV2LWFwcC5leWVwb3AuYWkiLCJpYXQiOjE3MjAwNDYwOTAsImV4cCI6MTcyMDA1MzI5MCwic2NvcGUiOiJhY2Nlc3M6ZGF0YXNldHMiLCJhenAiOiJJVXQwcHMybWFXWlVkRW1FT1BSYVBKS3ZrUVRzNllVRSIsInBlcm1pc3Npb25zIjpbImFjY2VzczpkYXRhc2V0cyIsImFkbWluOmNsb3VkcyJdfQ.MKo1N6JZ475Utcc3oPMaPCGM4CWCw_m-1PBn6A2YsXid9GY3vk5lEuHBJr1nR5dPmQyzNxHZu7pvL9gt3WEjP1t5Jvr1X9NFRVotAynhrt709aWE3_xTbH3uA7xAA_L8Qe54zJhrsghYZIOTZbSrM_Yr_HnsGLb-WW16hCqhcGMr8tlJvfY1RqioCPvLU8tr6EgIhwQrcJJpy4dTnFE0PWluAw6FMo4rrMrVn_MVHHmLqqAMm_OD2RlotoK5qbCk7V76tTgGSPJCDHeUocywFvu6Od4rvv2461O54QyzB50Oo6DUdakcwzuzTQEL5gDHsxnfWNSqJFKyw01uzncCMw";
+        const apiKey = 'AAGcsWj8N2PlKQl9c9ydz3QFZ0FBQUFBQm1mZDB5eDUwalNlYi12NWotd3hsVGJiMW1sVXF1dE9aOU9oSGVBOWtBQXoxZmNjUE5Nb1YzY3RROUdzbVUwUkZtcDhZcG5vSWROTzR1TU8ybGhZckx6RTgzYVZwMjZEREZjalZubnpYaUNMWVdBODg9';
+        const auth = apiKey ? { secretKey: apiKey } : { oAuth2: true };
+       
         const account_uuid = "foo";
+
 
         var currDataset = null;
         var endpoint = null;
@@ -64,11 +66,13 @@
         }
 
         async function setup() {
-            // auth: {'secretKey': api_key} 
+            
+            // console.log("Setting up")
+            // document.getElementById('list-assets').style.display = 'none';
+            // return;
+
             endpoint = await EyePopData.endpoint({
-                //auth: {oAuth2: true},
-                auth: { 'secretKey': api_key },
-                passedToken: token,
+                auth: auth,
                 eyepopDataUrl: 'https://data.api.eyepop.xyz'
             }).connect();
 
@@ -111,6 +115,9 @@
 
         function listAssets(endpoint, dataset, version) {
             currDataset = dataset;
+
+            document.getElementById('list-assets-model-info').innerHTML = `<strong>${dataset.name}</strong><br>${dataset.uuid}`;
+
             endpoint.listAssets(dataset.uuid, version, true)
                 .then((res) => {
                     console.log("TEST LIST ASSETS", res);
@@ -270,6 +277,7 @@
 
 
 
+                        listAssetsResult.appendChild(document.createElement('br'));
                         //if asset has manual annotation, show an approved checkmark
                         if (hasApproval(asset)) {
                             var approvedButton = document.createElement('button');
@@ -399,18 +407,6 @@
                         }
                         listDatasetsResult.appendChild(listAssetsButton);
 
-
-                        //add list models button to each dataset
-                        var listModelsButton = document.createElement('button');
-                        listModelsButton.innerHTML = "List Models";
-                        listModelsButton.onclick = function () {
-                            endpoint.listModels(account_uuid)
-                                .then((res) => {
-                                    console.log("TEST LIST MODELS", res);
-                                });
-                        };
-                        listDatasetsResult.appendChild(listModelsButton);
-
                         //make a create model button
                         var createModelButton = document.createElement('button');
                         createModelButton.innerHTML = "Create Model";
@@ -448,7 +444,7 @@
 
         }
 
-        setup();
+        
 
         async function createFileFromLocalURL(fileURL) {
             try {
@@ -539,6 +535,8 @@
         });
     }
     
+
+    setup();
 
     </script>
 </body>

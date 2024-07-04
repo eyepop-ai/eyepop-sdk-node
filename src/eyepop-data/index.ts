@@ -47,7 +47,9 @@ export namespace EyePopData {
             opts.auth = defaultAuth
         }
 
-        opts.eyepopUrl = 'https://staging-api.eyepop.ai'
+        if (typeof opts.eyepopUrl == "undefined") {
+            opts.eyepopUrl = 'https://staging-api.eyepop.ai'
+        }
 
         if ((typeof (opts.auth as OAuth2Auth).oAuth2 != "undefined")) {
             if (typeof (opts.auth as OAuth2Auth).oAuth2 === "boolean") {
@@ -57,7 +59,7 @@ export namespace EyePopData {
                             domain: "dev-eyepop.us.auth0.com",
                             clientId: "jktx3YO2UnbkNPvr05PQWf26t1kNTJyg",
                             audience: "https://dev-app.eyepop.ai",
-                            scope: "admin:clouds"
+                            scope: "access:datasets"
                         }
                     }
                     console.log('Using dev-eyepop.us.auth0.com')
@@ -67,7 +69,7 @@ export namespace EyePopData {
                             domain: "eyepop.us.auth0.com",
                             clientId: "Lb9ubA9Hf3jlaqWLUx8XgA0zvotgViCl",
                             audience: "https://api.eyepop.ai",
-                            scope: "admin:clouds"
+                            scope: "access:datasets"
                         }
                     }
                 }

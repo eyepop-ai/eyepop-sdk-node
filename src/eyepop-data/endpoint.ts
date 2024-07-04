@@ -131,10 +131,10 @@ class Endpoint {
 
   }
 
-  private async request(path: string, options: RequestInit = {}) {    
+  private async request(path: string, options: RequestInit = {}, disableAuth: boolean = false) {    
     const headers = {
       'Content-Type': 'application/json',
-      'Authorization': await this.authorizationHeader(),
+      ...(disableAuth ? {} : {'Authorization': await this.authorizationHeader()}),
       ...(options.headers || {}),
     };
 
@@ -152,9 +152,12 @@ class Endpoint {
       body: options.body //instanceof Blob ? options.body : options.body ? JSON.stringify(options.body) : null
     };
 
-    this._requestLogger.info('Request - '+ri.method +path+(ri.body ? ri.body : ''))
+    this._requestLogger.info('Request - '+ri.method +path+" BODY: "+(ri.body ? ri.body : ''))
 
-    const response = await this._client.fetch(`${this._eyepopDataUrl}${path}`, ri);
+    //if path is a full url, use it as is
+    const path_final = path.startsWith('http') ? path : `${this._eyepopDataUrl}${path}`
+   
+    const response = await this._client.fetch(path_final, ri);
 
     if (response.status === 204) {
       return null; // Return null if the response is completely empty
@@ -170,6 +173,11 @@ class Endpoint {
       const blob = await response.blob();
       return blob;
     }
+
+
+    //log whole response
+    this._requestLogger.info('Response - '+response.status + " "+response.statusText)
+
 
     return response.json();
   }
@@ -219,20 +227,18 @@ class Endpoint {
         this._token = session.accessToken
         this._expire_token_time = session.validUntil / 1000
       } else if ((this._options.auth as SecretKeyAuth).secretKey !== undefined && this._eyepopUrl) {
-        const secretKeyAuth = this._options.auth as SecretKeyAuth
-        const body = { 'secret_key': secretKeyAuth.secretKey }
-        const headers = { 'Content-Type': 'application/json' }
-        const post_url = `${this._eyepopUrl}/authentication/token`
-        //this._requestLogger.debug('before POST %s', post_url)
-        const response = await this._client.fetch(post_url, {
-          method: 'POST', headers: headers, body: JSON.stringify(body)
-        })
-        if (response.status != 200) {
-          const message = await response.text()
-          return Promise.reject(`Unexpected status ${response.status}: ${message}`)
-        }
         
-        const data = await response.json()
+        const secretKeyAuth = this._options.auth as SecretKeyAuth;
+        const body = { 'secret_key': secretKeyAuth.secretKey };
+        const headers = { 'Content-Type': 'application/json' };
+        const post_url = `${this._eyepopUrl}/authentication/token`;
+        const response_json = await this.request(post_url, {
+          method: 'POST',
+          headers: headers,
+          body: JSON.stringify(body)
+        }, true);
+        
+        const data = await response_json;
         const token: AccessToken = data as AccessToken
         this._token = token.access_token
         this._expire_token_time = now + token.expires_in - 60
