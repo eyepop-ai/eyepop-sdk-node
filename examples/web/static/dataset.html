@@ -207,20 +207,48 @@
                                         ctx.drawImage(img, 0, 0);
 
                                         if (asset.annotations) {
+                                           
+                                            const colors = [
+                                                "#FFB6C1", // Light Pink
+                                                "#FFE4B5", // Moccasin
+                                                "#98FB98", // Pale Green
+                                                "#AFEEEE", // Pale Turquoise
+                                                "#FFD700", // Gold
+                                                "#DA70D6", // Orchid
+                                                "#FF6347", // Tomato
+                                                "#40E0D0", // Turquoise
+                                                "#FFDEAD", // Navajo White
+                                                "#ADD8E6"  // Light Blue
+                                                ];
+
+                                                const renderer = Render2d.renderer(
+                                                    ctx,
+                                                    [Render2d.renderBox({
+                                                        useSST:true,
+                                                        showClass: false,
+                                                        showConfidence: false,
+                                                    })]);
+
+                                            
+
                                             if(hasApproval(asset)){
-                                                const renderer = Render2d.renderer(ctx)
                                                 asset.annotations.forEach((ann) => {
                                                     if(ann.type !== "manual"){
                                                         return;
                                                     }
                                                     console.log("ann", ann.annotation);
-                                                    renderer.draw(ann.annotation);
+                                                    
+                                                    const color =colors[Math.floor(Math.random()*100) % colors.length];
+                                                    
+                                                    renderer.draw(ann.annotation, color);
                                                 });
                                             } else {
-                                                const renderer = Render2d.renderer(ctx)
                                                 asset.annotations.forEach((ann) => {
                                                     console.log("ann", ann.annotation);
-                                                    renderer.draw(ann.annotation);
+
+                                                    const color =colors[Math.floor(Math.random()*100) % colors.length];
+                                                    
+                                                    renderer.draw(ann.annotation, color);
                                                 });
                                             }
 
@@ -337,10 +365,11 @@
 
         }
 
+        var datasets = [];
         function listDatasets(endpoint) {
             // Test listDatasets function
             //on page load load the datasets into the list
-            endpoint.listDatasets(account_uuid)
+            datasets=endpoint.listDatasets(account_uuid)
                 .then((res) => {
                     console.log("TEST LIST DATASETS", res);
                     var listDatasetsResult = document.getElementById('list-datasets-result');
@@ -440,7 +469,16 @@
                         listDatasetsResult.appendChild(document.createElement('br'));
                         listDatasetsResult.appendChild(document.createElement('br'));
                     });
+
+                    const dataset = res[0];
+                    console.log("Subbing to dataset", dataset.uuid)
+                    endpoint.subscribeCallbackToDatasetEvents(dataset.uuid, SubscriberDataset, false);
+
+                    listAssets(endpoint, dataset, 1)
                 });
+
+
+               
 
         }
 

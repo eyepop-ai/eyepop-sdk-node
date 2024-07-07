@@ -9,6 +9,7 @@ export type RenderBoxOptions = {
     showNestedClasses: boolean // Whether to show nested classes, such as "person" + "necklace"
     showConfidence: boolean // Whether to show confidence, such as "0.95"
     showTraceId: boolean // Whether to show trace ID, such as "132"
+    useSST: boolean // Whether to use SST style boxes
 } & RenderTarget
 
 export class RenderBox implements Render
@@ -21,16 +22,18 @@ export class RenderBox implements Render
     private showNestedClasses: boolean
     private showConfidence: boolean
     private showTraceId: boolean
+    private useSST: boolean
 
     constructor(options: Partial<RenderBoxOptions> = {})
     {
-        const { showClass = true, showConfidence = false, showTraceId = false, showNestedClasses = false, target = '$..objects.*' } = options
+        const { showClass = true, showConfidence = false, showTraceId = false, showNestedClasses = false, target = '$..objects.*',useSST=false} = options
         this.target = target
 
         this.showClass = showClass
         this.showNestedClasses = showNestedClasses
         this.showConfidence = showConfidence
         this.showTraceId = showTraceId
+        this.useSST = useSST
     }
 
     start(context: CanvasRenderingContext2D, style: Style)
@@ -39,8 +42,14 @@ export class RenderBox implements Render
         this.style = style
     }
 
-    public draw(element: PredictedObject, xOffset: number, yOffset: number, xScale: number, yScale: number, streamTime: StreamTime): void
+    public draw(element: PredictedObject, xOffset: number, yOffset: number, xScale: number, yScale: number, streamTime: StreamTime, color?:string): void
     {
+        if (this.useSST)
+        {
+            this.drawSST(element, xOffset, yOffset, xScale, yScale, streamTime,color)
+            return;
+        }
+
         const context = this.context
         const style = this.style
         if (!context || !style)
@@ -168,6 +177,141 @@ export class RenderBox implements Render
             yOffset += this.drawLabel(label, context, element, yScale, xScale, yOffset, xOffset, style, boundingBoxWidth, padding, false, fontSize)
         }
     }
+
+    public drawSST(element: PredictedObject, xOffset: number, yOffset: number, xScale: number, yScale: number, streamTime: StreamTime,color?:string): void
+    {
+        const context = this.context
+        const style = this.style
+        if (!context || !style)
+        {
+            throw new Error('render() called before start()')
+        }
+
+        if (color) {
+            console.log("color style:",color);
+        }
+
+        const x = xOffset + element.x * xScale
+        const y = yOffset + element.y * yScale
+        const w = element.width * xScale
+        const h = element.height * yScale
+
+        // Sort the element's objects based on the element.object.category
+        if (element.objects)
+        {
+            element.objects.sort((a, b) =>
+            {
+                if (!a.category || !b.category) return 0
+
+                return a.category.localeCompare(b.category)
+            })
+        }
+        const scale = style.scale
+
+        //faded blue background
+        context.beginPath()
+        context.rect(x, y, w, h)
+        context.lineWidth = scale * 2
+        context.strokeStyle = color || style.colors.primary_color
+        //context.fillStyle = style.colors.opacity_color
+        //context.fill()
+        context.stroke()
+
+
+        const desiredPercentage = style.cornerPadding
+
+        let canvasDimension = Math.min(context.canvas.width, context.canvas.height);
+        let cornerSize = Math.min(w / 4, canvasDimension * desiredPercentage);
+
+        var corners = [//top left corner
+            [ { x: x, y: y + cornerSize }, { x: x, y: y }, { x: x + cornerSize, y: y }, ], //bottom left corner
+            [ { x: x, y: y + h - cornerSize }, { x: x, y: y + h }, { x: x + cornerSize, y: y + h }, ], //top right corner
+            [ { x: x + w - cornerSize, y: y }, { x: x + w, y: y }, { x: x + w, y: y + cornerSize }, ], //bottom right corner
+            [ { x: x + w, y: y + h - cornerSize }, { x: x + w, y: y + h }, { x: x + w - cornerSize, y: y + h }, ], ]
+
+        corners.forEach((corner) =>
+        {
+            context.beginPath()
+            context.moveTo(corner[ 0 ].x, corner[ 0 ].y)
+            context.lineTo(corner[ 1 ].x, corner[ 1 ].y)
+            context.lineTo(corner[ 2 ].x, corner[ 2 ].y)
+            context.strokeStyle = style.colors.primary_color
+            context.lineWidth = scale * 2
+            context.stroke()
+        })
+
+        const padding = Math.max(Math.min(w / 25, canvasDimension * (style.cornerWidth)), scale * 2)
+
+        cornerSize = cornerSize - padding
+
+        var corners2 = [//2nd top left corner
+            [ { x: x + padding, y: y + padding + cornerSize }, {
+                x: x + padding,
+                y: y + padding
+            }, { x: x + padding + cornerSize, y: y + padding }, ], //2nd bottom left corner
+            [ { x: x + padding, y: y - padding + h - cornerSize }, {
+                x: x + padding,
+                y: y - padding + h
+            }, { x: x + padding + cornerSize, y: y - padding + h }, ], //2nd top right corner
+            [ { x: x - padding + w - cornerSize, y: y + padding }, {
+                x: x - padding + w,
+                y: y + padding
+            }, { x: x - padding + w, y: y + padding + cornerSize }, ], //2nd bottom right corner
+            [ { x: x - padding + w, y: y - padding + h - cornerSize }, {
+                x: x - padding + w,
+                y: y - padding + h
+            }, { x: x - padding + w - cornerSize, y: y - padding + h }, ], ]
+
+        corners2.forEach((corner) =>
+        {
+            context.beginPath()
+            context.moveTo(corner[ 0 ].x, corner[ 0 ].y)
+            context.lineTo(corner[ 1 ].x, corner[ 1 ].y)
+            context.lineTo(corner[ 2 ].x, corner[ 2 ].y)
+            context.strokeStyle = style.colors.secondary_color
+            context.lineWidth = scale * 2
+            context.stroke()
+        })
+
+        const boundingBoxWidth = (element.width * xScale) - (3 * padding);
+        let fontSize = this.getMinFontSize(context, element, boundingBoxWidth, style)
+        let label = ""
+
+        if (this.showClass && element.classLabel)
+        {
+            label = element.classLabel
+            label = RenderBox.toTitleCase(label)
+            yOffset += this.drawLabel(label, context, element, yScale, xScale, yOffset, xOffset, style, boundingBoxWidth, padding, false, fontSize)
+        }
+
+        if (this.showNestedClasses && element?.classes)
+        {
+            for (let i = 0; i < element.classes.length; i++)
+            {
+                label = element.classes[ i ]?.classLabel
+
+                if (!label) continue
+
+                label = RenderBox.toTitleCase(label)
+                yOffset += this.drawLabel(label, context, element, yScale, xScale, yOffset, xOffset, style, boundingBoxWidth, padding, false, fontSize)
+            }
+        }
+
+        if (this.showTraceId && element.traceId)
+        {
+            label = 'ID: ' + element.traceId
+            label = RenderBox.toTitleCase(label)
+            yOffset += this.drawLabel(label, context, element, yScale, xScale, yOffset, xOffset, style, boundingBoxWidth, padding, false, fontSize)
+        }
+
+        if (this.showConfidence && element.confidence)
+        {
+            label = Math.round(element.confidence * 100) + '%'
+            label = RenderBox.toTitleCase(label)
+            yOffset += this.drawLabel(label, context, element, yScale, xScale, yOffset, xOffset, style, boundingBoxWidth, padding, false, fontSize)
+        }
+    }
+
 
     // Draw a label on the canvas, scaling the font size to fit the bounding box
     drawLabel(label: string, context: CanvasRenderingContext2D, element: any, yScale: number, xScale: number, yOffset: number, xOffset: number, style: Style, boundingBoxWidth: number, padding: number, scaleToBounds = false, fontSize?: number): number

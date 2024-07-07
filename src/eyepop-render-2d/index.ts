@@ -15,7 +15,7 @@ import { RenderText, RenderTextOptions } from './render-text';
 
 export interface Renderer extends RenderTarget
 {
-    draw(p: Prediction): void
+    draw(p: Prediction, color?:string): void
 }
 
 export namespace Render2d

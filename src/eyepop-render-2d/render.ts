@@ -12,6 +12,6 @@ export interface Render extends RenderTarget
 {
     start(context: CanvasRenderingContext2D, style: Style): void
 
-    draw(element: any, xOffset: number, yOffset: number, xScale: number, yScale: number, streamTime: StreamTime): void
+    draw(element: any, xOffset: number, yOffset: number, xScale: number, yScale: number, streamTime: StreamTime,color?:string): void
 }
 
