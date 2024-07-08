@@ -187,10 +187,6 @@ export class RenderBox implements Render
             throw new Error('render() called before start()')
         }
 
-        if (color) {
-            console.log("color style:",color);
-        }
-
         const x = xOffset + element.x * xScale
         const y = yOffset + element.y * yScale
         const w = element.width * xScale
@@ -218,60 +214,32 @@ export class RenderBox implements Render
         context.stroke()
 
 
-        const desiredPercentage = style.cornerPadding
+        const desiredPercentage = 0.015;
 
         let canvasDimension = Math.min(context.canvas.width, context.canvas.height);
+        
+
+        // Draw the corners as circles at each corner of the bounding box
         let cornerSize = Math.min(w / 4, canvasDimension * desiredPercentage);
 
-        var corners = [//top left corner
-            [ { x: x, y: y + cornerSize }, { x: x, y: y }, { x: x + cornerSize, y: y }, ], //bottom left corner
-            [ { x: x, y: y + h - cornerSize }, { x: x, y: y + h }, { x: x + cornerSize, y: y + h }, ], //top right corner
-            [ { x: x + w - cornerSize, y: y }, { x: x + w, y: y }, { x: x + w, y: y + cornerSize }, ], //bottom right corner
-            [ { x: x + w, y: y + h - cornerSize }, { x: x + w, y: y + h }, { x: x + w - cornerSize, y: y + h }, ], ]
+        let padding = Math.max(Math.min(w / 25, canvasDimension * (style.cornerWidth)), scale * 2)
 
-        corners.forEach((corner) =>
-        {
-            context.beginPath()
-            context.moveTo(corner[ 0 ].x, corner[ 0 ].y)
-            context.lineTo(corner[ 1 ].x, corner[ 1 ].y)
-            context.lineTo(corner[ 2 ].x, corner[ 2 ].y)
-            context.strokeStyle = style.colors.primary_color
-            context.lineWidth = scale * 2
-            context.stroke()
-        })
+        var corners = [
+            { x: x, y: y},
+            { x: x+w, y: y},
+            { x: x, y: y + h},
+            { x: x+w, y: y + h},
+        ]
 
-        const padding = Math.max(Math.min(w / 25, canvasDimension * (style.cornerWidth)), scale * 2)
-
-        cornerSize = cornerSize - padding
-
-        var corners2 = [//2nd top left corner
-            [ { x: x + padding, y: y + padding + cornerSize }, {
-                x: x + padding,
-                y: y + padding
-            }, { x: x + padding + cornerSize, y: y + padding }, ], //2nd bottom left corner
-            [ { x: x + padding, y: y - padding + h - cornerSize }, {
-                x: x + padding,
-                y: y - padding + h
-            }, { x: x + padding + cornerSize, y: y - padding + h }, ], //2nd top right corner
-            [ { x: x - padding + w - cornerSize, y: y + padding }, {
-                x: x - padding + w,
-                y: y + padding
-            }, { x: x - padding + w, y: y + padding + cornerSize }, ], //2nd bottom right corner
-            [ { x: x - padding + w, y: y - padding + h - cornerSize }, {
-                x: x - padding + w,
-                y: y - padding + h
-            }, { x: x - padding + w - cornerSize, y: y - padding + h }, ], ]
-
-        corners2.forEach((corner) =>
-        {
-            context.beginPath()
-            context.moveTo(corner[ 0 ].x, corner[ 0 ].y)
-            context.lineTo(corner[ 1 ].x, corner[ 1 ].y)
-            context.lineTo(corner[ 2 ].x, corner[ 2 ].y)
-            context.strokeStyle = style.colors.secondary_color
-            context.lineWidth = scale * 2
-            context.stroke()
-        })
+        corners.forEach((corner) => {
+            context.beginPath();
+            context.arc(corner.x, corner.y, cornerSize, 0, 2 * Math.PI);
+            context.lineWidth = scale * 2;
+            context.strokeStyle = color || style.colors.primary_color;
+            context.fillStyle = color || style.colors.primary_color;
+            context.fill();
+            context.stroke();
+        });
 
         const boundingBoxWidth = (element.width * xScale) - (3 * padding);
         let fontSize = this.getMinFontSize(context, element, boundingBoxWidth, style)
