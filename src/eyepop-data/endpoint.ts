@@ -357,6 +357,16 @@ class Endpoint {
     });
   }
 
+  async updateAutoAnnotationStatus(asset_uuid: string, auto_annotate: string, user_review: string) {
+    const validStatuses = ['approved', 'rejected', 'unknown'];
+    if (!validStatuses.includes(user_review)) {
+      throw new Error('Invalid status');
+    }
+    return this.request(`/assets/${asset_uuid}/auto_annotations/${auto_annotate}/user_review/${user_review}`, {
+      method: 'PATCH'
+    });
+  }
+
   async downloadAsset(asset_uuid: string, dataset_uuid?: string, dataset_version?: number, transcode_mode: string = 'original') {
     const versionQuery = dataset_version ? `&dataset_version=${dataset_version}` : '';
     const datasetQuery = dataset_uuid ? `&dataset_uuid=${dataset_uuid}` : '';

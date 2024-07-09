@@ -350,7 +350,7 @@
                                     return;
                                 }
 
-                                endpoint.updateAssetManualAnnotation(asset.uuid, dataset.uuid, version, annotation)
+                                endpoint.updateAutoAnnotationStatus(asset.uuid, approve_type,'approved')
                                     .then((res) => {
                                         console.log("TEST UPDATE ASSET MANUAL ANNOTATION", res);
                                     });
@@ -508,7 +508,7 @@
             let hasApproval = false;
             asset.annotations.forEach((ann) => {
                 console.log("HAS APPROVAL ann", ann.type);
-                if (ann.type === "manual") {
+                if (ann.user_review === "approved") {
                     hasApproval = true;
                 }
             });
