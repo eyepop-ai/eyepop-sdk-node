@@ -9,7 +9,7 @@ export type RenderBoxOptions = {
     showNestedClasses: boolean // Whether to show nested classes, such as "person" + "necklace"
     showConfidence: boolean // Whether to show confidence, such as "0.95"
     showTraceId: boolean // Whether to show trace ID, such as "132"
-    useSST: boolean // Whether to use SST style boxes
+    boxType?: string // We now have rich eyepop boxes and simple boxes
 } & RenderTarget
 
 export class RenderBox implements Render
@@ -22,18 +22,18 @@ export class RenderBox implements Render
     private showNestedClasses: boolean
     private showConfidence: boolean
     private showTraceId: boolean
-    private useSST: boolean
-
+    private boxType?: string
+    
     constructor(options: Partial<RenderBoxOptions> = {})
     {
-        const { showClass = true, showConfidence = false, showTraceId = false, showNestedClasses = false, target = '$..objects.*',useSST=false} = options
+        const { showClass = true, showConfidence = false, showTraceId = false, showNestedClasses = false, target = '$..objects.*',boxType="rich"} = options
         this.target = target
 
         this.showClass = showClass
         this.showNestedClasses = showNestedClasses
         this.showConfidence = showConfidence
         this.showTraceId = showTraceId
-        this.useSST = useSST
+        this.boxType = boxType
     }
 
     start(context: CanvasRenderingContext2D, style: Style)
@@ -44,9 +44,9 @@ export class RenderBox implements Render
 
     public draw(element: PredictedObject, xOffset: number, yOffset: number, xScale: number, yScale: number, streamTime: StreamTime, color?:string): void
     {
-        if (this.useSST)
+        if (this.boxType === "simple")
         {
-            this.drawSST(element, xOffset, yOffset, xScale, yScale, streamTime,color)
+            this.drawSimple(element, xOffset, yOffset, xScale, yScale, streamTime, color)
             return;
         }
 
@@ -178,7 +178,7 @@ export class RenderBox implements Render
         }
     }
 
-    public drawSST(element: PredictedObject, xOffset: number, yOffset: number, xScale: number, yScale: number, streamTime: StreamTime,color?:string): void
+    public drawSimple(element: PredictedObject, xOffset: number, yOffset: number, xScale: number, yScale: number, streamTime: StreamTime, color?:string): void
     {
         const context = this.context
         const style = this.style
