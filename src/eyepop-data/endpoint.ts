@@ -182,6 +182,10 @@ class Endpoint {
     return response.json();
   }
 
+  //TODO: refactor both connect and currentAccessToken to reuse across endpoint and endpoint data
+  //TODO: Client side load balancing on Pop endpoint
+  //TODO: Test cases, but potentially somewhat solved when refactored.
+
   public async connect(): Promise<Endpoint> {
     if (this._client) {
       this._logger.warn('endpoint already connected')
@@ -457,6 +461,7 @@ class Endpoint {
       callback(data);      
     };
 
+    //TODO: Exponential back off time on reconnect
     ws.onclose = (event: CloseEvent) => {
       const { code, reason } = event;
       this._requestLogger.info("DATA EVENT CHANNEL [" + type + "] [CLOSED] [CODE]:", code)
