@@ -26,7 +26,7 @@ export class RenderBox implements Render
 
     constructor(options: Partial<RenderBoxOptions> = {})
     {
-        const { showClass = true, showConfidence = false, showTraceId = false, showNestedClasses = false, target = '$..objects.*',useSST=false} = options
+        const { showClass = true, showConfidence = false, showTraceId = false, showNestedClasses = false, target = '$..objects.*', useSST = false } = options
         this.target = target
 
         this.showClass = showClass
@@ -42,11 +42,11 @@ export class RenderBox implements Render
         this.style = style
     }
 
-    public draw(element: PredictedObject, xOffset: number, yOffset: number, xScale: number, yScale: number, streamTime: StreamTime, color?:string): void
+    public draw(element: PredictedObject, xOffset: number, yOffset: number, xScale: number, yScale: number, streamTime: StreamTime, color?: string): void
     {
         if (this.useSST)
         {
-            this.drawSST(element, xOffset, yOffset, xScale, yScale, streamTime,color)
+            this.drawSST(element, xOffset, yOffset, xScale, yScale, streamTime, color)
             return;
         }
 
@@ -77,17 +77,21 @@ export class RenderBox implements Render
         //faded blue background
         context.beginPath()
         context.rect(x, y, w, h)
-        context.lineWidth = scale * 2
+        context.lineWidth = scale
         context.strokeStyle = style.colors.opacity_color
         context.fillStyle = style.colors.opacity_color
         context.fill()
         context.stroke()
 
 
-        const desiredPercentage = style.cornerPadding
+        const desiredPercentage = style.cornerWidth
 
         let canvasDimension = Math.min(context.canvas.width, context.canvas.height);
-        let cornerSize = Math.min(w / 4, canvasDimension * desiredPercentage);
+        let cornerSize = Math.min(Math.max(canvasDimension / 2, canvasDimension * desiredPercentage), w / 3);
+
+        // clamp the lines to the width and height of the box
+        cornerSize = Math.min(Math.min(cornerSize, w / 2), h / 2)
+
 
         var corners = [//top left corner
             [ { x: x, y: y + cornerSize }, { x: x, y: y }, { x: x + cornerSize, y: y }, ], //bottom left corner
@@ -102,11 +106,11 @@ export class RenderBox implements Render
             context.lineTo(corner[ 1 ].x, corner[ 1 ].y)
             context.lineTo(corner[ 2 ].x, corner[ 2 ].y)
             context.strokeStyle = style.colors.primary_color
-            context.lineWidth = scale * 2
+            context.lineWidth = scale
             context.stroke()
         })
 
-        const padding = Math.max(Math.min(w / 25, canvasDimension * (style.cornerWidth)), scale * 2)
+        const padding = Math.max(Math.min(w / 25, canvasDimension * (style.cornerPadding)), scale)
 
         cornerSize = cornerSize - padding
 
@@ -135,7 +139,7 @@ export class RenderBox implements Render
             context.lineTo(corner[ 1 ].x, corner[ 1 ].y)
             context.lineTo(corner[ 2 ].x, corner[ 2 ].y)
             context.strokeStyle = style.colors.secondary_color
-            context.lineWidth = scale * 2
+            context.lineWidth = scale
             context.stroke()
         })
 
@@ -178,7 +182,7 @@ export class RenderBox implements Render
         }
     }
 
-    public drawSST(element: PredictedObject, xOffset: number, yOffset: number, xScale: number, yScale: number, streamTime: StreamTime,color?:string): void
+    public drawSST(element: PredictedObject, xOffset: number, yOffset: number, xScale: number, yScale: number, streamTime: StreamTime, color?: string): void
     {
         const context = this.context
         const style = this.style
@@ -207,7 +211,7 @@ export class RenderBox implements Render
         //faded blue background
         context.beginPath()
         context.rect(x, y, w, h)
-        context.lineWidth = scale * 2
+        context.lineWidth = scale
         context.strokeStyle = color || style.colors.primary_color
         //context.fillStyle = style.colors.opacity_color
         //context.fill()
@@ -217,24 +221,25 @@ export class RenderBox implements Render
         const desiredPercentage = 0.015;
 
         let canvasDimension = Math.min(context.canvas.width, context.canvas.height);
-        
+
 
         // Draw the corners as circles at each corner of the bounding box
         let cornerSize = Math.min(w / 4, canvasDimension * desiredPercentage);
 
-        let padding = Math.max(Math.min(w / 25, canvasDimension * (style.cornerWidth)), scale * 2)
+        let padding = Math.max(Math.min(w / 25, canvasDimension * (style.cornerWidth)), scale)
 
         var corners = [
-            { x: x, y: y},
-            { x: x+w, y: y},
-            { x: x, y: y + h},
-            { x: x+w, y: y + h},
+            { x: x, y: y },
+            { x: x + w, y: y },
+            { x: x, y: y + h },
+            { x: x + w, y: y + h },
         ]
 
-        corners.forEach((corner) => {
+        corners.forEach((corner) =>
+        {
             context.beginPath();
             context.arc(corner.x, corner.y, cornerSize, 0, 2 * Math.PI);
-            context.lineWidth = scale * 2;
+            context.lineWidth = scale;
             context.strokeStyle = color || style.colors.primary_color;
             context.fillStyle = color || style.colors.primary_color;
             context.fill();
