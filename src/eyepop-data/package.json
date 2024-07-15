@@ -28,7 +28,7 @@
   ],
   "scripts": {
     "build": "tsup && webpack",
-    "dev": "npx chokidar '*.ts' -c 'npx tsup && webpack'"
+    "dev": "tsup && webpack; npx chokidar '*.ts' -c 'npx tsup && webpack'"
   },
   "dependencies": {
     "@auth0/auth0-spa-js": "^2.1.3",
