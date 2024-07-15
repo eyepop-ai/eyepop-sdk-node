@@ -16,8 +16,8 @@ export class Style
     public font: string
     public colors: Colors
     public scale: number = 1.0
-    public cornerWidth: number = 0.2
-    public cornerPadding: number = 0.05
+    public cornerWidth: number = .25
+    public cornerPadding: number = 0.025
 
     private static defaultColors = {
         primary_color: '#2fa7d7',
@@ -51,8 +51,8 @@ export class Style
 
     private calculateFont(w: number, h: number): string
     {
-        const textSize = Math.floor(Math.max(1, .05 * Math.min(w, h)))
-        return textSize + "px Arial";
+        const textSize = Math.floor(Math.max(18, .025 * Math.min(w, h)))
+        return textSize + "px Times New Roman";
     }
 
     private calculateScale(context: CanvasRenderingContext2D): number
