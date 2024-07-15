@@ -2,7 +2,7 @@ import 'eyepop'
 import 'eyepop-render-2d'
 
 import { pino } from 'pino'
-import image1Src from 'example.jpg'
+import image1Src from 'example1.png'
 import image2Src from 'large_example.jpg'
 
 const logger = pino({ level: 'info', name: 'eyepop-example' })
