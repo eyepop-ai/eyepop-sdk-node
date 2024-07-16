@@ -23,10 +23,10 @@ export class RenderBox implements Render
     private showConfidence: boolean
     private showTraceId: boolean
     private boxType?: string
-    
+
     constructor(options: Partial<RenderBoxOptions> = {})
     {
-        const { showClass = true, showConfidence = false, showTraceId = false, showNestedClasses = false, target = '$..objects.*',boxType="rich"} = options
+        const { showClass = true, showConfidence = false, showTraceId = false, showNestedClasses = false, target = '$..objects.*', boxType = "rich" } = options
         this.target = target
 
         this.showClass = showClass
@@ -182,7 +182,7 @@ export class RenderBox implements Render
         }
     }
 
-    public drawSimple(element: PredictedObject, xOffset: number, yOffset: number, xScale: number, yScale: number, streamTime: StreamTime, color?:string): void
+    public drawSimple(element: PredictedObject, xOffset: number, yOffset: number, xScale: number, yScale: number, streamTime: StreamTime, color?: string): void
     {
         const context = this.context
         const style = this.style
@@ -259,9 +259,19 @@ export class RenderBox implements Render
 
         if (this.showNestedClasses && element?.classes)
         {
-            for (let i = 0; i < element.classes.length; i++)
+            // Sort the classes based category
+            let classes = element.classes
+
+            classes.sort((a, b) =>
             {
-                label = element.classes[ i ]?.classLabel
+                if (!a.category || !b.category) return 0
+
+                return a.category.localeCompare(b.category)
+            })
+
+            for (let i = 0; i < classes.length; i++)
+            {
+                label = classes[ i ]?.classLabel
 
                 if (!label) continue
 
