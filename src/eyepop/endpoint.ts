@@ -570,7 +570,7 @@ export class Endpoint
             if (response?.status != 204)
             {
                 const message = await response?.text()
-                this._logger.warn(`Unexpected status ${response?.status}: ${message}`)
+                return Promise.reject(`disconnecting sandbox failed, status ${response?.status}: ${message}`)
             }
         }
 

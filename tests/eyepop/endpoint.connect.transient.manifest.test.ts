@@ -54,8 +54,6 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
     }, null, 4));
 
 
-
-
     test('EyePopSdk create sandbox', async () =>
     {
         const authenticationRoute = server
@@ -93,7 +91,7 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
             })
 
         const deleteSandboxes = server
-            .delete(`/worker/sandboxes`)
+            .delete(`/worker/sandboxes/${test_sandbox_id}`)
             .mockImplementationOnce((ctx) =>
             {
                 ctx.status = 204
