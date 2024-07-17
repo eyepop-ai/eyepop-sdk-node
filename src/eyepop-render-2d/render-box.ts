@@ -25,7 +25,7 @@ export class RenderBox implements Render
 
     constructor(options: Partial<RenderBoxOptions> = {})
     {
-        const { showClass = true, showConfidence = false, showTraceId = false, showNestedClasses = false, target = '$..objects.*' } = options
+        const { showClass = true, showConfidence = false, showTraceId = false, showNestedClasses = false, showText = false, target = '$..objects.*' } = options
         this.target = target
 
         this.showClass = showClass

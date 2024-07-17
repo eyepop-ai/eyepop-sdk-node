@@ -131,6 +131,12 @@ Render2d.renderFace({
     target = '$..objects[?(@.classLabel=="face")]' 
 }) 
 ```
+#### Render Text (OCR Overlay)
+```typescript
+Render2d.renderText({
+    target: '$..objects[?(@.classLabel=="text")]'
+})
+```
 #### Render Segmentation Masks
 ```typescript
 Render2d.renderMask({
