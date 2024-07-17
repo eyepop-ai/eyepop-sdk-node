@@ -56,7 +56,7 @@ describe('EyePopSdk endpoint module auth and connect', () => {
                 })
             })
 
-        const endpoint = EyePop.endpoint({
+        const endpoint = EyePop.workerEndpoint({
             eyepopUrl: server.getURL().toString(),
             popId: test_pop_id,
             auth: {secretKey: test_secret_key}
@@ -115,7 +115,7 @@ describe('EyePopSdk endpoint module auth and connect', () => {
                 ctx.status = 204
             })
 
-        const endpoint = EyePop.endpoint({
+        const endpoint = EyePop.workerEndpoint({
             eyepopUrl: server.getURL().toString(), popId: test_pop_id, auth: {secretKey: test_secret_key}
         })
         expect(endpoint).toBeDefined()
@@ -178,7 +178,7 @@ describe('EyePopSdk endpoint module auth and connect', () => {
                 })
             })
 
-        const endpoint = EyePop.endpoint({
+        const endpoint = EyePop.workerEndpoint({
             eyepopUrl: server.getURL().toString(), popId: test_pop_id, stopJobs: false, auth: {secretKey: test_secret_key}
         })
         expect(endpoint).toBeDefined()
@@ -241,7 +241,7 @@ describe('EyePopSdk endpoint module auth and connect', () => {
                 ctx.status = 204
             })
 
-        const endpoint = EyePop.endpoint({
+        const endpoint = EyePop.workerEndpoint({
             eyepopUrl: server.getURL().toString(), popId: test_pop_id, stopJobs: false, auth: {secretKey: test_secret_key}
         })
         expect(endpoint).toBeDefined()
@@ -292,7 +292,7 @@ describe('EyePopSdk endpoint module auth and connect', () => {
                 ctx.status = 204
             })
 
-        const endpoint1 = EyePop.endpoint({
+        const endpoint1 = EyePop.workerEndpoint({
             eyepopUrl: server.getURL().toString(), popId: test_pop_id, stopJobs: false, auth: {secretKey: test_secret_key}
         })
         expect(endpoint1).toBeDefined()
@@ -312,7 +312,7 @@ describe('EyePopSdk endpoint module auth and connect', () => {
         authenticationRoute.mockClear()
         popConfigRoute.mockClear()
 
-        const endpoint2 = EyePop.endpoint({
+        const endpoint2 = EyePop.workerEndpoint({
             eyepopUrl: server.getURL().toString(), popId: test_pop_id, stopJobs: false, auth: {session: session}
         })
         expect(endpoint2).toBeDefined()

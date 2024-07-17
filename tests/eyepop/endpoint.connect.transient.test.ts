@@ -66,7 +66,7 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
                 })
             })
 
-        const endpoint = EyePop.endpoint({
+        const endpoint = EyePop.workerEndpoint({
             eyepopUrl: server.getURL().toString(),
             popId: test_pop_id,
             auth: {secretKey: test_secret_key}
@@ -144,7 +144,7 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
                 ctx.status = 204
             })
 
-        const endpoint = EyePop.endpoint({
+        const endpoint = EyePop.workerEndpoint({
             eyepopUrl: server.getURL().toString(),
             popId: test_pop_id,
             auth: {secretKey: test_secret_key}
@@ -235,7 +235,7 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
                 ctx.status = 204
             })
 
-        const endpoint = EyePop.endpoint({
+        const endpoint = EyePop.workerEndpoint({
             eyepopUrl: server.getURL().toString(),
             popId: test_pop_id,
             auth: {secretKey: test_secret_key}

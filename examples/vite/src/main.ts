@@ -25,7 +25,7 @@ async function run(useDefault = true)
     const imageBlob1 = await fetch(image.src).then(res => res.blob())
     const imageBlob2 = await fetch(image1.src).then(res => res.blob())
 
-    const endpoint = await EyePop.endpoint({
+    const endpoint = await EyePop.workerEndpoint({
         auth: {
             oAuth2: true,
         },

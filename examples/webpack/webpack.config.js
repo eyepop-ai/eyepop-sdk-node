@@ -7,7 +7,7 @@ const EyePop = require('@eyepop.ai/eyepop').EyePop;
 const NodePolyfillPlugin = require("node-polyfill-webpack-plugin");
 
 const eyepopSession = async () => {
-    return JSON.stringify(await (await EyePop.endpoint().connect()).session());
+    return JSON.stringify(await (await EyePop.workerEndpoint().connect()).session());
 }
 
 module.exports = {

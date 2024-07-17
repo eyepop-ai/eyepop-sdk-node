@@ -1,8 +1,11 @@
-import {Endpoint} from "./endpoint"
 import {OAuth2Auth, Options, SecretKeyAuth, SessionAuth} from "./options"
+import {WorkerSession} from "./types";
+import {WorkerEndpoint} from "./worker_endpoint";
+export {WorkerEndpoint} from "./worker_endpoint";
 
 export {
     Session,
+    WorkerSession,
     IngressEvent,
     LiveMedia,
     ResultStream,
@@ -39,7 +42,7 @@ export namespace EyePop {
         secretKey: envSecretKey,
     } : undefined
 
-    export function endpoint(opts: Options = {}): Endpoint {
+    export function workerEndpoint(opts: Options = {}): WorkerEndpoint {
         if (typeof opts.auth == "undefined") {
             if (typeof defaultAuth == "undefined") {
                 throw new Error('auth option or EYEPOP_SECRET_KEY environment variable is required')
@@ -91,14 +94,16 @@ export namespace EyePop {
             }
         }
         if ((opts.auth as SessionAuth).session !== undefined) {
-            if ((opts.auth as SessionAuth).session.popId) {
-                opts.popId = (opts.auth as SessionAuth).session.popId
-            }
-            if ((opts.auth as SessionAuth).session.eyepopUrl) {
-                opts.eyepopUrl = (opts.auth as SessionAuth).session.eyepopUrl
+            if (((opts.auth as SessionAuth).session as WorkerSession) !== undefined) {
+                if (((opts.auth as SessionAuth).session as WorkerSession).popId) {
+                    opts.popId = ((opts.auth as SessionAuth).session as WorkerSession).popId
+                }
+                if ((opts.auth as SessionAuth).session.eyepopUrl) {
+                    opts.eyepopUrl = (opts.auth as SessionAuth).session.eyepopUrl
+                }
             }
         }
-        const endpoint = new Endpoint(opts);
+        const endpoint = new WorkerEndpoint(opts);
         return endpoint;
     }
 }

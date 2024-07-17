@@ -73,7 +73,7 @@ describe('EyePopSdk endpoint module loadFrom', () => {
             ctx.body = JSON.stringify({timestamp: fake_timestamp})
         })
 
-        const endpoint = EyePop.endpoint({
+        const endpoint = EyePop.workerEndpoint({
             eyepopUrl: server.getURL().toString(),
             auth: {secretKey: test_secret_key},
             popId: test_pop_id,
