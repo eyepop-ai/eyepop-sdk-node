@@ -97,64 +97,71 @@ Change this rendering behaviour by passing in rendering rule(s), e.g.:
     Render2d.renderer(context,[Render2.renderFace()]).draw(result);
 // ...
 ```
-Each rule has a `render` object and a `target` attribute. All prebuild render classes accept a 
-JSONPath expression as `target` parameter to select which elements should be rendered from predictions. 
+Each rule has a `render` object and a `target` attribute. All prebuild render classes accept a JSONPath expression as `target` parameter to select which elements should be rendered from predictions. 
 See [JSONPath expression](https://www.npmjs.com/package/jsonpath)
 
-Most prebuild render classes provide a reasonable default `target`.
+Most prebuild render classes provide a reasonable defaults, as shown below.
 #### Rendering Bounding Boxes and Class Labels
+
 ```typescript
-Render2d.renderBox({target: '$.objects.*'})
-// or
-Render2d.renderBox()
+Render2d.renderBox({
+    showClass = true, 
+    showConfidence = false,
+    showTraceId = false,
+    showNestedClasses = false,
+    target = '$..objects.*' 
+})
 ``` 
 #### Render Human Body Poses (2d or 3d)
 ```typescript
-Render2d.renderPose({target: '$..objects[?(@.category=="person")]'})
-// or
-Render2d.renderPose()
+Render2d.renderPose({
+    target: '$..objects[?(@.category=="person")]'
+})
 ```    
 #### Render Human Hand Details
 ```typescript
-Render2d.renderHand({target: '$..objects[?(@.classLabel=="hand circumference")]'})
-// or 
-Render2d.renderHand()
+Render2d.renderHand({
+    target: '$..objects[?(@.classLabel=="hand circumference")]'
+})
 ```
 #### Render Human Faces
 ```typescript
-Render2d.renderFace({target: '$..objects[?(@.classLabel=="face")]'}) 
-// or 
-Render2d.renderFace() 
+Render2d.renderFace({
+    showLabels = false,
+    target = '$..objects[?(@.classLabel=="face")]' 
+}) 
 ```
 #### Render Segmentation Masks
 ```typescript
-Render2d.renderMask({target: '$..objects[?(@.mask)]'}) 
-// or 
-Render2d.renderMask() 
+Render2d.renderMask({
+    target: '$..objects[?(@.mask)]'
+}) 
 ```
 #### Render Segmentation Contours
 ```typescript
-Render2d.renderContour({target: '$..objects[?(@.contours)]'}) 
-// or 
-Render2d.renderContour() 
+Render2d.renderContour({
+    target: '$..objects[?(@.contours)]'
+}) 
 ```
 #### Blur an Object (TODO does black-put instead of blur)
 ```typescript
-Render2d.renderBlur({target: '$..objects[?(@.classLabel=="face")]'})
+Render2d.renderBlur({
+    target: '$..objects[?(@.classLabel=="face")]'
+})
 ```
 #### Render a Trail of a traced object over time
 ```typescript
-Render2d.renderTrail({target: '$..objects[?(@.traceId)]', trailLengthSeconds:1})
-// or
-Render2d.renderTrail()
+Render2d.renderTrail({
+    target: '$..objects[?(@.traceId)]',
+    trailLengthSeconds:1,
+})
 ```
-By default, this traces the mid-point of the object's bounding box. Instead, one can also draw trails of 
-sub-objects or key points of the traced object. Use the optional parameter `traceDetails` for this purpose. 
+By default, this traces the mid-point of the object's bounding box. Instead, one can also draw trails of sub-objects or key points of the traced object. Use the optional parameter `traceDetails` for this purpose. 
 E.g. trail the nose of every traced person:
 ```typescript
 Render2d.renderTrail({
-    target: '$..objects[?(@.traceId)]', 
-    trailLengthSeconds:1, 
+    target: '$..objects[?(@.traceId)]',
+    trailLengthSeconds:1,
     traceDetails:'$..keyPoints[?(@.category=="3d-body-points")].points[?(@.classLabel.includes("nose"))]'
 })
 ```

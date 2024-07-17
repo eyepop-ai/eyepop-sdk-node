@@ -3,7 +3,7 @@ import { Style } from "./style";
 import { Render, DEFAULT_TARGET, RenderTarget } from './render';
 import { StreamTime, PredictedObject } from "@eyepop.ai/eyepop";
 
-type RenderBlurOptions = {} & RenderTarget
+export type RenderBlurOptions = {} & RenderTarget
 
 export class RenderBlur implements Render
 {

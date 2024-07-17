@@ -3,7 +3,7 @@ import { Style } from "./style";
 import { PredictedKeyPoint, PredictedKeyPoints, PredictedObject, StreamTime } from "@eyepop.ai/eyepop";
 import { Render, DEFAULT_TARGET, RenderTarget } from "./render";
 
-type RenderHandOptions = {} & RenderTarget
+export type RenderHandOptions = {} & RenderTarget
 export class RenderHand implements Render
 {
     public target: string = DEFAULT_TARGET
@@ -13,7 +13,7 @@ export class RenderHand implements Render
 
     constructor(options: Partial<RenderHandOptions> = {})
     {
-        const { target = DEFAULT_TARGET } = options;
+        const { target = '$..objects[?(@.classLabel=="hand circumference")]' } = options;
         this.target = target;
     }
 

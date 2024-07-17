@@ -3,18 +3,20 @@ import { Style } from "./style";
 import { PredictedKeyPoint, PredictedKeyPoints, PredictedObject, StreamTime } from "@eyepop.ai/eyepop";
 import { Render, DEFAULT_TARGET, RenderTarget } from "./render";
 
-type RenderKeyPointsOptions = {} & RenderTarget
+export type RenderKeyPointsOptions = { showLabels: boolean } & RenderTarget
 export class RenderKeyPoints implements Render
 {
     public target: string = DEFAULT_TARGET
+    public showLabels: boolean = false
 
     private context: CanvasRenderingContext2D | undefined
     private style: Style | undefined
 
     constructor(options: Partial<RenderKeyPointsOptions> = {})
     {
-        const { target = DEFAULT_TARGET } = options;
+        const { showLabels = false, target = '$..objects[?(@.keyPoints)]' } = options;
         this.target = target;
+        this.showLabels = showLabels
     }
 
 
@@ -87,6 +89,8 @@ export class RenderKeyPoints implements Render
             context.fill()
             context.strokeStyle = style.colors.secondary_color
             context.stroke()
+
+            if (!this.showLabels) continue
 
             // label
             let label

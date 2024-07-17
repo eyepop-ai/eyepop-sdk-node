@@ -3,8 +3,7 @@ import { Style } from "./style"
 import { CanvasRenderingContext2D } from "canvas"
 import { Render, DEFAULT_TARGET, RenderTarget } from './render'
 
-
-type RenderBoxOptions = {
+export type RenderBoxOptions = {
     showText: boolean // Whether to show labels, such as OCR text
     showClass: boolean // Whether to show class labels, such as "person"
     showNestedClasses: boolean // Whether to show nested classes, such as "person" + "necklace"
@@ -26,7 +25,7 @@ export class RenderBox implements Render
 
     constructor(options: Partial<RenderBoxOptions> = {})
     {
-        const { showClass = true, showText = true, showConfidence = false, showTraceId = false, showNestedClasses = false, target = DEFAULT_TARGET } = options
+        const { showClass = true, showConfidence = false, showTraceId = false, showNestedClasses = false, target = '$..objects.*' } = options
         this.target = target
 
         this.showClass = showClass
@@ -56,6 +55,18 @@ export class RenderBox implements Render
         const w = element.width * xScale
         const h = element.height * yScale
 
+        // Sort the element's objects based on the element.object.category
+        if (element.objects)
+        {
+            element.objects.sort((a, b) =>
+            {
+                if (!a.category || !b.category) return 0
+
+                return a.category.localeCompare(b.category)
+            })
+        }
+        const scale = style.scale
+
         //faded blue background
         context.beginPath()
         context.rect(x, y, w, h)
@@ -65,9 +76,7 @@ export class RenderBox implements Render
         context.fill()
         context.stroke()
 
-        const scale = style.scale
-
-        const desiredPercentage = 0.25
+        const desiredPercentage = style.cornerPadding
 
         let canvasDimension = Math.min(context.canvas.width, context.canvas.height);
         let cornerSize = Math.min(w / 4, canvasDimension * desiredPercentage);
@@ -118,14 +127,13 @@ export class RenderBox implements Render
             context.lineTo(corner[ 1 ].x, corner[ 1 ].y)
             context.lineTo(corner[ 2 ].x, corner[ 2 ].y)
             context.strokeStyle = style.colors.secondary_color
-            context.lineWidth = style.scale
+            context.lineWidth = style.scale * 2
             context.stroke()
         })
 
-        const boundingBoxWidth = element.width * xScale - 3 * padding
+        const boundingBoxWidth = (element.width * xScale) - (3 * padding);
         let fontSize = this.getMinFontSize(context, element, boundingBoxWidth, style)
         let label = ""
-
 
         if (this.showClass && element.classLabel)
         {

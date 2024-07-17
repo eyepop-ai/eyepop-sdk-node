@@ -3,7 +3,7 @@ import { Style } from "./style";
 import { PredictedKeyPoint, PredictedKeyPoints, PredictedObject, StreamTime } from "@eyepop.ai/eyepop";
 import { Render, DEFAULT_TARGET, RenderTarget } from './render';
 
-type RenderPoseOptions = {} & RenderTarget
+export type RenderPoseOptions = {} & RenderTarget
 
 export class RenderPose implements Render
 {
@@ -14,7 +14,7 @@ export class RenderPose implements Render
 
     constructor(options: Partial<RenderPoseOptions> = {})
     {
-        const { target = DEFAULT_TARGET } = options;
+        const { target = '$..objects[?(@.category=="person")]' } = options;
         this.target = target;
     }
 
@@ -87,7 +87,7 @@ export class RenderPose implements Render
             const y2 = yOffset + point2.y * yScale
 
             context.beginPath()
-            context.lineWidth = style.scale
+            context.lineWidth = style.scale * 3
             context.strokeStyle = style.colors.primary_color
             context.fillStyle = style.colors.primary_color
             context.moveTo(x1, y1)

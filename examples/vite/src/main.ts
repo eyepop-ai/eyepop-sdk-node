@@ -43,13 +43,31 @@ document.addEventListener('DOMContentLoaded', async () =>
             canvas.width = result.source_width
             canvas.height = result.source_height
             console.log(result)
+            let hasText = false
+            for (let i = 0; i < result?.objects?.length; i++)
+            {
+                let obj = result.objects[ i ]
+                if (obj.category === 'text')
+                {
+                    hasText = true
+                    break
+                }
+            }
+
             context?.drawImage(image, 0, 0)
             Render2d?.renderer(context,
                 [
                     Render2d.renderPose(),
                     Render2d.renderFace(),
                     Render2d.renderHand(),
-                    Render2d.renderBox(true, true, true, true, true),
+                    Render2d.renderBox({
+                        showClass: !hasText,
+                        showText: !hasText,
+                        showConfidence: !hasText,
+                        showTraceId: !hasText,
+                        showNestedClasses: !hasText,
+                    }),
+                    Render2d.renderText()
                 ]
             ).draw(result)
         }
@@ -61,13 +79,31 @@ document.addEventListener('DOMContentLoaded', async () =>
             canvas1.width = result.source_width
             canvas1.height = result.source_height
             console.log(result)
+            let hasText = false
+
+            for (let i = 0; i < result?.objects?.length; i++)
+            {
+                let obj = result.objects[ i ]
+                if (obj.category === 'text')
+                {
+                    hasText = true
+                    break
+                }
+            }
             context1?.drawImage(image1, 0, 0)
             Render2d?.renderer(context1,
                 [
                     Render2d.renderPose(),
                     Render2d.renderFace(),
                     Render2d.renderHand(),
-                    Render2d.renderBox(true, true, true, true, true),
+                    Render2d.renderBox({
+                        showClass: !hasText,
+                        showText: !hasText,
+                        showConfidence: !hasText,
+                        showTraceId: !hasText,
+                        showNestedClasses: !hasText,
+                    }),
+                    Render2d.renderText()
                 ]
             ).draw(result)
         }
