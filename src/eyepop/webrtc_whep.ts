@@ -1,11 +1,11 @@
 import {WebrtcBase} from './webrtc_base'
-import {LiveMedia, SessionPlus} from './types'
+import {LiveMedia, WorkerSession} from './types'
 import {HttpClient} from './shims/http_client'
 import {Logger} from 'pino'
 
 export class WebrtcWhep extends WebrtcBase implements LiveMedia {
     private _stream: MediaStream | null
-    constructor(ingressId: string, getSession: () => Promise<SessionPlus>, client: HttpClient, requestLogger: Logger) {
+    constructor(ingressId: string, getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger) {
         super(getSession, client, ingressId, '/liveIngress/whep', requestLogger)
         this._stream = null
     }

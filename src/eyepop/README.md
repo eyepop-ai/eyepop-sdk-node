@@ -49,10 +49,12 @@ import { EyePop } from '@eyepop.ai/eyepop'
 ```
 ### Authentication with session generated from Api Key
 #### Server Side
+
 ```javascript
-import { EyePop } from '@eyepop.ai/eyepop'
+import {EyePop} from '@eyepop.ai/eyepop'
+
 const getSession = async function (req, res) {
-    const endpoint = await EyePop.endpoint().connect();
+    const endpoint = await EyePop.workerEndpoint().connect();
     res.setHeader("Content-Type", "application/json");
     res.writeHead(200);
     res.end(JSON.stringify(await endpoint.session()));
@@ -60,17 +62,20 @@ const getSession = async function (req, res) {
 const server = http.createServer(getSession);
 server.listen(8080, '127.0.0.1');
 ```
-#### Client Side 
+#### Client Side
+
 ```javascript
-import { EyePop } from '@eyepop.ai/eyepop'
-(async() => {
+import {EyePop} from '@eyepop.ai/eyepop'
+
+(async () => {
     const session = await (await fetch("http://127.0.0.1:8080")).json();
-    const endpoint = await EyePop.endpoint({ auth: { session: session } }).connect();
+    const endpoint = await EyePop.workerEndpoint({auth: {session: session}}).connect();
     // do work ....
     await endpoint.disconnect();
 })();
 ```
 ### Authentication with Current Browser Session
+
 ```html
 <!DOCTYPE html>
 <html lang="en">
@@ -81,7 +86,7 @@ import { EyePop } from '@eyepop.ai/eyepop'
 <body>
 <script>
     document.addEventListener("DOMContentLoaded", async (event) => {
-        let endpoint = await EyePop.endpoint({ auth: { oAuth2: true }, popId: '< Pop Id>' }).connect();
+        let endpoint = await EyePop.workerEndpoint({auth: {oAuth2: true}, popId: '< Pop Id>'}).connect();
         // do work ....
         await endpoint.disconnect();
     });
@@ -89,14 +94,18 @@ import { EyePop } from '@eyepop.ai/eyepop'
 </body>
 ```
 To use an alternative environment, e.g. STAGING vs PRODUCTION, pass in the adjusted Auth0 configuration:
+
 ```javascript
 // ...
-let endpoint = await EyePop.endpoint({ 
-  auth: { oAuth2: {
-    audience: "https://dev-app.eyepop.ai",
-    domain: "dev-eyepop.us.auth0.com",
-    clientId: "jktx3YO2UnbkNPvr05PQWf26t1kNTJyg"
-  } }, popId: '< Pop Id>' }).connect();
+let endpoint = await EyePop.workerEndpoint({
+    auth: {
+        oAuth2: {
+            audience: "https://dev-app.eyepop.ai",
+            domain: "dev-eyepop.us.auth0.com",
+            clientId: "jktx3YO2UnbkNPvr05PQWf26t1kNTJyg"
+        }
+    }, popId: '< Pop Id>'
+}).connect();
 // ...
 ```
 ## Usage Examples

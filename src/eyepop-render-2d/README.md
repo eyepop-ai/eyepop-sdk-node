@@ -57,6 +57,7 @@ const example_image_path = 'examples/example.jpg';
 })();
 ```
 ### Browser
+
 ```html
 <!DOCTYPE html>
 <html lang="en">
@@ -66,25 +67,29 @@ const example_image_path = 'examples/example.jpg';
 </head>
 <body>
 <!-- ... -->
-    <input type="file" id="my-file-chooser">
+<input type="file" id="my-file-chooser">
 <!-- ... -->
-    <canvas id="my-canvas"></canvas>
+<canvas id="my-canvas"></canvas>
 <!-- ... -->
-    <script>
-    async uploadFile(event) {
+<script>
+    async
+    uploadFile(event)
+    {
         const fileChooser = document.getElementById('my-file-chooser');
         const context = document.getElementById('my-canvas').getContext("2d");
         const renderer = Render2d.renderer(context);
-        
-        const endpoint = await EyePop.endpoint({ auth: { oAuth2: true }, popId: '< Pop Id>' }).connect();
+
+        const endpoint = await EyePop.workerEndpoint({auth: {oAuth2: true}, popId: '< Pop Id>'}).connect();
         endpoint.process({file: fileChooser.files[0]}).then(async (results) => {
             for await (let result of results) {
                 renderer.draw(result);
             }
         });
         await endpoint.disconnect();
-    });
-    </script>
+    }
+    )
+    ;
+</script>
 </body>
 </html>
 

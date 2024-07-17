@@ -1,13 +1,16 @@
-import {Session} from "../types"
-import {Auth0Options} from "../options"
+import {Session, WorkerSession} from "../types"
+import {Auth0Options, OAuth2Auth, Options, WorkerOptions} from "../options"
 import {createAuth0Client} from "@auth0/auth0-spa-js"
 import {Auth0ClientOptions} from "@auth0/auth0-spa-js/src/global";
 
-export let authenticateBrowserSession: (auth0: Auth0Options, eyepopUrl: string, popId: string) => Promise<Session>
+export let authenticateBrowserSession: (auth0: Auth0Options, options: Options) => Promise<Session>
 
 if ('document' in globalThis && 'implementation' in globalThis.document) {
-    authenticateBrowserSession = async (auth0: Auth0Options, eyepopUrl: string, popId: string) => {
-        const options: Auth0ClientOptions = {
+    authenticateBrowserSession = async (auth0: Auth0Options, options: Options) => {
+        if (options.eyepopUrl == null) {
+            return Promise.reject("options.eyepopUrl cannot be null")
+        }
+        const auth0ClientOptions: Auth0ClientOptions = {
             clientId: auth0.clientId,
             domain: auth0.domain,
             authorizationParams: {
@@ -15,7 +18,7 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
                 audience:auth0.audience
             }
         }
-        const auth0Client = await createAuth0Client(options)
+        const auth0Client = await createAuth0Client(auth0ClientOptions)
         if (!await auth0Client.isAuthenticated()) {
             await auth0Client.loginWithPopup()
         }
@@ -23,13 +26,30 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
         if (!accessToken) {
             return Promise.reject('auth0 login failed')
         }
-        const session: Session = {
-            eyepopUrl: eyepopUrl, popId: popId, accessToken: accessToken, validUntil: Date.now() + (60 * 60 * 1000)
+        let session: Session
+        const workerOptions = options as WorkerOptions
+        if (typeof workerOptions.popId != "undefined") {
+            const workerSession: WorkerSession = {
+                eyepopUrl: options.eyepopUrl,
+                accessToken: accessToken,
+                validUntil: Date.now() + (60 * 60 * 1000),
+                popId: workerOptions.popId,
+                baseUrl: undefined,
+                pipelineId: undefined,
+                sandboxId: undefined
+            }
+            session = workerSession
+        } else {
+            session = {
+                eyepopUrl: options.eyepopUrl,
+                accessToken: accessToken,
+                validUntil: Date.now() + (60 * 60 * 1000)
+            }
         }
         return session
     }
 } else {
-    authenticateBrowserSession = (auth0: Auth0Options, eyepopUrl: string, popId: string) => {
+    authenticateBrowserSession = (auth0: Auth0Options, options: Options) => {
         return Promise.reject('auth0 login not supported server-side')
     }
 }

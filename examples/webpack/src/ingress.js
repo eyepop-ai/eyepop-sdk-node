@@ -77,7 +77,7 @@ async function populateDevices() {
 async function connect(event) {
     if (!endpoint) {
         const session = await (await fetch("eyepop-session.json")).json()
-        endpoint = await EyePop.endpoint({
+        endpoint = await EyePop.workerEndpoint({
             auth: {session: session}
         }).onStateChanged((from, to) => {
             console.log("Endpoint state transition from " + from + " to " + to);

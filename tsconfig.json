@@ -1,5 +1,5 @@
 {
-  "include": ["src/eyepop", "src/eyepop-render-2d" ,"tests/eyepop", "examples"],
+  "include": ["src/eyepop", "src/eyepop-render-2d" ,"tests/eyepop", "examples/node"],
   "sourceMap": true,
   "compilerOptions": {
     "target": "es2020",
