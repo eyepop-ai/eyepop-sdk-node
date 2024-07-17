@@ -110,7 +110,6 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
             .put(`/worker/models/sources`)
             .mockImplementationOnce((ctx) =>
             {
-                console.log(ctx.request.body);
                 ctx.status = 204;
             });
 
