@@ -46,15 +46,12 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
         ], null, 4
     ));
 
-    console.log(test_manifest)
-
     const test_model = JSON.parse(JSON.stringify({
         'model_id': 'PARSeq:PARSeq',
         'dataset': 'TextDataset',
         'format': 'TorchScriptCuda',
         'type': 'float32'
-    },
-        null, 4));
+    }, null, 4));
 
 
 
@@ -72,7 +69,6 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
                     expires_in: long_token_valid_time,
                     token_type: 'Bearer'
                 })
-                console.log('auth token', ctx.body)
             })
 
         const popConfigRoute = server
@@ -82,7 +78,6 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
                 ctx.status = 200
                 ctx.response.headers[ 'content-type' ] = 'application/json'
                 ctx.body = JSON.stringify({ base_url: `${server.getURL()}worker/` })
-                console.log('worker config', ctx.body)
             })
 
 
@@ -95,7 +90,15 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
                 ctx.body = JSON.stringify({
                     sandboxId: test_sandbox_id
                 })
-                console.log('sandboxes', ctx.body)
+            })
+
+        const deleteSandboxes = server
+            .delete(`/worker/sandboxes`)
+            .mockImplementationOnce((ctx) =>
+            {
+                ctx.status = 204
+                ctx.response.headers[ 'content-type' ] = 'application/json'
+                ctx.body = JSON.stringify({});
             })
 
         const stopRoute = server
@@ -103,6 +106,23 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
             .mockImplementationOnce((ctx) =>
             {
                 ctx.status = 204
+            })
+
+        const sourcesRoute = server
+            .put(`/worker/models/sources`)
+            .mockImplementationOnce((ctx) =>
+            {
+                console.log(ctx.request.body);
+                ctx.status = 204;
+            });
+
+        const instancesRoute = server
+            .post(`/worker/models/instances`)
+            .mockImplementationOnce((ctx) =>
+            {
+                ctx.status = 200
+                ctx.response.headers[ 'content-type' ] = 'application/json'
+                ctx.body = JSON.stringify(test_model)
             })
 
         let inferPipeline: string | null = null
@@ -149,13 +169,6 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
             logger: pino({ level: 'debug' })
         })
 
-        console.log({
-            eyepopUrl: server.getURL().toString(),
-            popId: test_pop_id,
-            auth: { secretKey: test_secret_key },
-            isSandbox: true
-        })
-
         expect(endpoint).toBeDefined()
 
         try
@@ -166,16 +179,12 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
 
             await endpoint.loadModel(test_model);
 
-            // expect(authenticationRoute).toHaveBeenCalledTimes(1)
-
-            // epect sandbox was called
-
-            // load model
-            // expect models was called with id
-
-            // start pipeline
-            // expect sand box id is correct
-
+            expect(authenticationRoute).toHaveBeenCalledTimes(1)
+            expect(popConfigRoute).toHaveBeenCalledTimes(1)
+            expect(postSandboxes).toHaveBeenCalledTimes(1)
+            expect(stopRoute).toHaveBeenCalledTimes(1)
+            expect(sourcesRoute).toHaveBeenCalledTimes(1)
+            expect(instancesRoute).toHaveBeenCalledTimes(1)
 
         } finally
         {

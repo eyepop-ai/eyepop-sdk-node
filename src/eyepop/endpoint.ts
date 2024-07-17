@@ -555,8 +555,6 @@ export class Endpoint
 
         this._limit = new Semaphore(this._options.jobQueueLength ?? 1024)
 
-        console.log('disconnecting,', this._sandboxId, this._baseUrl, this._pipelineId)
-
         if (this._sandboxId && this._baseUrl)
         {
             const sandboxUrl = `${this._baseUrl}/sandboxes/${this._sandboxId}`;
@@ -572,7 +570,7 @@ export class Endpoint
             if (response?.status != 204)
             {
                 const message = await response?.text()
-                return Promise.reject(`Unexpected status ${response?.status}: ${message}`)
+                this._logger.warn(`Unexpected status ${response?.status}: ${message}`)
             }
         }
 
@@ -1023,7 +1021,11 @@ export class Endpoint
 
                     const responseJson = await response.json();
                     this._requestLogger.debug('after POST %s', createSandboxUrl);
-                    this._sandboxId = responseJson;
+
+                    if (responseJson)
+                    {
+                        this._sandboxId = responseJson[ "sandboxId" ];
+                    }
                 }
 
                 if (this._options.popId == TransientPopId.Transient)
