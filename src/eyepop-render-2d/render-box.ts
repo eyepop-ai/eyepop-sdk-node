@@ -4,7 +4,6 @@ import { CanvasRenderingContext2D } from "canvas"
 import { Render, DEFAULT_TARGET, RenderTarget } from './render'
 
 export type RenderBoxOptions = {
-    showText: boolean // Whether to show labels, such as OCR text
     showClass: boolean // Whether to show class labels, such as "person"
     showNestedClasses: boolean // Whether to show nested classes, such as "person" + "necklace"
     showConfidence: boolean // Whether to show confidence, such as "0.95"
@@ -63,22 +62,23 @@ export class RenderBox implements Render
                 return a.category.localeCompare(b.category)
             })
         }
-        const scale = style.scale
+
+        let canvasDimension = Math.min(w, h);
+
+        const lineWidth = Math.max(canvasDimension * .0025, style.scale)
 
         //faded blue background
         context.beginPath()
         context.rect(x, y, w, h)
-        context.lineWidth = scale * 2
+        context.lineWidth = lineWidth
         context.strokeStyle = style.colors.opacity_color
         context.fillStyle = style.colors.opacity_color
         context.fill()
         context.stroke()
 
-
-        const desiredPercentage = style.cornerPadding
-
-        let canvasDimension = Math.min(context.canvas.width, context.canvas.height);
-        let cornerSize = Math.min(w / 4, canvasDimension * desiredPercentage);
+        let cornerSize = canvasDimension * style.cornerWidth
+        cornerSize = Math.max(cornerSize, style.scale * 20)
+        cornerSize = Math.min(cornerSize, canvasDimension / 2)
 
         var corners = [//top left corner
             [ { x: x, y: y + cornerSize }, { x: x, y: y }, { x: x + cornerSize, y: y }, ], //bottom left corner
@@ -93,11 +93,12 @@ export class RenderBox implements Render
             context.lineTo(corner[ 1 ].x, corner[ 1 ].y)
             context.lineTo(corner[ 2 ].x, corner[ 2 ].y)
             context.strokeStyle = style.colors.primary_color
-            context.lineWidth = scale * 2
+            context.lineWidth = lineWidth
             context.stroke()
         })
 
-        const padding = Math.max(Math.min(w / 25, canvasDimension * (style.cornerWidth)), scale * 2)
+        let padding = canvasDimension * style.cornerPadding
+        padding = Math.max(padding, style.scale * 4)
 
         cornerSize = cornerSize - padding
 
@@ -126,7 +127,7 @@ export class RenderBox implements Render
             context.lineTo(corner[ 1 ].x, corner[ 1 ].y)
             context.lineTo(corner[ 2 ].x, corner[ 2 ].y)
             context.strokeStyle = style.colors.secondary_color
-            context.lineWidth = scale * 2
+            context.lineWidth = lineWidth
             context.stroke()
         })
 
