@@ -1,4 +1,4 @@
-import {SessionPlus} from "./types";
+import {WorkerSession} from "./types";
 import {HttpClient} from "./shims/http_client";
 import {Logger} from "pino";
 import {WebrtcWhip} from "./webrtc_whip";
@@ -11,7 +11,7 @@ interface OfferData {
     medias: string[]
 }
 export abstract class WebrtcBase {
-    protected readonly _getSession: () => Promise<SessionPlus>
+    protected readonly _getSession: () => Promise<WorkerSession>
     protected readonly _client: HttpClient
     protected readonly _requestLogger: Logger
     protected readonly _urlPath: string
@@ -25,7 +25,7 @@ export abstract class WebrtcBase {
     protected _queuedCandidates: RTCIceCandidate[]
     protected _offerData: OfferData | null
 
-    constructor(getSession: () => Promise<SessionPlus>, client: HttpClient, ingressId: string, urlBasePath: string, requestLogger: Logger) {
+    constructor(getSession: () => Promise<WorkerSession>, client: HttpClient, ingressId: string, urlBasePath: string, requestLogger: Logger) {
         this._getSession = getSession
         this._client = client
         this._requestLogger = requestLogger

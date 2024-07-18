@@ -35,6 +35,5 @@
     "typescript": "^5.3.3",
     "uuid": "^9.0.1",
     "webpack-cli": "^5.1.4"
-  },
-  "dependencies": {}
+  }
 }

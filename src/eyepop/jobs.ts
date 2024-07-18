@@ -1,11 +1,11 @@
-import {Prediction, ResultStream, SessionPlus, SourceParams} from "./types"
+import {Prediction, ResultStream, WorkerSession, SourceParams} from "./types"
 import {Stream} from "./streaming"
 import {HttpClient} from './shims/http_client'
 
 import {Logger} from "pino"
 
 export class AbstractJob implements ResultStream {
-    protected _getSession: () => Promise<SessionPlus>
+    protected _getSession: () => Promise<WorkerSession>
 
     protected _params: SourceParams | null
 
@@ -23,7 +23,7 @@ export class AbstractJob implements ResultStream {
         return Stream.iterFromReadableStream(this._responseStream, this._controller)
     }
 
-    protected constructor(params: SourceParams | undefined, getSession: () => Promise<SessionPlus>,
+    protected constructor(params: SourceParams | undefined, getSession: () => Promise<WorkerSession>,
                           client: HttpClient, requestLogger: Logger) {
         this._getSession = getSession
         this._params = params ?? null
@@ -104,7 +104,7 @@ export class UploadJob extends AbstractJob {
     }
 
     constructor(stream: any, mimeType: string, params: SourceParams | undefined,
-                getSession: () => Promise<SessionPlus>, client: HttpClient, requestLogger: Logger) {
+                getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger) {
         super(params, getSession, client, requestLogger)
         this._uploadStream = stream
         this._mimeType = mimeType
@@ -112,6 +112,9 @@ export class UploadJob extends AbstractJob {
 
     protected override async startJob(): Promise<Response> {
         const session = await this._getSession()
+        if (!session.baseUrl) {
+            return Promise.reject("session.baseUrl must not ne null")
+        }
         const postUrl: string = `${session.baseUrl.replace(/\/+$/, "")}/pipelines/${session.pipelineId}/source?mode=queue&processing=sync`
         let response
         if (this._params) {
@@ -154,7 +157,7 @@ export class LoadFromJob extends AbstractJob {
     private readonly _location: string;
 
     constructor(location: string, params: SourceParams | undefined,
-                getSession: () => Promise<SessionPlus>, client: HttpClient, requestLogger: Logger) {
+                getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger) {
         super(params, getSession, client, requestLogger)
         this._location = location
     }
@@ -164,12 +167,15 @@ export class LoadFromJob extends AbstractJob {
     }
 
     protected override async startJob(): Promise<Response> {
+        const session = await this._getSession()
+        if (!session.baseUrl) {
+            return Promise.reject("session.baseUrl must not ne null")
+        }
         const body = {
             'sourceType': 'URL',
             'url': this._location,
             'params': this._params
         }
-        const session = await this._getSession()
         const headers = {
             'Authorization': `Bearer ${session.accessToken}`,
             'Accept': 'application/jsonl',
@@ -194,7 +200,7 @@ export class LoadLiveIngressJob extends AbstractJob {
     private readonly _ingressId: string;
 
     constructor(ingressId: string, params: SourceParams | undefined,
-                getSession: () => Promise<SessionPlus>, client: HttpClient, requestLogger: Logger) {
+                getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger) {
         super(params, getSession, client, requestLogger)
         this._ingressId = ingressId
     }
@@ -204,12 +210,15 @@ export class LoadLiveIngressJob extends AbstractJob {
     }
 
     protected override async startJob(): Promise<Response> {
+        const session = await this._getSession()
+        if (!session.baseUrl) {
+            return Promise.reject("session.baseUrl must not ne null")
+        }
         const body = {
             'sourceType': 'LIVE_INGRESS',
             'liveIngressId': this._ingressId,
             'params': this._params
         }
-        const session = await this._getSession()
         const headers = {
             'Authorization': `Bearer ${session.accessToken}`,
             'Accept': 'application/jsonl',

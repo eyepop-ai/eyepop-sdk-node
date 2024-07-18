@@ -46,7 +46,7 @@ async function connect(event) {
         const popId = urlParams.get('popId');
         const eyepopUrl = urlParams.get('eyepopUrl') || undefined;
 
-        endpoint = await EyePop.endpoint({
+        endpoint = await EyePop.workerEndpoint({
             auth: {oAuth2: true},
             popId: popId,
             eyepopUrl: eyepopUrl

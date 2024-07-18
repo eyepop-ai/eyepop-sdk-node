@@ -1,13 +1,13 @@
 export interface Session {
     readonly eyepopUrl: string;
-    readonly popId: string;
     readonly accessToken: string;
     readonly validUntil: number;
 }
 
-export interface SessionPlus extends Session {
-    readonly baseUrl: string;
-    readonly pipelineId: string;
+export interface WorkerSession extends Session {
+    readonly popId: string;
+    readonly baseUrl: string | undefined;
+    readonly pipelineId: string | undefined;
     readonly sandboxId: string | undefined;
 }
 
@@ -16,7 +16,6 @@ export enum EndpointState {
     Busy = "Busy",
     Authenticating = "Authenticating",
     FetchConfig = "FetchConfig",
-    StartingPop = "StartingPop",
     Error = "Error"
 }
 
