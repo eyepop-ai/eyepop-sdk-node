@@ -25,8 +25,23 @@ export {
     LiveSource,
     UrlSource,
     PathSource,
-    FileSource
+    FileSource,
+    ModelFormat,
+    ModelInstanceDef,
+    ModelType,
+    SourcesEntry
 } from "./types";
+
+export {
+    TransientPopId,
+    Options,
+    WorkerOptions,
+    Authentication,
+    SessionAuth,
+    SecretKeyAuth,
+    OAuth2Auth,
+    Auth0Options
+} from "./options"
 
 const readEnv = (env: string): string | undefined => {
     if (typeof process !== 'undefined') {
