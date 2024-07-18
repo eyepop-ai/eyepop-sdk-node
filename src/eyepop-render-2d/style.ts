@@ -51,7 +51,7 @@ export class Style
 
     private calculateFont(w: number, h: number): string
     {
-        const textSize = Math.floor(Math.max(4, .025 * Math.min(w, h)))
+        const textSize = Math.floor(Math.max(12, .035 * Math.min(w, h)))
         return textSize + "px Times New Roman";
     }
 

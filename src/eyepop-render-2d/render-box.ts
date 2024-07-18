@@ -140,8 +140,11 @@ export class RenderBox implements Render
             context.stroke()
         })
 
-        const boundingBoxWidth = (element.width * xScale) - (3 * padding);
-        const boundingBoxHeight = (element.height * yScale) - (3 * padding);
+        let boundingBoxWidth = (element.width * xScale) - (2 * padding);
+        let boundingBoxHeight = (element.height * yScale) - (2 * padding);
+        boundingBoxHeight = Math.max(boundingBoxHeight, 0)
+        boundingBoxWidth = Math.max(boundingBoxWidth, 0)
+
         let fontSize = this.getMinFontSize(context, element, boundingBoxWidth, boundingBoxHeight, style)
         let label = ""
 
@@ -244,8 +247,12 @@ export class RenderBox implements Render
             context.stroke();
         });
 
-        const boundingBoxWidth = (element.width * xScale) - (3 * padding);
-        const boundingBoxHeight = (element.height * yScale) - (3 * padding);
+        let boundingBoxWidth = (element.width * xScale) - (3 * padding);
+        let boundingBoxHeight = (element.height * yScale) - (3 * padding);
+
+        boundingBoxHeight = Math.max(boundingBoxHeight, 0)
+        boundingBoxWidth = Math.max(boundingBoxWidth, 0)
+
         let fontSize = this.getMinFontSize(context, element, boundingBoxWidth, boundingBoxHeight, style)
         let label = ""
 
@@ -417,10 +424,7 @@ export class RenderBox implements Render
         let textDetails = context.measureText(label)
 
         // Calculate the scale factor
-        let scaleFactor = boundingBoxWidth / textDetails.width
-        let scaleHeightFactor = boundingBoxHeight / textDetails.actualBoundingBoxAscent
-
-        scaleFactor = (scaleFactor + scaleHeightFactor) / 2
+        let scaleFactor = boundingBoxWidth / (textDetails.actualBoundingBoxLeft + textDetails.actualBoundingBoxRight)
 
         // make sure the text fits in the height as well
         let fontSize = parseInt(style.font.split(' ')[ 0 ])
@@ -432,6 +436,8 @@ export class RenderBox implements Render
         {
             fontSize = Math.min(fontSize, fontSize * scaleFactor)
         }
+
+        fontSize = Math.max(fontSize, 0)
 
         return fontSize
     }
