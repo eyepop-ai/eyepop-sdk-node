@@ -1,4 +1,4 @@
-import { Canvas, CanvasRenderingContext2D } from "canvas";
+import { CanvasRenderingContext2D } from "canvas";
 import { ResizeObserver } from '@juggle/resize-observer';
 export interface Colors
 {
@@ -57,12 +57,14 @@ export class Style
 
     private calculateScale(context: CanvasRenderingContext2D): number
     {
-        const width = screen?.width ?? context.canvas.width;
-        const height = screen?.height ?? context.canvas.height;
+        const _screen = (typeof(screen) == "undefined")? null : screen
+        const _window = (typeof(window) == "undefined")? null : window
+        const width = _screen?.width ?? context.canvas.width;
+        const height = _screen?.height ?? context.canvas.height;
 
         // This scale provides a normalizing value of the canvas size to the screen size,
         //   allowing context drawing of the same size objects on different sized canvases/screens.
-        const scale = Math.max(context.canvas.width / width, context.canvas.height / height) * (window.devicePixelRatio || 1);
+        const scale = Math.max(context.canvas.width / width, context.canvas.height / height) * (_window?.devicePixelRatio ?? 1);
         return scale;
     }
 }
