@@ -152,3 +152,34 @@ export interface PredictedKeyPoint extends Point3d, PredictedClass {
 export interface ResultStream extends AsyncIterable<Prediction> {
     cancel(): void
 }
+
+export type SourcesEntry = {
+    readonly authority: string;
+    readonly manifest: string;
+};
+
+export enum ModelFormat {
+    TensorFlowLite= "TensorFlowLite",
+    TensorFlowGraphDef = "TensorFlowGraphDef",
+    ONNX = "ONNX",
+    TorchScript = "TorchScript",
+    TorchScriptCpu = "TorchScriptCpu",
+    TorchScriptCuda = "TorchScriptCuda"
+}
+
+export enum ModelType {
+    float32 = "float32",
+    float16 = "float16",
+    int32 = "int32",
+    int8 = "int8",
+    uint8 = "uint8"
+}
+export interface ModelInstanceDef
+{
+    id?: string;
+    model_id: string;
+    dataset: string;
+    version: string | undefined;
+    format: ModelFormat;
+    type: ModelType;
+}

@@ -11,7 +11,7 @@ import {
     Source,
     SourceParams,
     StreamSource,
-    UrlSource
+    UrlSource, ModelInstanceDef, SourcesEntry
 } from "./types"
 import {AbstractJob, LoadFromJob, LoadLiveIngressJob, UploadJob} from "./jobs"
 import {WebrtcWhip} from "./webrtc_whip"
@@ -54,7 +54,7 @@ export class WorkerEndpoint extends Endpoint {
 
     constructor(options: WorkerOptions) {
         super(options)
-        this.setStatusRetryHandlers(new Map<number, Function>([[404, (statusCode:number) => this.statusHandler404(statusCode)]]))
+        this.setStatusRetryHandlers(new Map<number, Function>([[404, (statusCode: number) => this.statusHandler404(statusCode)]]))
         this._baseUrl = null
         this._pipelineId = null
         this._popName = null
@@ -65,16 +65,18 @@ export class WorkerEndpoint extends Endpoint {
         this._sandboxId = null
         const sessionAuth: SessionAuth = (options.auth as SessionAuth)
         if (sessionAuth.session !== undefined) {
-            const sessionPlus = (sessionAuth.session as WorkerSession)
-            if (sessionPlus.sandboxId) {
-                this._sandboxId = sessionPlus.sandboxId
+            const workerSession = (sessionAuth.session as WorkerSession)
+            if (workerSession.sandboxId) {
+                this._sandboxId = workerSession.sandboxId
+                this.options().isSandbox = true
             }
         }
     }
 
-    private options() : WorkerOptions {
+    private options(): WorkerOptions {
         return this._options as WorkerOptions
     }
+
     public override async connect(): Promise<WorkerEndpoint> {
         await super.connect()
         const client = this._client
@@ -88,14 +90,11 @@ export class WorkerEndpoint extends Endpoint {
             let response = await this.fetchWithRetry(async () => {
                 const session = await this.session()
                 const headers = {
-                    'Authorization': `Bearer ${session.accessToken}`,
-                    'Content-Type': 'application/json'
+                    'Authorization': `Bearer ${session.accessToken}`, 'Content-Type': 'application/json'
                 }
                 const stop_url = `${session.baseUrl}/pipelines/${session.pipelineId}/source?mode=preempt&processing=sync`
                 return client.fetch(stop_url, {
-                    method: 'PATCH',
-                    headers: headers,
-                    body: JSON.stringify(body)
+                    method: 'PATCH', headers: headers, body: JSON.stringify(body)
                 })
             })
             if (response.status >= 300) {
@@ -108,6 +107,29 @@ export class WorkerEndpoint extends Endpoint {
             await this.startIngressWs()
         }
         return this
+    }
+
+    public override async disconnect(wait: boolean = true): Promise<void> {
+        if (this._sandboxId && this._baseUrl)
+        {
+            const sandboxUrl = `${this._baseUrl}/sandboxes/${this._sandboxId}`;
+            const headers = {
+                'Authorization': await this.authorizationHeader()
+            }
+            this._requestLogger.debug('before DELETE %s', sandboxUrl);
+            let response = await this._client?.fetch(sandboxUrl, {
+                method: 'DELETE',
+                headers: headers
+            });
+            this._requestLogger.debug('after DELETE %s', sandboxUrl);
+            if (response?.status != 204)
+            {
+                const message = await response?.text()
+                return Promise.reject(`disconnecting sandbox failed, status ${response?.status}: ${message}`)
+            }
+            this._sandboxId = null
+        }
+        return super.disconnect(wait)
     }
 
     public override onStateChanged(handler: (fromState: EndpointState, toState: EndpointState) => void): WorkerEndpoint {
@@ -135,7 +157,7 @@ export class WorkerEndpoint extends Endpoint {
             popId: this.options().popId as string,
             baseUrl: this._baseUrl as string,
             pipelineId: this._pipelineId as string,
-            sandboxId: this._sandboxId?? undefined
+            sandboxId: this._sandboxId ?? undefined
         }
     }
 
@@ -172,14 +194,11 @@ export class WorkerEndpoint extends Endpoint {
         let response = await this.fetchWithRetry(async () => {
             const session = await this.session()
             let headers = {
-                'Authorization': `Bearer ${session.accessToken}`,
-                'Content-Type': 'application/json'
+                'Authorization': `Bearer ${session.accessToken}`, 'Content-Type': 'application/json'
             }
             const patch_url = `${session.baseUrl}/pipelines/${session.pipelineId}/inferencePipeline`
             return client.fetch(patch_url, {
-                method: 'PATCH',
-                body: JSON.stringify(body),
-                headers: headers
+                method: 'PATCH', body: JSON.stringify(body), headers: headers
             })
         })
         if (response.status != 204) {
@@ -198,7 +217,7 @@ export class WorkerEndpoint extends Endpoint {
             return Promise.reject("endpoint not connected, use connect() before changePopComp()")
         }
 
-        postTransform = postTransform? postTransform: null
+        postTransform = postTransform ? postTransform : null
 
         const body = {
             'transform': postTransform
@@ -207,14 +226,11 @@ export class WorkerEndpoint extends Endpoint {
         let response = await this.fetchWithRetry(async () => {
             const session = await this.session()
             let headers = {
-                'Authorization': `Bearer ${session.accessToken}`,
-                'Content-Type': 'application/json'
+                'Authorization': `Bearer ${session.accessToken}`, 'Content-Type': 'application/json'
             }
             const patch_url = `${session.baseUrl}/pipelines/${session.pipelineId}/postTransform`
             return client.fetch(patch_url, {
-                method: 'PATCH',
-                body: JSON.stringify(body),
-                headers: headers
+                method: 'PATCH', body: JSON.stringify(body), headers: headers
             })
         })
         if (response.status != 204) {
@@ -315,7 +331,7 @@ export class WorkerEndpoint extends Endpoint {
         await this._limit.acquire()
         try {
             this.updateState()
-            const job = new UploadJob(source.file, source.file.type, params,async () => {
+            const job = new UploadJob(source.file, source.file.type, params, async () => {
                 return this.session()
             }, this._client, this._requestLogger)
             return job.start(() => {
@@ -337,7 +353,7 @@ export class WorkerEndpoint extends Endpoint {
         await this._limit.acquire()
         try {
             this.updateState()
-            const job = new UploadJob(source.stream, source.mimeType, params,async () => {
+            const job = new UploadJob(source.stream, source.mimeType, params, async () => {
                 return this.session()
             }, this._client, this._requestLogger)
             return job.start(() => {
@@ -360,7 +376,7 @@ export class WorkerEndpoint extends Endpoint {
         try {
             this.updateState()
             const streamSource = await resolvePath(source as PathSource)
-            const job = new UploadJob(streamSource.stream, streamSource.mimeType, params,async () => {
+            const job = new UploadJob(streamSource.stream, streamSource.mimeType, params, async () => {
                 return this.session()
             }, this._client, this._requestLogger)
             return job.start(() => {
@@ -382,7 +398,7 @@ export class WorkerEndpoint extends Endpoint {
         await this._limit.acquire()
         try {
             this.updateState()
-            const job = new LoadFromJob(source.url, params,async () => {
+            const job = new LoadFromJob(source.url, params, async () => {
                 return this.session()
             }, this._client, this._requestLogger)
             return job.start(() => {
@@ -404,7 +420,7 @@ export class WorkerEndpoint extends Endpoint {
         await this._limit.acquire()
         try {
             this.updateState()
-            const job = new LoadLiveIngressJob(source.ingressId, params,async () => {
+            const job = new LoadLiveIngressJob(source.ingressId, params, async () => {
                 return this.session()
             }, this._client, this._requestLogger)
             return job.start(() => {
@@ -465,28 +481,56 @@ export class WorkerEndpoint extends Endpoint {
             this.updateState(EndpointState.Error)
             const message = await response.text()
             return Promise.reject(`Unexpected status ${response.status}: ${message}`)
-        } else {
-            let config = (await response.json()) as PopConfig
-            if (!config.base_url && this.options().autoStart) {
-                const auto_start_config_url = `${this.eyepopUrl()}/pops/${this.options().popId}/config?auto_start=true`
-                this._requestLogger.debug('pop was not running, trying to autostart with: %s', auto_start_config_url)
-                // one retry the pop might just have stopped
+        }
+        let config = (await response.json()) as PopConfig
+        this._requestLogger.debug('after GET %s', config_url)
+        if (!config.base_url && this.options().autoStart) {
+            const auto_start_config_url = `${this.eyepopUrl()}/pops/${this.options().popId}/config?auto_start=true`
+            this._requestLogger.debug('pop was not running, trying to autostart with: %s', auto_start_config_url)
+            // one retry the pop might just have stopped
+            const headers = {
+                'Authorization': await this.authorizationHeader()
+            }
+            response = await this._client.fetch(auto_start_config_url, {
+                headers: headers
+            })
+            if (response.status != 200) {
+                this.updateState(EndpointState.Error)
+                const message = await response.text()
+                return Promise.reject(`Unexpected status ${response.status}: ${message}`)
+            }
+            config = (await response.json()) as PopConfig
+        }
+
+        const baseUrl = new URL(config.base_url, this.eyepopUrl())
+        this._baseUrl = baseUrl.toString()
+
+        if (this._baseUrl) {
+            this._baseUrl = this._baseUrl.replace(/\/+$/, "")
+            // create a sandbox if needed
+            if (this.options().isSandbox && this._sandboxId === null) {
                 const headers = {
                     'Authorization': await this.authorizationHeader()
-                }
-                response = await this._client.fetch(auto_start_config_url, {
+                };
+                const createSandboxUrl = `${this._baseUrl}/sandboxes`;
+                this._requestLogger.debug('before POST %s', createSandboxUrl);
+                const response = await this._client.fetch(createSandboxUrl, {
+                    method: 'POST',
                     headers: headers
-                })
-                if (response.status != 200) {
-                    this.updateState(EndpointState.Error)
-                    const message = await response.text()
-                    return Promise.reject(`Unexpected status ${response.status}: ${message}`)
-                }
-                config = (await response.json()) as PopConfig
-            }
+                });
 
-            const baseUrl = new URL(config.base_url, this.eyepopUrl())
-            this._baseUrl = baseUrl.toString()
+                if (!response.ok) {
+                    const message = await response.text();
+                    return Promise.reject(`Unexpected status ${response.status}: ${message}`);
+                }
+
+                const responseJson = await response.json();
+                this._requestLogger.debug('after POST %s', createSandboxUrl);
+
+                if (responseJson) {
+                    this._sandboxId = responseJson;
+                }
+            }
             if (this.options().popId == TransientPopId.Transient) {
                 this._pipelineId = await this.startPopLessPipeline()
                 this._popName = this.options().popId || null
@@ -494,36 +538,32 @@ export class WorkerEndpoint extends Endpoint {
                 this._pipelineId = config.pipeline_id
                 this._popName = config.name
             }
-            this._requestLogger.debug('after GET %s: %s / %s', config_url, this._baseUrl, this._pipelineId)
             if (!this._pipelineId || !this._baseUrl) {
                 return Promise.reject(`Pop not started`)
             }
             this._baseUrl = this._baseUrl.replace(/\/+$/, "")
 
-            if (this._baseUrl) {
-                const get_url = `${this._baseUrl}/pipelines/${this._pipelineId}`
-                const headers = {
-                    'Authorization': await this.authorizationHeader()
-                }
-                this._requestLogger.debug('before GET %s', get_url)
-                let response = await this._client.fetch(get_url, {
-                    method: 'GET',
-                    headers: headers
-                })
-                if (response.status > 200) {
-                    const message = await response.text()
-                    return Promise.reject(`Unexpected status ${response.status}: ${message}`)
-                }
-                this._requestLogger.debug('after GET %s', get_url)
-                this._pipeline = (await response.json()) as Pipeline
+            const get_url = `${this._baseUrl}/pipelines/${this._pipelineId}`
+            const headers = {
+                'Authorization': await this.authorizationHeader()
             }
-
-            this.updateState()
-            return Promise.resolve(this)
+            this._requestLogger.debug('before GET %s', get_url)
+            let response = await this._client.fetch(get_url, {
+                method: 'GET', headers: headers
+            })
+            if (response.status > 200) {
+                const message = await response.text()
+                return Promise.reject(`Unexpected status ${response.status}: ${message}`)
+            }
+            this._requestLogger.debug('after GET %s', get_url)
+            this._pipeline = (await response.json()) as Pipeline
         }
+
+        this.updateState()
+        return Promise.resolve(this)
     }
 
-    private async startPopLessPipeline() : Promise<string> {
+    private async startPopLessPipeline(): Promise<string> {
         const client = this._client
         const baseUrl = this._baseUrl
         const sandboxId = this._sandboxId
@@ -549,39 +589,187 @@ export class WorkerEndpoint extends Endpoint {
         const body = {
             'inferPipelineDef': {
                 'pipeline': pipeline
-            },
-            'postTransformDef': {
+            }, 'postTransformDef': {
                 'transform': postTransform
-            },
-            'source': {
+            }, 'source': {
                 'sourceType': 'NONE',
-            },
-            'idleTimeoutSeconds': 30,
-            'logging': ['out_meta'],
-            'videoOutput': 'no_output',
+            }, 'idleTimeoutSeconds': 30, 'logging': ['out_meta'], 'videoOutput': 'no_output',
         }
+
+        let post_url: string
+        if (sandboxId) {
+            post_url = `${baseUrl.replace(/\/+$/, "")}/pipelines?sandboxId=${sandboxId}`
+        } else {
+            post_url = `${baseUrl.replace(/\/+$/, "")}/pipelines`
+        }
+
         let response = await this.fetchWithRetry(async () => {
-            let post_url
-            if (sandboxId) {
-                post_url = `${baseUrl.replace(/\/+$/, "")}/pipelines?sandboxId=${sandboxId}`
-            } else {
-                post_url = `${baseUrl.replace(/\/+$/, "")}/pipelines`
-            }
             let headers = {
-                'Content-Type': 'application/json',
-                 'Authorization': await this.authorizationHeader()
+                'Content-Type': 'application/json', 'Authorization': await this.authorizationHeader()
             }
+            this._requestLogger.debug('before POST %s', post_url);
             return client.fetch(post_url, {
-                method: 'POST',
-                body: JSON.stringify(body),
-                headers: headers
+                method: 'POST', body: JSON.stringify(body), headers: headers
             })
         })
         if (response.status != 200) {
             const message = await response.text()
             return Promise.reject(`Unexpected status ${response.status}: ${message}`)
         }
-        const pipelineId = (await response.json())['id']
-        return pipelineId
+        const result = await response.json()
+        this._requestLogger.debug('after POST %s', post_url);
+        return result['id']
+    }
+
+    public async manifest(): Promise<SourcesEntry[]> {
+        this._logger.warn("getManifest for development use only");
+        const client = this._client;
+        const baseUrl = this._baseUrl;
+        if (!baseUrl || !client) {
+            return Promise.reject("endpoint not connected, use connect() before getManifest()");
+        }
+        let get_path: string;
+        if (this._sandboxId === null) {
+            get_path = `${baseUrl}/models/sources`;
+        } else {
+            get_path = `${baseUrl}/models/sources?sandboxId=${this._sandboxId}`;
+        }
+        let response = await this.fetchWithRetry(async () => {
+            const session = await this.session();
+            let headers = {
+                'Authorization': `Bearer ${session.accessToken}`, 'Content-Type': 'application/json'
+            }
+            this._requestLogger.debug('before GET %s', get_path);
+            return client.fetch(get_path, {headers: headers});
+        });
+        if (!response.ok) {
+            const message = await response.text();
+            return Promise.reject(`Unexpected status ${response.status}: ${message}`);
+        }
+        const result = await response.json() as SourcesEntry[]
+        this._requestLogger.debug('after GET %s', get_path)
+        return result
+    }
+
+
+    public async models(): Promise<ModelInstanceDef[]> {
+        this._logger.warn("listModels for development use only");
+        const client = this._client;
+        const baseUrl = this._baseUrl;
+        if (!baseUrl || !client) {
+            return Promise.reject("endpoint not connected, use connect() before listModels()");
+        }
+        let get_path: string;
+        if (this._sandboxId === null) {
+            get_path = `${baseUrl}/models/instances`;
+        } else {
+            get_path = `${baseUrl}/models/instances?sandboxId=${this._sandboxId}`;
+        }
+        let response = await this.fetchWithRetry(async () => {
+            const session = await this.session();
+            let headers = {
+                'Authorization': `Bearer ${session.accessToken}`, 'Content-Type': 'application/json'
+            }
+            this._requestLogger.debug('before GET %s', get_path)
+            return client.fetch(get_path, {headers: headers});
+        });
+        if (!response.ok) {
+            const message = await response.text();
+            return Promise.reject(`Unexpected status ${response.status}: ${message}`);
+        }
+        const result = await response.json() as ModelInstanceDef[]
+        this._requestLogger.debug('after GET %s', get_path)
+        return result
+    }
+
+    public async changeManifest(manifests: SourcesEntry[]): Promise<void> {
+        this._logger.warn("setManifest for development use only");
+        const client = this._client;
+        const baseUrl = this._baseUrl;
+        if (!baseUrl || !client) {
+            return Promise.reject("endpoint not connected, use connect() before setManifest()");
+        }
+        let put_url: string;
+        if (this._sandboxId === null) {
+            put_url = `${baseUrl}/models/sources`;
+        } else {
+            put_url = `${baseUrl}/models/sources?sandboxId=${this._sandboxId}`;
+        }
+        let response = await this.fetchWithRetry(async () => {
+            const session = await this.session();
+            let headers = {
+                'Authorization': `Bearer ${session.accessToken}`, 'Content-Type': 'application/json'
+            }
+            this._requestLogger.debug('before PUT %s', put_url)
+            return client.fetch(put_url, {
+                method: 'PUT', body: JSON.stringify(manifests), headers: headers
+            });
+        });
+        if (!response.ok) {
+            const message = await response.text();
+            return Promise.reject(`Unexpected status ${response.status}: ${message}`);
+        }
+        this._requestLogger.debug('after PUT %s', put_url)
+    }
+
+    public async loadModel(model: ModelInstanceDef): Promise<ModelInstanceDef> {
+        this._logger.warn("loadModel for development use only");
+        const client = this._client;
+        const baseUrl = this._baseUrl;
+        if (!baseUrl || !client) {
+            return Promise.reject("endpoint not connected, use connect() before loadModel()");
+        }
+        let post_url: string;
+        if (this._sandboxId === null) {
+            post_url = `${baseUrl}/models/instances`;
+        } else {
+            post_url = `${baseUrl}/models/instances?sandboxId=${this._sandboxId}`;
+        }
+        let response = await this.fetchWithRetry(async () => {
+            const session = await this.session();
+            let headers = {
+                'Authorization': `Bearer ${session.accessToken}`, 'Content-Type': 'application/json'
+            }
+            this._requestLogger.debug('before POST %s', post_url)
+            return client.fetch(post_url, {
+                method: 'POST', body: JSON.stringify(model), headers: headers
+            });
+        });
+
+        if (!response.ok) {
+            const message = await response.text();
+            return Promise.reject(`Unexpected status ${response.status}: ${message}`);
+        }
+        const result = await response.json() as ModelInstanceDef;
+        this._requestLogger.debug('after POST %s', post_url)
+        return result
+    }
+
+    public async unloadModel(modelId: string): Promise<void> {
+        this._logger.warn("purgeModel for development use only");
+        const client = this._client;
+        const baseUrl = this._baseUrl;
+        if (!baseUrl || !client) {
+            return Promise.reject("endpoint not connected, use connect() before unloadModel()");
+        }
+        let delete_url: string;
+        if (this._sandboxId === null) {
+            delete_url = `${baseUrl}/models/instances/${modelId}`;
+        } else {
+            delete_url = `${baseUrl}/models/instances/${modelId}?sandboxId=${this._sandboxId}`;
+        }
+        let response = await this.fetchWithRetry(async () => {
+            const session = await this.session();
+            let headers = {
+                'Authorization': `Bearer ${session.accessToken}`, 'Content-Type': 'application/json'
+            }
+            this._requestLogger.debug('before DELETE %s', delete_url)
+            return client.fetch(delete_url, {method: 'DELETE', headers: headers});
+        });
+        if (!response.ok) {
+            const message = await response.text();
+            return Promise.reject(`Unexpected status ${response.status}: ${message}`);
+        }
+        this._requestLogger.debug('after DELETE %s', delete_url)
     }
 }

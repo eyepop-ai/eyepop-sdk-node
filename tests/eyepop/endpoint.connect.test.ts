@@ -246,6 +246,7 @@ describe('EyePopSdk endpoint module auth and connect', () => {
         })
         expect(endpoint).toBeDefined()
         try {
+            expect(authenticationRoute).toHaveBeenCalledTimes(0)
             await endpoint.connect()
             expect(authenticationRoute).toHaveBeenCalledTimes(3)
             expect(popConfigRoute).toHaveBeenCalledTimes(2)
