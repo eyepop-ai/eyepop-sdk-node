@@ -3,12 +3,18 @@ import { Style } from "./style"
 import { CanvasRenderingContext2D } from "canvas"
 import { Render, DEFAULT_TARGET, RenderTarget } from './render'
 
+export enum BoxType
+{
+    Rich = "rich",
+    Simple = "simple"
+}
+
 export type RenderBoxOptions = {
-    showText: boolean // Whether to show labels, such as OCR text
-    showClass: boolean // Whether to show class labels, such as "person"
-    showNestedClasses: boolean // Whether to show nested classes, such as "person" + "necklace"
-    showConfidence: boolean // Whether to show confidence, such as "0.95"
-    showTraceId: boolean // Whether to show trace ID, such as "132"
+    showClass?: boolean // Whether to show class labels, such as "person"
+    showNestedClasses?: boolean // Whether to show nested classes, such as "person" + "necklace"
+    showConfidence?: boolean // Whether to show confidence, such as "0.95"
+    showTraceId?: boolean // Whether to show trace ID, such as "132"
+    boxType?: BoxType // The style of the box bounds
 } & RenderTarget
 
 export class RenderBox implements Render
@@ -21,16 +27,18 @@ export class RenderBox implements Render
     private showNestedClasses: boolean
     private showConfidence: boolean
     private showTraceId: boolean
+    private boxType?: BoxType
 
     constructor(options: Partial<RenderBoxOptions> = {})
     {
-        const { showClass = true, showConfidence = false, showTraceId = false, showNestedClasses = false, target = '$..objects.*' } = options
-        this.target = target
+        const { showClass = true, showConfidence = false, showTraceId = false, showNestedClasses = false, target = '$..objects.*', boxType = BoxType.Rich } = options
 
+        this.target = target
         this.showClass = showClass
         this.showNestedClasses = showNestedClasses
         this.showConfidence = showConfidence
         this.showTraceId = showTraceId
+        this.boxType = boxType
     }
 
     start(context: CanvasRenderingContext2D, style: Style)
@@ -39,8 +47,14 @@ export class RenderBox implements Render
         this.style = style
     }
 
-    public draw(element: PredictedObject, xOffset: number, yOffset: number, xScale: number, yScale: number, streamTime: StreamTime): void
+    public draw(element: PredictedObject, xOffset: number, yOffset: number, xScale: number, yScale: number, streamTime: StreamTime, color?: string): void
     {
+        if (this.boxType === BoxType.Simple)
+        {
+            this.drawSimple(element, xOffset, yOffset, xScale, yScale, streamTime, color)
+            return;
+        }
+
         const context = this.context
         const style = this.style
         if (!context || !style)
@@ -63,22 +77,23 @@ export class RenderBox implements Render
                 return a.category.localeCompare(b.category)
             })
         }
-        const scale = style.scale
+
+        let canvasDimension = Math.min(w, h);
+
+        const lineWidth = Math.max(canvasDimension * .0025, style.scale)
 
         //faded blue background
         context.beginPath()
         context.rect(x, y, w, h)
-        context.lineWidth = scale * 2
+        context.lineWidth = lineWidth
         context.strokeStyle = style.colors.opacity_color
         context.fillStyle = style.colors.opacity_color
         context.fill()
         context.stroke()
 
-
-        const desiredPercentage = style.cornerPadding
-
-        let canvasDimension = Math.min(context.canvas.width, context.canvas.height);
-        let cornerSize = Math.min(w / 4, canvasDimension * desiredPercentage);
+        let cornerSize = canvasDimension * style.cornerWidth
+        cornerSize = Math.max(cornerSize, style.scale * 20)
+        cornerSize = Math.min(cornerSize, canvasDimension / 2)
 
         var corners = [//top left corner
             [ { x: x, y: y + cornerSize }, { x: x, y: y }, { x: x + cornerSize, y: y }, ], //bottom left corner
@@ -93,11 +108,12 @@ export class RenderBox implements Render
             context.lineTo(corner[ 1 ].x, corner[ 1 ].y)
             context.lineTo(corner[ 2 ].x, corner[ 2 ].y)
             context.strokeStyle = style.colors.primary_color
-            context.lineWidth = scale * 2
+            context.lineWidth = lineWidth
             context.stroke()
         })
 
-        const padding = Math.max(Math.min(w / 25, canvasDimension * (style.cornerWidth)), scale * 2)
+        let padding = canvasDimension * style.cornerPadding
+        padding = Math.max(padding, style.scale * 4)
 
         cornerSize = cornerSize - padding
 
@@ -126,12 +142,16 @@ export class RenderBox implements Render
             context.lineTo(corner[ 1 ].x, corner[ 1 ].y)
             context.lineTo(corner[ 2 ].x, corner[ 2 ].y)
             context.strokeStyle = style.colors.secondary_color
-            context.lineWidth = scale * 2
+            context.lineWidth = lineWidth
             context.stroke()
         })
 
-        const boundingBoxWidth = (element.width * xScale) - (3 * padding);
-        let fontSize = this.getMinFontSize(context, element, boundingBoxWidth, style)
+        let boundingBoxWidth = (element.width * xScale) - (2 * padding);
+        let boundingBoxHeight = (element.height * yScale) - (2 * padding);
+        boundingBoxHeight = Math.max(boundingBoxHeight, 0)
+        boundingBoxWidth = Math.max(boundingBoxWidth, 0)
+
+        let fontSize = this.getMinFontSize(context, element, boundingBoxWidth, boundingBoxHeight, style)
         let label = ""
 
         if (this.showClass && element.classLabel)
@@ -168,6 +188,124 @@ export class RenderBox implements Render
             yOffset += this.drawLabel(label, context, element, yScale, xScale, yOffset, xOffset, style, boundingBoxWidth, padding, false, fontSize)
         }
     }
+
+    public drawSimple(element: PredictedObject, xOffset: number, yOffset: number, xScale: number, yScale: number, streamTime: StreamTime, color?: string): void
+    {
+        const context = this.context
+        const style = this.style
+        if (!context || !style)
+        {
+            throw new Error('render() called before start()')
+        }
+
+        const x = xOffset + element.x * xScale
+        const y = yOffset + element.y * yScale
+        const w = element.width * xScale
+        const h = element.height * yScale
+
+        // Sort the element's objects based on the element.object.category
+        if (element.objects)
+        {
+            element.objects.sort((a, b) =>
+            {
+                if (!a.category || !b.category) return 0
+
+                return a.category.localeCompare(b.category)
+            })
+        }
+        const scale = style.scale
+
+        //faded blue background
+        context.beginPath()
+        context.rect(x, y, w, h)
+        context.lineWidth = scale
+        context.strokeStyle = color || style.colors.primary_color
+        //context.fillStyle = style.colors.opacity_color
+        //context.fill()
+        context.stroke()
+
+
+        const desiredPercentage = 0.015;
+
+        let canvasDimension = Math.min(context.canvas.width, context.canvas.height);
+
+
+        // Draw the corners as circles at each corner of the bounding box
+        let cornerSize = Math.min(w / 4, canvasDimension * desiredPercentage);
+
+        let padding = Math.max(Math.min(w / 25, canvasDimension * (style.cornerWidth)), scale)
+
+        var corners = [
+            { x: x, y: y },
+            { x: x + w, y: y },
+            { x: x, y: y + h },
+            { x: x + w, y: y + h },
+        ]
+
+        corners.forEach((corner) =>
+        {
+            context.beginPath();
+            context.arc(corner.x, corner.y, cornerSize, 0, 2 * Math.PI);
+            context.lineWidth = scale;
+            context.strokeStyle = color || style.colors.primary_color;
+            context.fillStyle = color || style.colors.primary_color;
+            context.fill();
+            context.stroke();
+        });
+
+        let boundingBoxWidth = (element.width * xScale) - (3 * padding);
+        let boundingBoxHeight = (element.height * yScale) - (3 * padding);
+
+        boundingBoxHeight = Math.max(boundingBoxHeight, 0)
+        boundingBoxWidth = Math.max(boundingBoxWidth, 0)
+
+        let fontSize = this.getMinFontSize(context, element, boundingBoxWidth, boundingBoxHeight, style)
+        let label = ""
+
+        if (this.showClass && element.classLabel)
+        {
+            label = element.classLabel
+            label = RenderBox.toTitleCase(label)
+            yOffset += this.drawLabel(label, context, element, yScale, xScale, yOffset, xOffset, style, boundingBoxWidth, padding, false, fontSize)
+        }
+
+        if (this.showNestedClasses && element?.classes)
+        {
+            // Sort the classes based category
+            let classes = element.classes as any[];
+
+            classes.sort((a: { classId: number }, b: { classId: number }) =>
+            {
+                if (!a.classId || !b.classId) return 0
+                return a.classId - b.classId
+            })
+
+            for (let i = 0; i < classes.length; i++)
+            {
+                label = classes[ i ]?.classLabel
+
+                if (!label) continue
+
+                label = RenderBox.toTitleCase(label)
+                yOffset += this.drawLabel(label, context, element, yScale, xScale, yOffset, xOffset, style, boundingBoxWidth, padding, false, fontSize)
+            }
+        }
+
+        if (this.showTraceId && element.traceId)
+        {
+            label = 'ID: ' + element.traceId
+            label = RenderBox.toTitleCase(label)
+            yOffset += this.drawLabel(label, context, element, yScale, xScale, yOffset, xOffset, style, boundingBoxWidth, padding, false, fontSize)
+        }
+
+        if (this.showConfidence && element.confidence)
+        {
+            label = Math.round(element.confidence * 100) + '%'
+            label = RenderBox.toTitleCase(label)
+            yOffset += this.drawLabel(label, context, element, yScale, xScale, yOffset, xOffset, style, boundingBoxWidth, padding, false, fontSize)
+        }
+    }
+
 
     // Draw a label on the canvas, scaling the font size to fit the bounding box
     drawLabel(label: string, context: CanvasRenderingContext2D, element: any, yScale: number, xScale: number, yOffset: number, xOffset: number, style: Style, boundingBoxWidth: number, padding: number, scaleToBounds = false, fontSize?: number): number
@@ -228,7 +366,7 @@ export class RenderBox implements Render
     }
 
     // Gets the largest label from all the labels to be displayed
-    getMinFontSize(context: CanvasRenderingContext2D, element: any, width: number, style: any, scaleToWidth: boolean = false): number
+    getMinFontSize(context: CanvasRenderingContext2D, element: any, width: number, height: number, style: any, scaleToWidth: boolean = false): number
     {
         let largestLabel = ''
 
@@ -275,12 +413,12 @@ export class RenderBox implements Render
             }
         }
 
-        let fontSize = this.getFontSize(largestLabel, context, style, width, scaleToWidth)
+        let fontSize = this.getFontSize(largestLabel, context, style, width, height, scaleToWidth)
 
         return fontSize
     }
 
-    getFontSize(label: string, context: CanvasRenderingContext2D, style: Style, boundingBoxWidth: number, scaleToWidth: boolean = false): number
+    getFontSize(label: string, context: CanvasRenderingContext2D, style: Style, boundingBoxWidth: number, boundingBoxHeight: number, scaleToWidth: boolean = false): number
     {
         context.textAlign = 'left'
         context.textBaseline = 'top'
@@ -292,7 +430,9 @@ export class RenderBox implements Render
         let textDetails = context.measureText(label)
 
         // Calculate the scale factor
-        let scaleFactor = boundingBoxWidth / textDetails.width
+        let scaleFactor = boundingBoxWidth / (textDetails.actualBoundingBoxLeft + textDetails.actualBoundingBoxRight)
+
+        // make sure the text fits in the height as well
         let fontSize = parseInt(style.font.split(' ')[ 0 ])
 
         if (scaleToWidth)
@@ -302,6 +442,8 @@ export class RenderBox implements Render
         {
             fontSize = Math.min(fontSize, fontSize * scaleFactor)
         }
+
+        fontSize = Math.max(fontSize, 0)
 
         return fontSize
     }

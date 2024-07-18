@@ -50,7 +50,7 @@ export class Renderer2d implements Renderer
         }
     }
 
-    public draw(p: Prediction)
+    public draw(p: Prediction, color?: string)
     {
         const x_scale = this.context.canvas.width / p.source_width
         const y_scale = this.context.canvas.height / p.source_height
@@ -65,7 +65,7 @@ export class Renderer2d implements Renderer
             const targets = jp.query(p, rule.target)
             for (let j = 0; j < targets.length; j++)
             {
-                rule.draw(targets[ j ], 0, 0, x_scale, y_scale, streamTime)
+                rule.draw(targets[ j ], 0, 0, x_scale, y_scale, streamTime, color)
             }
         }
     }

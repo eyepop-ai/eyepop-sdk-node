@@ -16,8 +16,8 @@ export class Style
     public font: string
     public colors: Colors
     public scale: number = 1.0
-    public cornerWidth: number = 0.2
-    public cornerPadding: number = 0.05
+    public cornerWidth: number = .33
+    public cornerPadding: number = 0.04
 
     private static defaultColors = {
         primary_color: '#2fa7d7',
@@ -46,19 +46,19 @@ export class Style
         }
 
         this.font = this.calculateFont(context.canvas.width, context.canvas.height)
-        this.scale = this.calculateScale(context)
+        this.scale = this.calculateScale(context) * 2
     }
 
     private calculateFont(w: number, h: number): string
     {
-        const textSize = Math.floor(Math.max(1, .05 * Math.min(w, h)))
-        return textSize + "px Arial";
+        const textSize = Math.floor(Math.max(12, .035 * Math.min(w, h)))
+        return textSize + "px Times New Roman";
     }
 
     private calculateScale(context: CanvasRenderingContext2D): number
     {
-        const _screen = (typeof(screen) == "undefined")? null : screen
-        const _window = (typeof(window) == "undefined")? null : window
+        const _screen = (typeof (screen) == "undefined") ? null : screen
+        const _window = (typeof (window) == "undefined") ? null : window
         const width = _screen?.width ?? context.canvas.width;
         const height = _screen?.height ?? context.canvas.height;
 

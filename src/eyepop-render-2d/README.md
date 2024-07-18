@@ -136,6 +136,12 @@ Render2d.renderFace({
     target = '$..objects[?(@.classLabel=="face")]' 
 }) 
 ```
+#### Render Text (OCR Overlay)
+```typescript
+Render2d.renderText({
+    target: '$..objects[?(@.classLabel=="text")]'
+})
+```
 #### Render Segmentation Masks
 ```typescript
 Render2d.renderMask({
@@ -171,8 +177,7 @@ Render2d.renderTrail({
 })
 ```
 #### Custom render implementation
-To implement custom rendering rules,
- create a custom class as follows:  
+To implement custom rendering rules, create a custom class as follows:  
 ```typescript
 import { PredictedObject, StreamTime } from '@eyepop.ai/eyepop'
 
