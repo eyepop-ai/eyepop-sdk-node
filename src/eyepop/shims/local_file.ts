@@ -1,4 +1,4 @@
-import {StreamSource, PathSource} from "../types";
+import {PathSource, StreamSource} from "EyePop";
 
 export let resolvePath: (source: PathSource) => Promise<StreamSource>
 

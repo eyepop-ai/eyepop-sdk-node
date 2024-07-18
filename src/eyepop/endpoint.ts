@@ -12,7 +12,7 @@ interface AccessToken {
     token_type: string;
 }
 
-export class Endpoint {
+export class Endpoint<T extends Endpoint<T>> {
     protected _options: Options
     private _token: string | null
     private _expire_token_time: number | null
@@ -70,9 +70,9 @@ export class Endpoint {
         return this._state
     }
 
-    public onStateChanged(handler: (fromState: EndpointState, toState: EndpointState) => void): Endpoint {
+    public onStateChanged(handler: (fromState: EndpointState, toState: EndpointState) => void): T {
         this._stateChangeHandler = handler
-        return this
+        return <T><unknown>this
     }
 
     protected updateState(newState: EndpointState | undefined = undefined) {
@@ -90,10 +90,10 @@ export class Endpoint {
         }
     }
 
-    public async connect(): Promise<Endpoint> {
+    public async connect(): Promise<T> {
         if (this._client) {
             this._logger.warn('endpoint already connected')
-            return this
+            return <T><unknown>this
         }
         if (!this._options.eyepopUrl) {
             return Promise.reject("option eyepopUrl or environment variable EYEPOP_URL is required")
@@ -187,7 +187,7 @@ export class Endpoint {
         }
     }
 
-    protected async reconnect(): Promise<Endpoint> {
+    protected async reconnect(): Promise<T> {
         throw new Error("reconnect() not implemented");
     }
 

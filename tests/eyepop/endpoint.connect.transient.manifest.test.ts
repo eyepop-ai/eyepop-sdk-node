@@ -1,12 +1,10 @@
-import {EyePop} from '../../src/eyepop/dist/eyepop.index'
+import {EyePop, ModelFormat, ModelInstanceDef, ModelPrecisionType, SourcesEntry, TransientPopId} from '../../src/eyepop/dist/eyepop.index'
 
 import {MockServer} from 'jest-mock-server'
 import {describe, expect, test} from '@jest/globals'
 import {v4 as uuidv4} from 'uuid'
-import {TransientPopId} from "../../src/eyepop/options";
 
 import {pino} from 'pino'
-import {ModelFormat, ModelInstanceDef, ModelType, SourcesEntry} from "../../src/eyepop/types";
 
 describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
 {
@@ -34,7 +32,7 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
         dataset: 'TestDataset',
         version: undefined,
         format: ModelFormat.TorchScript,
-        type: ModelType.float32
+        type: ModelPrecisionType.float32
     }
 
 

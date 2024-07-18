@@ -1,9 +1,9 @@
-import {EyePop, Session} from '../../src/eyepop'
+import {EyePop, TransientPopId} from '../../src/eyepop'
 
 import {MockServer} from 'jest-mock-server'
 import {describe, expect, test} from '@jest/globals'
 import {v4 as uuidv4} from 'uuid'
-import {TransientPopId} from "../../src/eyepop/options";
+
 
 describe('EyePopSdk endpoint module auth and connect for transient popId', () => {
     const server = new MockServer()

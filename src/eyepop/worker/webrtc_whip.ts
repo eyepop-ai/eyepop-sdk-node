@@ -1,8 +1,8 @@
 import {v4 as uuidv4} from 'uuid'
-import {LiveMedia, WorkerSession} from './types'
-import {HttpClient} from './shims/http_client'
+import {HttpClient} from '../shims/http_client'
 import {Logger} from 'pino'
 import {WebrtcBase} from './webrtc_base'
+import {LiveMedia, WorkerSession} from "EyePop/worker/worker_types";
 
 export class WebrtcWhip extends WebrtcBase implements LiveMedia {
     private _stream: MediaStream | null
