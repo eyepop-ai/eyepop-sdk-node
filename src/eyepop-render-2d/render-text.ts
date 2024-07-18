@@ -44,11 +44,12 @@ export class RenderText implements Render
         let canvasDimension = Math.min(context.canvas.width, context.canvas.height);
 
         const padding = Math.max(Math.min(w / 25, canvasDimension * (style.cornerWidth)), scale * 2)
-        const boundingBoxWidth = (element.width * xScale) - (3 * padding);
+        const boundingBoxWidth = (element.width * xScale) - (2 * padding);
+        const boundingBoxHeight = (element.height * yScale) - (2 * padding);
 
         if (!element.labels) return
 
-        let fontSize = this.getMinFontSize(context, element, boundingBoxWidth, style, true)
+        let fontSize = this.getMinFontSize(context, element, boundingBoxWidth, boundingBoxHeight, style, true)
         let label = ""
 
         for (let i = 0; i < element.labels.length; i++)
@@ -120,7 +121,7 @@ export class RenderText implements Render
     }
 
     // Gets the largest label from all the labels to be displayed
-    getMinFontSize(context: CanvasRenderingContext2D, element: any, width: number, style: any, scaleToWidth: boolean = false): number
+    getMinFontSize(context: CanvasRenderingContext2D, element: any, width: number, height: number, style: any, scaleToWidth: boolean = false): number
     {
         let largestLabel = ''
         for (let i = 0; i < element.labels.length; i++)
@@ -135,14 +136,15 @@ export class RenderText implements Render
             }
         }
 
-        let fontSize = this.getFontSize(largestLabel, context, style, width, scaleToWidth)
+        let fontSize = this.getFontSize(largestLabel, context, style, width, height, scaleToWidth)
 
         return fontSize
     }
 
-    getFontSize(label: string, context: CanvasRenderingContext2D, style: Style, boundingBoxWidth: number, scaleToWidth: boolean = false): number
+
+    getFontSize(label: string, context: CanvasRenderingContext2D, style: Style, boundingBoxWidth: number, boundingBoxHeight: number, scaleToWidth: boolean = false): number
     {
-        context.textAlign = 'left'
+        context.textAlign = 'center'
         context.textBaseline = 'top'
 
         // Set the original font size
@@ -153,6 +155,11 @@ export class RenderText implements Render
 
         // Calculate the scale factor
         let scaleFactor = boundingBoxWidth / textDetails.width
+        let scaleHeightFactor = (boundingBoxHeight) / (textDetails.actualBoundingBoxAscent + textDetails.actualBoundingBoxDescent)
+
+        scaleFactor = Math.min(scaleFactor, scaleHeightFactor)
+
+        // make sure the text fits in the height as well
         let fontSize = parseInt(style.font.split(' ')[ 0 ])
 
         if (scaleToWidth)
