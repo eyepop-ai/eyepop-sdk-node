@@ -1,4 +1,4 @@
-import { PredictedObject, StreamTime } from "@eyepop.ai/eyepop"
+import { PredictedObject, StreamTime } from "../eyepop/types"
 import { Style } from "./style"
 import { CanvasRenderingContext2D } from "canvas"
 import { Render, DEFAULT_TARGET, RenderTarget } from './render'
@@ -260,13 +260,12 @@ export class RenderBox implements Render
         if (this.showNestedClasses && element?.classes)
         {
             // Sort the classes based category
-            let classes = element.classes
+            let classes = element.classes as any[];
 
-            classes.sort((a, b) =>
+            classes.sort((a: { classId: number }, b: { classId: number }) =>
             {
-                if (!a.category || !b.category) return 0
-
-                return a.category.localeCompare(b.category)
+                if (!a.classId || !b.classId) return 0
+                return a.classId - b.classId
             })
 
             for (let i = 0; i < classes.length; i++)
