@@ -3,12 +3,18 @@ import { Style } from "./style"
 import { CanvasRenderingContext2D } from "canvas"
 import { Render, DEFAULT_TARGET, RenderTarget } from './render'
 
+export enum BoxType
+{
+    Rich = "rich",
+    Simple = "simple"
+}
+
 export type RenderBoxOptions = {
-    showClass: boolean // Whether to show class labels, such as "person"
-    showNestedClasses: boolean // Whether to show nested classes, such as "person" + "necklace"
-    showConfidence: boolean // Whether to show confidence, such as "0.95"
-    showTraceId: boolean // Whether to show trace ID, such as "132"
-    boxType?: string // We now have rich eyepop boxes and simple boxes
+    showClass?: boolean // Whether to show class labels, such as "person"
+    showNestedClasses?: boolean // Whether to show nested classes, such as "person" + "necklace"
+    showConfidence?: boolean // Whether to show confidence, such as "0.95"
+    showTraceId?: boolean // Whether to show trace ID, such as "132"
+    boxType?: BoxType // The style of the box bounds
 } & RenderTarget
 
 export class RenderBox implements Render
@@ -21,13 +27,13 @@ export class RenderBox implements Render
     private showNestedClasses: boolean
     private showConfidence: boolean
     private showTraceId: boolean
-    private boxType?: string
+    private boxType?: BoxType
 
     constructor(options: Partial<RenderBoxOptions> = {})
     {
-        const { showClass = true, showConfidence = false, showTraceId = false, showNestedClasses = false, target = '$..objects.*', boxType = "rich" } = options
-        this.target = target
+        const { showClass = true, showConfidence = false, showTraceId = false, showNestedClasses = false, target = '$..objects.*', boxType = BoxType.Rich } = options
 
+        this.target = target
         this.showClass = showClass
         this.showNestedClasses = showNestedClasses
         this.showConfidence = showConfidence
@@ -43,7 +49,7 @@ export class RenderBox implements Render
 
     public draw(element: PredictedObject, xOffset: number, yOffset: number, xScale: number, yScale: number, streamTime: StreamTime, color?: string): void
     {
-        if (this.boxType === "simple")
+        if (this.boxType === BoxType.Simple)
         {
             this.drawSimple(element, xOffset, yOffset, xScale, yScale, streamTime, color)
             return;

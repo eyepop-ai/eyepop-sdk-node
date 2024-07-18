@@ -4,6 +4,7 @@ import 'eyepop-render-2d'
 import { pino } from 'pino'
 import image1Src from 'example.jpg'
 import image2Src from 'large_example.jpg'
+import { BoxStyle, BoxType } from '../../../src/eyepop-render-2d/render-box';
 
 const logger = pino({ level: 'info', name: 'eyepop-example' })
 
