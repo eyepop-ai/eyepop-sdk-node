@@ -4,7 +4,7 @@ import 'eyepop-render-2d'
 import { pino } from 'pino'
 import image1Src from 'example.jpg'
 import image2Src from 'large_example.jpg'
-import { BoxStyle, BoxType } from '../../../src/eyepop-render-2d/render-box';
+import { BoxType } from '../../../src/eyepop-render-2d/render-box';
 
 const logger = pino({ level: 'info', name: 'eyepop-example' })
 
@@ -70,6 +70,7 @@ async function run(useDefault = true)
                         showConfidence: !hasText,
                         showTraceId: !hasText,
                         showNestedClasses: !hasText,
+                        boxType: BoxType.Rich
                     }),
                     Render2d.renderText()
                 ]
@@ -106,6 +107,7 @@ async function run(useDefault = true)
                         showConfidence: !hasText,
                         showTraceId: !hasText,
                         showNestedClasses: !hasText,
+                        boxType: BoxType.Simple
                     }),
                     Render2d.renderText()
                 ]
