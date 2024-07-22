@@ -1,4 +1,4 @@
-import {EyePop, TransientPopId} from '../../src/eyepop'
+import {EyePop, TransientPopId} from '../../../src/eyepop'
 
 import {MockServer} from 'jest-mock-server'
 import {describe, expect, test} from '@jest/globals'

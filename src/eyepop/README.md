@@ -27,7 +27,7 @@ Configuration and authorization with explicit defaults:
 ```typescript
 import { EyePop } from '@eyepop.ai/eyepop'
 (async() => {
-    const endpoint = EyePop.endpoint({
+    const endpoint = EyePop.workerEndpoint({
         // This is the default and can be omitted
         popId: process.env['EYEPOP_POP_ID'],
         // This is the default and can be omitted
@@ -42,7 +42,7 @@ Equivalent, but shorter:
 ```typescript
 import { EyePop } from '@eyepop.ai/eyepop'
 (async() => {
-    const endpoint = await EyePop.endpoint().connect()
+    const endpoint = await EyePop.workerEndpoint().connect()
     // do work ....
     await endpoint.disconnect()
 })
@@ -116,7 +116,7 @@ import { EyePop } from '@eyepop.ai/eyepop'
 const example_image_path = 'examples/example.jpg';
 
 (async() => {
-    const endpoint = await EyePop.endpoint().connect()
+    const endpoint = await EyePop.workerEndpoint().connect()
     try {
         let results = await endpoint.process({path: example_image_path})
         for await (let result of results) {
@@ -127,8 +127,8 @@ const example_image_path = 'examples/example.jpg';
     }
 })();
 ```
-1. `EyePop.endpoint()` returns a local endpoint object, that will authenticate with the Api Key found in 
-EYEPOP_SECRET_KEY and load the worker configuration for the Pop identified by EYEPOP_POP_ID. 
+1. `EyePop.workerEndpoint()` returns a local endpoint object, that will authenticate with the Api Key found in 
+EYEPOP_SECRET_KEY and load the worker configuration for the Pop identified by EYEPOP_POP_ID.  
 2. Call `endpoint.connect()` before any job is submitted and `endpoint.disconnect()` to release all resources.
 3. `endpoint.process({path:'examples/example.jpg'})` initiates the upload to the local file to the worker service. 
 The image will be queued and processed immediately when the worker becomes available.
@@ -145,6 +145,10 @@ until the entire file has been processed.
     endpoint.upload({stream: readableStream, mimeType: 'image/jpeg'})
     // ...
 ```
+
+Note: since v0.21.0 `EyePop.workerEndpoint()` was introduced and replaces `EyePop.endpoint()` which is now deprecated. 
+Support for `EyePop.endpoint()` will be removed in v1.0.0.
+
 ### Visualizing Results
 Visualization components are provided as separate modules. Please refer to the module's documentation for usage examples.
 * [EyePop Render 2d](https://www.npmjs.com/package/@eyepop.ai/eyepop-render-2d)
@@ -158,7 +162,7 @@ import { EyePop } from '@eyepop.ai/eyepop';
 const example_image_path = 'examples/example.jpg';
 
 (async() => {
-    const endpoint = await EyePop.endpoint().connect()
+    const endpoint = await EyePop.workerEndpoint().connect()
     try {
         for (let i = 0; i < 100; i++) {
             endpoint.process({path: example_image_path}).then(async (results) => {
@@ -185,7 +189,7 @@ import { EyePop } from '@eyepop.ai/eyepop';
 const example_image_url = 'https://farm2.staticflickr.com/1080/1301049949_532835a8b5_z.jpg';
 
 (async() => {
-    const endpoint = await EyePop.endpoint().connect()
+    const endpoint = await EyePop.workerEndpoint().connect()
     try {
         let results = await endpoint.process({url: example_image_url})
         for await (let result of results) {
@@ -206,7 +210,7 @@ import { EyePop } from '@eyepop.ai/eyepop'
 const example_video_url = 'https://demo-eyepop-videos.s3.amazonaws.com/test1_vlog.mp4';
 
 (async() => {
-    const endpoint = await EyePop.endpoint().connect()
+    const endpoint = await EyePop.workerEndpoint().connect()
     try {
         let results = await endpoint.process({url: example_image_url})
         for await (let result of results) {
@@ -226,7 +230,7 @@ import { EyePop } from '@eyepop.ai/eyepop'
 const example_video_url = 'https://demo-eyepop-videos.s3.amazonaws.com/test1_vlog.mp4';
 
 (async() => {
-    const endpoint = EyePop.endpoint().connect()
+    const endpoint = EyePop.workerEndpoint().connect()
     try {
         let results = await endpoint.process({url: example_image_url})
         for await (let result of results) {
@@ -242,12 +246,16 @@ const example_video_url = 'https://demo-eyepop-videos.s3.amazonaws.com/test1_vlo
 ```
 ## Other Usage Options
 #### Auto start workers
-By default, `EyePop.endpoint().connect()` will start a worker if none is running yet. To disable this behavior 
+By default, `EyePop.workerEndpoint().connect()` will start a worker if none is running yet. To disable this behavior 
 create an endpoint with `EyePop.endpoint({autoStart: false})`.
 #### Stop pending jobs
-By default, `EyePop.endpoint().connect()` will cancel all currently running or queued jobs on the worker. 
+By default, `EyePop.workerEndpoint().connect()` will cancel all currently running or queued jobs on the worker. 
 It is assumed that the caller _takes full control_ of that worker. To disable this behavior create an endpoint with 
 `EyePop.endpoint({stopJobs: false})`.
+
+## Data endpoint (experimental)
+To support managing your own datasets and control model optimization v0.21.0 introduces `EyePop.dataEndpoint()`,
+an experimental pre-release which is subject to change. An officially supported version will be released with v1.0.0
 
 
 

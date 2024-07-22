@@ -20,6 +20,7 @@ import {
     TranscodeMode,
     UserReview
 } from "./data_types";
+import {Prediction} from "@eyepop.ai/eyepop";
 
 
 interface DataConfig {
@@ -115,64 +116,80 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         const baseUrl = new URL(config.base_url, this.eyepopUrl())
         this._baseUrl = baseUrl.toString()
 
-        await this.reconnect_ws()
+        if (this.options().disableWs) {
+            this._logger.info("disabled ws connection")
+        } else {
+            await this.reconnect_ws()
+        }
 
         this.updateState()
         return Promise.resolve(this)
     }
 
-    private async reconnect_ws() {
+    private async reconnect_ws(): Promise<void> {
         if (this._ws) {
             this._ws.close()
             this._ws = null
         }
-        const baseUrl = this._baseUrl
+        const baseUrl = this._baseUrl?.replace("https://", "wss://").replace("http://", "ws://")
         if (!baseUrl) {
             return
         }
         const ws_url = urljoin(baseUrl, 'events')
         this._requestLogger.debug("about to connect ws to: %s", ws_url)
-        const ws = createWebSocket(ws_url);
-        this._ws = ws
-        const auth_header = await this.authorizationHeader();
+        return new Promise((resolve, reject) => {
+            const ws = createWebSocket(ws_url);
+            if (!ws) {
+                return resolve()
+            }
+            this._ws = ws
 
-        ws.onopen = () => {
-            let msg = JSON.stringify({authorization: auth_header})
-            this._requestLogger.debug("ws send: %s", msg)
-            ws.send(msg)
-            msg = JSON.stringify({subscribe: {account_uuid: this._accountId}})
-            this._requestLogger.debug("ws send: %s", msg)
-            ws.send(msg)
-            for (let dataset_uuid in this._dataset_uuid_to_event_handlers.keys()) {
-                const msg = JSON.stringify({subscribe: {dataset_uuid: dataset_uuid}})
+            ws.onopen = async () => {
+                const auth_header = await this.authorizationHeader();
+                let msg = JSON.stringify({authorization: auth_header})
                 this._requestLogger.debug("ws send: %s", msg)
                 ws.send(msg)
-            }
-            this._ws_current_reconnect_delay = WS_INITIAL_RECONNECT_DELAY
-        }
-
-        ws.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            this._requestLogger.debug("received ws: %s", JSON.stringify(data))
-            const change_event = data as ChangeEvent
-            this.dispatchChangeEvent(change_event)
-        };
-
-        ws.onclose = (event: CloseEvent) => {
-            const {code, reason} = event;
-            this._requestLogger.debug("ws closed: %d %s", code, reason)
-
-            if (reason !== 'unsubscribe') {
-                if (!this._ws_current_reconnect_delay) {
-                    this._ws_current_reconnect_delay = WS_INITIAL_RECONNECT_DELAY
-                } else if (this._ws_current_reconnect_delay < WS_MAX_RECONNECT_DELAY) {
-                    this._ws_current_reconnect_delay *= 1.5
+                msg = JSON.stringify({subscribe: {account_uuid: this._accountId}})
+                this._requestLogger.debug("ws send: %s", msg)
+                ws.send(msg)
+                for (let dataset_uuid in this._dataset_uuid_to_event_handlers.keys()) {
+                    const msg = JSON.stringify({subscribe: {dataset_uuid: dataset_uuid}})
+                    this._requestLogger.debug("ws send: %s", msg)
+                    ws.send(msg)
                 }
-                setTimeout(() => {
-                    this.reconnect_ws();
-                }, this._ws_current_reconnect_delay);
+                this._ws_current_reconnect_delay = WS_INITIAL_RECONNECT_DELAY
+                resolve()
             }
-        };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                this._requestLogger.debug("received ws: %s", JSON.stringify(data))
+                const change_event = data as ChangeEvent
+                this.dispatchChangeEvent(change_event)
+            };
+
+            ws.onclose = (event: CloseEvent) => {
+                const {code, reason} = event;
+                this._requestLogger.debug("ws closed: %d %s", code, reason)
+
+                if (reason !== 'unsubscribe') {
+                    if (!this._ws_current_reconnect_delay) {
+                        this._ws_current_reconnect_delay = WS_INITIAL_RECONNECT_DELAY
+                    } else if (this._ws_current_reconnect_delay < WS_MAX_RECONNECT_DELAY) {
+                        this._ws_current_reconnect_delay *= 1.5
+                    }
+                    setTimeout(async () => {
+                        await this.reconnect_ws();
+                    }, this._ws_current_reconnect_delay);
+                }
+            };
+
+            ws.onerror = (event: Event): any => {
+                this._logger.error(event)
+                reject(event)
+                return null
+            }
+        })
     }
 
     private options(): DataOptions {
@@ -313,11 +330,11 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         });
     }
 
-    async updateAssetManualAnnotation(asset_uuid: string, dataset_uuid?: string, dataset_version?: number, annotation?: Annotation): Promise<void> {
+    async updateAssetManualAnnotation(asset_uuid: string, dataset_uuid?: string, dataset_version?: number, prediction?: Prediction): Promise<void> {
         const versionQuery = dataset_version ? `&dataset_version=${dataset_version}` : '';
         const datasetQuery = dataset_uuid ? `&dataset_uuid=${dataset_uuid}` : '';
         return this.request(`/assets/${asset_uuid}/manual_annotate?${datasetQuery}${versionQuery}`, {
-            method: 'PATCH', body: JSON.stringify(annotation),
+            method: 'PATCH', body: JSON.stringify(prediction),
         });
     }
 

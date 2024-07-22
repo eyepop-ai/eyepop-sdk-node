@@ -1,4 +1,11 @@
-import {EyePop, ModelFormat, ModelInstanceDef, ModelPrecisionType, SourcesEntry, TransientPopId} from '../../src/eyepop/dist/eyepop.index'
+import {
+    EyePop,
+    ModelFormat,
+    ModelInstanceDef,
+    ModelPrecisionType,
+    SourcesEntry,
+    TransientPopId
+} from '../../../src/eyepop'
 
 import {MockServer} from 'jest-mock-server'
 import {describe, expect, test} from '@jest/globals'
@@ -6,8 +13,7 @@ import {v4 as uuidv4} from 'uuid'
 
 import {pino} from 'pino'
 
-describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
-{
+describe('EyePopSdk endpoint module auth and connect for transient popId', () => {
     const server = new MockServer()
 
     beforeAll(() => server.start())
@@ -22,10 +28,10 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
     const short_token_valid_time = 1
     const long_token_valid_time = 1000 * 1000
 
-    const test_manifest: SourcesEntry[] = [
-        { authority: "test1", manifest: "http://foo.bar/0.0.0/manifest.json" },
-        { authority: "test2", manifest: "http://fool.bart/0.0.0/manifest.json" },
-    ]
+    const test_manifest: SourcesEntry[] = [{
+        authority: "test1",
+        manifest: "http://foo.bar/0.0.0/manifest.json"
+    }, {authority: "test2", manifest: "http://fool.bart/0.0.0/manifest.json"},]
 
     const test_model: ModelInstanceDef = {
         model_id: 'test1:test',
@@ -36,81 +42,70 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
     }
 
 
-    test('EyePopSdk create sandbox', async () =>
-    {
+    test('EyePopSdk create sandbox', async () => {
         const authenticationRoute = server
             .post('/authentication/token')
-            .mockImplementationOnce((ctx) =>
-            {
+            .mockImplementationOnce((ctx) => {
                 ctx.status = 200
-                ctx.response.headers[ 'content-type' ] = 'application/json'
+                ctx.response.headers['content-type'] = 'application/json'
                 ctx.body = JSON.stringify({
-                    access_token: test_access_token,
-                    expires_in: long_token_valid_time,
-                    token_type: 'Bearer'
+                    access_token: test_access_token, expires_in: long_token_valid_time, token_type: 'Bearer'
                 })
             })
 
         const workerConfigRoute = server
             .get(`/workers/config`)
-            .mockImplementationOnce((ctx) =>
-            {
+            .mockImplementationOnce((ctx) => {
                 ctx.status = 200
-                ctx.response.headers[ 'content-type' ] = 'application/json'
-                ctx.body = JSON.stringify({ base_url: `${server.getURL()}w/` })
+                ctx.response.headers['content-type'] = 'application/json'
+                ctx.body = JSON.stringify({base_url: `${server.getURL()}w/`})
             })
 
 
         const postSandboxes = server
             .post(`/w/sandboxes`)
-            .mockImplementationOnce((ctx) =>
-            {
+            .mockImplementationOnce((ctx) => {
                 ctx.status = 200
-                ctx.response.headers[ 'content-type' ] = 'application/json'
+                ctx.response.headers['content-type'] = 'application/json'
                 ctx.body = JSON.stringify(test_sandbox_id)
             })
 
         const deleteSandboxes = server
             .delete(`/w/sandboxes/${test_sandbox_id}`)
-            .mockImplementationOnce((ctx) =>
-            {
+            .mockImplementationOnce((ctx) => {
                 ctx.status = 204
-                ctx.response.headers[ 'content-type' ] = 'application/json'
+                ctx.response.headers['content-type'] = 'application/json'
                 ctx.body = JSON.stringify({});
             })
 
         const stopRoute = server
             .patch(`/w/pipelines/${test_pipeline_id}/source`)
-            .mockImplementationOnce((ctx) =>
-            {
+            .mockImplementationOnce((ctx) => {
                 ctx.status = 204
             })
 
         const sourcesRoute = server
             .put(`/w/models/sources`)
-            .mockImplementationOnce((ctx) =>
-            {
+            .mockImplementationOnce((ctx) => {
                 ctx.status = 204;
             });
 
         const instancesRoute = server
             .post(`/w/models/instances`)
-            .mockImplementationOnce((ctx) =>
-            {
+            .mockImplementationOnce((ctx) => {
                 ctx.status = 200
-                ctx.response.headers[ 'content-type' ] = 'application/json'
+                ctx.response.headers['content-type'] = 'application/json'
                 ctx.body = JSON.stringify(test_model)
             })
 
         let inferPipeline: string | null = null
         const startPipelineRoute = server
             .post(`/w/pipelines`)
-            .mockImplementationOnce((ctx) =>
-            {
+            .mockImplementationOnce((ctx) => {
                 // @ts-ignore
-                inferPipeline = ctx.request.body[ 'inferPipelineDef' ][ 'pipeline' ]
+                inferPipeline = ctx.request.body['inferPipelineDef']['pipeline']
                 ctx.status = 200
-                ctx.response.headers[ 'content-type' ] = 'application/json'
+                ctx.response.headers['content-type'] = 'application/json'
                 ctx.body = JSON.stringify({
                     id: test_pipeline_id
                 })
@@ -118,38 +113,34 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
 
         const getPipelineRoute = server
             .get(`/w/pipelines/${test_pipeline_id}`)
-            .mockImplementation((ctx) =>
-            {
+            .mockImplementation((ctx) => {
                 ctx.status = 200
-                ctx.response.headers[ 'content-type' ] = 'application/json'
+                ctx.response.headers['content-type'] = 'application/json'
                 ctx.body = JSON.stringify({
-                    id: test_pipeline_id,
-                    inferPipeline: inferPipeline
+                    id: test_pipeline_id, inferPipeline: inferPipeline
                 })
             })
 
 
         const changePopCompRoute = server
             .patch(`/w/pipelines/${test_pipeline_id}/inferencePipeline`)
-            .mockImplementationOnce((ctx) =>
-            {
+            .mockImplementationOnce((ctx) => {
                 // @ts-ignore
-                inferPipeline = ctx.request.body[ 'pipeline' ]
+                inferPipeline = ctx.request.body['pipeline']
                 ctx.status = 204
             })
 
         const endpoint = EyePop.workerEndpoint({
             eyepopUrl: server.getURL().toString(),
             popId: test_pop_id,
-            auth: { secretKey: test_secret_key },
+            auth: {secretKey: test_secret_key},
             isSandbox: true,
-            logger: pino({ level: 'debug' })
+            logger: pino({level: 'debug'})
         })
 
         expect(endpoint).toBeDefined()
 
-        try
-        {
+        try {
             await endpoint.connect()
 
             await endpoint.changeManifest(test_manifest);
@@ -163,8 +154,7 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
             expect(sourcesRoute).toHaveBeenCalledTimes(1)
             expect(instancesRoute).toHaveBeenCalledTimes(1)
 
-        } finally
-        {
+        } finally {
             await endpoint.disconnect()
         }
     })

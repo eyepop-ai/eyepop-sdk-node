@@ -26,19 +26,19 @@ export interface SourceParams {
 }
 
 export interface StreamTime {
-    timestamp: number
-    seconds: number
-    offset: number
+    timestamp?: number
+    seconds?: number
+    offset?: number
 }
 export interface Prediction extends StreamTime {
     source_width: number
     source_height: number
-    source_id: string
-    objects: Array<PredictedObject>
-    classes: Array<PredictedClass>
-    labels: Array<PredictedLabel>
-    meshs: Array<PredictedMesh>
-    keyPoints: Array<PredictedKeyPoints>
+    source_id?: string
+    objects?: Array<PredictedObject>
+    classes?: Array<PredictedClass>
+    labels?: Array<PredictedLabel>
+    meshs?: Array<PredictedMesh>
+    keyPoints?: Array<PredictedKeyPoints>
 }
 export interface PredictedClass {
     id: number
