@@ -115,9 +115,9 @@ export class RenderBox implements Render
         let padding = canvasDimension * style.cornerPadding
         padding = Math.max(padding, style.scale * 4)
 
-        cornerSize = cornerSize - padding
+        cornerSize = cornerSize - (padding * 1.33)
 
-        const corners2 = this.createCornerPoints(x, y, w, h, cornerSize, padding, 100)
+        const corners2 = this.createCornerPoints(x, y, w, h, cornerSize, padding, padding / 2)
 
         corners2.forEach((corner) =>
         {
@@ -239,16 +239,7 @@ export class RenderBox implements Render
             // Sort the classes based category
             element.classes.sort((a: any, b: any) =>
             {
-                // Convert classId to numbers explicitly to handle cases where they might be strings
-                const classIdA = Number(a.classId);
-                const classIdB = Number(b.classId);
-
-                // Handle undefined, null, or non-numeric values by sorting them to the end
-                if (isNaN(classIdA)) return 1; // Sort a to the end if classIdA is not a number
-                if (isNaN(classIdB)) return -1; // Sort b to the end if classIdB is not a number
-
-                // Perform the numeric comparison
-                return classIdA - classIdB;
+                return a.category.localeCompare(b.category)
             });
 
             for (let i = 0; i < element.classes.length; i++)
@@ -385,24 +376,18 @@ export class RenderBox implements Render
         }
     }
 
-    createCornerPoints(x: number, y: number, w: number, h: number, cornerSize: number, padding: number = 0, insetPadding: number = 0): Array<Array<{ x: number, y: number }>>
+    createCornerPoints(x: number, y: number, w: number, h: number, cornerSize: number, padding: number = 1, insetPadding: number = 1): Array<Array<{ x: number, y: number }>>
     {
-        // Adjust x and y positions based on padding
         const adjustedX = x + padding;
         const adjustedY = y + padding;
-        const adjustedW = w - 2 * padding; // Adjust width and height to account for padding on both sides
+        const adjustedW = w - 2 * padding;
         const adjustedH = h - 2 * padding;
 
-        // Adjust corner size for inset padding
-        const innerCornerSize = cornerSize - insetPadding;
+        const innerCornerSize = cornerSize - (insetPadding);
 
-        // Return the array of corner points with inner and outer corners
         return [
             // Top left corner
             [
-                { x: adjustedX, y: adjustedY + cornerSize },
-                { x: adjustedX, y: adjustedY },
-                { x: adjustedX + cornerSize, y: adjustedY },
                 // Inner top left corner
                 { x: adjustedX + insetPadding, y: adjustedY + innerCornerSize },
                 { x: adjustedX + insetPadding, y: adjustedY + insetPadding },
@@ -410,9 +395,6 @@ export class RenderBox implements Render
             ],
             // Bottom left corner
             [
-                { x: adjustedX, y: adjustedY + adjustedH - cornerSize },
-                { x: adjustedX, y: adjustedY + adjustedH },
-                { x: adjustedX + cornerSize, y: adjustedY + adjustedH },
                 // Inner bottom left corner
                 { x: adjustedX + insetPadding, y: adjustedY + adjustedH - innerCornerSize - insetPadding },
                 { x: adjustedX + insetPadding, y: adjustedY + adjustedH - insetPadding },
@@ -420,9 +402,6 @@ export class RenderBox implements Render
             ],
             // Top right corner
             [
-                { x: adjustedX + adjustedW - cornerSize, y: adjustedY },
-                { x: adjustedX + adjustedW, y: adjustedY },
-                { x: adjustedX + adjustedW, y: adjustedY + cornerSize },
                 // Inner top right corner
                 { x: adjustedX + adjustedW - innerCornerSize - insetPadding, y: adjustedY + insetPadding },
                 { x: adjustedX + adjustedW - insetPadding, y: adjustedY + insetPadding },
@@ -430,9 +409,6 @@ export class RenderBox implements Render
             ],
             // Bottom right corner
             [
-                { x: adjustedX + adjustedW, y: adjustedY + adjustedH - cornerSize },
-                { x: adjustedX + adjustedW, y: adjustedY + adjustedH },
-                { x: adjustedX + adjustedW - cornerSize, y: adjustedY + adjustedH },
                 // Inner bottom right corner
                 { x: adjustedX + adjustedW - innerCornerSize - insetPadding, y: adjustedY + adjustedH - insetPadding },
                 { x: adjustedX + adjustedW - insetPadding, y: adjustedY + adjustedH - insetPadding },

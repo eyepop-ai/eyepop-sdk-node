@@ -16,8 +16,8 @@ export class Style
     public font: string
     public colors: Colors
     public scale: number = 1.0
-    public cornerWidth: number = .25
-    public cornerPadding: number = 0.01
+    public cornerWidth: number = .3
+    public cornerPadding: number = 0.04
 
     private static defaultColors = {
         primary_color: '#2fa7d7',
