@@ -1,4 +1,4 @@
-import { PredictedObject, StreamTime } from "@eyepop.ai/eyepop"
+import { PredictedObject, StreamTime, PredictedClass } from "@eyepop.ai/eyepop"
 import { Style } from "./style"
 import { CanvasRenderingContext2D } from "canvas"
 import { Render, DEFAULT_TARGET, RenderTarget } from './render'
@@ -6,7 +6,8 @@ import { Render, DEFAULT_TARGET, RenderTarget } from './render'
 export enum BoxType
 {
     Rich = "rich",
-    Simple = "simple"
+    Simple = "simple",
+    SimpleSelected = "simpleSelected"
 }
 
 export type RenderBoxOptions = {
@@ -52,6 +53,10 @@ export class RenderBox implements Render
         if (this.boxType === BoxType.Simple)
         {
             this.drawSimple(element, xOffset, yOffset, xScale, yScale, streamTime, color)
+            return;
+        } else if (this.boxType === BoxType.SimpleSelected)
+        {
+            this.drawSimpleSelected(element, xOffset, yOffset, xScale, yScale, streamTime, color)
             return;
         }
 
@@ -163,6 +168,13 @@ export class RenderBox implements Render
 
         if (this.showNestedClasses && element?.classes)
         {
+            // Sort the classes based category
+            element.classes.sort((a: any, b: any) =>
+            {
+                return a.category.localeCompare(b.category)
+            });
+
+
             for (let i = 0; i < element.classes.length; i++)
             {
                 label = element.classes[ i ]?.classLabel
@@ -229,9 +241,109 @@ export class RenderBox implements Render
 
         let canvasDimension = Math.min(context.canvas.width, context.canvas.height);
 
+        let padding = Math.max(Math.min(w / 25, canvasDimension * (style.cornerWidth)), scale)
+
+        let boundingBoxWidth = (element.width * xScale) - (3 * padding);
+        let boundingBoxHeight = (element.height * yScale) - (3 * padding);
+
+        boundingBoxHeight = Math.max(boundingBoxHeight, 0)
+        boundingBoxWidth = Math.max(boundingBoxWidth, 0)
+
+        let fontSize = this.getMinFontSize(context, element, boundingBoxWidth, boundingBoxHeight, style)
+        let label = ""
+
+        if (this.showClass && element.classLabel)
+        {
+            label = element.classLabel
+            label = RenderBox.toTitleCase(label)
+            yOffset += this.drawLabel(label, context, element, yScale, xScale, yOffset, xOffset, style, boundingBoxWidth, padding, false, fontSize)
+        }
+
+        if (this.showNestedClasses && element?.classes)
+        {
+            // Sort the classes based category
+            element.classes.sort((a: any, b: any) =>
+            {
+                // Convert classId to numbers explicitly to handle cases where they might be strings
+                const classIdA = Number(a.classId);
+                const classIdB = Number(b.classId);
+
+                // Handle undefined, null, or non-numeric values by sorting them to the end
+                if (isNaN(classIdA)) return 1; // Sort a to the end if classIdA is not a number
+                if (isNaN(classIdB)) return -1; // Sort b to the end if classIdB is not a number
+
+                // Perform the numeric comparison
+                return classIdA - classIdB;
+            });
+
+            for (let i = 0; i < element.classes.length; i++)
+            {
+                label = element.classes[ i ]?.classLabel
+
+                if (!label) continue
+
+                label = RenderBox.toTitleCase(label)
+                yOffset += this.drawLabel(label, context, element, yScale, xScale, yOffset, xOffset, style, boundingBoxWidth, padding, false, fontSize)
+            }
+        }
+
+        if (this.showTraceId && element.traceId)
+        {
+            label = 'ID: ' + element.traceId
+            label = RenderBox.toTitleCase(label)
+            yOffset += this.drawLabel(label, context, element, yScale, xScale, yOffset, xOffset, style, boundingBoxWidth, padding, false, fontSize)
+        }
+
+        if (this.showConfidence && element.confidence)
+        {
+            label = Math.round(element.confidence * 100) + '%'
+            label = RenderBox.toTitleCase(label)
+            yOffset += this.drawLabel(label, context, element, yScale, xScale, yOffset, xOffset, style, boundingBoxWidth, padding, false, fontSize)
+        }
+    }
+
+    public drawSimpleSelected(element: PredictedObject, xOffset: number, yOffset: number, xScale: number, yScale: number, streamTime: StreamTime, color?: string): void
+    {
+        const context = this.context
+        const style = this.style
+        if (!context || !style)
+        {
+            throw new Error('render() called before start()')
+        }
+
+        const x = xOffset + element.x * xScale
+        const y = yOffset + element.y * yScale
+        const w = element.width * xScale
+        const h = element.height * yScale
+
+        // Sort the element's objects based on the element.object.category
+        if (element.objects)
+        {
+            element.objects.sort((a, b) =>
+            {
+                if (!a.category || !b.category) return 0
+
+                return a.category.localeCompare(b.category)
+            })
+        }
+        const scale = style.scale
+
+        //faded blue background
+        context.beginPath()
+        context.rect(x, y, w, h)
+        context.lineWidth = scale
+        context.strokeStyle = color || style.colors.primary_color
+        //context.fillStyle = style.colors.opacity_color
+        //context.fill()
+        context.stroke()
+
+
+        const desiredPercentage = 0.005;
+
+        let canvasDimension = Math.min(context.canvas.width, context.canvas.height);
 
         // Draw the corners as circles at each corner of the bounding box
-        let cornerSize = Math.min(w / 4, canvasDimension * desiredPercentage);
+        let cornerSize = canvasDimension * desiredPercentage;
 
         let padding = Math.max(Math.min(w / 25, canvasDimension * (style.cornerWidth)), scale)
 
@@ -240,6 +352,10 @@ export class RenderBox implements Render
             { x: x + w, y: y },
             { x: x, y: y + h },
             { x: x + w, y: y + h },
+            { x: x + w / 2, y: y },
+            { x: x + w / 2, y: y + h },
+            { x: x, y: y + h / 2 },
+            { x: x + w, y: y + h / 2 },
         ]
 
         corners.forEach((corner) =>
@@ -248,7 +364,7 @@ export class RenderBox implements Render
             context.arc(corner.x, corner.y, cornerSize, 0, 2 * Math.PI);
             context.lineWidth = scale;
             context.strokeStyle = color || style.colors.primary_color;
-            context.fillStyle = color || style.colors.primary_color;
+            context.fillStyle = 'white' || style.colors.primary_color;
             context.fill();
             context.stroke();
         });
@@ -272,17 +388,23 @@ export class RenderBox implements Render
         if (this.showNestedClasses && element?.classes)
         {
             // Sort the classes based category
-            let classes = element.classes as any[];
-
-            classes.sort((a: { classId: number }, b: { classId: number }) =>
+            element.classes.sort((a: any, b: any) =>
             {
-                if (!a.classId || !b.classId) return 0
-                return a.classId - b.classId
-            })
+                // Convert classId to numbers explicitly to handle cases where they might be strings
+                const classIdA = Number(a.classId);
+                const classIdB = Number(b.classId);
 
-            for (let i = 0; i < classes.length; i++)
+                // Handle undefined, null, or non-numeric values by sorting them to the end
+                if (isNaN(classIdA)) return 1; // Sort a to the end if classIdA is not a number
+                if (isNaN(classIdB)) return -1; // Sort b to the end if classIdB is not a number
+
+                // Perform the numeric comparison
+                return classIdA - classIdB;
+            });
+
+            for (let i = 0; i < element.classes.length; i++)
             {
-                label = classes[ i ]?.classLabel
+                label = element.classes[ i ]?.classLabel
 
                 if (!label) continue
 

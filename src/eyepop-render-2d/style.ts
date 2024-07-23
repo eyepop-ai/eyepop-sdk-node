@@ -16,14 +16,14 @@ export class Style
     public font: string
     public colors: Colors
     public scale: number = 1.0
-    public cornerWidth: number = .33
-    public cornerPadding: number = 0.04
+    public cornerWidth: number = .25
+    public cornerPadding: number = 0.01
 
     private static defaultColors = {
         primary_color: '#2fa7d7',
         secondary_color: '#94e0ff',
-        right_color: '#a1f542',
-        left_color: '#e32740',
+        right_color: '#000000',
+        left_color: '#ffffff',
         opacity_color: 'rgba(47, 167, 215, 0.2)',
         white: "#FFFFFF",
         black: "#111111",
@@ -46,7 +46,7 @@ export class Style
         }
 
         this.font = this.calculateFont(context.canvas.width, context.canvas.height)
-        this.scale = this.calculateScale(context) * 2
+        this.scale = this.calculateScale(context)
     }
 
     private calculateFont(w: number, h: number): string

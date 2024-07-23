@@ -4,28 +4,17 @@ import 'eyepop-render-2d'
 import { pino } from 'pino'
 import image1Src from 'example.jpg'
 import image2Src from 'large_example.jpg'
+const image3Src = 'https://raw.githubusercontent.com/64blit/files/main/images_videos/6tb6aa0giyq51.jpg'
+
 import { BoxType } from '../../../src/eyepop-render-2d/render-box';
 
 const logger = pino({ level: 'info', name: 'eyepop-example' })
 
-async function run(useDefault = true)
+const testParent = document.getElementById('testParent')
+
+async function run(testData: any)
 {
-    const image = document.getElementById('image1') as HTMLImageElement
-    const canvas = document.getElementById('canvas1') as HTMLCanvasElement
-    const context = canvas.getContext("2d")
-
-    const image1 = document.getElementById('image2') as HTMLImageElement
-    if (useDefault)
-    {
-        image.src = image1Src
-        image1.src = image2Src
-    }
-    const canvas1 = document.getElementById('canvas2') as HTMLCanvasElement
-    const context1 = canvas1.getContext("2d")
-
-    const imageBlob1 = await fetch(image.src).then(res => res.blob())
-    const imageBlob2 = await fetch(image1.src).then(res => res.blob())
-
+    // takes the test data, creates a canvas per image, draws the image to the canvas, and then draws the render tests to the canvas
     const endpoint = await EyePop.workerEndpoint({
         auth: {
             oAuth2: true,
@@ -37,92 +26,79 @@ async function run(useDefault = true)
         logger.info("Endpoint changed state %s -> %s", fromState, toState)
     }).connect()
 
-    try
+    for (let i = 0; i < testData.length; i++)
     {
+        const image = document.createElement(`image`) as HTMLImageElement
+        image.id = `image${i + 1}`
+        image.classList.add('hidden')
 
-        let results = await endpoint.process({ file: imageBlob1 })
+        const canvas = document.createElement(`canvas`) as HTMLCanvasElement
+        canvas.id = `canvas${i + 1}`
+        canvas.classList.add('w-1/2', 'object-contain')
 
-        for await (let result of await results)
+        testParent?.appendChild(image)
+        testParent?.appendChild(canvas)
+
+        const context = canvas.getContext("2d")
+
+        image.src = testData[ i ].image
+
+
+        const imageBlob = await fetch(image.src).then(res => res.blob())
+
+        try
         {
-            canvas.width = result.source_width
-            canvas.height = result.source_height
-            console.log(result)
-            let hasText = false
-            for (let i = 0; i < result?.objects?.length; i++)
+
+            let results = null
+            if (testData[ i ].imageType === 'url')
             {
-                let obj = result.objects[ i ]
-                if (obj.category === 'text')
-                {
-                    hasText = true
-                    break
-                }
+                results = await endpoint.process({ url: image.src })
+            } else
+            {
+                results = await endpoint.process({ file: imageBlob })
             }
 
-            context?.drawImage(image, 0, 0)
-            Render2d?.renderer(context,
-                [
-                    Render2d.renderPose(),
-                    Render2d.renderFace(),
-                    Render2d.renderHand(),
-                    Render2d.renderBox({
-                        showClass: !hasText,
-                        showText: !hasText,
-                        showConfidence: !hasText,
-                        showTraceId: !hasText,
-                        showNestedClasses: !hasText,
-                        boxType: BoxType.Rich
-                    }),
-                    Render2d.renderText()
-                ]
-            ).draw(result)
-        }
-
-        results = await endpoint.process({ file: imageBlob2 })
-
-        for await (let result of await results)
-        {
-            canvas1.width = result.source_width
-            canvas1.height = result.source_height
-            console.log(result)
-            let hasText = false
-
-            for (let i = 0; i < result?.objects?.length; i++)
+            for await (let result of await results)
             {
-                let obj = result.objects[ i ]
-                if (obj.category === 'text')
+                canvas.width = result.source_width
+                canvas.height = result.source_height
+                console.log(result)
+                let hasText = false
+                for (let j = 0; j < result?.objects?.length; j++)
                 {
-                    hasText = true
-                    break
+                    let obj = result.objects[ j ]
+                    if (obj.category === 'text')
+                    {
+                        hasText = true
+                        break
+                    }
                 }
+
+                const imageObjectURL = URL.createObjectURL(imageBlob);
+                const imageElement = new Image();
+                imageElement.src = imageObjectURL;
+                imageElement.onload = () =>
+                {
+                    context?.drawImage(imageElement, 0, 0);
+                    URL.revokeObjectURL(imageObjectURL);
+                    Render2d?.renderer(context,
+                        testData[ i ].renderTest
+                    ).draw(result)
+                };
+
+                console.log(result)
             }
-            context1?.drawImage(image1, 0, 0)
-            Render2d?.renderer(context1,
-                [
-                    Render2d.renderPose(),
-                    Render2d.renderFace(),
-                    Render2d.renderHand(),
-                    Render2d.renderBox({
-                        showClass: !hasText,
-                        showText: !hasText,
-                        showConfidence: !hasText,
-                        showTraceId: !hasText,
-                        showNestedClasses: !hasText,
-                        boxType: BoxType.Simple
-                    }),
-                    Render2d.renderText()
-                ]
-            ).draw(result)
+        } catch (e)
+        {
+            console.error(e)
         }
-    } finally
-    {
-        await endpoint.disconnect()
     }
 }
 
 document.addEventListener('DOMContentLoaded', async () =>
 {
 
-    document.getElementById('url-input').addEventListener('input', async (event) =>
+    document.getElementById('url-input')?.addEventListener('input', async (event) =>
     {
         const imageUrl = (event.target as HTMLInputElement).value;
         const image1 = document.getElementById('image1') as HTMLImageElement;
@@ -139,5 +115,59 @@ document.addEventListener('DOMContentLoaded', async () =>
         }
     })
 
-    run()
+    const testData = [ {
+        renderTest: [
+            Render2d.renderPose(),
+            Render2d.renderFace(),
+            Render2d.renderHand(),
+            Render2d.renderBox({
+                showClass: true,
+                showText: true,
+                showConfidence: true,
+                showTraceId: true,
+                showNestedClasses: true,
+                boxType: BoxType.Simple
+            }),
+            Render2d.renderText()
+        ],
+        imageType: 'file',
+        image: image1Src
+
+    }, {
+        renderTest: [
+            Render2d.renderPose(),
+            Render2d.renderFace(),
+            Render2d.renderHand(),
+            Render2d.renderBox({
+                showClass: true,
+                showText: true,
+                showConfidence: true,
+                showTraceId: true,
+                showNestedClasses: true,
+                boxType: BoxType.SimpleSelected
+            }),
+            Render2d.renderText()
+        ],
+        imageType: 'file',
+        image: image2Src
+    }, {
+        renderTest: [
+            Render2d.renderPose(),
+            Render2d.renderFace(),
+            Render2d.renderHand(),
+            Render2d.renderBox({
+                showClass: true,
+                showText: true,
+                showConfidence: true,
+                showTraceId: true,
+                showNestedClasses: true,
+                boxType: BoxType.Rich
+            }),
+            Render2d.renderText()
+        ],
+        imageType: 'url',
+        image: image3Src
+    } ]
+
+    run(testData)
 })

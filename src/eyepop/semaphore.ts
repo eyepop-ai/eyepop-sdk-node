@@ -10,7 +10,8 @@
  * by functions that wait for permits to become available. This makes it possible
  * to use async/await to synchronize your code.
  */
-export class Semaphore {
+export class Semaphore
+{
   private permits: number;
   private promiseResolverQueue: Array<(v: boolean) => void> = [];
 
@@ -20,7 +21,8 @@ export class Semaphore {
    * to run in parallel.
    * This number can be initialized with a negative integer.
    */
-  constructor(permits: number) {
+  constructor(permits: number)
+  {
     this.permits = permits;
   }
 
@@ -28,7 +30,8 @@ export class Semaphore {
    * Returns the number of available permits.
    * @returns  The number of available permits.
    */
-  public getPermits(): number {
+  public getPermits(): number
+  {
     return this.permits;
   }
 
@@ -36,8 +39,10 @@ export class Semaphore {
    * Returns a promise used to wait for a permit to become available. This method should be awaited on.
    * @returns  A promise that gets resolved when execution is allowed to proceed.
    */
-  public async wait(): Promise<boolean> {
-    if (this.permits > 0) {
+  public async wait(): Promise<boolean>
+  {
+    if (this.permits > 0)
+    {
       this.permits -= 1;
       return Promise.resolve(true);
     }
@@ -51,7 +56,8 @@ export class Semaphore {
    * Alias for {@linkcode Semaphore.wait}.
    * @returns  A promise that gets resolved when execution is allowed to proceed.
    */
-  public async acquire(): Promise<boolean> {
+  public async acquire(): Promise<boolean>
+  {
     return this.wait();
   }
 
@@ -63,8 +69,10 @@ export class Semaphore {
    * @returns  A promise that gets resolved to true when execution is allowed to proceed or
    * false if the time given elapses before a permit becomes available.
    */
-  public async waitFor(milliseconds: number): Promise<boolean> {
-    if (this.permits > 0) {
+  public async waitFor(milliseconds: number): Promise<boolean>
+  {
+    if (this.permits > 0)
+    {
       this.permits -= 1;
       return Promise.resolve(true);
     }
@@ -72,7 +80,8 @@ export class Semaphore {
     // We save the resolver function in the current scope so that we can resolve the promise
     // to false if the time expires.
     let resolver: (v: boolean) => void = b => void 0;
-    const promise = new Promise<boolean>(r => {
+    const promise = new Promise<boolean>(r =>
+    {
       resolver = r;
     });
 
@@ -80,14 +89,17 @@ export class Semaphore {
     // to be resolved as a result of a call to signal().
     this.promiseResolverQueue.push(resolver);
 
-    setTimeout(() => {
+    setTimeout(() =>
+    {
       // We have to remove the promise resolver from our list. Resolving it twice would not be
       // an issue but signal() always takes the next resolver from the queue and resolves it which
       // would swallow a permit if we didn't remove it.
       const index = this.promiseResolverQueue.indexOf(resolver);
-      if (index !== -1) {
+      if (index !== -1)
+      {
         this.promiseResolverQueue.splice(index, 1);
-      } else {
+      } else
+      {
         // This shouldn't happen, not much we can do at this point
         console.warn(`Semaphore.waitFor couldn't find its promise resolver in the queue`);
       }
@@ -103,8 +115,10 @@ export class Semaphore {
    * Synchronous function that tries to acquire a permit and returns true if successful, false otherwise.
    * @returns  Whether a permit could be acquired.
    */
-  public tryAcquire(): boolean {
-    if (this.permits > 0) {
+  public tryAcquire(): boolean
+  {
+    if (this.permits > 0)
+    {
       this.permits -= 1;
       return true;
     }
@@ -116,8 +130,10 @@ export class Semaphore {
    * Acquires all permits that are currently available and returns the number of acquired permits.
    * @returns  Number of acquired permits.
    */
-  public drainPermits(): number {
-    if (this.permits > 0) {
+  public drainPermits(): number
+  {
+    if (this.permits > 0)
+    {
       const permitCount = this.permits;
       this.permits = 0;
       return permitCount;
@@ -130,18 +146,22 @@ export class Semaphore {
    * Increases the number of permits by one. If there are other functions waiting, one of them will
    * continue to execute in a future iteration of the event loop.
    */
-  public signal(): void {
+  public signal(): void
+  {
     this.permits += 1;
 
-    if (this.permits > 1 && this.promiseResolverQueue.length > 0) {
+    if (this.permits > 1 && this.promiseResolverQueue.length > 0)
+    {
       console.warn('Semaphore.permits should never be > 0 when there is someone waiting.');
-    } else if (this.permits === 1 && this.promiseResolverQueue.length > 0) {
+    } else if (this.permits === 1 && this.promiseResolverQueue.length > 0)
+    {
       // If there is someone else waiting, immediately consume the permit that was released
       // at the beginning of this function and let the waiting function resume.
       this.permits -= 1;
 
       const nextResolver = this.promiseResolverQueue.shift();
-      if (nextResolver) {
+      if (nextResolver)
+      {
         nextResolver(true);
       }
     }
@@ -150,7 +170,8 @@ export class Semaphore {
   /**
    * Alias for {@linkcode Semaphore.signal}.
    */
-  public release(): void {
+  public release(): void
+  {
     this.signal();
   }
 
@@ -161,11 +182,14 @@ export class Semaphore {
    * @param func  The function to be executed.
    * @return  A promise that gets resolved with the return value of the function.
    */
-  public async execute<T>(func: () => T | PromiseLike<T>): Promise<T> {
+  public async execute<T>(func: () => T | PromiseLike<T>): Promise<T>
+  {
     await this.wait();
-    try {
+    try
+    {
       return await func();
-    } finally {
+    } finally
+    {
       this.signal();
     }
   }
