@@ -99,12 +99,7 @@ export class RenderBox implements Render
         let cornerSize = canvasDimension * style.cornerWidth
         cornerSize = Math.max(cornerSize, style.scale * 20)
         cornerSize = Math.min(cornerSize, canvasDimension / 2)
-
-        var corners = [//top left corner
-            [ { x: x, y: y + cornerSize }, { x: x, y: y }, { x: x + cornerSize, y: y }, ], //bottom left corner
-            [ { x: x, y: y + h - cornerSize }, { x: x, y: y + h }, { x: x + cornerSize, y: y + h }, ], //top right corner
-            [ { x: x + w - cornerSize, y: y }, { x: x + w, y: y }, { x: x + w, y: y + cornerSize }, ], //bottom right corner
-            [ { x: x + w, y: y + h - cornerSize }, { x: x + w, y: y + h }, { x: x + w - cornerSize, y: y + h }, ], ]
+        let corners = this.createCornerPoints(x, y, w, h, cornerSize, style.scale)
 
         corners.forEach((corner) =>
         {
@@ -122,23 +117,7 @@ export class RenderBox implements Render
 
         cornerSize = cornerSize - padding
 
-        var corners2 = [//2nd top left corner
-            [ { x: x + padding, y: y + padding + cornerSize }, {
-                x: x + padding,
-                y: y + padding
-            }, { x: x + padding + cornerSize, y: y + padding }, ], //2nd bottom left corner
-            [ { x: x + padding, y: y - padding + h - cornerSize }, {
-                x: x + padding,
-                y: y - padding + h
-            }, { x: x + padding + cornerSize, y: y - padding + h }, ], //2nd top right corner
-            [ { x: x - padding + w - cornerSize, y: y + padding }, {
-                x: x - padding + w,
-                y: y + padding
-            }, { x: x - padding + w, y: y + padding + cornerSize }, ], //2nd bottom right corner
-            [ { x: x - padding + w, y: y - padding + h - cornerSize }, {
-                x: x - padding + w,
-                y: y - padding + h
-            }, { x: x - padding + w - cornerSize, y: y - padding + h }, ], ]
+        const corners2 = this.createCornerPoints(x, y, w, h, cornerSize, padding, 100)
 
         corners2.forEach((corner) =>
         {
@@ -232,12 +211,8 @@ export class RenderBox implements Render
         context.rect(x, y, w, h)
         context.lineWidth = scale
         context.strokeStyle = color || style.colors.primary_color
-        //context.fillStyle = style.colors.opacity_color
-        //context.fill()
         context.stroke()
 
-
-        const desiredPercentage = 0.015;
 
         let canvasDimension = Math.min(context.canvas.width, context.canvas.height);
 
@@ -347,18 +322,9 @@ export class RenderBox implements Render
 
         let padding = Math.max(Math.min(w / 25, canvasDimension * (style.cornerWidth)), scale)
 
-        var corners = [
-            { x: x, y: y },
-            { x: x + w, y: y },
-            { x: x, y: y + h },
-            { x: x + w, y: y + h },
-            { x: x + w / 2, y: y },
-            { x: x + w / 2, y: y + h },
-            { x: x, y: y + h / 2 },
-            { x: x + w, y: y + h / 2 },
-        ]
+        let corners = this.createCornerPoints(x, y, w, h, cornerSize, padding)
 
-        corners.forEach((corner) =>
+        corners.forEach((corner: any) =>
         {
             context.beginPath();
             context.arc(corner.x, corner.y, cornerSize, 0, 2 * Math.PI);
@@ -390,16 +356,7 @@ export class RenderBox implements Render
             // Sort the classes based category
             element.classes.sort((a: any, b: any) =>
             {
-                // Convert classId to numbers explicitly to handle cases where they might be strings
-                const classIdA = Number(a.classId);
-                const classIdB = Number(b.classId);
-
-                // Handle undefined, null, or non-numeric values by sorting them to the end
-                if (isNaN(classIdA)) return 1; // Sort a to the end if classIdA is not a number
-                if (isNaN(classIdB)) return -1; // Sort b to the end if classIdB is not a number
-
-                // Perform the numeric comparison
-                return classIdA - classIdB;
+                return a.category.localeCompare(b.category)
             });
 
             for (let i = 0; i < element.classes.length; i++)
@@ -428,6 +385,61 @@ export class RenderBox implements Render
         }
     }
 
+    createCornerPoints(x: number, y: number, w: number, h: number, cornerSize: number, padding: number = 0, insetPadding: number = 0): Array<Array<{ x: number, y: number }>>
+    {
+        // Adjust x and y positions based on padding
+        const adjustedX = x + padding;
+        const adjustedY = y + padding;
+        const adjustedW = w - 2 * padding; // Adjust width and height to account for padding on both sides
+        const adjustedH = h - 2 * padding;
+
+        // Adjust corner size for inset padding
+        const innerCornerSize = cornerSize - insetPadding;
+
+        // Return the array of corner points with inner and outer corners
+        return [
+            // Top left corner
+            [
+                { x: adjustedX, y: adjustedY + cornerSize },
+                { x: adjustedX, y: adjustedY },
+                { x: adjustedX + cornerSize, y: adjustedY },
+                // Inner top left corner
+                { x: adjustedX + insetPadding, y: adjustedY + innerCornerSize },
+                { x: adjustedX + insetPadding, y: adjustedY + insetPadding },
+                { x: adjustedX + innerCornerSize, y: adjustedY + insetPadding },
+            ],
+            // Bottom left corner
+            [
+                { x: adjustedX, y: adjustedY + adjustedH - cornerSize },
+                { x: adjustedX, y: adjustedY + adjustedH },
+                { x: adjustedX + cornerSize, y: adjustedY + adjustedH },
+                // Inner bottom left corner
+                { x: adjustedX + insetPadding, y: adjustedY + adjustedH - innerCornerSize - insetPadding },
+                { x: adjustedX + insetPadding, y: adjustedY + adjustedH - insetPadding },
+                { x: adjustedX + innerCornerSize, y: adjustedY + adjustedH - insetPadding },
+            ],
+            // Top right corner
+            [
+                { x: adjustedX + adjustedW - cornerSize, y: adjustedY },
+                { x: adjustedX + adjustedW, y: adjustedY },
+                { x: adjustedX + adjustedW, y: adjustedY + cornerSize },
+                // Inner top right corner
+                { x: adjustedX + adjustedW - innerCornerSize - insetPadding, y: adjustedY + insetPadding },
+                { x: adjustedX + adjustedW - insetPadding, y: adjustedY + insetPadding },
+                { x: adjustedX + adjustedW - insetPadding, y: adjustedY + innerCornerSize },
+            ],
+            // Bottom right corner
+            [
+                { x: adjustedX + adjustedW, y: adjustedY + adjustedH - cornerSize },
+                { x: adjustedX + adjustedW, y: adjustedY + adjustedH },
+                { x: adjustedX + adjustedW - cornerSize, y: adjustedY + adjustedH },
+                // Inner bottom right corner
+                { x: adjustedX + adjustedW - innerCornerSize - insetPadding, y: adjustedY + adjustedH - insetPadding },
+                { x: adjustedX + adjustedW - insetPadding, y: adjustedY + adjustedH - insetPadding },
+                { x: adjustedX + adjustedW - insetPadding, y: adjustedY + adjustedH - innerCornerSize - insetPadding },
+            ],
+        ];
+    }
 
     // Draw a label on the canvas, scaling the font size to fit the bounding box
     drawLabel(label: string, context: CanvasRenderingContext2D, element: any, yScale: number, xScale: number, yOffset: number, xOffset: number, style: Style, boundingBoxWidth: number, padding: number, scaleToBounds = false, fontSize?: number): number

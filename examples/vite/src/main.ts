@@ -126,7 +126,24 @@ document.addEventListener('DOMContentLoaded', async () =>
                 showConfidence: true,
                 showTraceId: true,
                 showNestedClasses: true,
-                boxType: BoxType.Simple
+                boxType: BoxType.Rich
+            }),
+            Render2d.renderText()
+        ],
+        imageType: 'url',
+        image: image3Src
+    }, {
+        renderTest: [
+            Render2d.renderPose(),
+            Render2d.renderFace(),
+            Render2d.renderHand(),
+            Render2d.renderBox({
+                showClass: true,
+                showText: true,
+                showConfidence: true,
+                showTraceId: true,
+                showNestedClasses: true,
+                boxType: BoxType.Rich
             }),
             Render2d.renderText()
         ],
@@ -150,24 +167,7 @@ document.addEventListener('DOMContentLoaded', async () =>
         ],
         imageType: 'file',
         image: image2Src
-    }, {
-        renderTest: [
-            Render2d.renderPose(),
-            Render2d.renderFace(),
-            Render2d.renderHand(),
-            Render2d.renderBox({
-                showClass: true,
-                showText: true,
-                showConfidence: true,
-                showTraceId: true,
-                showNestedClasses: true,
-                boxType: BoxType.Rich
-            }),
-            Render2d.renderText()
-        ],
-        imageType: 'url',
-        image: image3Src
-    } ]
+    }, ]
 
     run(testData)
 })
