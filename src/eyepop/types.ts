@@ -4,13 +4,6 @@ export interface Session {
     readonly validUntil: number;
 }
 
-export interface WorkerSession extends Session {
-    readonly popId: string;
-    readonly baseUrl: string | undefined;
-    readonly pipelineId: string | undefined;
-    readonly sandboxId: string | undefined;
-}
-
 export enum EndpointState {
     Idle = "Idle",
     Busy = "Busy",
@@ -18,39 +11,6 @@ export enum EndpointState {
     FetchConfig = "FetchConfig",
     Error = "Error"
 }
-
-export interface LiveMedia {
-    ingressId(): string
-    stream(): Promise<MediaStream>
-    close(): Promise<void>
-}
-export interface IngressEvent {
-    readonly ingressId: string
-    readonly event: "stream-ready" | "stream-ready"
-}
-
-export interface FileSource {
-    readonly file: File;
-}
-
-export interface StreamSource {
-    readonly stream: ReadableStream<Uint8Array>;
-    readonly mimeType: string;
-}
-
-export interface PathSource {
-    readonly path: string;
-}
-
-export interface LiveSource {
-    readonly ingressId: string;
-}
-
-export interface UrlSource {
-    readonly url: string;
-}
-
-export type Source = FileSource | StreamSource | PathSource | LiveSource | UrlSource
 
 export interface Box {
     readonly topLeft: Point2d
@@ -66,19 +26,19 @@ export interface SourceParams {
 }
 
 export interface StreamTime {
-    timestamp: number
-    seconds: number
-    offset: number
+    timestamp?: number
+    seconds?: number
+    offset?: number
 }
 export interface Prediction extends StreamTime {
     source_width: number
     source_height: number
-    source_id: string
-    objects: Array<PredictedObject>
-    classes: Array<PredictedClass>
-    labels: Array<PredictedLabel>
-    meshs: Array<PredictedMesh>
-    keyPoints: Array<PredictedKeyPoints>
+    source_id?: string
+    objects?: Array<PredictedObject>
+    classes?: Array<PredictedClass>
+    labels?: Array<PredictedLabel>
+    meshs?: Array<PredictedMesh>
+    keyPoints?: Array<PredictedKeyPoints>
 }
 export interface PredictedClass {
     id: number
@@ -149,37 +109,3 @@ export interface PredictedKeyPoint extends Point3d, PredictedClass {
     visible: boolean | undefined
 }
 
-export interface ResultStream extends AsyncIterable<Prediction> {
-    cancel(): void
-}
-
-export type SourcesEntry = {
-    readonly authority: string;
-    readonly manifest: string;
-};
-
-export enum ModelFormat {
-    TensorFlowLite= "TensorFlowLite",
-    TensorFlowGraphDef = "TensorFlowGraphDef",
-    ONNX = "ONNX",
-    TorchScript = "TorchScript",
-    TorchScriptCpu = "TorchScriptCpu",
-    TorchScriptCuda = "TorchScriptCuda"
-}
-
-export enum ModelType {
-    float32 = "float32",
-    float16 = "float16",
-    int32 = "int32",
-    int8 = "int8",
-    uint8 = "uint8"
-}
-export interface ModelInstanceDef
-{
-    id?: string;
-    model_id: string;
-    dataset: string;
-    version: string | undefined;
-    format: ModelFormat;
-    type: ModelType;
-}

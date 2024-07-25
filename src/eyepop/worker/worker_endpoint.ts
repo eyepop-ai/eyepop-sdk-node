@@ -1,23 +1,24 @@
-import {WorkerOptions, SessionAuth, TransientPopId} from "./options"
+import {SessionAuth} from "../options"
 import {
     EndpointState,
-    FileSource,
-    IngressEvent,
-    LiveMedia,
-    LiveSource,
-    PathSource,
-    ResultStream,
-    WorkerSession,
-    Source,
-    SourceParams,
-    StreamSource,
-    UrlSource, ModelInstanceDef, SourcesEntry
-} from "./types"
+    SourceParams
+} from "../types"
 import {AbstractJob, LoadFromJob, LoadLiveIngressJob, UploadJob} from "./jobs"
 import {WebrtcWhip} from "./webrtc_whip"
 import {WebrtcWhep} from "./webrtc_whep"
-import {resolvePath} from "./shims/local_file"
-import {Endpoint} from "./endpoint";
+import {resolvePath} from "../shims/local_file"
+import {Endpoint} from "../endpoint";
+import {TransientPopId, WorkerOptions} from "EyePop/worker/worker_options";
+import {
+    FileSource, IngressEvent, LiveMedia,
+    LiveSource,
+    ModelInstanceDef,
+    PathSource,
+    ResultStream,
+    Source,
+    SourcesEntry, StreamSource,
+    UrlSource, WorkerSession
+} from "EyePop/worker/worker_types";
 
 
 interface PopConfig {
@@ -39,7 +40,7 @@ interface WsAuthToken {
     token: string;
 }
 
-export class WorkerEndpoint extends Endpoint {
+export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
     private _baseUrl: string | null
     private _pipelineId: string | null
     private _sandboxId: string | null
@@ -77,38 +78,6 @@ export class WorkerEndpoint extends Endpoint {
         return this._options as WorkerOptions
     }
 
-    public override async connect(): Promise<WorkerEndpoint> {
-        await super.connect()
-        const client = this._client
-        const baseUrl = this._baseUrl
-        if (!baseUrl || !client) {
-            return Promise.reject("endpoint not connected")
-        }
-
-        if (this._baseUrl && this.options().stopJobs) {
-            const body = {'sourceType': 'NONE'}
-            let response = await this.fetchWithRetry(async () => {
-                const session = await this.session()
-                const headers = {
-                    'Authorization': `Bearer ${session.accessToken}`, 'Content-Type': 'application/json'
-                }
-                const stop_url = `${session.baseUrl}/pipelines/${session.pipelineId}/source?mode=preempt&processing=sync`
-                return client.fetch(stop_url, {
-                    method: 'PATCH', headers: headers, body: JSON.stringify(body)
-                })
-            })
-            if (response.status >= 300) {
-                const message = await response.text()
-                return Promise.reject(`Unexpected status ${response.status}: ${message}`)
-            }
-        }
-
-        if (!this._ingressEventWs && this._ingressEventHandler) {
-            await this.startIngressWs()
-        }
-        return this
-    }
-
     public override async disconnect(wait: boolean = true): Promise<void> {
         if (this._sandboxId && this._baseUrl)
         {
@@ -130,11 +99,6 @@ export class WorkerEndpoint extends Endpoint {
             this._sandboxId = null
         }
         return super.disconnect(wait)
-    }
-
-    public override onStateChanged(handler: (fromState: EndpointState, toState: EndpointState) => void): WorkerEndpoint {
-        super.onStateChanged(handler)
-        return this
     }
 
     protected statusHandler404(statusCode: number): void {
@@ -246,7 +210,7 @@ export class WorkerEndpoint extends Endpoint {
         return this.options().popId || null
     }
 
-    public onIngressEvent(handler: (event: IngressEvent) => void): Endpoint {
+    public onIngressEvent(handler: (event: IngressEvent) => void): WorkerEndpoint {
         this._ingressEventHandler = handler
         this.startIngressWs().then(() => {
         }).catch((reason) => {
@@ -557,6 +521,25 @@ export class WorkerEndpoint extends Endpoint {
             }
             this._requestLogger.debug('after GET %s', get_url)
             this._pipeline = (await response.json()) as Pipeline
+
+            if (this.options().stopJobs) {
+                const body = {'sourceType': 'NONE'}
+                const headers = {
+                    'Authorization': await this.authorizationHeader()
+                }
+                const stop_url = `${this._baseUrl}/pipelines/${this._pipeline.id}/source?mode=preempt&processing=sync`
+                let response = await this._client.fetch(stop_url, {
+                    method: 'PATCH', headers: headers, body: JSON.stringify(body)
+                })
+                if (response.status >= 300) {
+                    const message = await response.text()
+                    return Promise.reject(`Unexpected status ${response.status}: ${message}`)
+                }
+            }
+        }
+
+        if (!this._ingressEventWs && this._ingressEventHandler) {
+            await this.startIngressWs()
         }
 
         this.updateState()

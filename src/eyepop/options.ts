@@ -32,10 +32,6 @@ export interface OAuth2Auth {
 
 export type Authentication = undefined | SecretKeyAuth | SessionAuth | OAuth2Auth
 
-export enum TransientPopId {
-  Transient = 'transient'
-}
-
 export interface Options {
 
   auth?: Authentication | undefined;
@@ -52,13 +48,3 @@ export interface Options {
   logger?: Logger | undefined;
 }
 
-export interface WorkerOptions extends Options {
-
-  /**
-   * Defaults to process.env['EYEPOP_POP_ID'].
-   */
-  popId?: string | TransientPopId | undefined;
-  isSandbox?: boolean;
-  autoStart?: boolean;
-  stopJobs?: boolean;
-}
