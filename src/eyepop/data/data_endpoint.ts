@@ -245,8 +245,8 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         return response.json();
     }
 
-    async listDatasets() {
-        return this.request(`/datasets?account_uuid=${this._accountId}`, {
+    async listDatasets(include_hero_asset: boolean = false): Promise<Dataset[]> {
+        return this.request(`/datasets?account_uuid=${this._accountId}&include_hero_asset=${include_hero_asset}`, {
             method: 'GET'
         });
     }
@@ -257,8 +257,8 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         });
     }
 
-    async getDataset(dataset_uuid: string): Promise<Dataset> {
-        return this.request(`/datasets/${dataset_uuid}`, {
+    async getDataset(dataset_uuid: string, include_hero_asset: boolean = false): Promise<Dataset> {
+        return this.request(`/datasets/${dataset_uuid}?include_hero_asset=${include_hero_asset}`, {
             method: 'GET'
         });
     }
@@ -289,9 +289,15 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
     }
 
     // Asset methods
-    async uploadAsset(dataset_uuid: string, dataset_version: number | undefined, blob: Blob): Promise<Asset> {
+    async uploadAsset(dataset_uuid: string, dataset_version: number | undefined, blob: Blob, external_id: string | undefined = undefined): Promise<Asset> {
+        let post_path: string
+        if (external_id) {
+            post_path = `/assets?dataset_uuid=${dataset_uuid}&dataset_version=${dataset_version}&external_id=${external_id}`
+        } else {
+            post_path = `/assets?dataset_uuid=${dataset_uuid}&dataset_version=${dataset_version}`
+        }
 
-        return this.request(`/assets?dataset_uuid=${dataset_uuid}&dataset_version=${dataset_version}`, {
+        return this.request(post_path, {
             method: 'POST', body: blob, headers: {
                 'Content-Type': blob.type || 'application/octet-stream'
             }
