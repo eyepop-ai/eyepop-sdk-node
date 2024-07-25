@@ -11,6 +11,7 @@ export interface DatasetVersion {
     created_at: Date
     updated_at: Date
     asset_count: number
+    hero_asset_uuid?: string
 }
 
 export interface Dataset {
@@ -81,6 +82,7 @@ export enum TranscodeMode {
 
 export interface Asset {
     uuid: string
+    external_id?: string
     mime_type: string
     file_size_bytes: number
     status: AssetStatus
