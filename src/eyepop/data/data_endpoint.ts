@@ -290,11 +290,12 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
 
     // Asset methods
     async uploadAsset(dataset_uuid: string, dataset_version: number | undefined, blob: Blob, external_id: string | undefined = undefined): Promise<Asset> {
+        const versionQuery = dataset_version ? `&dataset_version=${dataset_version}` : ''
         let post_path: string
         if (external_id) {
-            post_path = `/assets?dataset_uuid=${dataset_uuid}&dataset_version=${dataset_version}&external_id=${external_id}`
+            post_path = `/assets?dataset_uuid=${dataset_uuid}${versionQuery}&external_id=${external_id}`
         } else {
-            post_path = `/assets?dataset_uuid=${dataset_uuid}&dataset_version=${dataset_version}`
+            post_path = `/assets?dataset_uuid=${dataset_uuid}${versionQuery}`
         }
 
         return this.request(post_path, {
