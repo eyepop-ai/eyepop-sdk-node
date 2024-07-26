@@ -126,7 +126,7 @@ document.addEventListener('DOMContentLoaded', async () =>
                 showConfidence: true,
                 showTraceId: true,
                 showNestedClasses: true,
-                boxType: BoxType.Rich
+                boxType: BoxType.Simple
             }),
             Render2d.renderText()
         ],
@@ -143,7 +143,7 @@ document.addEventListener('DOMContentLoaded', async () =>
                 showConfidence: true,
                 showTraceId: true,
                 showNestedClasses: true,
-                boxType: BoxType.Rich
+                boxType: BoxType.SimpleSelected
             }),
             Render2d.renderText()
         ],
@@ -161,7 +161,7 @@ document.addEventListener('DOMContentLoaded', async () =>
                 showConfidence: true,
                 showTraceId: true,
                 showNestedClasses: true,
-                boxType: BoxType.SimpleSelected
+                boxType: BoxType.Rich
             }),
             Render2d.renderText()
         ],

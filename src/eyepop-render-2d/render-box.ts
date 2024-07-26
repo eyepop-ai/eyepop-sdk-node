@@ -56,6 +56,7 @@ export class RenderBox implements Render
             return;
         } else if (this.boxType === BoxType.SimpleSelected)
         {
+            console.log('draw', this.boxType)
             this.drawSimpleSelected(element, xOffset, yOffset, xScale, yScale, streamTime, color)
             return;
         }
@@ -332,6 +333,20 @@ export class RenderBox implements Render
             context.stroke();
         });
 
+
+        let cornerDots = this.createCenterPoints(x, y, w, h, cornerSize);
+
+        cornerDots.forEach((corner: any) =>
+        {
+            context.beginPath();
+            context.arc(corner.x, corner.y, cornerSize, 0, 2 * Math.PI);
+            context.lineWidth = scale;
+            context.strokeStyle = color || style.colors.primary_color;
+            context.fillStyle = 'white' || style.colors.primary_color;
+            context.fill();
+            context.stroke();
+        });
+
         let boundingBoxWidth = (element.width * xScale) - (3 * padding);
         let boundingBoxHeight = (element.height * yScale) - (3 * padding);
 
@@ -422,6 +437,33 @@ export class RenderBox implements Render
             ],
         ];
     }
+
+
+    createCenterPoints(x: number, y: number, w: number, h: number, cornerSize: number,): Array<{ x: number, y: number }>
+    {
+
+        return [
+            // Top left point
+            { x: x, y: y },
+            // Top right point
+            { x: x + w, y: y },
+            // Bottom left point
+            { x: x, y: y + h },
+            // Bottom right point
+            { x: x + w, y: y + h },
+
+            // Top middle point
+            { x: x + w / 2, y: y },
+            // Bottom middle point
+            { x: x + w / 2, y: y + h },
+            // Left middle point
+            { x: x, y: y + h / 2 },
+            // Right middle point
+            { x: x + w, y: y + h },
+        ];
+    }
+
+
 
     // Draw a label on the canvas, scaling the font size to fit the bounding box
     drawLabel(label: string, context: CanvasRenderingContext2D, element: any, yScale: number, xScale: number, yOffset: number, xOffset: number, style: Style, boundingBoxWidth: number, padding: number, scaleToBounds = false, fontSize?: number): number
