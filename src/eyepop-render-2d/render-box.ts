@@ -56,7 +56,6 @@ export class RenderBox implements Render
             return;
         } else if (this.boxType === BoxType.SimpleSelected)
         {
-            console.log('draw', this.boxType)
             this.drawSimpleSelected(element, xOffset, yOffset, xScale, yScale, streamTime, color)
             return;
         }
