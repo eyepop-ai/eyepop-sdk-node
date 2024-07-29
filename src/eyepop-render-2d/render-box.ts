@@ -98,8 +98,8 @@ export class RenderBox implements Render
 
         let cornerSize = canvasDimension * style.cornerWidth
         cornerSize = Math.max(cornerSize, style.scale * 20)
-        cornerSize = Math.min(cornerSize, w)
-        cornerSize = Math.min(cornerSize, h)
+        cornerSize = Math.min(cornerSize, w - (4 * lineWidth))
+        cornerSize = Math.min(cornerSize, h - (4 * lineWidth))
 
         let corners = this.createCornerPoints(x, y, w, h, cornerSize, style.scale)
 

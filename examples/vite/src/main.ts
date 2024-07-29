@@ -3,10 +3,9 @@ import 'eyepop-render-2d'
 
 import { pino } from 'pino'
 import image1Src from 'example.jpg'
-import image2Src from 'large_example.jpg'
-const image3Src = 'https://raw.githubusercontent.com/64blit/files/main/images_videos/6tb6aa0giyq51.jpg'
 
 import { BoxType } from '../../../src/eyepop-render-2d/render-box';
+import { Style } from '../../../src/eyepop-render-2d/style';
 
 const logger = pino({ level: 'info', name: 'eyepop-example' })
 
@@ -26,37 +25,25 @@ async function run(testData: any)
         logger.info("Endpoint changed state %s -> %s", fromState, toState)
     }).connect()
 
+
+
+
     for (let i = 0; i < testData.length; i++)
     {
-        const image = document.createElement(`image`) as HTMLImageElement
-        image.id = `image${i + 1}`
-        image.classList.add('hidden')
-
         const canvas = document.createElement(`canvas`) as HTMLCanvasElement
         canvas.id = `canvas${i + 1}`
-        canvas.classList.add('w-1/2', 'object-contain')
+        canvas.classList.add('w-3/12', 'h-2/12', 'max-h-2/12', 'object-contain', 'border', 'border-black')
 
-        testParent?.appendChild(image)
         testParent?.appendChild(canvas)
 
         const context = canvas.getContext("2d")
 
-        image.src = testData[ i ].image
-
-
-        const imageBlob = await fetch(image.src).then(res => res.blob())
+        const imageBlob = await fetch(testData[ i ].image).then(res => res.blob())
 
         try
         {
-
             let results = null
-            if (testData[ i ].imageType === 'url')
-            {
-                results = await endpoint.process({ url: image.src })
-            } else
-            {
-                results = await endpoint.process({ file: imageBlob })
-            }
+            results = await endpoint.process({ file: imageBlob })
 
             for await (let result of await results)
             {
@@ -77,13 +64,15 @@ async function run(testData: any)
                 const imageObjectURL = URL.createObjectURL(imageBlob);
                 const imageElement = new Image();
                 imageElement.src = imageObjectURL;
+                imageElement.crossOrigin = "Anonymous";
+
                 imageElement.onload = () =>
                 {
                     context?.drawImage(imageElement, 0, 0);
                     URL.revokeObjectURL(imageObjectURL);
                     Render2d?.renderer(context,
-                        testData[ i ].renderTest
-                    ).draw(result)
+                        hasText ? [ Render2d.renderText(), Render2d.renderBox({ showClass: false, showNestedClasses: false }) ] : testData[ i ].renderTest,
+                    ).draw(result,)
                 };
 
                 console.log(result)
@@ -130,8 +119,7 @@ document.addEventListener('DOMContentLoaded', async () =>
             }),
             Render2d.renderText()
         ],
-        imageType: 'url',
-        image: image3Src
+        image: 'https://raw.githubusercontent.com/64blit/files/main/images_videos/6tb6aa0giyq51.jpg'
     }, {
         renderTest: [
             Render2d.renderPose(),
@@ -147,7 +135,6 @@ document.addEventListener('DOMContentLoaded', async () =>
             }),
             Render2d.renderText()
         ],
-        imageType: 'file',
         image: image1Src
 
     }, {
@@ -165,9 +152,80 @@ document.addEventListener('DOMContentLoaded', async () =>
             }),
             Render2d.renderText()
         ],
-        imageType: 'file',
-        image: image2Src
-    }, ]
+        image: 'https://i.imgur.com/auORyKI.jpeg'
+    },
+
+    {
+        renderTest: [
+            Render2d.renderPose(),
+            Render2d.renderFace(),
+            Render2d.renderHand(),
+            Render2d.renderBox({
+                showClass: true,
+                showText: true,
+                showConfidence: true,
+                showTraceId: true,
+                showNestedClasses: true,
+                boxType: BoxType.SimpleSelected
+            }),
+            Render2d.renderText()
+        ],
+        image: 'https://i.imgur.com/YctOUSU.jpeg'
+    },
+
+    {
+        renderTest: [
+            Render2d.renderPose(),
+            Render2d.renderFace(),
+            Render2d.renderHand(),
+            Render2d.renderBox({
+                showClass: true,
+                showText: true,
+                showConfidence: true,
+                showTraceId: true,
+                showNestedClasses: true,
+                boxType: BoxType.SimpleSelected
+            }),
+            Render2d.renderText()
+        ],
+        image: 'https://i.imgur.com/lsVZyTU.jpeg'
+    },
+    {
+        renderTest: [
+            Render2d.renderPose(),
+            Render2d.renderFace(),
+            Render2d.renderHand(),
+            Render2d.renderBox({
+                showClass: true,
+                showText: true,
+                showConfidence: true,
+                showTraceId: true,
+                showNestedClasses: true,
+                boxType: BoxType.SimpleSelected
+            }),
+            Render2d.renderText()
+        ],
+        image: 'https://i.imgur.com/tfg5hy4.jpeg'
+    },
+    {
+        renderTest: [
+            Render2d.renderPose(),
+            Render2d.renderFace(),
+            Render2d.renderHand(),
+            Render2d.renderBox({
+                showClass: true,
+                showText: true,
+                showConfidence: true,
+                showTraceId: true,
+                showNestedClasses: true,
+                boxType: BoxType.SimpleSelected
+            }),
+            Render2d.renderText()
+        ],
+        image: 'https://i.imgur.com/gn9uhCt.jpeg'
+    },
+
+    ]
 
     run(testData)
 })
