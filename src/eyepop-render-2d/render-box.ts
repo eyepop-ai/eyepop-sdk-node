@@ -459,7 +459,7 @@ export class RenderBox implements Render
             // Left middle point
             { x: x, y: y + h / 2 },
             // Right middle point
-            { x: x + w, y: y + h },
+            { x: x + w, y: y + h / 2 },
         ];
     }
 
