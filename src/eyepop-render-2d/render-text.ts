@@ -45,7 +45,7 @@ export class RenderText implements Render
 
         const padding = Math.max(Math.min(w / 25, canvasDimension * (style.cornerWidth)), scale * 2)
         const boundingBoxWidth = (element.width * xScale) - (2 * padding);
-        const boundingBoxHeight = (element.height * yScale) - (2 * padding);
+        const boundingBoxHeight = (element.height * yScale) - (padding);
 
         if (!element.labels) return
 
