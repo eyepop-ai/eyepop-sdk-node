@@ -40,8 +40,8 @@ const example_image_path = process.argv[2]
 
                         ]
                     }
-                    await endpoint.updateAssetManualAnnotation(asset.uuid, undefined, undefined, prediction)
-                    logger.info("updated asset manual annotations %s", JSON.stringify(asset))
+                    await endpoint.updateAssetGroundTruth(asset.uuid, undefined, undefined, prediction)
+                    logger.info("updated asset ground_truth annotations %s", JSON.stringify(asset))
                     // let asset_accepted = new Promise<Asset>(async (resolve, reject) => {
                     //     endpoint.addDatasetEventHandler(dataset.uuid, async (event) => {
                     //         if (event.change_type == ChangeType.asset_status_modified && asset !== undefined && asset.uuid == event.asset_uuid) {

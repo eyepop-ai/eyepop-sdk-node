@@ -337,10 +337,10 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         });
     }
 
-    async updateAssetManualAnnotation(asset_uuid: string, dataset_uuid?: string, dataset_version?: number, prediction?: Prediction): Promise<void> {
+    async updateAssetGroundTruth(asset_uuid: string, dataset_uuid?: string, dataset_version?: number, prediction?: Prediction): Promise<void> {
         const versionQuery = dataset_version ? `&dataset_version=${dataset_version}` : '';
         const datasetQuery = dataset_uuid ? `&dataset_uuid=${dataset_uuid}` : '';
-        return this.request(`/assets/${asset_uuid}/manual_annotate?${datasetQuery}${versionQuery}`, {
+        return this.request(`/assets/${asset_uuid}/ground_truth?${datasetQuery}${versionQuery}`, {
             method: 'PATCH', body: JSON.stringify(prediction),
         });
     }
