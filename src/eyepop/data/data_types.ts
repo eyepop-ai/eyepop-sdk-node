@@ -50,7 +50,7 @@ export enum AssetStatus {
 }
 
 export enum AnnotationType {
-    manual = "manual",
+    ground_truth = "ground_truth",
     prediction = "prediction",
     auto = "auto"
 }
