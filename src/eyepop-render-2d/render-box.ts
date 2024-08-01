@@ -215,7 +215,7 @@ export class RenderBox implements Render
         //faded blue background
         context.beginPath()
         context.rect(x, y, w, h)
-        context.lineWidth = scale
+        context.lineWidth = scale * 4
         context.strokeStyle = color || style.colors.primary_color
         context.stroke()
 
@@ -303,7 +303,7 @@ export class RenderBox implements Render
         //faded blue background
         context.beginPath()
         context.rect(x, y, w, h)
-        context.lineWidth = scale
+        context.lineWidth = scale * 4
         context.strokeStyle = color || style.colors.primary_color
         //context.fillStyle = style.colors.opacity_color
         //context.fill()
@@ -325,7 +325,7 @@ export class RenderBox implements Render
         {
             context.beginPath();
             context.arc(corner.x, corner.y, cornerSize, 0, 2 * Math.PI);
-            context.lineWidth = scale;
+            context.lineWidth = scale * 4;
             context.strokeStyle = color || style.colors.primary_color;
             context.fillStyle = 'white' || style.colors.primary_color;
             context.fill();
@@ -339,7 +339,7 @@ export class RenderBox implements Render
         {
             context.beginPath();
             context.arc(corner.x, corner.y, cornerSize, 0, 2 * Math.PI);
-            context.lineWidth = scale;
+            context.lineWidth = scale * 4;
             context.strokeStyle = color || style.colors.primary_color;
             context.fillStyle = 'white' || style.colors.primary_color;
             context.fill();
