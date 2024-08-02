@@ -22,7 +22,7 @@
                     <button class="btn btn-primary" id="new-datasets-btn">+ Dataset</button><br /><br />
                     <div id="list-datasets-result"></div>
                 </div>
-            
+
                 <div class="col text-center" id="list-assets">
                     <h1 class="display-4">Asset Viewer</h1>
                     <h2 class="display-6" id="list-assets-model-info"></h2>
@@ -30,7 +30,7 @@
                 </div>
             </div>
             <div class="row" style="width: 100%">
-            
+
                 <div class="col text-center" id="list-models">
                     <h1 class="display-4">Model Viewer</h1>
                     <div id="list-models-result"></div>
@@ -40,33 +40,37 @@
     </div>
     <script>
 
-        const apiKey = 'AAGcsWj8N2PlKQl9c9ydz3QFZ0FBQUFBQm1mZDB5eDUwalNlYi12NWotd3hsVGJiMW1sVXF1dE9aOU9oSGVBOWtBQXoxZmNjUE5Nb1YzY3RROUdzbVUwUkZtcDhZcG5vSWROTzR1TU8ybGhZckx6RTgzYVZwMjZEREZjalZubnpYaUNMWVdBODg9';
+        const apiKey = '';
         const auth = apiKey ? { secretKey: apiKey } : { oAuth2: true };
-       
-        const account_uuid = "49326f2e085a46c39ba73f91c52e436c";
+
+        const account_uuid = "";
 
 
         var currDataset = null;
         var endpoint = null;
 
-        async function SubscriberDataset(data) {
+        async function SubscriberDataset(data)
+        {
             console.log("SubscriberDataset", data);
 
-            if (currDataset) {
+            if (currDataset)
+            {
                 listAssets(endpoint, currDataset);
             }
         }
 
-        async function SubscriberAccount(data) {
+        async function SubscriberAccount(data)
+        {
             console.log("SubscriberDataset", data);
 
             listDatasets(endpoint);
             listModels(endpoint);
-            
+
         }
 
-        async function setup() {
-            
+        async function setup()
+        {
+
             // console.log("Setting up")
             // document.getElementById('list-assets').style.display = 'none';
             // return;
@@ -87,7 +91,8 @@
 
             //implement the new dataset button
             var newDatasetsButton = document.getElementById('new-datasets-btn');
-            newDatasetsButton.onclick = function () {
+            newDatasetsButton.onclick = function ()
+            {
                 //create a new dataset
                 const datasetCreateData = {
                     // dataset create data
@@ -97,12 +102,13 @@
                         "test1"
                     ],
                     "auto_annotates": [
-                        "ep_coco", 
+                        "ep_coco",
                         "ep_rapid_medical"
                     ]
                 };
                 endpoint.createDataset(account_uuid, datasetCreateData)
-                    .then((res) => {
+                    .then((res) =>
+                    {
                         console.log("TEST CREATE DATASET", res);
                         listDatasets(endpoint);
                         listAssets(endpoint, res);
@@ -114,27 +120,34 @@
 
         }
 
-        function listAssets(endpoint, dataset, version) {
+        function listAssets(endpoint, dataset, version)
+        {
             currDataset = dataset;
 
             document.getElementById('list-assets-model-info').innerHTML = `<strong>${dataset.name}</strong><br>${dataset.uuid}`;
 
             endpoint.listAssets(dataset.uuid, version, true)
-                .then((res) => {
+                .then((res) =>
+                {
                     console.log("TEST LIST ASSETS", res);
 
                     //create a list of all manual annotations
                     //for each asset in the dataset
                     let labels = [];
-                    res.forEach((asset) => {
+                    res.forEach((asset) =>
+                    {
                         //find asset.annotation that is Rapid Medical
-                        asset.annotations.forEach((ann) => {
-                            if (ann.type === "manual") {
-                                if (!ann.annotation || !ann.annotation.objects) {
+                        asset.annotations.forEach((ann) =>
+                        {
+                            if (ann.type === "manual")
+                            {
+                                if (!ann.annotation || !ann.annotation.objects)
+                                {
                                     return;
                                 }
                                 //for each object in the annotation
-                                ann.annotation.objects.forEach((obj) => {
+                                ann.annotation.objects.forEach((obj) =>
+                                {
                                     //for each label in the object
                                     labels.push(obj.classLabel)
 
@@ -146,15 +159,20 @@
 
 
                     let count_approval = 0;
-                    res.forEach((asset) => {
+                    res.forEach((asset) =>
+                    {
                         //find asset.annotation that is Rapid Medical
-                        asset.annotations.forEach((ann) => {
-                            if (ann.type === "manual") {
-                                if (!ann.annotation || !ann.annotation.objects) {
+                        asset.annotations.forEach((ann) =>
+                        {
+                            if (ann.type === "manual")
+                            {
+                                if (!ann.annotation || !ann.annotation.objects)
+                                {
                                     return;
                                 }
                                 //for each object in the annotation
-                                ann.annotation.objects.forEach((obj) => {
+                                ann.annotation.objects.forEach((obj) =>
+                                {
                                     count_approval++;
                                 });
                             }
@@ -171,7 +189,8 @@
 
 
                     //for each asset in the dataset
-                    res.forEach((asset) => {
+                    res.forEach((asset) =>
+                    {
                         var assetDiv = document.createElement('div');
                         assetDiv.innerHTML = asset.uuid;
 
@@ -186,13 +205,16 @@
                             asset.status === "upload_in_progress" ||
                             asset.status === "upload_failed" ||
                             asset.status === "transform_failed" ||
-                            asset.status === "transform_in_progress") {
+                            asset.status === "transform_in_progress")
+                        {
                             assetDiv.innerHTML += "(" + asset.status + ")";
                             return;
-                        } else {
+                        } else
+                        {
                             //download the asset and show in img tag
                             endpoint.downloadAsset(asset.uuid, dataset.uuid, version, 'image_cover_224')
-                                .then((res) => {
+                                .then((res) =>
+                                {
                                     console.log("TEST DOWNLOAD ASSET", res);
                                     var img = document.createElement('img');
 
@@ -202,13 +224,15 @@
                                     var canvas = document.createElement('canvas');
                                     var ctx = canvas.getContext('2d');
                                     var img = new Image();
-                                    img.onload = function () {
+                                    img.onload = function ()
+                                    {
                                         canvas.width = img.width;
                                         canvas.height = img.height;
                                         ctx.drawImage(img, 0, 0);
 
-                                        if (asset.annotations) {
-                                           
+                                        if (asset.annotations)
+                                        {
+
                                             const colors = [
                                                 "#FFB6C1", // Light Pink
                                                 "#FFE4B5", // Moccasin
@@ -220,40 +244,45 @@
                                                 "#40E0D0", // Turquoise
                                                 "#FFDEAD", // Navajo White
                                                 "#ADD8E6"  // Light Blue
-                                                ];
+                                            ];
 
-                                                const renderer = Render2d.renderer(
-                                                    ctx,
-                                                    [Render2d.renderBox({
-                                                        boxType: 'simple',
-                                                        showClass: false,
-                                                        showConfidence: false,
-                                                    })]);
+                                            const renderer = Render2d.renderer(
+                                                ctx,
+                                                [ Render2d.renderBox({
+                                                    boxType: 'simple',
+                                                    showClass: false,
+                                                    showConfidence: false,
+                                                }) ]);
 
-                                            
 
-                                            if(hasApproval(asset)){
-                                                asset.annotations.forEach((ann) => {
-                                                    if(ann.type !== "manual"){
+
+                                            if (hasApproval(asset))
+                                            {
+                                                asset.annotations.forEach((ann) =>
+                                                {
+                                                    if (ann.type !== "manual")
+                                                    {
                                                         return;
                                                     }
                                                     console.log("ann", ann.annotation);
-                                                    
-                                                    const color =colors[Math.floor(Math.random()*100) % colors.length];
-                                                    
+
+                                                    const color = colors[ Math.floor(Math.random() * 100) % colors.length ];
+
                                                     renderer.draw(ann.annotation, color);
                                                 });
-                                            } else {
-                                                asset.annotations.forEach((ann) => {
+                                            } else
+                                            {
+                                                asset.annotations.forEach((ann) =>
+                                                {
                                                     console.log("ann", ann.annotation);
 
-                                                    const color =colors[Math.floor(Math.random()*100) % colors.length];
-                                                    
+                                                    const color = colors[ Math.floor(Math.random() * 100) % colors.length ];
+
                                                     renderer.draw(ann.annotation, color);
                                                 });
                                             }
 
-                                            
+
                                         }
 
                                     };
@@ -269,9 +298,11 @@
                         //add delete button to each asset
                         var deleteAssetButton = document.createElement('button');
                         deleteAssetButton.innerHTML = "Delete";
-                        deleteAssetButton.onclick = function () {
+                        deleteAssetButton.onclick = function ()
+                        {
                             endpoint.deleteAsset(asset.uuid, dataset.uuid, version)
-                                .then((res) => {
+                                .then((res) =>
+                                {
                                     console.log("TEST DELETE ASSET", res);
                                     //remove the asset from the list
                                     assetDiv.remove();
@@ -285,9 +316,11 @@
                         //add download button to each asset
                         var downloadAssetButton = document.createElement('button');
                         downloadAssetButton.innerHTML = "Download";
-                        downloadAssetButton.onclick = function () {
+                        downloadAssetButton.onclick = function ()
+                        {
                             endpoint.downloadAsset(asset.uuid, dataset.uuid, version, 'original')
-                                .then((res) => {
+                                .then((res) =>
+                                {
                                     console.log("TEST DOWNLOAD ASSET", res);
                                 });
                         };
@@ -296,9 +329,11 @@
                         //add get asset button to each asset
                         var getAssetButton = document.createElement('button');
                         getAssetButton.innerHTML = "Get Asset";
-                        getAssetButton.onclick = function () {
+                        getAssetButton.onclick = function ()
+                        {
                             endpoint.getAsset(asset.uuid, dataset.uuid, version, true)
-                                .then((res) => {
+                                .then((res) =>
+                                {
                                     console.log("TEST GET ASSET", res);
                                 });
                         };
@@ -308,50 +343,59 @@
 
                         listAssetsResult.appendChild(document.createElement('br'));
                         //if asset has manual annotation, show an approved checkmark
-                        if (hasApproval(asset)) {
+                        if (hasApproval(asset))
+                        {
                             var approvedButton = document.createElement('button');
                             approvedButton.innerHTML = "Approved";
                             approvedButton.style.backgroundColor = "green";
                             listAssetsResult.appendChild(approvedButton);
-                        } else {
+                        } else
+                        {
 
                             //create a select box with all annotations.auto_annotate
                             var select = document.createElement('select');
                             select.id = "select_" + asset.uuid;
-                            asset.annotations.forEach((ann) => {
-                                if (ann.auto_annotate) {
+                            asset.annotations.forEach((ann) =>
+                            {
+                                if (ann.auto_annotate)
+                                {
                                     var option = document.createElement('option');
                                     option.value = ann.auto_annotate;
                                     option.text = ann.auto_annotate;
                                     select.appendChild(option);
                                 }
-                            }); 
+                            });
                             listAssetsResult.appendChild(select);
 
                             //add update asset manual annotation button to each asset
                             var updateAssetManualAnnotationButton = document.createElement('button');
                             updateAssetManualAnnotationButton.innerHTML = "Approve Auto Annotation";
-                            updateAssetManualAnnotationButton.onclick = function () {
+                            updateAssetManualAnnotationButton.onclick = function ()
+                            {
                                 //const approve_type = "ep_rapid_medical";
                                 const selectBox = document.getElementById("select_" + asset.uuid);
                                 const approve_type = selectBox.value;
 
                                 let annotation = null;
                                 //find asset.annotation that is Rapid Medical
-                                asset.annotations.forEach((ann) => {
+                                asset.annotations.forEach((ann) =>
+                                {
 
-                                    if (ann.auto_annotate === approve_type) {
+                                    if (ann.auto_annotate === approve_type)
+                                    {
                                         annotation = ann.annotation;
                                     }
                                 });
 
-                                if (!annotation) {
+                                if (!annotation)
+                                {
                                     console.log("No " + approve_type + " annotation found");
                                     return;
                                 }
 
-                                endpoint.updateAutoAnnotationStatus(asset.uuid, approve_type,'approved')
-                                    .then((res) => {
+                                endpoint.updateAutoAnnotationStatus(asset.uuid, approve_type, 'approved')
+                                    .then((res) =>
+                                    {
                                         console.log("TEST UPDATE ASSET MANUAL ANNOTATION", res);
                                     });
                             };
@@ -367,24 +411,29 @@
         }
 
         var datasets = [];
-        function listDatasets(endpoint) {
+        function listDatasets(endpoint)
+        {
             // Test listDatasets function
             //on page load load the datasets into the list
-            datasets=endpoint.listDatasets(account_uuid)
-                .then((res) => {
+            datasets = endpoint.listDatasets(account_uuid)
+                .then((res) =>
+                {
                     console.log("TEST LIST DATASETS", res);
                     var listDatasetsResult = document.getElementById('list-datasets-result');
                     listDatasetsResult.innerHTML = '';
-                    res.forEach((dataset) => {
+                    res.forEach((dataset) =>
+                    {
                         var datasetDiv = document.createElement('div');
                         datasetDiv.innerHTML = "<span style='font-weight: bold; font-size: larger;'>" + dataset.name + "</span><br /> " + dataset.uuid;
                         listDatasetsResult.appendChild(datasetDiv);
                         //add delete button to each dataset
                         var deleteButton = document.createElement('button');
                         deleteButton.innerHTML = "Delete";
-                        deleteButton.onclick = function () {
+                        deleteButton.onclick = function ()
+                        {
                             endpoint.deleteDataset(dataset.uuid)
-                                .then((res) => {
+                                .then((res) =>
+                                {
                                     console.log("TEST DELETE DATASET", res);
 
                                     listDatasets(endpoint);
@@ -400,19 +449,23 @@
                         //add upload button to each dataset
                         var uploadButton = document.createElement('button');
                         uploadButton.innerHTML = "Upload";
-                        uploadButton.onclick = function () {
+                        uploadButton.onclick = function ()
+                        {
                             const version = dataset.versions.find(v => v.modifiable)?.version || null;
 
                             const fileInput = document.createElement('input');
                             fileInput.type = 'file';
                             fileInput.accept = 'image/*';
                             fileInput.multiple = true;
-                            fileInput.onchange = function (event) {
+                            fileInput.onchange = function (event)
+                            {
                                 const files = event.target.files;
                                 console.log("files", files);
-                                Array.from(files).forEach(file => {
+                                Array.from(files).forEach(file =>
+                                {
                                     endpoint.uploadAsset(dataset.uuid, version, file)
-                                        .then((res) => {
+                                        .then((res) =>
+                                        {
                                             console.log("TEST UPLOAD ASSET", res);
                                         });
                                 });
@@ -427,7 +480,8 @@
                         listAssetsButton.innerHTML = "List Assets";
                         const version = dataset.versions.find(v => v.modifiable)?.version || null;
 
-                        listAssetsButton.onclick = function () {
+                        listAssetsButton.onclick = function ()
+                        {
 
                             console.log("Subbing to dataset", dataset.uuid)
                             endpoint.subscribeCallbackToDatasetEvents(dataset.uuid, SubscriberDataset, false);
@@ -440,16 +494,20 @@
                         //make a create model button
                         var createModelButton = document.createElement('button');
                         createModelButton.innerHTML = "Create Model";
-                        createModelButton.onclick = function () {
+                        createModelButton.onclick = function ()
+                        {
                             endpoint.freezeDatasetVersion(dataset.uuid)
-                                .then((res) => {
+                                .then((res) =>
+                                {
                                     console.log("TEST FREEZE DATASET", res);
-                                }).then(() => {
+                                }).then(() =>
+                                {
                                     endpoint.createModel(dataset.uuid, 1, {
                                         name: "Andy Model",
                                         description: new Date().toString(),
                                         type: "epdet_b1"
-                                    }).then((res) => {
+                                    }).then((res) =>
+                                    {
                                         console.log("TEST CREATE MODEL", res);
                                     });
                                 });
@@ -460,9 +518,11 @@
                         //add get dataset button to each dataset
                         var getDatasetButton = document.createElement('button');
                         getDatasetButton.innerHTML = "Get Dataset";
-                        getDatasetButton.onclick = function () {
+                        getDatasetButton.onclick = function ()
+                        {
                             endpoint.getDataset(dataset.uuid)
-                                .then((res) => {
+                                .then((res) =>
+                                {
                                     console.log("TEST GET DATASET", res);
                                 });
                         };
@@ -471,7 +531,7 @@
                         listDatasetsResult.appendChild(document.createElement('br'));
                     });
 
-                    const dataset = res[0];
+                    const dataset = res[ 0 ];
                     console.log("Subbing to dataset", dataset.uuid)
                     endpoint.subscribeCallbackToDatasetEvents(dataset.uuid, SubscriberDataset, false);
 
@@ -479,53 +539,62 @@
                 });
 
 
-               
+
 
         }
 
-        
 
-        async function createFileFromLocalURL(fileURL) {
-            try {
+
+        async function createFileFromLocalURL(fileURL)
+        {
+            try
+            {
                 // Fetch the file data
                 const response = await fetch(fileURL);
                 const blob = await response.blob();
 
                 // Extract the filename from the URL
                 const urlParts = fileURL.split('/');
-                const filename = urlParts[urlParts.length - 1];
+                const filename = urlParts[ urlParts.length - 1 ];
 
                 // Create a File object
-                const file = new File([blob], filename, { type: blob.type });
+                const file = new File([ blob ], filename, { type: blob.type });
 
                 return file;
-            } catch (error) {
+            } catch (error)
+            {
                 console.error('Error creating file from local URL:', error);
             }
         }
 
-        function hasApproval(asset) {
+        function hasApproval(asset)
+        {
             let hasApproval = false;
-            asset.annotations.forEach((ann) => {
+            asset.annotations.forEach((ann) =>
+            {
                 console.log("HAS APPROVAL ann", ann.type);
-                if (ann.user_review === "approved") {
+                if (ann.user_review === "approved")
+                {
                     hasApproval = true;
                 }
             });
             return hasApproval;
         }
 
-        function listModels(endpoint) {
+        function listModels(endpoint)
+        {
             // Test listModels function
             endpoint.listModels(account_uuid)
-                .then((res) => {
+                .then((res) =>
+                {
                     console.log("TEST LIST MODELS", res);
 
                     var listModelsResult = document.getElementById('list-models-result');
                     listModelsResult.innerHTML = '';
 
                     //show model uuid and name
-                    res.forEach((model) => {
+                    res.forEach((model) =>
+                    {
                         var modelDiv = document.createElement('div');
                         modelDiv.innerHTML = "<span style='font-weight: bold; font-size: larger;'>" + model.name + "</span><br /> " + model.uuid;
 
@@ -534,9 +603,11 @@
                         //add delete button to each model
                         var deleteModelButton = document.createElement('button');
                         deleteModelButton.innerHTML = "Delete";
-                        deleteModelButton.onclick = function () {
+                        deleteModelButton.onclick = function ()
+                        {
                             endpoint.deleteModel(model.uuid)
-                                .then((res) => {
+                                .then((res) =>
+                                {
                                     console.log("TEST DELETE MODEL", res);
                                     listModels(endpoint);
                                 });
@@ -546,9 +617,11 @@
                         //add get model button to each model
                         var getModelButton = document.createElement('button');
                         getModelButton.innerHTML = "Get Model";
-                        getModelButton.onclick = function () {
+                        getModelButton.onclick = function ()
+                        {
                             endpoint.getModel(model.uuid)
-                                .then((res) => {
+                                .then((res) =>
+                                {
                                     console.log("TEST GET MODEL", res);
                                 });
                         };
@@ -557,25 +630,27 @@
                         //add publish model button to each model
                         var publishModelButton = document.createElement('button');
                         publishModelButton.innerHTML = "Publish Model";
-                        publishModelButton.onclick = function () {
+                        publishModelButton.onclick = function ()
+                        {
                             endpoint.publishModel(model.uuid)
-                                .then((res) => {
+                                .then((res) =>
+                                {
                                     console.log("TEST PUBLISH MODEL", res);
                                 });
                         };
                         listModelsResult.appendChild(publishModelButton);
                         listModelsResult.appendChild(document.createElement('br'));
                         listModelsResult.appendChild(document.createElement('br'));
-                        
 
 
 
+
+                    });
                 });
-        });
-    }
-    
+        }
 
-    setup();
+
+        setup();
 
     </script>
 </body>
