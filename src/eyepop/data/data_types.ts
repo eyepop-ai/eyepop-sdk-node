@@ -1,8 +1,8 @@
-import {Prediction, Session} from "EyePop/types";
+import { Prediction, Session } from 'EyePop/types'
 
 export interface DataSession extends Session {
-    readonly accountId: string;
-    readonly baseUrl: string | undefined;
+    readonly accountId: string
+    readonly baseUrl: string | undefined
 }
 
 export interface DatasetVersion {
@@ -41,24 +41,24 @@ export interface DatasetUpdate {
 }
 
 export enum AssetStatus {
-    rejected = "rejected",
-    upload_in_progress = "upload_in_progress",
-    upload_failed = "upload_failed",
-    transform_failed = "transform_failed",
-    transform_in_progress = "transform_in_progress",
-    accepted = "accepted"
+    rejected = 'rejected',
+    upload_in_progress = 'upload_in_progress',
+    upload_failed = 'upload_failed',
+    transform_failed = 'transform_failed',
+    transform_in_progress = 'transform_in_progress',
+    accepted = 'accepted',
 }
 
 export enum AnnotationType {
-    ground_truth = "ground_truth",
-    prediction = "prediction",
-    auto = "auto"
+    ground_truth = 'ground_truth',
+    prediction = 'prediction',
+    auto = 'auto',
 }
 
 export enum UserReview {
-    approved = "approved",
-    rejected = "rejected",
-    unknown = "unknown"
+    approved = 'approved',
+    rejected = 'rejected',
+    unknown = 'unknown',
 }
 
 export interface Annotation {
@@ -70,14 +70,14 @@ export interface Annotation {
 }
 
 export enum TranscodeMode {
-    original = "original",
-    image_original_size = "image_original_size",
-    image_fit_1024 = "image_fit_1024",
-    image_fit_640 = "image_fit_640",
-    image_fit_224 = "image_fit_224",
-    image_cover_1024 = "image_cover_1024",
-    image_cover_640 = "image_cover_640",
-    image_cover_224 = "image_cover_224"
+    original = 'original',
+    image_original_size = 'image_original_size',
+    image_fit_1024 = 'image_fit_1024',
+    image_fit_640 = 'image_fit_640',
+    image_fit_224 = 'image_fit_224',
+    image_cover_1024 = 'image_cover_1024',
+    image_cover_640 = 'image_cover_640',
+    image_cover_224 = 'image_cover_224',
 }
 
 export interface Asset {
@@ -92,16 +92,16 @@ export interface Asset {
 }
 
 export enum ModelType {
-    epdet_b1 = "epdet_b1"
+    epdet_b1 = 'epdet_b1',
 }
 
 export enum ModelStatus {
-    error = "error",
-    draft = "draft",
-    requested = "requested",
-    in_progress = "in_progress",
-    available = "available",
-    published = "published"
+    error = 'error',
+    draft = 'draft',
+    requested = 'requested',
+    in_progress = 'in_progress',
+    available = 'available',
+    published = 'published',
 }
 
 export interface Model {
@@ -129,18 +129,18 @@ export interface ModelUpdate {
 }
 
 export enum ChangeType {
-    dataset_added = "dataset_added",
-    dataset_removed = "dataset_removed",
-    dataset_modified = "dataset_modified",
-    dataset_version_modified = "dataset_version_modified",
-    asset_added = "asset_added",
-    asset_removed = "asset_removed",
-    asset_status_modified = "asset_status_modified",
-    asset_annotation_modified = "asset_annotation_modified",
-    model_added = "model_added",
-    model_removed = "model_removed",
-    model_modified = "model_modified",
-    model_status_modified = "model_status_modified"
+    dataset_added = 'dataset_added',
+    dataset_removed = 'dataset_removed',
+    dataset_modified = 'dataset_modified',
+    dataset_version_modified = 'dataset_version_modified',
+    asset_added = 'asset_added',
+    asset_removed = 'asset_removed',
+    asset_status_modified = 'asset_status_modified',
+    asset_annotation_modified = 'asset_annotation_modified',
+    model_added = 'model_added',
+    model_removed = 'model_removed',
+    model_modified = 'model_modified',
+    model_status_modified = 'model_status_modified',
 }
 
 export interface ChangeEvent {

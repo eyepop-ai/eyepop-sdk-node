@@ -14,7 +14,8 @@ let updatePopComp = undefined;
 let timingSpan = undefined;
 let resultSpan = undefined;
 
-async function setup() {
+async function setup()
+{
     popNameElement = document.getElementById("pop-name");
     connectButton = document.getElementById('connect');
     fileChooser = document.getElementById('file-upload');
@@ -34,25 +35,30 @@ async function setup() {
 
     context = resultOverlay.getContext("2d");
 
-    imagePreview.addEventListener('load', (event => {
+    imagePreview.addEventListener('load', (event =>
+    {
         console.log(event)
     }))
 }
 
-async function connect(event) {
-    if (!endpoint) {
+async function connect(event)
+{
+    if (!endpoint)
+    {
         const queryString = window.location.search;
         const urlParams = new URLSearchParams(queryString);
         const popId = urlParams.get('popId');
         const eyepopUrl = urlParams.get('eyepopUrl') || undefined;
 
         endpoint = await EyePop.workerEndpoint({
-            auth: {oAuth2: true},
+            auth: { oAuth2: true },
             popId: popId,
             eyepopUrl: eyepopUrl
-        }).onStateChanged((from, to) => {
+        }).onStateChanged((from, to) =>
+        {
             console.log("Endpoint state transition from " + from + " to " + to);
-        }).onIngressEvent((ingressEvent) => {
+        }).onIngressEvent((ingressEvent) =>
+        {
             console.log(ingressEvent);
         }).connect();
     }
@@ -63,25 +69,30 @@ async function connect(event) {
     popComp.style.height = 0;
     popComp.style.height = popComp.scrollHeight + 'px';
 
-    popComp.addEventListener('change', async (event) => {
-       console.log('pop changed');
-       updatePopComp.disabled = false;
+    popComp.addEventListener('change', async (event) =>
+    {
+        console.log('pop changed');
+        updatePopComp.disabled = false;
     });
 
-    updatePopComp.addEventListener('click', async (event) => {
-       console.log('updated');
-       updatePopComp.disabled = true;
-       await endpoint.changePopComp(popComp.value);
+    updatePopComp.addEventListener('click', async (event) =>
+    {
+        console.log('updated');
+        updatePopComp.disabled = true;
+        await endpoint.changePopComp(popComp.value);
     });
 }
 
-async function fileChanged(event) {
-    const file = fileChooser.files[0];
+async function fileChanged(event)
+{
+    const file = fileChooser.files[ 0 ];
     const reader = new FileReader();
-    reader.onload = function () {
-        context.clearRect(0,0,resultOverlay.width, resultOverlay.height);
+    reader.onload = function ()
+    {
+        context.clearRect(0, 0, resultOverlay.width, resultOverlay.height);
         imagePreview.src = reader.result;
-        imagePreview.decode().then((i) => {
+        imagePreview.decode().then((i) =>
+        {
             resultOverlay.width = imagePreview.naturalWidth;
             resultOverlay.height = imagePreview.naturalHeight;
             roiOverlay.width = imagePreview.naturalWidth;
@@ -90,20 +101,24 @@ async function fileChanged(event) {
         })
     };
 
-    try {
+    try
+    {
         reader.readAsDataURL(file);
         processButton.disabled = false;
-    } catch (e) {
+    } catch (e)
+    {
         console.log(e);
         processButton.disabled = true;
     }
 }
 
-async function upload(event) {
-    const file = fileChooser.files[0];
+async function upload(event)
+{
+    const file = fileChooser.files[ 0 ];
     const reader = new FileReader();
-    reader.onload = function () {
-        context.clearRect(0,0,resultOverlay.width, resultOverlay.height);
+    reader.onload = function ()
+    {
+        context.clearRect(0, 0, resultOverlay.width, resultOverlay.height);
         imagePreview.src = reader.result;
     };
 
@@ -114,34 +129,39 @@ async function upload(event) {
     resultSpan.innerHTML = "<span class='text-muted'>processing</a>";
 
     let params = undefined;
-    if (roiRect.top || roiPoints.length) {
+    if (roiRect.top || roiPoints.length)
+    {
         params = {
             roi: {}
         };
-        if (roiPoints.length) {
-            params.roi["points"] = roiPoints;
+        if (roiPoints.length)
+        {
+            params.roi[ "points" ] = roiPoints;
         }
-        if (roiRect.top) {
-            params.roi["boxes"] = [{
-                topLeft:{
-                    x:roiRect.left,
-                    y:roiRect.top
-                }, bottomRight:{
-                    x:roiRect.right,
-                    y:roiRect.bottom
+        if (roiRect.top)
+        {
+            params.roi[ "boxes" ] = [ {
+                topLeft: {
+                    x: roiRect.left,
+                    y: roiRect.top
+                }, bottomRight: {
+                    x: roiRect.right,
+                    y: roiRect.bottom
                 }
-            }];
+            } ];
         }
     }
-    endpoint.process({file: file}, params=params).then(async (results) => {
-        for await (let result of results) {
+    endpoint.process({ file: file }, params = params).then(async (results) =>
+    {
+        for await (let result of results)
+        {
             resultSpan.textContent = JSON.stringify(result, " ", 2);
-            context.clearRect(0,0,resultOverlay.width, resultOverlay.height);
-            const renderer = Render2d.renderer(context,[
-              Render2d.renderMask(),
-              Render2d.renderContour(),
-              Render2d.renderKeypoints(),
-              // Render2d.renderBox()
+            context.clearRect(0, 0, resultOverlay.width, resultOverlay.height);
+            const renderer = Render2d.renderer(context, [
+                Render2d.renderMask(),
+                Render2d.renderContour(),
+                Render2d.renderKeypoints(),
+                // Render2d.renderBox()
             ]);
             renderer.draw(result);
             initForRoi();
@@ -150,6 +170,7 @@ async function upload(event) {
     });
 }
 
-document.addEventListener("DOMContentLoaded", async (event) => {
+document.addEventListener("DOMContentLoaded", async (event) =>
+{
     await setup();
 });

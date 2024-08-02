@@ -1,7 +1,6 @@
-import {Options} from "EyePop/options";
+import { Options } from 'EyePop/options'
 
 export interface DataOptions extends Options {
-
     /**
      * Defaults to process.env['EYEPOP_ACCOUNT_ID'].
      */

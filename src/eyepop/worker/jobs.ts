@@ -1,9 +1,9 @@
-import {Prediction, SourceParams} from "../types"
-import {Stream} from "../streaming"
-import {HttpClient} from '../shims/http_client'
+import { Prediction, SourceParams } from '../types'
+import { Stream } from '../streaming'
+import { HttpClient } from '../shims/http_client'
 
-import {Logger} from "pino"
-import {ResultStream, WorkerSession} from "EyePop/worker/worker_types";
+import { Logger } from 'pino'
+import { ResultStream, WorkerSession } from 'EyePop/worker/worker_types'
 
 export class AbstractJob implements ResultStream {
     protected _getSession: () => Promise<WorkerSession>
@@ -15,7 +15,7 @@ export class AbstractJob implements ResultStream {
 
     protected _client: HttpClient
 
-    protected _requestLogger: Logger
+    protected _requestLogger: Logger;
 
     [Symbol.asyncIterator](): AsyncIterator<Prediction> {
         if (!this._responseStream) {
@@ -24,8 +24,7 @@ export class AbstractJob implements ResultStream {
         return Stream.iterFromReadableStream(this._responseStream, this._controller)
     }
 
-    protected constructor(params: SourceParams | undefined, getSession: () => Promise<WorkerSession>,
-                          client: HttpClient, requestLogger: Logger) {
+    protected constructor(params: SourceParams | undefined, getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger) {
         this._getSession = getSession
         this._params = params ?? null
         this._client = client
@@ -33,12 +32,12 @@ export class AbstractJob implements ResultStream {
     }
 
     protected async startJob(): Promise<Response> {
-        return Promise.reject("abstract class")
+        return Promise.reject('abstract class')
     }
 
     static n: number = 0
 
-    public start(done: () => void, status: (statusCode:number) => void): AbstractJob {
+    public start(done: () => void, status: (statusCode: number) => void): AbstractJob {
         this._responseStream = new Promise<ReadableStream<Uint8Array>>(async (resolve, reject) => {
             try {
                 let retries = 1
@@ -82,7 +81,7 @@ export class AbstractJob implements ResultStream {
                         }
                     }
                 }
-            } catch(reason) {
+            } catch (reason) {
                 reject(reason)
             } finally {
                 done()
@@ -98,14 +97,13 @@ export class AbstractJob implements ResultStream {
 
 export class UploadJob extends AbstractJob {
     private readonly _uploadStream: Blob
-    private readonly  _mimeType: string
+    private readonly _mimeType: string
 
     get [Symbol.toStringTag](): string {
         return 'uploadJob'
     }
 
-    constructor(stream: any, mimeType: string, params: SourceParams | undefined,
-                getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger) {
+    constructor(stream: any, mimeType: string, params: SourceParams | undefined, getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger) {
         super(params, getSession, client, requestLogger)
         this._uploadStream = stream
         this._mimeType = mimeType
@@ -114,12 +112,12 @@ export class UploadJob extends AbstractJob {
     protected override async startJob(): Promise<Response> {
         const session = await this._getSession()
         if (!session.baseUrl) {
-            return Promise.reject("session.baseUrl must not ne null")
+            return Promise.reject('session.baseUrl must not ne null')
         }
-        const postUrl: string = `${session.baseUrl.replace(/\/+$/, "")}/pipelines/${session.pipelineId}/source?mode=queue&processing=sync`
+        const postUrl: string = `${session.baseUrl.replace(/\/+$/, '')}/pipelines/${session.pipelineId}/source?mode=queue&processing=sync`
         let response
         if (this._params) {
-            this._requestLogger.debug("before POST %s with multipart body because of params")
+            this._requestLogger.debug('before POST %s with multipart body because of params')
             const params = JSON.stringify(this._params)
             const paramBlob = new Blob([params], { type: 'application/json' })
             const formData = new FormData()
@@ -127,27 +125,35 @@ export class UploadJob extends AbstractJob {
             formData.append('file', this._uploadStream)
 
             const headers = {
-                'Authorization': `Bearer ${session.accessToken}`,
-                'Accept': 'application/jsonl'
+                Authorization: `Bearer ${session.accessToken}`,
+                Accept: 'application/jsonl',
             }
 
             response = await this._client.fetch(postUrl, {
-                headers: headers, method: 'POST', body: formData, signal: this._controller.signal, // @ts-ignore
-                'duplex': 'half', dispatcher: this._dispatcher
+                headers: headers,
+                method: 'POST',
+                body: formData,
+                signal: this._controller.signal, // @ts-ignore
+                duplex: 'half',
+                dispatcher: this._dispatcher,
             })
-            this._requestLogger.debug("after POST %s with multipart body because of params")
+            this._requestLogger.debug('after POST %s with multipart body because of params')
         } else {
-            this._requestLogger.debug("before POST %s with stream as body")
+            this._requestLogger.debug('before POST %s with stream as body')
             const headers = {
-                'Authorization': `Bearer ${session.accessToken}`,
-                'Accept': 'application/jsonl',
-                'Content-Type': this._mimeType
+                Authorization: `Bearer ${session.accessToken}`,
+                Accept: 'application/jsonl',
+                'Content-Type': this._mimeType,
             }
             response = await this._client.fetch(postUrl, {
-                headers: headers, method: 'POST', body: this._uploadStream, signal: this._controller.signal, // @ts-ignore
-                'duplex': 'half', dispatcher: this._dispatcher
+                headers: headers,
+                method: 'POST',
+                body: this._uploadStream,
+                signal: this._controller.signal, // @ts-ignore
+                duplex: 'half',
+                dispatcher: this._dispatcher,
             })
-            this._requestLogger.debug("after POST %s with stream as body")
+            this._requestLogger.debug('after POST %s with stream as body')
         }
 
         return response
@@ -155,10 +161,9 @@ export class UploadJob extends AbstractJob {
 }
 
 export class LoadFromJob extends AbstractJob {
-    private readonly _location: string;
+    private readonly _location: string
 
-    constructor(location: string, params: SourceParams | undefined,
-                getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger) {
+    constructor(location: string, params: SourceParams | undefined, getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger) {
         super(params, getSession, client, requestLogger)
         this._location = location
     }
@@ -170,38 +175,36 @@ export class LoadFromJob extends AbstractJob {
     protected override async startJob(): Promise<Response> {
         const session = await this._getSession()
         if (!session.baseUrl) {
-            return Promise.reject("session.baseUrl must not ne null")
+            return Promise.reject('session.baseUrl must not ne null')
         }
         const body = {
-            'sourceType': 'URL',
-            'url': this._location,
-            'params': this._params
+            sourceType: 'URL',
+            url: this._location,
+            params: this._params,
         }
         const headers = {
-            'Authorization': `Bearer ${session.accessToken}`,
-            'Accept': 'application/jsonl',
-            'Content-Type': 'application/json'
+            Authorization: `Bearer ${session.accessToken}`,
+            Accept: 'application/jsonl',
+            'Content-Type': 'application/json',
         }
-        const patchUrl: string = `${session.baseUrl.replace(/\/+$/, "")}/pipelines/${session.pipelineId}/source?mode=queue&processing=sync`
-        this._requestLogger.debug("before PATCH %s with url %s as source", patchUrl, this._location)
+        const patchUrl: string = `${session.baseUrl.replace(/\/+$/, '')}/pipelines/${session.pipelineId}/source?mode=queue&processing=sync`
+        this._requestLogger.debug('before PATCH %s with url %s as source', patchUrl, this._location)
         const response = await this._client.fetch(patchUrl, {
             headers: headers,
             method: 'PATCH',
             body: JSON.stringify(body),
             signal: this._controller.signal, // @ts-ignore
-            dispatcher: this._dispatcher
+            dispatcher: this._dispatcher,
         })
-        this._requestLogger.debug("after PATCH %s with url %s as source", patchUrl, this._location)
+        this._requestLogger.debug('after PATCH %s with url %s as source', patchUrl, this._location)
         return response
-
     }
 }
 
 export class LoadLiveIngressJob extends AbstractJob {
-    private readonly _ingressId: string;
+    private readonly _ingressId: string
 
-    constructor(ingressId: string, params: SourceParams | undefined,
-                getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger) {
+    constructor(ingressId: string, params: SourceParams | undefined, getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger) {
         super(params, getSession, client, requestLogger)
         this._ingressId = ingressId
     }
@@ -213,29 +216,28 @@ export class LoadLiveIngressJob extends AbstractJob {
     protected override async startJob(): Promise<Response> {
         const session = await this._getSession()
         if (!session.baseUrl) {
-            return Promise.reject("session.baseUrl must not ne null")
+            return Promise.reject('session.baseUrl must not ne null')
         }
         const body = {
-            'sourceType': 'LIVE_INGRESS',
-            'liveIngressId': this._ingressId,
-            'params': this._params
+            sourceType: 'LIVE_INGRESS',
+            liveIngressId: this._ingressId,
+            params: this._params,
         }
         const headers = {
-            'Authorization': `Bearer ${session.accessToken}`,
-            'Accept': 'application/jsonl',
-            'Content-Type': 'application/json'
+            Authorization: `Bearer ${session.accessToken}`,
+            Accept: 'application/jsonl',
+            'Content-Type': 'application/json',
         }
-        const patchUrl: string = `${session.baseUrl.replace(/\/+$/, "")}/pipelines/${session.pipelineId}/source?mode=preempt&processing=sync`
-        this._requestLogger.debug("before PATCH %s with url %s as source", patchUrl, this._ingressId)
+        const patchUrl: string = `${session.baseUrl.replace(/\/+$/, '')}/pipelines/${session.pipelineId}/source?mode=preempt&processing=sync`
+        this._requestLogger.debug('before PATCH %s with url %s as source', patchUrl, this._ingressId)
         const response = await this._client.fetch(patchUrl, {
             headers: headers,
             method: 'PATCH',
             body: JSON.stringify(body),
             signal: this._controller.signal, // @ts-ignore
-            dispatcher: this._dispatcher
+            dispatcher: this._dispatcher,
         })
-        this._requestLogger.debug("after PATCH %s with url %s as source", patchUrl, this._ingressId)
+        this._requestLogger.debug('after PATCH %s with url %s as source', patchUrl, this._ingressId)
         return response
-
     }
 }

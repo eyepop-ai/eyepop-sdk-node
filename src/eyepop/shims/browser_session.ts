@@ -1,26 +1,26 @@
-import {Session} from "../types"
-import {Auth0Options, OAuth2Auth, Options} from "../options"
-import {createAuth0Client} from "@auth0/auth0-spa-js"
-import {Auth0ClientOptions} from "@auth0/auth0-spa-js/src/global";
-import {WorkerOptions, WorkerSession} from "EyePop";
+import { Session } from '../types'
+import { Auth0Options, OAuth2Auth, Options } from '../options'
+import { createAuth0Client } from '@auth0/auth0-spa-js'
+import { Auth0ClientOptions } from '@auth0/auth0-spa-js/src/global'
+import { WorkerOptions, WorkerSession } from 'EyePop'
 
 export let authenticateBrowserSession: (auth0: Auth0Options, options: Options) => Promise<Session>
 
 if ('document' in globalThis && 'implementation' in globalThis.document) {
     authenticateBrowserSession = async (auth0: Auth0Options, options: Options) => {
         if (options.eyepopUrl == null) {
-            return Promise.reject("options.eyepopUrl cannot be null")
+            return Promise.reject('options.eyepopUrl cannot be null')
         }
         const auth0ClientOptions: Auth0ClientOptions = {
             clientId: auth0.clientId,
             domain: auth0.domain,
             authorizationParams: {
-                scope:auth0.scope,
-                audience:auth0.audience
-            }
+                scope: auth0.scope,
+                audience: auth0.audience,
+            },
         }
         const auth0Client = await createAuth0Client(auth0ClientOptions)
-        if (!await auth0Client.isAuthenticated()) {
+        if (!(await auth0Client.isAuthenticated())) {
             await auth0Client.loginWithPopup()
         }
         const accessToken = await auth0Client.getTokenSilently()
@@ -29,22 +29,22 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
         }
         let session: Session
         const workerOptions = options as WorkerOptions
-        if (typeof workerOptions.popId != "undefined") {
+        if (typeof workerOptions.popId != 'undefined') {
             const workerSession: WorkerSession = {
                 eyepopUrl: options.eyepopUrl,
                 accessToken: accessToken,
-                validUntil: Date.now() + (60 * 60 * 1000),
+                validUntil: Date.now() + 60 * 60 * 1000,
                 popId: workerOptions.popId,
                 baseUrl: undefined,
                 pipelineId: undefined,
-                sandboxId: undefined
+                sandboxId: undefined,
             }
             session = workerSession
         } else {
             session = {
                 eyepopUrl: options.eyepopUrl,
                 accessToken: accessToken,
-                validUntil: Date.now() + (60 * 60 * 1000)
+                validUntil: Date.now() + 60 * 60 * 1000,
             }
         }
         return session

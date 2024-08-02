@@ -1,4 +1,3 @@
-
 export interface HttpClient {
     fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response>
     close(): Promise<void>
@@ -8,16 +7,13 @@ export let createHttpClient: () => Promise<HttpClient>
 
 if ('document' in globalThis && 'implementation' in globalThis.document) {
     class HttpClient {
-        constructor() {
-        }
+        constructor() {}
 
         public async fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
             return fetch(input, init)
         }
 
-        public async close(): Promise<void> {
-
-        }
+        public async close(): Promise<void> {}
     }
 
     createHttpClient = async () => {
@@ -46,7 +42,7 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
         const undici = require('undici')
         const agent = new undici.Agent({
             keepAliveTimeout: 10000,
-            connections: 5
+            connections: 5,
         })
         return new HttpClient(agent)
     }
