@@ -37,7 +37,6 @@
     "@types/ws": "^8.5.11",
     "pino": "^8.17.2",
     "undici": "^6.3.0",
-    "url-join": "^5.0.0",
     "ws": "^8.18.0"
   },
   "devDependencies": {
