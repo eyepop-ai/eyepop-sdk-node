@@ -54,11 +54,7 @@ export class Renderer2d implements Renderer
     {
         const x_scale = this.context.canvas.width / p.source_width
         const y_scale = this.context.canvas.height / p.source_height
-        const streamTime: StreamTime = {
-            offset: p.offset,
-            seconds: p.seconds,
-            timestamp: p.timestamp
-        }
+        const streamTime = p as StreamTime
         for (let i = 0; i < this.rules.length; i++)
         {
             const rule = this.rules[ i ]

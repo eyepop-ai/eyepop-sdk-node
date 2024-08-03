@@ -6,6 +6,7 @@ import {open} from 'openurl'
 import {mkdtempSync, writeFileSync} from 'node:fs'
 import {join} from 'node:path'
 import {tmpdir} from 'node:os'
+import {v4 as uuidv4} from 'uuid'
 
 import {pino} from 'pino'
 import process from 'process';
@@ -20,28 +21,17 @@ const example_image_path = process.argv[2]
     const context = canvas.getContext("2d")
 
     const endpoint = await EyePop.workerEndpoint({
-        isSandbox: true,
         popId: TransientPopId.Transient,
         logger: logger
     }).onStateChanged((fromState: EndpointState, toState: EndpointState) => {
         logger.info("Endpoint changed state %s -> %s", fromState, toState)
     }).connect()
     try {
-        const entry: SourcesEntry = {
-            authority: "yolov7",
-            manifest: "https://s3.amazonaws.com/models.eyepop.ai/releases/yolov7/1.0.1/manifest.json"
+        const modelRef = {
+            id: "my-yolo-v7",
+            folderUrl: "https://s3.amazonaws.com/models.eyepop.ai/releases/yolov7/1.0.1/models/YOLOv7/COCO/Latest/TensorFlowLite/float32/"
         }
-
-        const modelDef: ModelInstanceDef = {
-            model_id: "yolov7:YOLOv7-TINY",
-            dataset: "COCO",
-            version: undefined,
-            format: ModelFormat.TensorFlowLite,
-            type: ModelPrecisionType.float32
-        }
-        await endpoint.changeManifest([entry])
-        const modelInstance = await endpoint.loadModel(modelDef)
-        await endpoint.changePopComp(`ep_infer model="${modelInstance['id']}"`)
+        await endpoint.changePopComp(`ep_infer model=my-yolo-v7`, [modelRef])
         let results = await endpoint.process({path: example_image_path})
         for await (let result of results) {
             canvas.width = result.source_width
@@ -49,17 +39,19 @@ const example_image_path = process.argv[2]
             context.drawImage(image, 0, 0)
             Render2d.renderer(context).draw(result)
         }
+        const tmp_dir = mkdtempSync(join(tmpdir(), 'ep-demo-'))
+        const temp_file = join(tmp_dir, 'out.png')
+        logger.info(`creating temp file: %s`, temp_file)
+
+        const buffer = canvas.toBuffer('image/png')
+        writeFileSync(temp_file, buffer)
+
+        open(`file://${temp_file}`)
+    } catch (e) {
+        console.error(e)
     } finally {
         await endpoint.disconnect()
     }
 
-    const tmp_dir = mkdtempSync(join(tmpdir(), 'ep-demo-'))
-    const temp_file = join(tmp_dir, 'out.png')
-    logger.info(`creating temp file: %s`, temp_file)
-
-    const buffer = canvas.toBuffer('image/png')
-    writeFileSync(temp_file, buffer)
-
-    open(`file://${temp_file}`)
 })()
 

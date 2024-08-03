@@ -50,7 +50,7 @@ export class RenderTrail implements Render
 
     public draw(element: PredictedObject, xOffset: number, yOffset: number, xScale: number, yScale: number, streamTime: StreamTime): void
     {
-        if (!element.traceId)
+        if (!element.traceId || streamTime.timestamp === undefined)
         {
             return
         }
@@ -124,6 +124,7 @@ export class RenderTrail implements Render
         {
             this.traces.forEach((traceEntry: TraceEntry, traceId: number) =>
             {
+                // @ts-ignore
                 const age = streamTime.timestamp - traceEntry.timestamp
                 if (age > this.trailLengthNanos)
                 {

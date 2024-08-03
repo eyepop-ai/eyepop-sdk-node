@@ -27,12 +27,17 @@ interface PopConfig {
     name: string;
 }
 
+interface ModelRef {
+    id: string
+    folderUrl: string
+}
 interface Pipeline {
     id: string
     startTime: string
     state: string
     prePipeline: string | null
     inferPipeline: string
+    modelRefs: ModelRef[] | null
     postTransform: string | null
 }
 
@@ -145,14 +150,16 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         }
     }
 
-    public async changePopComp(popComp: string): Promise<void> {
+    public async changePopComp(popComp: string, modelRefs: ModelRef[] = []): Promise<void> {
         const client = this._client
         const baseUrl = this._baseUrl
         if (!baseUrl || !client) {
             return Promise.reject("endpoint not connected, use connect() before changePopComp()")
         }
+
         const body = {
-            'pipeline': popComp
+            'pipeline': popComp,
+            'modelRefs': modelRefs
         }
 
         let response = await this.fetchWithRetry(async () => {
@@ -167,10 +174,12 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         })
         if (response.status != 204) {
             const message = await response.text()
+            console.error(message)
             return Promise.reject(`Unexpected status ${response.status}: ${message}`)
         }
         if (this._pipeline) {
             this._pipeline.inferPipeline = popComp
+            this._pipeline.modelRefs = modelRefs
         }
     }
 
@@ -569,9 +578,17 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             postTransform = null
         }
 
+        let modelRefs: ModelRef[]
+        if (this._pipeline && this._pipeline.modelRefs) {
+            modelRefs = this._pipeline.modelRefs
+        } else {
+            modelRefs = []
+        }
+
         const body = {
             'inferPipelineDef': {
-                'pipeline': pipeline
+                'pipeline': pipeline,
+                'modelRefs': modelRefs,
             }, 'postTransformDef': {
                 'transform': postTransform
             }, 'source': {
@@ -600,7 +617,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             return Promise.reject(`Unexpected status ${response.status}: ${message}`)
         }
         const result = await response.json()
-        this._requestLogger.debug('after POST %s', post_url);
+        this._requestLogger.debug('after POST %s', post_url)
         return result['id']
     }
 
