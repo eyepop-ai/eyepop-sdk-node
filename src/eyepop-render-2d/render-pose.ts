@@ -87,7 +87,7 @@ export class RenderPose implements Render
             const y2 = yOffset + point2.y * yScale
 
             context.beginPath()
-            context.lineWidth = style.scale * 3
+            context.lineWidth = style.scale * 1
             context.strokeStyle = style.colors.primary_color
             context.fillStyle = style.colors.primary_color
             context.moveTo(x1, y1)
@@ -96,8 +96,8 @@ export class RenderPose implements Render
             context.closePath()
         }
 
-        const MIN_RADIUS = style.scale * 4;
-        const MAX_RADIUS = Math.min(MIN_RADIUS * 2, width / 100);
+        const MIN_RADIUS = style.scale * 2
+        const MAX_RADIUS = Math.min(MIN_RADIUS * 2, width / 100)
 
         for (var i = 0; i < keyPoints.points.length; i++)
         {

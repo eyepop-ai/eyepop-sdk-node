@@ -20,6 +20,8 @@
     "noEmit": true,
 
     "resolveJsonModule": true,
+    "declaration": true,
+    "emitDeclarationOnly": false,
 
     "forceConsistentCasingInFileNames": true,
 

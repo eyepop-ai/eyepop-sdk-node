@@ -38,18 +38,20 @@ export class RenderText implements Render
             throw new Error('render() called before start()')
         }
 
-        const scale = style.scale
         const w = element.width * xScale
+        const h = element.height * yScale
 
         let canvasDimension = Math.min(context.canvas.width, context.canvas.height);
 
-        const padding = Math.max(Math.min(w / 25, canvasDimension * (style.cornerWidth)), scale * 2)
-        const boundingBoxWidth = (element.width * xScale) - (2 * padding);
-        const boundingBoxHeight = (element.height * yScale) - (2 * padding);
+        let padding = canvasDimension * style.cornerPadding
+        padding = Math.min(padding, w / 10, h / 10)
+
+        const boundingBoxWidth = (w) - (padding * 2);
+        const boundingBoxHeight = (h) - (padding * 2);
 
         if (!element.labels) return
 
-        let fontSize = this.getMinFontSize(context, element, boundingBoxWidth, boundingBoxHeight, style, true)
+        let fontSize = this.getMinFontSize(context, element, boundingBoxWidth, boundingBoxHeight, style, this.fitToBounds)
         let label = ""
 
         for (let i = 0; i < element.labels.length; i++)
@@ -57,7 +59,7 @@ export class RenderText implements Render
             label = element.labels[ i ]?.label
             if (!label) continue
 
-            yOffset += this.drawLabel(label, context, element, yScale, xScale, yOffset, xOffset, style, boundingBoxWidth, padding, this.fitToBounds, fontSize)
+            yOffset += this.drawLabel(label, context, element, yScale, xScale, yOffset - (padding), xOffset, style, boundingBoxWidth, padding, this.fitToBounds, fontSize)
         }
 
     }
@@ -154,10 +156,10 @@ export class RenderText implements Render
         let textDetails = context.measureText(label)
 
         // Calculate the scale factor
-        let scaleFactor = boundingBoxWidth / textDetails.width
-        let scaleHeightFactor = (boundingBoxHeight) / (textDetails.actualBoundingBoxAscent + textDetails.actualBoundingBoxDescent)
+        let scaleFactor = boundingBoxWidth / (textDetails.width)
+        let scaleHeightFactor = (boundingBoxHeight) / ((textDetails.actualBoundingBoxAscent - textDetails.actualBoundingBoxDescent))
 
-        scaleFactor = Math.min(scaleFactor, scaleHeightFactor)
+        scaleFactor = Math.max(scaleFactor, scaleHeightFactor)
 
         // make sure the text fits in the height as well
         let fontSize = parseInt(style.font.split(' ')[ 0 ])

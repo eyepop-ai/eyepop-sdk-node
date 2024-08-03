@@ -1,10 +1,9 @@
 import { Renderer } from './index'
 import { CanvasRenderingContext2D } from 'canvas'
-import { Prediction } from '@eyepop.ai/eyepop'
+import { Prediction, StreamTime } from '@eyepop.ai/eyepop'
 import { Style } from "./style";
 import { DEFAULT_TARGET, Render } from './render';
 import { RenderBox } from "./render-box";
-import { StreamTime } from "EyePop";
 import * as jp from "jsonpath";
 
 

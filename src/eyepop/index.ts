@@ -187,4 +187,19 @@ export namespace EyePop {
     }
 }
 
+export * from "./types"
+export * from './endpoint'
+export * from './options'
+export * from './semaphore'
+export * from './streaming'
+export * from './data/data_types'
+export * from './data/data_options'
+export * from './data/data_endpoint'
+export * from './worker/worker_types'
+export * from './worker/worker_options'
+export * from './worker/worker_endpoint'
+export * from './worker/jobs'
+export * from './worker/webrtc_base'
+export * from './worker/webrtc_whep'
+export * from './worker/webrtc_whip'
 export default EyePop
