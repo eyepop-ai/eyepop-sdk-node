@@ -1,6 +1,6 @@
 {
   "name": "@eyepop.ai/eyepop-render-2d",
-  "version": "0.23.0",
+  "version": "1.0.0",
   "description": "The Node.js / Typescript library for 2d rendering of EyePop.ai's inference API",
   "keywords": [
     "AI",

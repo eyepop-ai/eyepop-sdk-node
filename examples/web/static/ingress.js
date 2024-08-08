@@ -7,8 +7,8 @@ let startButton = undefined;
 let stopButton = undefined;
 let timingSpan = undefined;
 let resultSpan = undefined;
-let popComp = undefined;
-let updatePopComp = undefined;
+let pop = undefined;
+let update = undefined;
 
 let remoteVideo = undefined;
 let remoteResultOverlay = undefined;
@@ -24,8 +24,8 @@ async function setup() {
     stopButton = document.getElementById('stop-stream');
     timingSpan = document.getElementById("timing");
     resultSpan = document.getElementById('txt_json');
-    popComp = document.getElementById('pop-comp');
-    updatePopComp = document.getElementById('update-pop-comp');
+    pop = document.getElementById('pop-comp');
+    update = document.getElementById('update-pop-comp');
 
     remoteVideo = document.getElementById('remote-video');
     remoteResultOverlay = document.getElementById('remote-result-overlay');
@@ -98,20 +98,20 @@ async function connect(event) {
    }
    popNameElement.innerHTML = endpoint.popName();
    startButton.disabled = false;
-   popComp.value = endpoint.popComp();
-   popComp.style.overflow = 'hidden';
-   popComp.style.height = 0;
-   popComp.style.height = popComp.scrollHeight + 'px';
+   pop.value = JSON.stringify(endpoint.pop());
+   pop.style.overflow = 'hidden';
+   pop.style.height = 0;
+   pop.style.height = pop.scrollHeight + 'px';
 
-    popComp.addEventListener('change', async (event) => {
+    pop.addEventListener('change', async (event) => {
        console.log('pop changed');
-       updatePopComp.disabled = false;
-       await endpoint.changePopComp(popComp.value);
+       update.disabled = false;
+       await endpoint.changePop(JSON.parse(pop.value));
     });
 
-    updatePopComp.addEventListener('click', (event) => {
+    update.addEventListener('click', (event) => {
        console.log('updated');
-       updatePopComp.disabled = true;
+       update.disabled = true;
     });
 
 }

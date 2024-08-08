@@ -9,8 +9,8 @@ let processButton = undefined;
 let imagePreview = undefined;
 let resultOverlay = undefined;
 let roiOverlay = undefined;
-let popComp = undefined;
-let updatePopComp = undefined;
+let pop = undefined;
+let updatePop = undefined;
 let timingSpan = undefined;
 let resultSpan = undefined;
 
@@ -22,8 +22,8 @@ async function setup() {
     imagePreview = document.getElementById('image-preview');
     resultOverlay = document.getElementById('result-overlay');
     roiOverlay = document.getElementById('roi-overlay');
-    popComp = document.getElementById('pop-comp');
-    updatePopComp = document.getElementById('update-pop-comp');
+    pop = document.getElementById('pop-comp');
+    updatePop = document.getElementById('update-pop-comp');
     timingSpan = document.getElementById("timing");
     resultSpan = document.getElementById('txt_json');
 
@@ -58,20 +58,20 @@ async function connect(event) {
     }
     fileChooser.disabled = false;
     popNameElement.innerHTML = endpoint.popName();
-    popComp.value = endpoint.popComp();
-    popComp.style.overflow = 'hidden';
-    popComp.style.height = 0;
-    popComp.style.height = popComp.scrollHeight + 'px';
+    pop.value = JSON.stringify(endpoint.pop());
+    pop.style.overflow = 'hidden';
+    pop.style.height = 0;
+    pop.style.height = pop.scrollHeight + 'px';
 
-    popComp.addEventListener('change', async (event) => {
+    pop.addEventListener('change', async (event) => {
        console.log('pop changed');
-       updatePopComp.disabled = false;
+       updatePop.disabled = false;
     });
 
-    updatePopComp.addEventListener('click', async (event) => {
+    updatePop.addEventListener('click', async (event) => {
        console.log('updated');
-       updatePopComp.disabled = true;
-       await endpoint.changePopComp(popComp.value);
+       updatePop.disabled = true;
+       await endpoint.changePop(JSON.parse(pop.value));
     });
 }
 
