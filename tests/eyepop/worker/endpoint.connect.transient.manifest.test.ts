@@ -4,7 +4,8 @@ import {
     ModelInstanceDef,
     ModelPrecisionType,
     SourcesEntry,
-    TransientPopId
+    TransientPopId,
+    Pop
 } from '../../../src/eyepop'
 
 import {MockServer} from 'jest-mock-server'
@@ -36,7 +37,6 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
     const test_model: ModelInstanceDef = {
         model_id: 'test1:test',
         dataset: 'TestDataset',
-        version: undefined,
         format: ModelFormat.TorchScript,
         type: ModelPrecisionType.float32
     }
@@ -98,12 +98,12 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
                 ctx.body = JSON.stringify(test_model)
             })
 
-        let inferPipeline: string | null = null
+        let pop: Pop | null = null
         const startPipelineRoute = server
             .post(`/w/pipelines`)
             .mockImplementationOnce((ctx) => {
                 // @ts-ignore
-                inferPipeline = ctx.request.body['inferPipelineDef']['pipeline']
+                pop = ctx.request.body['pop']
                 ctx.status = 200
                 ctx.response.headers['content-type'] = 'application/json'
                 ctx.body = JSON.stringify({
@@ -117,13 +117,13 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
                 ctx.status = 200
                 ctx.response.headers['content-type'] = 'application/json'
                 ctx.body = JSON.stringify({
-                    id: test_pipeline_id, inferPipeline: inferPipeline
+                    id: test_pipeline_id, pop: pop
                 })
             })
 
 
         const changePopCompRoute = server
-            .patch(`/w/pipelines/${test_pipeline_id}/inferencePipeline`)
+            .patch(`/w/pipelines/${test_pipeline_id}/pop`)
             .mockImplementationOnce((ctx) => {
                 // @ts-ignore
                 inferPipeline = ctx.request.body['pipeline']

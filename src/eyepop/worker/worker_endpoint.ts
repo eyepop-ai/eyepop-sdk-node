@@ -17,7 +17,8 @@ import {
     ResultStream,
     Source,
     SourcesEntry, StreamSource,
-    UrlSource, WorkerSession
+    UrlSource, WorkerSession,
+    Pop
 } from "EyePop/worker/worker_types";
 
 
@@ -35,10 +36,7 @@ interface Pipeline {
     id: string
     startTime: string
     state: string
-    prePipeline: string | null
-    inferPipeline: string
-    modelRefs: ModelRef[] | null
-    postTransform: string | null
+    pop?: Pop
 }
 
 interface WsAuthToken {
@@ -134,32 +132,19 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         return this._popName
     }
 
-    public popComp(): string | null {
+    public pop(): Pop | null {
         if (this._pipeline) {
-            return this._pipeline.inferPipeline
+            return this._pipeline.pop || null
         } else {
             return null
         }
     }
 
-    public postTransform(): string | null {
-        if (this._pipeline) {
-            return this._pipeline.postTransform
-        } else {
-            return null
-        }
-    }
-
-    public async changePopComp(popComp: string, modelRefs: ModelRef[] = []): Promise<void> {
+    public async changePop(pop: Pop): Promise<void> {
         const client = this._client
         const baseUrl = this._baseUrl
         if (!baseUrl || !client) {
             return Promise.reject("endpoint not connected, use connect() before changePopComp()")
-        }
-
-        const body = {
-            'pipeline': popComp,
-            'modelRefs': modelRefs
         }
 
         let response = await this.fetchWithRetry(async () => {
@@ -167,9 +152,10 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             let headers = {
                 'Authorization': `Bearer ${session.accessToken}`, 'Content-Type': 'application/json'
             }
-            const patch_url = `${session.baseUrl}/pipelines/${session.pipelineId}/inferencePipeline`
+            const patch_url = `${session.baseUrl}/pipelines/${session.pipelineId}/pop`
+            this._requestLogger.debug('before PATCH %s - %s', patch_url, JSON.stringify(pop))
             return client.fetch(patch_url, {
-                method: 'PATCH', body: JSON.stringify(body), headers: headers
+                method: 'PATCH', body: JSON.stringify(pop), headers: headers
             })
         })
         if (response.status != 204) {
@@ -177,41 +163,9 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             console.error(message)
             return Promise.reject(`Unexpected status ${response.status}: ${message}`)
         }
+        this._requestLogger.debug('after PATCH pop')
         if (this._pipeline) {
-            this._pipeline.inferPipeline = popComp
-            this._pipeline.modelRefs = modelRefs
-        }
-    }
-
-    public async changePostTransform(postTransform: string | null): Promise<void> {
-        const client = this._client
-        const baseUrl = this._baseUrl
-        if (!baseUrl || !client) {
-            return Promise.reject("endpoint not connected, use connect() before changePopComp()")
-        }
-
-        postTransform = postTransform ? postTransform : null
-
-        const body = {
-            'transform': postTransform
-        }
-
-        let response = await this.fetchWithRetry(async () => {
-            const session = await this.session()
-            let headers = {
-                'Authorization': `Bearer ${session.accessToken}`, 'Content-Type': 'application/json'
-            }
-            const patch_url = `${session.baseUrl}/pipelines/${session.pipelineId}/postTransform`
-            return client.fetch(patch_url, {
-                method: 'PATCH', body: JSON.stringify(body), headers: headers
-            })
-        })
-        if (response.status != 204) {
-            const message = await response.text()
-            return Promise.reject(`Unexpected status ${response.status}: ${message}`)
-        }
-        if (this._pipeline) {
-            this._pipeline.postTransform = postTransform
+            this._pipeline.pop = pop
         }
     }
 
@@ -505,7 +459,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
                 }
             }
             if (this.options().popId == TransientPopId.Transient) {
-                this._pipelineId = await this.startPopLessPipeline()
+                this._pipelineId = await this.startTransientPipeline()
                 this._popName = this.options().popId || null
             } else {
                 this._pipelineId = config.pipeline_id
@@ -555,7 +509,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         return Promise.resolve(this)
     }
 
-    private async startPopLessPipeline(): Promise<string> {
+    private async startTransientPipeline(): Promise<string> {
         const client = this._client
         const baseUrl = this._baseUrl
         const sandboxId = this._sandboxId
@@ -564,34 +518,19 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             return Promise.reject("endpoint not initialized")
         }
 
-        let pipeline
-        if (this._pipeline) {
-            pipeline = this._pipeline.inferPipeline
+        let pop: Pop
+        if (this._pipeline && this._pipeline.pop) {
+            pop = this._pipeline.pop
         } else {
-            pipeline = 'identity'
+            pop = {
+                components: []
+            }
         }
 
-        let postTransform
-        if (this._pipeline && this._pipeline.postTransform) {
-            postTransform = this._pipeline.postTransform
-        } else {
-            postTransform = null
-        }
-
-        let modelRefs: ModelRef[]
-        if (this._pipeline && this._pipeline.modelRefs) {
-            modelRefs = this._pipeline.modelRefs
-        } else {
-            modelRefs = []
-        }
 
         const body = {
-            'inferPipelineDef': {
-                'pipeline': pipeline,
-                'modelRefs': modelRefs,
-            }, 'postTransformDef': {
-                'transform': postTransform
-            }, 'source': {
+            'pop': pop,
+            'source': {
                 'sourceType': 'NONE',
             }, 'idleTimeoutSeconds': 30, 'logging': ['out_meta'], 'videoOutput': 'no_output',
         }

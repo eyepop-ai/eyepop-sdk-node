@@ -9,6 +9,7 @@ import {tmpdir} from 'node:os'
 
 import {pino} from 'pino'
 import process from 'process';
+import {InferenceType, PopComponentType} from "@eyepop.ai/eyepop";
 
 const logger = pino({level: 'debug', name: 'eyepop-example'})
 
@@ -35,13 +36,18 @@ const example_image_path = process.argv[2]
         const modelDef: ModelInstanceDef = {
             model_id: "yolov7:YOLOv7-TINY",
             dataset: "COCO",
-            version: undefined,
             format: ModelFormat.TensorFlowLite,
             type: ModelPrecisionType.float32
         }
         await endpoint.changeManifest([entry])
         const modelInstance = await endpoint.loadModel(modelDef)
-        await endpoint.changePopComp(`ep_infer model="${modelInstance['id']}"`)
+        await endpoint.changePop({
+            components: [{
+                type: PopComponentType.INFERENCE,
+                inferenceTypes: [InferenceType.OBJECT_DETECTION],
+                modelUuid: modelInstance['id']
+            }]
+        })
         let results = await endpoint.process({path: example_image_path})
         for await (let result of results) {
             canvas.width = result.source_width

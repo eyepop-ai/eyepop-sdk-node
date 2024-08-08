@@ -253,9 +253,13 @@ By default, `EyePop.workerEndpoint().connect()` will cancel all currently runnin
 It is assumed that the caller _takes full control_ of that worker. To disable this behavior create an endpoint with 
 `EyePop.endpoint({stopJobs: false})`.
 
-## Data endpoint (experimental)
+## Data endpoint (PREVIEW)
 To support managing your own datasets and control model optimization v0.21.0 introduces `EyePop.dataEndpoint()`,
-an experimental pre-release which is subject to change. An officially supported version will be released with v1.0.0
+an experimental pre-release which is subject to change. An officially supported version will be released with v2.0.0
+
+## Composable Pops (PREVIEW)
+See [Composable Pops](composable-pops.md) for a preview of client side composability of pops, introduced in v1.0.0.
+
 
 
 
