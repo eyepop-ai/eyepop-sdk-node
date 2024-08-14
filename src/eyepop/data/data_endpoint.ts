@@ -201,7 +201,7 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         const client = this._client
         const baseUrl = this._baseUrl
         if (!baseUrl || !client) {
-            return Promise.reject("endpoint not connected, use connect() before changePopComp()")
+            return Promise.reject("endpoint not connected")
         }
 
         let response = await this.fetchWithRetry(async () => {
