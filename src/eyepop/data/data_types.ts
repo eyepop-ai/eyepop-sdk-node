@@ -5,13 +5,21 @@ export interface DataSession extends Session {
     readonly baseUrl: string | undefined;
 }
 
+export interface DatasetVersionAssetStats {
+    total?: number
+    annotated?: number
+    auto_annotated?: number
+    auto_annotated_approved?: number
+    ground_truth_annotated?: number
+
+}
 export interface DatasetVersion {
     version: number
     modifiable: boolean
     created_at: Date
     updated_at: Date
-    asset_count: number
     hero_asset_uuid?: string
+    asset_stats?: DatasetVersionAssetStats
 }
 
 export interface Dataset {
