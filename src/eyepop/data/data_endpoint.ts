@@ -6,7 +6,7 @@ import urljoin from "url-join"
 import {DataOptions} from "./data_options"
 import {
     Annotation,
-    Asset,
+    Asset, AutoAnnotateParams,
     ChangeEvent,
     ChangeType,
     DataSession,
@@ -360,6 +360,13 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         const datasetQuery = dataset_uuid ? `&dataset_uuid=${dataset_uuid}` : '';
         return this.request(`/assets/${asset_uuid}/download?${datasetQuery}${versionQuery}&transcode_mode=${transcode_mode}`, {
             method: 'GET'
+        });
+    }
+
+    async previewAutoAnnotateAsset(asset_uuid: string, auto_annotate: string, auto_annotate_params?: AutoAnnotateParams): Promise<Annotation> {
+        return this.request(`/assets/${asset_uuid}/preview_auto_annotate?auto_annotate=${auto_annotate}`, {
+            method: 'POST',
+            body: auto_annotate_params? JSON.stringify(auto_annotate_params): null
         });
     }
 

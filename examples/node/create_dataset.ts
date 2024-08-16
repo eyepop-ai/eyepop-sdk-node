@@ -29,7 +29,7 @@ const example_image_path = process.argv[2]
                 logger.info("created dataset %s", JSON.stringify(dataset))
                 const modifiable_version = dataset.versions.find(v => v.modifiable)?.version
                 const mime_type = mime.lookup(example_image_path) || undefined
-                for (let i = 0; i < 10000; i++) {
+                for (let i = 0; i < 100; i++) {
                     const file = await openAsBlob(example_image_path, {type: mime_type})
                     let asset = await endpoint.uploadAsset(dataset.uuid, modifiable_version, file)
                     logger.info("uploaded asset %s", JSON.stringify(asset))
