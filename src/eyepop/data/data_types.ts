@@ -27,6 +27,7 @@ export interface Dataset {
     name: string
     description?: string
     auto_annotates: string[]
+    auto_annotate_params?: AutoAnnotateParams
     tags: string[]
     account_uuid: string
     created_at: Date
@@ -39,6 +40,7 @@ export interface DatasetCreate {
     description?: string
     tags?: string[]
     auto_annotates?: string[]
+    auto_annotate_params?: AutoAnnotateParams
 }
 
 export interface DatasetUpdate {
@@ -46,6 +48,7 @@ export interface DatasetUpdate {
     description?: string
     tags?: string[]
     auto_annotates?: string[]
+    auto_annotate_params?: AutoAnnotateParams
 }
 
 export enum AssetStatus {
@@ -69,10 +72,17 @@ export enum UserReview {
     unknown = "unknown"
 }
 
+export interface AutoAnnotateParams {
+    candidate_labels?: string[]
+    prompt?: string
+    confidence_threshold?: number
+}
+
 export interface Annotation {
     type: AnnotationType
     user_review: UserReview
     auto_annotate?: string
+    auto_annotate_params?: AutoAnnotateParams
     uncertainty_score?: number
     annotation: Prediction
 }

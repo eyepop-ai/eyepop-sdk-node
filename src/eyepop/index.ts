@@ -46,7 +46,8 @@ export {
     DatasetUpdate,
     DatasetVersion,
     UserReview,
-    TranscodeMode
+    TranscodeMode,
+    AutoAnnotateParams
 } from "./data/data_types";
 
 export {
