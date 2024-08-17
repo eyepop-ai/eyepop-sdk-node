@@ -107,6 +107,9 @@ export interface Asset {
     created_at: Date
     updated_at: Date
     annotations: Annotation[]
+    partition?: string
+    review_priority?: number
+    model_relevance?: number
 }
 
 export enum ModelType {
