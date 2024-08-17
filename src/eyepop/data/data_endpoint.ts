@@ -345,12 +345,13 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         });
     }
 
-    async updateAutoAnnotationStatus(asset_uuid: string, auto_annotate: string, user_review: UserReview): Promise<void> {
+    async updateAutoAnnotationStatus(asset_uuid: string, auto_annotate: string, user_review: UserReview, approved_threshold?: number): Promise<void> {
         const validStatuses = ['approved', 'rejected', 'unknown'];
         if (!validStatuses.includes(user_review)) {
             throw new Error('Invalid status');
         }
-        return this.request(`/assets/${asset_uuid}/auto_annotations/${auto_annotate}/user_review/${user_review}`, {
+        const thresholdQuery = approved_threshold ? `?approved_threshold=${approved_threshold}` : '';
+        return this.request(`/assets/${asset_uuid}/auto_annotations/${auto_annotate}/user_review/${user_review}${thresholdQuery}`, {
             method: 'PATCH'
         });
     }

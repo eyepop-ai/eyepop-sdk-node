@@ -81,6 +81,7 @@ export interface AutoAnnotateParams {
 export interface Annotation {
     type: AnnotationType
     user_review: UserReview
+    approved_threshold?: number
     auto_annotate?: string
     auto_annotate_params?: AutoAnnotateParams
     uncertainty_score?: number
