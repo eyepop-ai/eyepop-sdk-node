@@ -220,10 +220,6 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
             return Promise.reject("endpoint not connected")
         }
 
-        if (!disableAuth && this.options().useCookie) {
-            disableAuth = true
-        }
-
         let response = await this.fetchWithRetry(async () => {
             const session = await this.session()
             const headers = {
