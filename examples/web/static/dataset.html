@@ -39,20 +39,17 @@
         </div>
     </div>
     <script>
-        //const apiKey = "AAE_w6lCcrCa27chNAbZO-WdZ0FBQUFBQmwyUFk5bmtLZnJBQ2RFVWVDbzU1MnkwTUMzYXhQWjA4a0ZEczFKWWdONjdRS0NGWUZ5aF90aXVQZ3FrcWdkZWwwUEx6Q0luM0F3b3ItMjdqRmhUQkxyTWVvSndFLWRCUENjZGNlanZhbGhRTDdtV289"
-        const apiKey = 'AAGcsWj8N2PlKQl9c9ydz3QFZ0FBQUFBQm1mZDB5eDUwalNlYi12NWotd3hsVGJiMW1sVXF1dE9aOU9oSGVBOWtBQXoxZmNjUE5Nb1YzY3RROUdzbVUwUkZtcDhZcG5vSWROTzR1TU8ybGhZckx6RTgzYVZwMjZEREZjalZubnpYaUNMWVdBODg9';
-        const auth = apiKey ? { 
-            secretKey: apiKey 
-        } : { oAuth2: true };
-       
-        const account_uuid = "49326f2e085a46c39ba73f91c52e436c";
-        //const account_uuid = "034cb8e37f5444e98a78f1be65fd0bff";
-        
-
-
+        const auth = { oAuth2: true };
+        const queryString = window.location.search;
+        const urlParams = new URLSearchParams(queryString);
+        const account_uuid = urlParams.get('accountUuid');
+        const eyepopUrl = urlParams.get('eyepopUrl') || undefined;
         var currDataset = null;
         var endpoint = null;
 
+        if (!account_uuid) {
+          alert("missing query param accountUuid")
+        }
         async function SubscriberDataset(data) {
             console.log("SubscriberDataset", data);
 
@@ -79,11 +76,7 @@
                 auth: auth,
                 accountId: account_uuid,
                 eyepopUrl: 'https://staging-api.eyepop.ai',
-                eyepopDataUrl: 'https://data.api.eyepop.xyz'
             }).connect();
-
-            // Test healthz function
-            //endpoint.healthz();
 
             listDatasets(endpoint);
             listModels(endpoint);
@@ -97,14 +90,11 @@
                 //create a new dataset
                 const datasetCreateData = {
                     // dataset create data
-                    "name": "Andy Dataset",
-                    "description": "test dataset from Andy",
+                    "name": "Test Dataset",
+                    "description": "",
                     "tags": [
-                        "test1"
                     ],
                     "auto_annotates": [
-                        "ep_coco", 
-                        "ep_rapid_medical"
                     ]
                 };
                 endpoint.createDataset(account_uuid, datasetCreateData)

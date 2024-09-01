@@ -122,6 +122,22 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
             await this.reconnect_ws()
         }
 
+        if (this.options().useCookie) {
+            const client = this._client
+            const url = urljoin(this._baseUrl, 'security', 'check?set_cookie=true')
+            const headers = {
+                'Authorization': await this.authorizationHeader()
+            }
+            response = await client.fetch(url, {
+                headers: headers
+            })
+            if (response.status != 204) {
+                this.updateState(EndpointState.Error)
+                const message = await response.text()
+                return Promise.reject(`Unexpected status ${response.status}: ${message}`)
+            }
+        }
+
         this.updateState()
         return Promise.resolve(this)
     }
@@ -204,10 +220,16 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
             return Promise.reject("endpoint not connected")
         }
 
+        if (!disableAuth && this.options().useCookie) {
+            disableAuth = true
+        }
+
         let response = await this.fetchWithRetry(async () => {
             const session = await this.session()
             const headers = {
-                'Content-Type': 'application/json', ...(disableAuth ? {} : {'Authorization': `Bearer ${session.accessToken}`}), ...(options.headers || {}),
+                'Content-Type': 'application/json',
+                ...(disableAuth ? {} : {'Authorization': `Bearer ${session.accessToken}`}),
+                ...(options.headers || {}),
             };
 
             if (!options.body) {
