@@ -7,4 +7,5 @@ export interface DataOptions extends Options {
      */
     accountId?: string | undefined
     disableWs?: boolean | undefined
+    useCookie?: boolean | undefined
 }
