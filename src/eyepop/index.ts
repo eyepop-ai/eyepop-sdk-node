@@ -165,7 +165,7 @@ export namespace EyePop {
                             domain: "dev-eyepop.us.auth0.com",
                             clientId: "jktx3YO2UnbkNPvr05PQWf26t1kNTJyg",
                             audience: "https://dev-app.eyepop.ai",
-                            scope: "admin:clouds"
+                            scope: "admin:clouds access:inference-api access:datasets"
                         }
                     }
                 } else {
@@ -174,7 +174,7 @@ export namespace EyePop {
                             domain: "eyepop.us.auth0.com",
                             clientId: "Lb9ubA9Hf3jlaqWLUx8XgA0zvotgViCl",
                             audience: "https://api.eyepop.ai",
-                            scope: "admin:clouds"
+                            scope: "admin:clouds access:inference-api access:datasets"
                         }
                     }
                 }
