@@ -19,6 +19,9 @@
                     <h1>Model Test</h1>
                     <p>Image URL: <span id="image"></span></p>
                     <p>Model UUID: <span id="model"></span></p>
+                    <div class="progress mt-4">
+                        <div id="progressThreshold" class="progress-bar" role="progressbar" style="width: 30%;" aria-valuenow="30" aria-valuemin="0" aria-valuemax="100">Threshold: 30%</div>
+                    </div>
                 </div>
             </div>
             <div class="row" style="width: 100%">            
@@ -37,23 +40,23 @@
         const apiKey = 'AAGcsWj8N2PlKQl9c9ydz3QFZ0FBQUFBQm1mZDB5eDUwalNlYi12NWotd3hsVGJiMW1sVXF1dE9aOU9oSGVBOWtBQXoxZmNjUE5Nb1YzY3RROUdzbVUwUkZtcDhZcG5vSWROTzR1TU8ybGhZckx6RTgzYVZwMjZEREZjalZubnpYaUNMWVdBODg9';
         const auth = apiKey ? { secretKey: apiKey } : { oAuth2: true };
         const urlParams = new URLSearchParams(window.location.search);
-        const image_url = urlParams.get('image_url') || "https://media.istockphoto.com/id/159406920/photo/aerial-view-of-cars-in-traffic.jpg?s=612x612&w=0&k=20&c=2BeXnk1EppE_mfWgYFqoXidmge0uAhSk9gl8bbtHyF8=";
+        const image_url = urlParams.get('image_url') || 
+        'https://cdn.mos.cms.futurecdn.net/BifufTaqNT6mAyUuGWqADd-1200-80.jpg.webp'
+        //"https://media.istockphoto.com/id/159406920/photo/aerial-view-of-cars-in-traffic.jpg?s=612x612&w=0&k=20&c=2BeXnk1EppE_mfWgYFqoXidmge0uAhSk9gl8bbtHyF8=";
         //"https://i0.wp.com/mountainverdict.com/wp-content/uploads/2022/07/taxis-scaled.jpg";
         //"https://media.wired.com/photos/593256b42a990b06268a9e21/master/w_2240,c_limit/traffic-jam-getty.jpg";
 
-        const model_uuid = urlParams.get('model_uuid') || '';
+        const model_uuid = urlParams.get('model_uuid') || "066d23bad1aa7e09800050dac5f2d54c";
        
         document.getElementById('image').innerHTML = image_url;
         document.getElementById('model').innerHTML = model_uuid;
 
         const pop_definition = {
-            "components": [{
+            components: [{
                 "type":"inference",
                 "inferenceTypes": ["object_detection"],
-                "categoryName": "preview",
-                "confidenceThreshold": 0.2,
-                "targetFps": "1/1",
-                "modelUuid": model_uuid
+                confidenceThreshold: 0.3,
+                modelUuid: '066d23bad1aa7e09800050dac5f2d54c'
             }]
         }
 
@@ -87,11 +90,19 @@
                     const aspectRatio = img.width / img.height;
                     const canvasWidth = canvas.width;
                     const canvasHeight = canvasWidth / aspectRatio;
+
+                    canvas.width = canvasWidth;
+                    canvas.height = canvasHeight;
+
                     ctx.drawImage(img, 0, 0, canvasWidth, canvasHeight);
                     const renderer = Render2d.renderer(ctx);
                 
                     for await (let result of results) {
                         console.log("Drawing result", result);
+
+                        const filteredObjects = result.objects.filter(obj => obj.confidence > 0.9);
+
+                        result.objects = filteredObjects;
                         renderer.draw(result);
                     }
                 
