@@ -47,7 +47,9 @@ export {
     DatasetVersion,
     UserReview,
     TranscodeMode,
-    AutoAnnotateParams
+    AutoAnnotateParams,
+    ModelTrainingStage,
+    ModelTrainingProgress
 } from "./data/data_types";
 
 export {

@@ -14,7 +14,7 @@ import {
     DatasetCreate,
     DatasetUpdate,
     Model,
-    ModelCreate,
+    ModelCreate, ModelTrainingProgress,
     ModelUpdate,
     OnChangeEvent,
     TranscodeMode,
@@ -404,6 +404,12 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
 
     async getModel(model_uuid: string): Promise<Model> {
         return this.request(`/models/${model_uuid}`, {
+            method: 'GET'
+        });
+    }
+
+    async getModelTrainingProgress(model_uuid: string): Promise<ModelTrainingProgress> {
+        return this.request(`/models/${model_uuid}/progress`, {
             method: 'GET'
         });
     }
