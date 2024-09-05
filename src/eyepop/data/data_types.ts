@@ -150,6 +150,25 @@ export interface ModelUpdate {
     description?: string
 }
 
+export enum ModelTrainingStage {
+    waiting = "waiting",
+    scheduling = "scheduling",
+    preparing = "preparing",
+    training = "training",
+    exporting = "exporting"
+}
+
+export interface ModelTrainingProgress {
+    stage: ModelTrainingStage
+    queue_length?: number
+    started_at: Date
+    finished_at?: Date
+    best_cpr?: number[][3]
+    sample_asset_uuids?: string[]
+    remaining_seconds_min?: number
+    remaining_seconds_max?: number
+}
+
 export enum ChangeType {
     dataset_added = "dataset_added",
     dataset_removed = "dataset_removed",
