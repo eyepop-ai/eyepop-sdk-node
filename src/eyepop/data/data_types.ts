@@ -126,12 +126,17 @@ export enum ModelStatus {
     published = "published"
 }
 
+export interface ModelMetrics {
+    cpr?: number[][3]
+}
+
 export interface Model {
     uuid: string
     name: string
     description?: string
     type: ModelType
     status: ModelStatus
+    metrics?: ModelMetrics
     account_uuid: string
     created_at: Date
     updated_at: Date
@@ -158,13 +163,18 @@ export enum ModelTrainingStage {
     exporting = "exporting"
 }
 
+export interface ModelSample {
+    asset_uuid: string
+    prediction: Prediction
+}
+
 export interface ModelTrainingProgress {
     stage: ModelTrainingStage
     queue_length?: number
     started_at: Date
     finished_at?: Date
-    best_cpr?: number[][3]
-    sample_asset_uuids?: string[]
+    metrics?: ModelMetrics
+    samples?: ModelSample[]
     remaining_seconds_min?: number
     remaining_seconds_max?: number
 }
@@ -181,7 +191,8 @@ export enum ChangeType {
     model_added = "model_added",
     model_removed = "model_removed",
     model_modified = "model_modified",
-    model_status_modified = "model_status_modified"
+    model_status_modified = "model_status_modified",
+    model_progress = "model_progress"
 }
 
 export interface ChangeEvent {
