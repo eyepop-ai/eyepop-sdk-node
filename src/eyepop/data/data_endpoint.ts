@@ -507,6 +507,7 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
             case ChangeType.model_modified:
             case ChangeType.model_removed:
             case ChangeType.model_status_modified:
+            case ChangeType.model_progress:
                 const event_handlers = this._dataset_uuid_to_event_handlers.get(change_event.dataset_uuid)
                 this._logger.debug("dispatchChangeEvent event_handlers=%s", event_handlers)
                 if (event_handlers !== undefined) {

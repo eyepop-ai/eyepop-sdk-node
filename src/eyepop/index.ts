@@ -6,7 +6,7 @@ import {DataEndpoint} from "./data/data_endpoint"
 import {WorkerOptions} from "./worker/worker_options"
 import {DataOptions} from "./data/data_options"
 import {WorkerSession} from "./worker/worker_types"
-import {DataSession} from "./data/data_types"
+import {DataSession, ModelSample} from "./data/data_types"
 
 export {WorkerEndpoint} from "./worker/worker_endpoint"
 export {DataEndpoint} from "./data/data_endpoint"
@@ -49,7 +49,9 @@ export {
     TranscodeMode,
     AutoAnnotateParams,
     ModelTrainingStage,
-    ModelTrainingProgress
+    ModelTrainingProgress,
+    ModelMetrics,
+    ModelSample
 } from "./data/data_types";
 
 export {
