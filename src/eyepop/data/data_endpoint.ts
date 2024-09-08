@@ -363,6 +363,14 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         });
     }
 
+    async deleteAssetGroundTruth(asset_uuid: string, dataset_uuid?: string, dataset_version?: number): Promise<void> {
+        const versionQuery = dataset_version ? `&dataset_version=${dataset_version}` : '';
+        const datasetQuery = dataset_uuid ? `&dataset_uuid=${dataset_uuid}` : '';
+        return this.request(`/assets/${asset_uuid}/ground_truth?${datasetQuery}${versionQuery}`, {
+            method: 'DELETE'
+        });
+    }
+
     async updateAutoAnnotationStatus(asset_uuid: string, auto_annotate: string, user_review: UserReview, approved_threshold?: number): Promise<void> {
         const validStatuses = ['approved', 'rejected', 'unknown'];
         if (!validStatuses.includes(user_review)) {
