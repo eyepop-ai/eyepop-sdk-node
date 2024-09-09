@@ -51,7 +51,8 @@ export {
     ModelTrainingStage,
     ModelTrainingProgress,
     ModelMetrics,
-    ModelSample
+    ModelSample,
+    AssetImport
 } from "./data/data_types";
 
 export {

@@ -51,6 +51,11 @@ export interface DatasetUpdate {
     auto_annotate_params?: AutoAnnotateParams
 }
 
+export interface AssetImport {
+    url: string
+    ground_truth?: Prediction
+}
+
 export enum AssetStatus {
     rejected = "rejected",
     upload_in_progress = "upload_in_progress",
@@ -136,6 +141,7 @@ export interface Model {
     description?: string
     type: ModelType
     status: ModelStatus
+    status_message?: string
     metrics?: ModelMetrics
     account_uuid: string
     created_at: Date
@@ -146,13 +152,12 @@ export interface Model {
 
 export interface ModelCreate {
     name: string
-    description?: string
-    type: ModelType
+    description: string
 }
 
 export interface ModelUpdate {
     name: string
-    description?: string
+    description: string
 }
 
 export enum ModelTrainingStage {

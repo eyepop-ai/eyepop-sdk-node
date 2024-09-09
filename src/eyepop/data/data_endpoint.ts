@@ -6,7 +6,7 @@ import urljoin from "url-join"
 import {DataOptions} from "./data_options"
 import {
     Annotation,
-    Asset, AutoAnnotateParams,
+    Asset, AssetImport, AutoAnnotateParams,
     ChangeEvent,
     ChangeType,
     DataSession,
@@ -319,6 +319,24 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         return this.request(post_path, {
             method: 'POST', body: blob, headers: {
                 'Content-Type': blob.type || 'application/octet-stream'
+            }
+        });
+    }
+
+    async importAsset(dataset_uuid: string, dataset_version: number | undefined, asset_import: AssetImport, external_id: string | undefined = undefined): Promise<Asset> {
+        const versionQuery = dataset_version ? `&dataset_version=${dataset_version}` : ''
+        let post_path: string
+        if (external_id) {
+            post_path = `/assets/imports?dataset_uuid=${dataset_uuid}${versionQuery}&external_id=${external_id}`
+        } else {
+            post_path = `/assets/imports?dataset_uuid=${dataset_uuid}${versionQuery}`
+        }
+
+        return this.request(post_path, {
+            method: 'POST',
+            body: JSON.stringify(asset_import),
+            headers: {
+                'Content-Type': 'application/json'
             }
         });
     }
