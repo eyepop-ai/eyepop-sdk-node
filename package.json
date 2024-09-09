@@ -38,5 +38,6 @@
     "webpack-cli": "^5.1.4"
   },
   "dependencies": {
+    "pino-pretty": "^11.2.2"
   }
 }
