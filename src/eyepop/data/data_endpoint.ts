@@ -11,7 +11,7 @@ import {
     ChangeType,
     DataSession,
     Dataset,
-    DatasetCreate,
+    DatasetCreate, DatasetHeroAssetUpdate,
     DatasetUpdate,
     Model,
     ModelCreate, ModelTrainingProgress,
@@ -263,8 +263,11 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         return response.json();
     }
 
-    async listDatasets(include_hero_asset: boolean = false): Promise<Dataset[]> {
-        return this.request(`/datasets?account_uuid=${this._accountId}&include_hero_asset=${include_hero_asset}`, {
+    async listDatasets(
+        /** @deprecated */ include_hero_asset: boolean = false,
+        include_stats: boolean = true
+    ): Promise<Dataset[]> {
+        return this.request(`/datasets?account_uuid=${this._accountId}&include_stats=${include_stats}`, {
             method: 'GET'
         });
     }
@@ -275,8 +278,12 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         });
     }
 
-    async getDataset(dataset_uuid: string, include_hero_asset: boolean = false): Promise<Dataset> {
-        return this.request(`/datasets/${dataset_uuid}?include_hero_asset=${include_hero_asset}`, {
+    async getDataset(
+        dataset_uuid: string,
+        /** @deprecated */ include_hero_asset: boolean = false,
+        include_stats: boolean = true
+    ): Promise<Dataset> {
+        return this.request(`/datasets/${dataset_uuid}?include_stats=${include_stats}`, {
             method: 'GET'
         });
     }
@@ -284,6 +291,12 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
     async updateDataset(dataset_uuid: string, data: DatasetUpdate): Promise<Dataset> {
         return this.request(`/datasets/${dataset_uuid}`, {
             method: 'PATCH', body: JSON.stringify(data),
+        });
+    }
+
+    async updateDatasetHeroAsset(dataset_uuid: string, update: DatasetHeroAssetUpdate): Promise<Dataset> {
+        return this.request(`/datasets/${dataset_uuid}/hero_asset`, {
+            method: 'PATCH', body: JSON.stringify(update),
         });
     }
 

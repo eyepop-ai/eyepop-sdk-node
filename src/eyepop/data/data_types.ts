@@ -51,6 +51,10 @@ export interface DatasetUpdate {
     auto_annotate_params?: AutoAnnotateParams
 }
 
+export interface DatasetHeroAssetUpdate {
+    uuid: string
+}
+
 export interface AssetImport {
     url: string
     ground_truth?: Prediction

@@ -132,8 +132,12 @@ export class UploadJob extends AbstractJob {
             }
 
             response = await this._client.fetch(postUrl, {
-                headers: headers, method: 'POST', body: formData, signal: this._controller.signal, // @ts-ignore
-                'duplex': 'half', dispatcher: this._dispatcher
+                headers: headers,
+                method: 'POST',
+                body: formData,
+                signal: this._controller.signal,
+                // @ts-ignore
+                duplex: 'half'
             })
             this._requestLogger.debug("after POST %s with multipart body because of params")
         } else {
@@ -144,8 +148,12 @@ export class UploadJob extends AbstractJob {
                 'Content-Type': this._mimeType
             }
             response = await this._client.fetch(postUrl, {
-                headers: headers, method: 'POST', body: this._uploadStream, signal: this._controller.signal, // @ts-ignore
-                'duplex': 'half', dispatcher: this._dispatcher
+                headers: headers,
+                method: 'POST',
+                body: this._uploadStream,
+                signal: this._controller.signal,
+                // @ts-ignore
+                duplex: 'half'
             })
             this._requestLogger.debug("after POST %s with stream as body")
         }
@@ -188,8 +196,7 @@ export class LoadFromJob extends AbstractJob {
             headers: headers,
             method: 'PATCH',
             body: JSON.stringify(body),
-            signal: this._controller.signal, // @ts-ignore
-            dispatcher: this._dispatcher
+            signal: this._controller.signal
         })
         this._requestLogger.debug("after PATCH %s with url %s as source", patchUrl, this._location)
         return response
@@ -231,8 +238,7 @@ export class LoadLiveIngressJob extends AbstractJob {
             headers: headers,
             method: 'PATCH',
             body: JSON.stringify(body),
-            signal: this._controller.signal, // @ts-ignore
-            dispatcher: this._dispatcher
+            signal: this._controller.signal
         })
         this._requestLogger.debug("after PATCH %s with url %s as source", patchUrl, this._ingressId)
         return response
