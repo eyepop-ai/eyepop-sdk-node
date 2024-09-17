@@ -44,6 +44,7 @@ export {
     DatasetCreate,
     Dataset,
     DatasetUpdate,
+    DatasetHeroAssetUpdate,
     DatasetVersion,
     UserReview,
     TranscodeMode,

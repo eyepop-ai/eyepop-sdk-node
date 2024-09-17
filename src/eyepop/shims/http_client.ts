@@ -46,7 +46,7 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
         const undici = require('undici')
         const agent = new undici.Agent({
             keepAliveTimeout: 10000,
-            connections: 5
+            connections: 5, 
         })
         return new HttpClient(agent)
     }
