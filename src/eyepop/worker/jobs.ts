@@ -99,6 +99,7 @@ export class AbstractJob implements ResultStream {
 export class UploadJob extends AbstractJob {
     private readonly _uploadStream: Blob
     private readonly  _mimeType: string
+    private readonly _needsFullDuplex: boolean
 
     get [Symbol.toStringTag](): string {
         return 'uploadJob'
@@ -109,6 +110,7 @@ export class UploadJob extends AbstractJob {
         super(params, getSession, client, requestLogger)
         this._uploadStream = stream
         this._mimeType = mimeType
+        this._needsFullDuplex = mimeType.startsWith("video/")
     }
 
     protected override async startJob(): Promise<Response> {
