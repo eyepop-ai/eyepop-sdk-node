@@ -165,7 +165,7 @@ export namespace EyePop {
 
         if ((typeof (opts.auth as OAuth2Auth).oAuth2 != "undefined")) {
             if (typeof (opts.auth as OAuth2Auth).oAuth2 === "boolean") {
-                if (opts.eyepopUrl.startsWith('https://staging-api.eyepop.ai')) {
+                if (opts.eyepopUrl.startsWith('https://web-api.staging.eyepop.xyz')) {
                     opts.auth = {
                         oAuth2: {
                             domain: "dev-eyepop.us.auth0.com",
