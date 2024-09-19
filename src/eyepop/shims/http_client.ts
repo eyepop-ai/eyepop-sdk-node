@@ -46,7 +46,9 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
         const undici = require('undici')
         const agent = new undici.Agent({
             keepAliveTimeout: 10000,
-            connections: 5, 
+            connections: 5,
+            // two parallel streaming requests to the same host seem to deadlock with pipelining > 0
+            pipelining: 0
         })
         return new HttpClient(agent)
     }
