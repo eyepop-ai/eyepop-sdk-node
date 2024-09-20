@@ -1,10 +1,11 @@
 import {EyePop} from '../../src/eyepop'
 
 async function load_video_from_url(video_url: string, seconds: number) {
-    const endpoint = await EyePop.endpoint().connect()
+    const endpoint = await EyePop.workerEndpoint().connect()
     try {
         const results = await endpoint.process({url: video_url})
-        for await (let result of await results) {
+        for await (let result of results) {
+            // @ts-ignore
             if (result['seconds'] >= seconds) {
                 results.cancel()
             }

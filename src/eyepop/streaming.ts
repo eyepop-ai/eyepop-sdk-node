@@ -1,5 +1,11 @@
 type Bytes = string | ArrayBuffer | Uint8Array | Buffer | null | undefined;
 
+export interface StreamEvent {
+  type: string
+  source_id?: string
+  message?: string
+}
+
 export class Stream<Prediction> implements AsyncIterable<Prediction> {
   controller: AbortController;
 
@@ -10,7 +16,11 @@ export class Stream<Prediction> implements AsyncIterable<Prediction> {
     this.controller = controller;
   }
 
-  static iterFromReadableStream<Prediction>(readableStream: Promise<ReadableStream<Uint8Array>>, controller: AbortController): AsyncIterator<Prediction, any, undefined> {
+  static iterFromReadableStream<Prediction>(
+      readableStream: Promise<ReadableStream<Uint8Array>>,
+      controller: AbortController,
+      eventHandler: (event: StreamEvent) => Promise<void>
+  ): AsyncIterator<Prediction, any, undefined> {
     let consumed = false;
 
     async function* iterLines(): AsyncGenerator<string, void, unknown> {
@@ -36,7 +46,17 @@ export class Stream<Prediction> implements AsyncIterable<Prediction> {
       try {
         for await (const line of iterLines()) {
           if (done) continue;
-          if (line) yield JSON.parse(line);
+          if (line) {
+            const message = JSON.parse(line);
+            const event = message['event']
+            if (event !== undefined) {
+              eventHandler(event).then(() => {
+                // console.log("event handler done")
+              })
+            } else {
+              yield message
+            }
+          }
         }
         done = true;
       } catch (e) {

@@ -32,17 +32,9 @@ export interface OAuth2Auth {
 
 export type Authentication = undefined | SecretKeyAuth | SessionAuth | OAuth2Auth
 
-export enum TransientPopId {
-  Transient = 'transient'
-}
 export interface Options {
 
   auth?: Authentication | undefined;
-
-  /**
-   * Defaults to process.env['EYEPOP_POP_ID'].
-   */
-  popId?: string | TransientPopId | undefined;
 
   /**
    * Override the default base URL for the API, e.g., "https://api.eyepop.ai/"
@@ -51,9 +43,8 @@ export interface Options {
    */
   eyepopUrl?: string;
 
-  autoStart?: boolean;
-  stopJobs?: boolean;
   jobQueueLength?: number;
 
   logger?: Logger | undefined;
 }
+

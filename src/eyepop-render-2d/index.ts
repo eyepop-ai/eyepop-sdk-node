@@ -66,4 +66,16 @@ export namespace Render2d
     }
 }
 
+export * from './render-blur';
+export * from './render-box';
+export * from './render-contour';
+export * from './render-face';
+export * from './render-hand';
+export * from './render-keypoints';
+export * from './render-mask';
+export * from './render-pose';
+export * from './render-text';
+export * from './render-trail';
+export * from './renderer-2d';
+export * from './render';
 export default Render2d

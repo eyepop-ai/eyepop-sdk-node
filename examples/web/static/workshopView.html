@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Workshop Preview</title>
+    <!-- <link rel="stylesheet" href="./css/workshop.css"> -->
+    <style>
+        body {
+            font-family: 'Poppins', Arial, sans-serif;
+            background-color: #F2F5FF;
+        }
+
+        h1 {
+            color: #007bff;
+            text-align: center;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-top: 20px;
+            background-color: white;
+            background: #fff;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        th,
+        td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #007bff;
+            color: white;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0069d9;
+        }
+    </style>
+    <script src="/src/eyepop/dist/eyepop.min.js"></script>
+    <script src="/src/eyepop-render-2d/dist/eyepop.render2d.min.js"></script>
+
+</head>
+
+<body>
+    <h1>EyePop.ai Workshop</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Model Name</th>
+                <th>Number of Images</th>
+                <th>Number of AutoLabels</th>
+                <th>Number of Images with Ground Truth</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody id="listDatasets">
+            
+        </tbody>
+    </table>
+    <script>
+        //const apiKey = "AAE_w6lCcrCa27chNAbZO-WdZ0FBQUFBQmwyUFk5bmtLZnJBQ2RFVWVDbzU1MnkwTUMzYXhQWjA4a0ZEczFKWWdONjdRS0NGWUZ5aF90aXVQZ3FrcWdkZWwwUEx6Q0luM0F3b3ItMjdqRmhUQkxyTWVvSndFLWRCUENjZGNlanZhbGhRTDdtV289"
+        const apiKey = 'AAGcsWj8N2PlKQl9c9ydz3QFZ0FBQUFBQm1mZDB5eDUwalNlYi12NWotd3hsVGJiMW1sVXF1dE9aOU9oSGVBOWtBQXoxZmNjUE5Nb1YzY3RROUdzbVUwUkZtcDhZcG5vSWROTzR1TU8ybGhZckx6RTgzYVZwMjZEREZjalZubnpYaUNMWVdBODg9';
+        const auth = apiKey ? {
+            secretKey: apiKey
+        } : { oAuth2: true };
+
+        const account_uuid = "49326f2e085a46c39ba73f91c52e436c";
+        //const account_uuid = "034cb8e37f5444e98a78f1be65fd0bff";
+
+        var currDataset = null;
+        var endpoint = null;
+
+        async function SubscriberDataset(data) {
+            console.log("SubscriberDataset", data);
+
+            if (currDataset) {
+                listAssets(endpoint, currDataset);
+            }
+        }
+
+        async function SubscriberAccount(data) {
+            console.log("SubscriberDataset", data);
+
+            listDatasets(endpoint);
+            listModels(endpoint);
+
+        }
+
+        async function setup() {
+
+            endpoint = await EyePop.dataEndpoint({
+                auth: auth,
+                accountId: account_uuid,
+                eyepopUrl: 'https://staging-api.eyepop.ai',
+                eyepopDataUrl: 'https://data.api.eyepop.xyz'
+            }).connect();
+
+            listDatasets(endpoint);
+
+            console.log("Subbing to account", account_uuid)
+            endpoint.addAccountEventHandler(SubscriberDataset);
+        }
+
+        var datasets = [];
+        function listDatasets(endpoint) {
+            // Test listDatasets function
+            //on page load load the datasets into the list
+            datasets = endpoint.listDatasets(true)
+                .then((res) => {
+                    //add rows to the table
+                    console.log("Datasets", res);
+                    var table = document.getElementById("listDatasets");
+
+                    //sort datasets by updated_at
+                    res.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+
+                    res.forEach((dataset) => {
+
+
+                        //find latest version in dataset by highest version number
+                        var latestVersion = dataset.versions.reduce((a, b) => a.version > b.version ? a : b);
+
+                        if (latestVersion?.asset_stats == null)
+                            return;
+
+                        var row = table.insertRow(-1);
+                        var cell1 = row.insertCell(0);
+                        var cell2 = row.insertCell(1);
+                        var cell3 = row.insertCell(2);
+                        var cell4 = row.insertCell(3);
+                        var cell5 = row.insertCell(4);
+
+                        dataset.numAssets = latestVersion.asset_stats.total;
+                        dataset.numAutoLabels = latestVersion.asset_stats.auto_annotated;
+                        dataset.numAssetsWithGroundTruth = latestVersion.asset_stats.auto_annotated_approved + latestVersion.asset_stats.ground_truth_annotated;
+
+                        //add a mini progressbar to the table for numautolabels/numAssets
+                        cell1.innerHTML += dataset.name;
+
+                        cell2.innerHTML += dataset.numAssets;
+
+                        var progress = document.createElement("progress");
+                        progress.max = dataset.numAssets;
+                        progress.value = dataset.numAutoLabels;
+                        cell3.appendChild(progress);
+                        cell3.innerHTML += "<br>"+dataset.numAutoLabels;
+
+                        var progress2 = document.createElement("progress");
+                        progress.max = dataset.numAssets;
+                        progress.value = dataset.numAssetsWithGroundTruth;
+                        cell4.appendChild(progress);
+                        cell4.innerHTML += "<br>"+dataset.numAssetsWithGroundTruth;
+
+                        cell5.innerHTML += "<button onclick='previewExperience(\"" + dataset.uuid + "\")'>Preview</button>";
+                    });
+                });
+        }
+
+        async function createFileFromLocalURL(fileURL) {
+            try {
+                // Fetch the file data
+                const response = await fetch(fileURL);
+                const blob = await response.blob();
+
+                // Extract the filename from the URL
+                const urlParts = fileURL.split('/');
+                const filename = urlParts[urlParts.length - 1];
+
+                // Create a File object
+                const file = new File([blob], filename, { type: blob.type });
+
+                return file;
+            } catch (error) {
+                console.error('Error creating file from local URL:', error);
+            }
+        }
+
+        function hasApproval(asset) {
+            let hasApproval = false;
+            asset.annotations.forEach((ann) => {
+                console.log("HAS APPROVAL ann", ann.type);
+                if ((ann.user_review === "approved") || (ann.type === "ground_truth")) {
+                    hasApproval = true;
+                }
+            });
+            return hasApproval;
+        }
+
+        setup();
+
+    </script>
+</body>
+
+</html>

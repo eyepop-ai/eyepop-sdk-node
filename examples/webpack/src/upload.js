@@ -14,7 +14,7 @@ const resultSpan = document.getElementById('txt_json');
 
 async function setup() {
     const session = await (await fetch("eyepop-session.json")).json()
-    endpoint = EyePop.endpoint({
+    endpoint = EyePop.workerEndpoint({
         auth: {session: session}
     })
     endpoint.onStateChanged((from, to) => {

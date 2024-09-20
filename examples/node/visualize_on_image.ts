@@ -1,5 +1,5 @@
-import {EyePop, EndpointState} from '../../src/eyepop'
-import {Render2d} from '../../src/eyepop-render-2d'
+import {EyePop, EndpointState} from '@eyepop.ai/eyepop'
+import {Render2d} from '@eyepop.ai/eyepop-render-2d'
 
 import {createCanvas, loadImage} from "canvas"
 import {open} from 'openurl'
@@ -19,14 +19,14 @@ const example_image_path = process.argv[2]
     const canvas = createCanvas(image.width, image.height)
     const context = canvas.getContext("2d")
 
-    const endpoint = await EyePop.endpoint({
+    const endpoint = await EyePop.workerEndpoint({
         logger: logger
     }).onStateChanged((fromState:EndpointState, toState:EndpointState) => {
         logger.info("Endpoint changed state %s -> %s", fromState, toState)
     }).connect()
     try {
         let results = await endpoint.process({path: example_image_path})
-        for await (let result of await results) {
+        for await (let result of results) {
             canvas.width = result.source_width
             canvas.height = result.source_height
             context.drawImage(image, 0, 0)
