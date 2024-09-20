@@ -71,6 +71,8 @@ export class RenderPose implements Render
             throw new Error('render() called before start()')
         }
 
+        const lineWidth = Math.max(width * 0.005, style.scale)
+
         for (var i = 0; i < connections.length; i++)
         {
             const connection = connections[ i ]
@@ -87,7 +89,7 @@ export class RenderPose implements Render
             const y2 = yOffset + point2.y * yScale
 
             context.beginPath()
-            context.lineWidth = style.scale * 3
+            context.lineWidth = lineWidth
             context.strokeStyle = style.colors.primary_color
             context.fillStyle = style.colors.primary_color
             context.moveTo(x1, y1)
