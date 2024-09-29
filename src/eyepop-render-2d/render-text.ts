@@ -49,23 +49,23 @@ export class RenderText implements Render
         const boundingBoxWidth = (w) - (padding * 2);
         const boundingBoxHeight = (h) - (padding * 2);
 
-        if (!element.labels) return
+        if (!element.texts) return
 
         let fontSize = this.getMinFontSize(context, element, boundingBoxWidth, boundingBoxHeight, style, this.fitToBounds)
         let label = ""
 
-        for (let i = 0; i < element.labels.length; i++)
+        for (let i = 0; i < element.texts.length; i++)
         {
-            label = element.labels[ i ]?.label
+            label = element.texts[ i ]?.text
             if (!label) continue
 
-            yOffset += this.drawLabel(label, context, element, yScale, xScale, yOffset - (padding), xOffset, style, boundingBoxWidth, padding, this.fitToBounds, fontSize)
+            yOffset += this.drawText(label, context, element, yScale, xScale, yOffset - (padding), xOffset, style, boundingBoxWidth, padding, this.fitToBounds, fontSize)
         }
 
     }
 
     // Draw a label on the canvas, scaling the font size to fit the bounding box
-    drawLabel(label: string, context: CanvasRenderingContext2D, element: any, yScale: number, xScale: number, yOffset: number, xOffset: number, style: Style, boundingBoxWidth: number, padding: number, scaleToBounds = false, fontSize?: number): number
+    drawText(text: string, context: CanvasRenderingContext2D, element: any, yScale: number, xScale: number, yOffset: number, xOffset: number, style: Style, boundingBoxWidth: number, padding: number, scaleToBounds = false, fontSize?: number): number
     {
         context.fillStyle = '#ffffff'
         context.textAlign = 'left'
@@ -75,7 +75,7 @@ export class RenderText implements Render
         context.font = style.font
 
         // Measure the text with the original font size
-        let textDetails = context.measureText(label)
+        let textDetails = context.measureText(text)
 
         // Calculate the scale factor
         let scaleFactor = boundingBoxWidth / textDetails.width
@@ -102,12 +102,12 @@ export class RenderText implements Render
         }
 
         // Measure the text again with the new font size
-        textDetails = context.measureText(label)
+        textDetails = context.measureText(text)
 
         let xPos = element.x * xScale + xOffset + 1.5 * padding
         let yPos = element.y * yScale + yOffset + 1.5 * padding
 
-        context.fillText(label, xPos, yPos)
+        context.fillText(text, xPos, yPos)
         const boxSize = padding + textDetails.actualBoundingBoxAscent + textDetails.actualBoundingBoxDescent
         yPos += boxSize
         return padding + textDetails.actualBoundingBoxDescent
