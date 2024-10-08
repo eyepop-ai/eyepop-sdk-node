@@ -288,8 +288,8 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         });
     }
 
-    async updateDataset(dataset_uuid: string, data: DatasetUpdate): Promise<Dataset> {
-        return this.request(`/datasets/${dataset_uuid}`, {
+    async updateDataset(dataset_uuid: string, data: DatasetUpdate, start_auto_annotate: boolean = true): Promise<Dataset> {
+        return this.request(`/datasets/${dataset_uuid}?start_auto_annotate=${start_auto_annotate}`, {
             method: 'PATCH', body: JSON.stringify(data),
         });
     }
@@ -309,6 +309,21 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
     async freezeDatasetVersion(dataset_uuid: string, dataset_version?: number): Promise<Dataset> {
         const versionQuery = dataset_version ? `&dataset_version=${dataset_version}` : '';
         return this.request(`/datasets/${dataset_uuid}/freeze?${versionQuery}`, {
+            method: 'POST'
+        });
+    }
+
+    async analyzeDatasetVersion(dataset_uuid: string, dataset_version?: number): Promise<void> {
+        const versionQuery = dataset_version ? `&dataset_version=${dataset_version}` : '';
+        return this.request(`/datasets/${dataset_uuid}/analyze?${versionQuery}`, {
+            method: 'POST'
+        });
+    }
+
+    async autoAnnotateDatasetVersion(dataset_uuid: string, dataset_version?: number, max_assets?: number): Promise<void> {
+        const versionQuery = dataset_version ? `&dataset_version=${dataset_version}` : '';
+        const maxAssetsQuery = max_assets ? `&dataset_version=${max_assets}` : '';
+        return this.request(`/datasets/${dataset_uuid}/auto_annotate?${versionQuery}${maxAssetsQuery}`, {
             method: 'POST'
         });
     }
@@ -435,8 +450,8 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         });
     }
 
-    async createModel(dataset_uuid: string, dataset_version: number, data: ModelCreate): Promise<Model> {
-        return this.request(`/models?dataset_uuid=${dataset_uuid}&dataset_version=${dataset_version}`, {
+    async createModel(dataset_uuid: string, dataset_version: number, data: ModelCreate, start_training: boolean = true): Promise<Model> {
+        return this.request(`/models?dataset_uuid=${dataset_uuid}&dataset_version=${dataset_version}&start_training=${start_training}`, {
             method: 'POST', body: JSON.stringify(data),
         });
     }
@@ -462,6 +477,12 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
     async deleteModel(model_uuid: string): Promise<void> {
         return this.request(`/models/${model_uuid}`, {
             method: 'DELETE'
+        });
+    }
+
+    async trainModel(model_uuid: string): Promise<Model> {
+        return this.request(`/models/${model_uuid}/train`, {
+            method: 'POST'
         });
     }
 

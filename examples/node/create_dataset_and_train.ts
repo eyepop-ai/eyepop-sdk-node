@@ -8,16 +8,22 @@ import {
     Model,
     ModelCreate,
     ModelStatus,
-    Prediction
+    Prediction, UserReview
 } from '@eyepop.ai/eyepop'
 
 import {pino} from 'pino'
 
 import sampleAssets from "./sample_assets.json"
+import {AutoAnnotateParams} from "EyePop";
 
 const logger = pino({level: 'info', name: 'eyepop-example'})
 
 ;
+
+const auto_annotate: string = "grounding_dino_base";
+const auto_annotate_params: AutoAnnotateParams = {
+    candidate_labels: ["person", "car", "toy"]
+};
 
 (async () => {
     try {
@@ -26,25 +32,17 @@ const logger = pino({level: 'info', name: 'eyepop-example'})
         }).connect()
         try {
             const dataset = await create_sample_dataset(endpoint)
+            if (dataset.modifiable_version === undefined) {
+                throw Error("panic")
+            }
             try {
-                const training_promise = new Promise<void>((resolve, reject) => {
-                    logger.info("created dataset %s", JSON.stringify(dataset))
-                    endpoint.addDatasetEventHandler(dataset.uuid, async (event) => {
-                        if (event.change_type == ChangeType.asset_added) {
-                            logger.info("asset %s imported", event.asset_uuid)
-                        } else if (event.change_type == ChangeType.model_added) {
-                            logger.info("model %s created", event.mdl_uuid)
-                        } else if (event.change_type == ChangeType.model_status_modified) {
-                            await on_model_status_changed(endpoint, event.mdl_uuid as string, resolve, reject)
-                        } else if (event.change_type == ChangeType.model_progress) {
-                            await on_model_training_progress(endpoint, event.mdl_uuid as string)
-                        }
-                    })
-                })
-                const assets = await import_sample_assets(endpoint, dataset)
-                const model = await start_training(endpoint, dataset)
-                await training_promise
-                console.log("training succeeded for model %s with %d assets", model.uuid, assets.length)
+                logger.info("created dataset %s", JSON.stringify(dataset))
+                await import_sample_assets(endpoint, dataset)
+                await analyze_dataset(endpoint, dataset.uuid)
+                await auto_annotate_dataset(endpoint, dataset.uuid, auto_annotate, auto_annotate_params)
+                await approve_all(endpoint, dataset.uuid, dataset.modifiable_version, auto_annotate)
+                const model = await create_model(endpoint, dataset.uuid)
+                await train_model(endpoint, model)
             } finally {
                 endpoint.removeAllDatasetEventHandlers(dataset.uuid)
                 await endpoint.deleteDataset(dataset.uuid)
@@ -54,6 +52,7 @@ const logger = pino({level: 'info', name: 'eyepop-example'})
             await endpoint.disconnect()
         }
     } catch (e) {
+        console.error(e)
         logger.error(e)
     }
 })()
@@ -68,6 +67,7 @@ async function create_sample_dataset(endpoint: DataEndpoint): Promise<Dataset> {
 }
 
 async function import_sample_assets(endpoint: DataEndpoint, dataset: Dataset): Promise<Asset[]> {
+    logger.info("before importing %d assets to %s", sampleAssets.length, dataset.uuid)
     const assets = []
     for (let i = 0; i < sampleAssets.length; i++) {
         const assetImport: AssetImport = {
@@ -76,19 +76,99 @@ async function import_sample_assets(endpoint: DataEndpoint, dataset: Dataset): P
         }
         assets.push(await endpoint.importAsset(dataset.uuid, undefined, assetImport))
     }
+    logger.info("imported %d assets to %s", sampleAssets.length, dataset.uuid)
     return assets
 }
 
-async function start_training(endpoint: DataEndpoint, dataset: Dataset): Promise<Model> {
-    dataset = await endpoint.freezeDatasetVersion(dataset.uuid)
+async function analyze_dataset(endpoint: DataEndpoint, dataset_uuid: string) : Promise<void> {
+    const analysis_promise = new Promise<void>((resolve, reject) => {
+        endpoint.addDatasetEventHandler(dataset_uuid, async (event) => {
+            if (event.dataset_version && event.change_type == ChangeType.dataset_version_modified) {
+                try {
+                    const updated_dataset = await endpoint.getDataset(event.dataset_uuid)
+                    const updated_version = updated_dataset.versions.find(value => value.version == event.dataset_version)
+                    if (updated_version && !updated_version.analysis_started_at) {
+                        resolve()
+                    }
+                } catch (e) {
+                    reject(e)
+                }
+            }
+        })
+    })
+    logger.info("before analysis start for dataset %s", dataset_uuid)
+    await endpoint.analyzeDatasetVersion(dataset_uuid)
+    logger.info("analysis started for dataset %s", dataset_uuid)
+    await analysis_promise
+    logger.info("analysis succeeded for dataset %s", dataset_uuid)
+}
+
+async function auto_annotate_dataset(endpoint: DataEndpoint, dataset_uuid: string, auto_annotate: string, auto_annotate_params: AutoAnnotateParams) : Promise<void> {
+    logger.info("before auto annotate update dataset %s", dataset_uuid)
+    await endpoint.updateDataset(dataset_uuid, {
+        auto_annotates:[auto_annotate],
+        auto_annotate_params: auto_annotate_params
+    }, false)
+    logger.info("before auto annotate start for dataset %s", dataset_uuid)
+    const auto_annotate_promise = new Promise<void>((resolve, reject) => {
+        endpoint.addDatasetEventHandler(dataset_uuid, async (event) => {
+            if (event.dataset_version && event.change_type == ChangeType.dataset_version_modified) {
+                try {
+                    const updated_dataset = await endpoint.getDataset(event.dataset_uuid)
+                    const updated_version = updated_dataset.versions.find(value => value.version == event.dataset_version)
+                    if (updated_version && !updated_version.auto_annotate_started_at) {
+                        resolve()
+                    }
+                } catch (e) {
+                    reject(e)
+                }
+            }
+        })
+    })
+    await endpoint.autoAnnotateDatasetVersion(dataset_uuid)
+    logger.info("auto annotate started for dataset %s", dataset_uuid)
+    await auto_annotate_promise
+    logger.info("auto annotate succeeded for dataset %s", dataset_uuid)
+}
+
+async function approve_all(endpoint: DataEndpoint, dataset_uuid: string, dataset_version: number, auto_annotate: string): Promise<void> {
+    logger.info("before approving all for dataset %s", dataset_uuid)
+    const assets = await endpoint.listAssets(dataset_uuid, dataset_version, false)
+    for (let asset of assets) {
+        await endpoint.updateAutoAnnotationStatus(asset.uuid, auto_annotate, UserReview.approved)
+    }
+    logger.info("%d auto annotations approved for dataset %s", assets.length, dataset_uuid)
+}
+
+async function create_model(endpoint: DataEndpoint, dataset_uuid: string): Promise<Model> {
+    logger.info("before model creation for dataset: %s", dataset_uuid)
+    const dataset = await endpoint.freezeDatasetVersion(dataset_uuid)
     logger.info("dataset frozen: %s", JSON.stringify(dataset))
     const dataset_version = dataset.versions[1]
     const model_create: ModelCreate = {
         "name": "sample model",
         "description": ""
     }
-    const model = await endpoint.createModel(dataset.uuid, dataset_version.version, model_create)
+    const model = await endpoint.createModel(dataset.uuid, dataset_version.version, model_create, false)
     logger.info("model created: %s", JSON.stringify(model))
+    return model
+}
+
+async function train_model(endpoint: DataEndpoint, model: Model): Promise<Model> {
+    const training_promise = new Promise<void>((resolve, reject) => {
+        endpoint.addDatasetEventHandler(model.dataset_uuid, async (event) => {
+            if (event.change_type == ChangeType.model_status_modified) {
+                await on_model_status_changed(endpoint, event.mdl_uuid as string, resolve, reject)
+            } else if (event.change_type == ChangeType.model_progress) {
+                await on_model_training_progress(endpoint, event.mdl_uuid as string)
+            }
+        })
+    })
+    logger.info("before training start for model %s", model.uuid)
+    model = await endpoint.trainModel(model.uuid)
+    logger.info("training started for model %s", model.uuid)
+    await training_promise
+    logger.info("training succeeded for model %s", model.uuid)
     return model
 }
 
