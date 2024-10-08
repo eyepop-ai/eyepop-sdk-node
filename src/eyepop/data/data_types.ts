@@ -11,13 +11,15 @@ export interface DatasetVersionAssetStats {
     auto_annotated?: number
     auto_annotated_approved?: number
     ground_truth_annotated?: number
-
 }
+
 export interface DatasetVersion {
     version: number
     modifiable: boolean
     created_at: Date
     updated_at: Date
+    analysis_started_at?: Date
+    auto_annotate_started_at?: Date
     hero_asset_uuid?: string
     asset_stats?: DatasetVersionAssetStats
 }
@@ -32,6 +34,7 @@ export interface Dataset {
     account_uuid: string
     created_at: Date
     updated_at: Date
+    modifiable_version?: number
     versions: DatasetVersion[]
 }
 
@@ -44,7 +47,7 @@ export interface DatasetCreate {
 }
 
 export interface DatasetUpdate {
-    name: string
+    name?: string
     description?: string
     tags?: string[]
     auto_annotates?: string[]
@@ -143,6 +146,7 @@ export interface Model {
     uuid: string
     name: string
     description?: string
+    external_id?: string
     type: ModelType
     status: ModelStatus
     status_message?: string
@@ -157,11 +161,13 @@ export interface Model {
 export interface ModelCreate {
     name: string
     description: string
+    external_id?: string
 }
 
 export interface ModelUpdate {
     name: string
     description: string
+    external_id?: string
 }
 
 export enum ModelTrainingStage {
