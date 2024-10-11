@@ -137,3 +137,4 @@ coverage/
 .idea/
 
 examples/vite/public
+examples/web/static/env.js
