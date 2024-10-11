@@ -10,7 +10,8 @@
     <!--    <script src="https://cdn.jsdelivr.net/npm/@eyepop.ai/eyepop/dist/eyepop.min.js"></script>-->
     <script src="/src/eyepop/dist/eyepop.min.js"></script>
     <script src="/src/eyepop-render-2d/dist/eyepop.render2d.min.js"></script>
-    
+
+    <script src="env.js"></script> <!-- apiKey, defaultAccountUUID -->
 </head>
 
 <body>
@@ -19,10 +20,14 @@
             <div class="row" style="width: 100%">
                 <div class="col text-center" id="list-datasets">
                     <h1 class="display-4">List Datasets</h1>
+                    <select id="account-select">
+                       
+
+                    </select>
                     <button class="btn btn-primary" id="new-datasets-btn">+ Dataset</button><br /><br />
                     <div id="list-datasets-result"></div>
                 </div>
-            
+
                 <div class="col text-center" id="list-assets">
                     <h1 class="display-4">Asset Viewer</h1>
                     <h2 class="display-6" id="list-assets-model-info"></h2>
@@ -30,7 +35,7 @@
                 </div>
             </div>
             <div class="row" style="width: 100%">
-            
+
                 <div class="col text-center" id="list-models">
                     <h1 class="display-4">Model Viewer</h1>
                     <div id="list-models-result"></div>
@@ -38,17 +43,33 @@
             </div>
         </div>
     </div>
+
+    
     <script>
-        const auth = { oAuth2: true };
+        const auth = apiKey ? {
+            secretKey: apiKey
+        } : { oAuth2: true };
         const queryString = window.location.search;
         const urlParams = new URLSearchParams(queryString);
-        const account_uuid = urlParams.get('accountUuid');
+        let account_uuid = urlParams.get('accountUUID') || defaultAccountUUID;
+        let dataset_uuid = urlParams.get('datasetUUID') || null;
         const eyepopUrl = urlParams.get('eyepopUrl') || undefined;
         var currDataset = null;
         var endpoint = null;
 
+        if(defaultAccountOptions)
+        {
+            const accountSelect = document.getElementById('account-select');
+            defaultAccountOptions.forEach((account) => {
+                const option = document.createElement('option');
+                option.value = account.value;
+                option.text = account.label;
+                accountSelect.appendChild(option);
+            });
+        }
+
         if (!account_uuid) {
-          alert("missing query param accountUuid")
+            alert("missing query param accountUuid")
         }
         async function SubscriberDataset(data) {
             console.log("SubscriberDataset", data);
@@ -63,23 +84,39 @@
 
             listDatasets(endpoint);
             listModels(endpoint);
-            
+
         }
 
         async function setup() {
-            
-            // console.log("Setting up")
+
+            console.log("Setting up")
             // document.getElementById('list-assets').style.display = 'none';
             // return;
 
             endpoint = await EyePop.dataEndpoint({
                 auth: auth,
                 accountId: account_uuid,
-                eyepopUrl: 'https://staging-api.eyepop.ai',
+                eyepopUrl: 'https://web-api.staging.eyepop.xyz',
             }).connect();
 
-            listDatasets(endpoint);
-            listModels(endpoint);
+            if (!dataset_uuid) {
+                listDatasets(endpoint);
+                listModels(endpoint);
+            } else {
+                console.log("Subbing to dataset", dataset_uuid)
+                endpoint.addDatasetEventHandler(dataset_uuid, SubscriberDataset);
+
+                dataset = await endpoint.getDataset(dataset_uuid);
+
+                var listDatasetsResult = document.getElementById('list-datasets-result');
+                listDatasetsResult.innerHTML = '';
+                DrawDataset(dataset, listDatasetsResult);
+
+
+
+                listAssets(endpoint, dataset);
+            }
+
 
             console.log("Subbing to account", account_uuid)
             endpoint.addAccountEventHandler(SubscriberDataset);
@@ -106,8 +143,6 @@
                         currDataset = res;
                     });
             }
-
-
         }
 
         function listAssets(endpoint, dataset, version) {
@@ -118,6 +153,9 @@
             endpoint.listAssets(dataset.uuid, version, true)
                 .then((res) => {
                     console.log("TEST LIST ASSETS", res);
+
+                    //slice res to top 1000
+                    res = res.slice(0, 100);
 
                     //create a list of all manual annotations
                     //for each asset in the dataset
@@ -204,7 +242,7 @@
                                         ctx.drawImage(img, 0, 0);
 
                                         if (asset.annotations) {
-                                           
+
                                             const colors = [
                                                 "#FFB6C1", // Light Pink
                                                 "#FFE4B5", // Moccasin
@@ -216,40 +254,40 @@
                                                 "#40E0D0", // Turquoise
                                                 "#FFDEAD", // Navajo White
                                                 "#ADD8E6"  // Light Blue
-                                                ];
+                                            ];
 
-                                                const renderer = Render2d.renderer(
-                                                    ctx,
-                                                    [Render2d.renderBox({
-                                                        boxType: 'simple',
-                                                        showClass: false,
-                                                        showConfidence: false,
-                                                    })]);
+                                            const renderer = Render2d.renderer(
+                                                ctx,
+                                                [Render2d.renderBox({
+                                                    boxType: 'simple',
+                                                    showClass: false,
+                                                    showConfidence: false,
+                                                })]);
 
-                                            
 
-                                            if(hasApproval(asset)){
+
+                                            if (hasApproval(asset)) {
                                                 asset.annotations.forEach((ann) => {
-                                                    if(ann.type !== "ground_truth"){
+                                                    if (ann.type !== "ground_truth") {
                                                         return;
                                                     }
                                                     console.log("ann", ann.annotation);
-                                                    
-                                                    const color =colors[Math.floor(Math.random()*100) % colors.length];
-                                                    
+
+                                                    const color = colors[Math.floor(Math.random() * 100) % colors.length];
+
                                                     renderer.draw(ann.annotation, color);
                                                 });
                                             } else {
                                                 asset.annotations.forEach((ann) => {
                                                     console.log("ann", ann.annotation);
 
-                                                    const color =colors[Math.floor(Math.random()*100) % colors.length];
-                                                    
+                                                    const color = colors[Math.floor(Math.random() * 100) % colors.length];
+
                                                     renderer.draw(ann.annotation, color);
                                                 });
                                             }
 
-                                            
+
                                         }
 
                                     };
@@ -321,7 +359,7 @@
                                     option.text = ann.auto_annotate;
                                     select.appendChild(option);
                                 }
-                            }); 
+                            });
                             listAssetsResult.appendChild(select);
 
                             //add update asset manual annotation button to each asset
@@ -346,7 +384,7 @@
                                     return;
                                 }
 
-                                endpoint.updateAutoAnnotationStatus(asset.uuid, approve_type,'approved')
+                                endpoint.updateAutoAnnotationStatus(asset.uuid, approve_type, 'approved')
                                     .then((res) => {
                                         console.log("TEST UPDATE ASSET MANUAL ANNOTATION", res);
                                     });
@@ -362,12 +400,12 @@
                         addGroundTruth.onclick = function () {
 
                             endpoint.updateAssetGroundTruth(asset.uuid, dataset.uuid, dataset.version, {
-                                
+
                                 "objects": [
                                     {
                                         "x": 1213.3965684191355,
                                         "y": 293.57223231796166,
-                                       
+
                                         "width": 90.026213592233,
                                         "height": 95.11764705882354,
                                         "classLabel": "test",
@@ -393,10 +431,10 @@
                                 "source_width": 1951,
                                 "source_height": 1024
                             })
-        
-                               
-                            
-                            
+
+
+
+
                         }
                         listAssetsResult.appendChild(addGroundTruth);
                         listAssetsResult.appendChild(document.createElement('br'));
@@ -414,105 +452,17 @@
         function listDatasets(endpoint) {
             // Test listDatasets function
             //on page load load the datasets into the list
-            datasets=endpoint.listDatasets(true)
+            datasets = endpoint.listDatasets(true)
                 .then((res) => {
-                    console.log("TEST LIST DATASETS", res);
+                    console.log("TEST LIST DATASETS", res); 
+
+                    // reverse the datasets so the most recent is first
+                    res = res.reverse();
+
                     var listDatasetsResult = document.getElementById('list-datasets-result');
                     listDatasetsResult.innerHTML = '';
                     res.forEach((dataset) => {
-                        var datasetDiv = document.createElement('div');
-                        datasetDiv.innerHTML = "<span style='font-weight: bold; font-size: larger;'>" + dataset.name + "</span><br /> " + dataset.uuid;
-                        listDatasetsResult.appendChild(datasetDiv);
-                        //add delete button to each dataset
-                        var deleteButton = document.createElement('button');
-                        deleteButton.innerHTML = "Delete";
-                        deleteButton.onclick = function () {
-                            endpoint.deleteDataset(dataset.uuid)
-                                .then((res) => {
-                                    console.log("TEST DELETE DATASET", res);
-
-                                    listDatasets(endpoint);
-                                    currDataset = null;
-                                    //clear the assets list
-                                    var listAssetsResult = document.getElementById('list-assets-result');
-                                    listAssetsResult.innerHTML = '';
-
-                                });
-                        };
-                        listDatasetsResult.appendChild(deleteButton);
-
-                        //add upload button to each dataset
-                        var uploadButton = document.createElement('button');
-                        uploadButton.innerHTML = "Upload";
-                        uploadButton.onclick = function () {
-                            const version = dataset.versions.find(v => v.modifiable)?.version || null;
-
-                            const fileInput = document.createElement('input');
-                            fileInput.type = 'file';
-                            fileInput.accept = 'image/*';
-                            fileInput.multiple = true;
-                            fileInput.onchange = function (event) {
-                                const files = event.target.files;
-                                console.log("files", files);
-                                Array.from(files).forEach(file => {
-                                    endpoint.uploadAsset(dataset.uuid, version, file)
-                                        .then((res) => {
-                                            console.log("TEST UPLOAD ASSET", res);
-                                        });
-                                });
-                            };
-
-                            fileInput.click();
-                        };
-                        listDatasetsResult.appendChild(uploadButton);
-
-                        //add list assets button to each dataset
-                        var listAssetsButton = document.createElement('button');
-                        listAssetsButton.innerHTML = "List Assets";
-                        const version = dataset.versions.find(v => v.modifiable)?.version || null;
-
-                        listAssetsButton.onclick = function () {
-
-                            console.log("Subbing to dataset", dataset.uuid)
-                            endpoint.addDatasetEventHandler(dataset.uuid, SubscriberDataset);
-
-                            listAssets(endpoint, dataset, version)
-
-                        }
-                        listDatasetsResult.appendChild(listAssetsButton);
-
-                        //make a create model button
-                        var createModelButton = document.createElement('button');
-                        createModelButton.innerHTML = "Create Model";
-                        createModelButton.onclick = function () {
-                            endpoint.freezeDatasetVersion(dataset.uuid)
-                                .then((res) => {
-                                    console.log("TEST FREEZE DATASET", res);
-                                }).then(() => {
-                                    endpoint.createModel(dataset.uuid, 1, {
-                                        name: "Andy Model",
-                                        description: new Date().toString(),
-                                        type: "epdet_b1"
-                                    }).then((res) => {
-                                        console.log("TEST CREATE MODEL", res);
-                                    });
-                                });
-                        };
-                        listDatasetsResult.appendChild(createModelButton);
-
-
-                        //add get dataset button to each dataset
-                        var getDatasetButton = document.createElement('button');
-                        getDatasetButton.innerHTML = "Get Dataset";
-                        getDatasetButton.onclick = function () {
-                            endpoint.getDataset(dataset.uuid)
-                                .then((res) => {
-                                    console.log("TEST GET DATASET", res);
-                                });
-                        };
-
-                        listDatasetsResult.appendChild(document.createElement('br'));
-                        listDatasetsResult.appendChild(document.createElement('br'));
+                        DrawDataset(dataset, listDatasetsResult);
                     });
 
                     const dataset = res[0];
@@ -521,13 +471,138 @@
 
                     listAssets(endpoint, dataset, 1)
                 });
+        }
+
+        function DrawDataset(dataset, listDatasetsResult) {
+            console.log("DrawDataset", dataset);
+
+            var datasetDiv = document.createElement('div');
+            datasetDiv.innerHTML = "<span style='font-weight: bold; font-size: larger;'>" + dataset.name + "</span><br /> " + 
+                "<a href='https://staging.dashboard.eyepop.ai/wizardModel?step=autoLabel&accountUUID="+account_uuid+"&datasetUUID="+dataset.uuid+"' target='_blank'>" + dataset.uuid +"</a>";
+            listDatasetsResult.appendChild(datasetDiv);
+            //add delete button to each dataset
+            var deleteButton = document.createElement('button');
+            deleteButton.innerHTML = "Delete";
+            deleteButton.onclick = function () {
+                endpoint.deleteDataset(dataset.uuid)
+                    .then((res) => {
+                        console.log("TEST DELETE DATASET", res);
+
+                        listDatasets(endpoint);
+                        currDataset = null;
+                        //clear the assets list
+                        var listAssetsResult = document.getElementById('list-assets-result');
+                        listAssetsResult.innerHTML = '';
+
+                    });
+            };
+            listDatasetsResult.appendChild(deleteButton);
+
+            //add upload button to each dataset
+            var uploadButton = document.createElement('button');
+            uploadButton.innerHTML = "Upload";
+            uploadButton.onclick = function () {
+                const version = dataset.versions.find(v => v.modifiable)?.version || null;
+
+                const fileInput = document.createElement('input');
+                fileInput.type = 'file';
+                fileInput.accept = 'image/*';
+                fileInput.multiple = true;
+                fileInput.onchange = function (event) {
+                    const files = event.target.files;
+                    console.log("files", files);
+                    Array.from(files).forEach(file => {
+                        endpoint.uploadAsset(dataset.uuid, version, file)
+                            .then((res) => {
+                                console.log("TEST UPLOAD ASSET", res);
+                            });
+                    });
+                };
+
+                fileInput.click();
+            };
+            listDatasetsResult.appendChild(uploadButton);
+
+            //add list assets button to each dataset
+            var listAssetsButton = document.createElement('button');
+            listAssetsButton.innerHTML = "List Assets";
+            const version = dataset.versions.find(v => v.modifiable)?.version || null;
+
+            listAssetsButton.onclick = function () {
+
+                console.log("Subbing to dataset", dataset.uuid)
+                endpoint.addDatasetEventHandler(dataset.uuid, SubscriberDataset);
+
+                listAssets(endpoint, dataset, version)
+
+            }
+            listDatasetsResult.appendChild(listAssetsButton);
+
+            //make a create model button
+            var createModelButton = document.createElement('button');
+            createModelButton.innerHTML = "Create Model";
+            createModelButton.onclick = function () {
+                endpoint.freezeDatasetVersion(dataset.uuid)
+                    .then((res) => {
+                        console.log("TEST FREEZE DATASET", res);
+                    }).then(() => {
+                        endpoint.createModel(dataset.uuid, 1, {
+                            name: "Andy Model",
+                            description: new Date().toString(),
+                            type: "epdet_b1"
+                        }).then((res) => {
+                            console.log("TEST CREATE MODEL", res);
+                        });
+                    });
+            };
+            listDatasetsResult.appendChild(createModelButton);
 
 
-               
+            //add get dataset button to each dataset
+            var getDatasetButton = document.createElement('button');
+            getDatasetButton.innerHTML = "Get Dataset";
+            getDatasetButton.onclick = function () {
+                endpoint.getDataset(dataset.uuid)
+                    .then((res) => {
+                        console.log("TEST GET DATASET", res);
+                    });
+            };
+
+            listDatasetsResult.appendChild(getDatasetButton);
+
+            modifiableVersion = dataset.versions.find(v => v.modifiable);
+
+            if(dataset.versions[0].analysis_started_at)
+            {
+
+                //create div with timestamp
+                var timestampDiv = document.createElement('div');
+                timestampDiv.innerHTML = "Analysis Started At: " + dataset.versions[0].analysis_started_at;
+                listDatasetsResult.appendChild(timestampDiv);
+                
+
+            } else {
+
+                //add prioritize dataset button to each dataset
+                var prioritizeDatasetButton = document.createElement('button');
+                prioritizeDatasetButton.innerHTML = "Prioritize Dataset";
+                prioritizeDatasetButton.onclick = function () {
+                    endpoint.analyzeDatasetVersion(dataset.uuid)
+                        .then((res) => {
+                            console.log("TEST PRIORITIZE DATASET", res);
+                        });
+                };
+                listDatasetsResult.appendChild(prioritizeDatasetButton);
+
+            }
+
+            listDatasetsResult.appendChild(document.createElement('br'));
+            listDatasetsResult.appendChild(document.createElement('br'));
+
 
         }
 
-        
+
 
         async function createFileFromLocalURL(fileURL) {
             try {
@@ -554,7 +629,7 @@
                 console.log("HAS APPROVAL ann", ann.type);
                 if ((ann.user_review === "approved") || (ann.type === "ground_truth")) {
                     hasApproval = true;
-                } 
+                }
             });
             return hasApproval;
         }
@@ -610,16 +685,31 @@
                         listModelsResult.appendChild(publishModelButton);
                         listModelsResult.appendChild(document.createElement('br'));
                         listModelsResult.appendChild(document.createElement('br'));
-                        
 
 
 
+
+                    });
                 });
-        });
-    }
-    
+        }
 
-    setup();
+
+        setup();
+
+        document.getElementById('account-select').addEventListener('change', function () {
+            account_uuid = this.value;
+            console.log("account_uuid", account_uuid);
+            setup();
+        });
+
+        // endpoint.updateDataset(dataset_uuid,{
+        //     "auto_annotate_params": {
+        //         "candidate_labels": [
+        //             "Objects"
+        //         ],
+        //         "confidence_threshold": 0
+        //     }
+        // })
 
     </script>
 </body>
