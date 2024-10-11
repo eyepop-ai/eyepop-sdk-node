@@ -149,7 +149,7 @@
             currDataset = dataset;
 
             document.getElementById('list-assets-model-info').innerHTML = `<strong>${dataset.name}</strong><br>${dataset.uuid}`;
-
+            
             endpoint.listAssets(dataset.uuid, version, true)
                 .then((res) => {
                     console.log("TEST LIST ASSETS", res);
@@ -203,12 +203,17 @@
 
                     const version = dataset.versions.find(v => v.modifiable)?.version || null;
 
+                    //sort res by review_priority
+                    res.sort((a, b) => {
+                        return b.review_priority - a.review_priority;
+                        
+                    });
+
 
                     //for each asset in the dataset
                     res.forEach((asset) => {
                         var assetDiv = document.createElement('div');
-                        assetDiv.innerHTML = asset.uuid;
-
+                        assetDiv.innerHTML = asset.uuid + "<BR>Priority: "+asset?.review_priority;
 
                         listAssetsResult.appendChild(assetDiv);
                         // if (asset.status === AssetStatus.REJECTED || 
