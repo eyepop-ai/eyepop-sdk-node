@@ -5,65 +5,69 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
-    
+
     <title>Model Test</title>
     <script src="/src/eyepop/dist/eyepop.min.js"></script>
     <script src="/src/eyepop-render-2d/dist/eyepop.render2d.min.js"></script>
 
+    <script src="env.js"></script> <!-- apiKey, defaultAccountUUID -->
+
 </head>
+
 <body>
     <div class="jumbotron vertical-center">
         <div class="container-fluid mt-4">
             <div class="row" style="width: 100%">
                 <div class="col text-center">
                     <h1>Model Test</h1>
-                    <p>Image URL: <span id="image"></span></p>
-                    <p>Model UUID: <span id="model"></span></p>
-                    <div class="progress mt-4">
-                        <div id="progressThreshold" class="progress-bar" role="progressbar" style="width: 30%;" aria-valuenow="30" aria-valuemin="0" aria-valuemax="100">Threshold: 30%</div>
-                    </div>
+                    <p>Image URL: <input type="text" id="image"/></p>
+                    <p>Model UUID: <input type="text" id="model"/></p>
+                    <button class="btn btn-primary" onclick="submit()">Submit</button>
+                   
+                    <input type="range" min="0" max="1" step=".01" value=".1" class="slider" id="confidenceThreshold" onchange="updateConfidenceThreshold()">
+
                 </div>
             </div>
-            <div class="row" style="width: 100%">            
+            <div class="row" style="width: 100%">
                 <div class="col text-center">
                     <canvas id="canvas" width="800" height="600"></canvas>
                 </div>
                 <div>
-                    
+
                 </div>
             </div>
         </div>
-       
+
     </div>
 
     <script>
-        const apiKey = 'AAGcsWj8N2PlKQl9c9ydz3QFZ0FBQUFBQm1mZDB5eDUwalNlYi12NWotd3hsVGJiMW1sVXF1dE9aOU9oSGVBOWtBQXoxZmNjUE5Nb1YzY3RROUdzbVUwUkZtcDhZcG5vSWROTzR1TU8ybGhZckx6RTgzYVZwMjZEREZjalZubnpYaUNMWVdBODg9';
         const auth = apiKey ? { secretKey: apiKey } : { oAuth2: true };
         const urlParams = new URLSearchParams(window.location.search);
-        const image_url = urlParams.get('image_url') || 
-        'https://cdn.mos.cms.futurecdn.net/BifufTaqNT6mAyUuGWqADd-1200-80.jpg.webp'
+        const image_url = urlParams.get('image_url') ||
+            'https://cdn.mos.cms.futurecdn.net/BifufTaqNT6mAyUuGWqADd-1200-80.jpg.webp'
         //"https://media.istockphoto.com/id/159406920/photo/aerial-view-of-cars-in-traffic.jpg?s=612x612&w=0&k=20&c=2BeXnk1EppE_mfWgYFqoXidmge0uAhSk9gl8bbtHyF8=";
         //"https://i0.wp.com/mountainverdict.com/wp-content/uploads/2022/07/taxis-scaled.jpg";
         //"https://media.wired.com/photos/593256b42a990b06268a9e21/master/w_2240,c_limit/traffic-jam-getty.jpg";
 
+        let resultsBuffer = {objects: []};
         const model_uuid = urlParams.get('model_uuid') || "066d23bad1aa7e09800050dac5f2d54c";
-       
-        document.getElementById('image').innerHTML = image_url;
-        document.getElementById('model').innerHTML = model_uuid;
+
+        document.getElementById('image').value = image_url;
+        document.getElementById('model').value = model_uuid;
 
         const pop_definition = {
             components: [{
-                "type":"inference",
+                "type": "inference",
                 "inferenceTypes": ["object_detection"],
-                confidenceThreshold: 0.3,
-                modelUuid: '066d23bad1aa7e09800050dac5f2d54c'
+                confidenceThreshold: 0.1,
+                modelUuid: model_uuid
             }]
         }
 
         EyePop.endpoint({
             auth: auth,
             popId: "transient",
-            eyepopUrl: "https://staging-api.eyepop.ai"
+            eyepopUrl: 'https://web-api.staging.eyepop.xyz',
         }).connect().then((endpoint) => postConnect(endpoint))
 
         function postConnect(endpoint) {
@@ -77,39 +81,72 @@
             endpoint.process({
                 url: image_url
             }).then(async (results) => {
-                console.log("Results", results);
 
-                // Draw img to canvas
-                const canvas = document.getElementById('canvas');
-                const ctx = canvas.getContext('2d');
-                const img = new Image();
-                img.src = image_url;
+                resultsBuffer = {objects: []};
 
-                img.onload = async function () {
-                    
-                    const aspectRatio = img.width / img.height;
-                    const canvasWidth = canvas.width;
-                    const canvasHeight = canvasWidth / aspectRatio;
-
-                    canvas.width = canvasWidth;
-                    canvas.height = canvasHeight;
-
-                    ctx.drawImage(img, 0, 0, canvasWidth, canvasHeight);
-                    const renderer = Render2d.renderer(ctx);
-                
-                    for await (let result of results) {
-                        console.log("Drawing result", result);
-
-                        const filteredObjects = result.objects.filter(obj => obj.confidence > 0.9);
-
-                        result.objects = filteredObjects;
-                        renderer.draw(result);
-                    }
-                
+                for await (let result of results) {
+                    console.log("Result", result);
+                    resultsBuffer.objects.push(result);
                 }
+
+                resultsBuffer.source_width = results.source_width;
+                resultsBuffer.source_height = results.source_height;
+
+                drawResults(resultsBuffer);
+
             });
         }
 
+        function drawResults(results) {
+            console.log("Results", results);
+
+            // Draw img to canvas
+            const canvas = document.getElementById('canvas');
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+            img.src = image_url;
+
+            img.onload = async function () {
+
+                const aspectRatio = img.width / img.height;
+                const canvasWidth = canvas.width;
+                const canvasHeight = canvasWidth / aspectRatio;
+
+                canvas.width = canvasWidth;
+                canvas.height = canvasHeight;
+
+                ctx.drawImage(img, 0, 0, canvasWidth, canvasHeight);
+                const renderer = Render2d.renderer(ctx);
+
+                for (let result of results.objects) {
+                    console.log("Drawing result", result);
+
+                    const filteredObjects = result.objects.filter(obj => obj.confidence > document.getElementById('confidenceThreshold').value);
+
+
+                    const newResult = {objects: filteredObjects, source_width: result.source_width, source_height: result.source_height}
+                    console.log("New result", newResult);
+                    renderer.draw(newResult);
+                }
+
+            }
+        }
+
+        function updateConfidenceThreshold()
+        {
+            console.log("Confidence threshold changed", document.getElementById('confidenceThreshold').value);
+            drawResults(resultsBuffer);
+        }
+
+        function submit() {
+            const image_url = document.getElementById('image').value;
+            const model_uuid = document.getElementById('model').value;
+
+            const url = new URL(window.location.href);
+            url.searchParams.set('image_url', image_url);
+            url.searchParams.set('model_uuid', model_uuid);
+            window.location.href = url;
+        }
     </script>
 </body>
 
