@@ -322,7 +322,7 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
 
     async autoAnnotateDatasetVersion(dataset_uuid: string, dataset_version?: number, max_assets?: number): Promise<void> {
         const versionQuery = dataset_version ? `&dataset_version=${dataset_version}` : '';
-        const maxAssetsQuery = max_assets ? `&dataset_version=${max_assets}` : '';
+        const maxAssetsQuery = max_assets ? `&max_assets=${max_assets}` : '';
         return this.request(`/datasets/${dataset_uuid}/auto_annotate?${versionQuery}${maxAssetsQuery}`, {
             method: 'POST'
         });
