@@ -83,7 +83,8 @@ async function import_sample_assets(endpoint: DataEndpoint, dataset: Dataset): P
 async function analyze_dataset(endpoint: DataEndpoint, dataset_uuid: string) : Promise<void> {
     const analysis_promise = new Promise<void>((resolve, reject) => {
         endpoint.addDatasetEventHandler(dataset_uuid, async (event) => {
-            if (event.dataset_version && event.change_type == ChangeType.dataset_version_modified) {
+            if (event.dataset_version &&
+                event.change_type in [ChangeType.dataset_version_modified, ChangeType.events_lost]) {
                 try {
                     const updated_dataset = await endpoint.getDataset(event.dataset_uuid)
                     const updated_version = updated_dataset.versions.find(value => value.version == event.dataset_version)
@@ -112,7 +113,8 @@ async function auto_annotate_dataset(endpoint: DataEndpoint, dataset_uuid: strin
     logger.info("before auto annotate start for dataset %s", dataset_uuid)
     const auto_annotate_promise = new Promise<void>((resolve, reject) => {
         endpoint.addDatasetEventHandler(dataset_uuid, async (event) => {
-            if (event.dataset_version && event.change_type == ChangeType.dataset_version_modified) {
+            if (event.dataset_version &&
+                event.change_type in [ChangeType.dataset_version_modified, ChangeType.events_lost]) {
                 try {
                     const updated_dataset = await endpoint.getDataset(event.dataset_uuid)
                     const updated_version = updated_dataset.versions.find(value => value.version == event.dataset_version)
@@ -157,7 +159,7 @@ async function create_model(endpoint: DataEndpoint, dataset_uuid: string): Promi
 async function train_model(endpoint: DataEndpoint, model: Model): Promise<Model> {
     const training_promise = new Promise<void>((resolve, reject) => {
         endpoint.addDatasetEventHandler(model.dataset_uuid, async (event) => {
-            if (event.change_type == ChangeType.model_status_modified) {
+            if (event.change_type in [ChangeType.model_status_modified, ChangeType.events_lost]) {
                 await on_model_status_changed(endpoint, event.mdl_uuid as string, resolve, reject)
             } else if (event.change_type == ChangeType.model_progress) {
                 await on_model_training_progress(endpoint, event.mdl_uuid as string)
