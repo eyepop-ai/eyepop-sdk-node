@@ -207,7 +207,8 @@ export enum ChangeType {
     model_removed = "model_removed",
     model_modified = "model_modified",
     model_status_modified = "model_status_modified",
-    model_progress = "model_progress"
+    model_progress = "model_progress",
+    events_lost = "events_lost"
 }
 
 export interface ChangeEvent {
