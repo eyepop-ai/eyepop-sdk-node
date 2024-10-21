@@ -268,7 +268,6 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
     }
 
     async listDatasets(
-        /** @deprecated */ include_hero_asset: boolean = false,
         include_stats: boolean = true
     ): Promise<Dataset[]> {
         return this.request(`/datasets?account_uuid=${this._accountId}&include_stats=${include_stats}`, {
@@ -284,7 +283,6 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
 
     async getDataset(
         dataset_uuid: string,
-        /** @deprecated */ include_hero_asset: boolean = false,
         include_stats: boolean = true
     ): Promise<Dataset> {
         return this.request(`/datasets/${dataset_uuid}?include_stats=${include_stats}`, {

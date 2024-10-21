@@ -81,27 +81,9 @@ async function import_sample_assets(endpoint: DataEndpoint, dataset: Dataset): P
 }
 
 async function analyze_dataset(endpoint: DataEndpoint, dataset_uuid: string) : Promise<void> {
-    const analysis_promise = new Promise<void>((resolve, reject) => {
-        endpoint.addDatasetEventHandler(dataset_uuid, async (event) => {
-            if (event.dataset_version &&
-                event.change_type in [ChangeType.dataset_version_modified, ChangeType.events_lost]) {
-                try {
-                    const updated_dataset = await endpoint.getDataset(event.dataset_uuid)
-                    const updated_version = updated_dataset.versions.find(value => value.version == event.dataset_version)
-                    if (updated_version && !updated_version.analysis_started_at) {
-                        resolve()
-                    }
-                } catch (e) {
-                    reject(e)
-                }
-            }
-        })
-    })
     logger.info("before analysis start for dataset %s", dataset_uuid)
     await endpoint.analyzeDatasetVersion(dataset_uuid)
     logger.info("analysis started for dataset %s", dataset_uuid)
-    await analysis_promise
-    logger.info("analysis succeeded for dataset %s", dataset_uuid)
 }
 
 async function auto_annotate_dataset(endpoint: DataEndpoint, dataset_uuid: string, auto_annotate: string, auto_annotate_params: AutoAnnotateParams) : Promise<void> {
@@ -116,9 +98,10 @@ async function auto_annotate_dataset(endpoint: DataEndpoint, dataset_uuid: strin
             if (event.dataset_version &&
                 event.change_type in [ChangeType.dataset_version_modified, ChangeType.events_lost]) {
                 try {
-                    const updated_dataset = await endpoint.getDataset(event.dataset_uuid)
+                    const updated_dataset = await endpoint.getDataset(event.dataset_uuid, true)
                     const updated_version = updated_dataset.versions.find(value => value.version == event.dataset_version)
-                    if (updated_version && !updated_version.auto_annotate_started_at) {
+                    if (updated_version && updated_version.asset_stats &&
+                        (updated_version.asset_stats?.annotated??0) >= (updated_version.asset_stats?.auto_annotated??0)) {
                         resolve()
                     }
                 } catch (e) {
