@@ -6,15 +6,19 @@ import urljoin from "url-join"
 import {DataOptions} from "./data_options"
 import {
     Annotation,
-    Asset, AssetImport, AutoAnnotateParams,
+    Asset,
+    AssetImport,
+    AutoAnnotateParams,
     ChangeEvent,
     ChangeType,
     DataSession,
     Dataset,
-    DatasetCreate, DatasetHeroAssetUpdate,
+    DatasetCreate,
+    DatasetHeroAssetUpdate,
     DatasetUpdate,
     Model,
-    ModelCreate, ModelTrainingProgress,
+    ModelCreate,
+    ModelTrainingProgress,
     ModelUpdate,
     OnChangeEvent,
     TranscodeMode,
@@ -329,8 +333,18 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
     }
 
     async deleteDatasetVersion(dataset_uuid: string, dataset_version: number): Promise<Dataset> {
-        return this.request(`/datasets/${dataset_uuid}/delete?dataset_version=${dataset_version}`, {
-            method: 'POST'
+        return this.request(`/datasets/${dataset_uuid}/versions?dataset_version=${dataset_version}`, {
+            method: 'DELETE'
+        });
+    }
+
+    async deleteAnnotations(dataset_uuid: string, dataset_version: number, user_reviews: UserReview[] = [UserReview.unknown]): Promise<void> {
+        let userReviewsQuery = ''
+        for (let userReview in user_reviews) {
+            userReviewsQuery += `&user_review=${userReview}`
+        }
+        await this.request(`/datasets/${dataset_uuid}/annotations?dataset_version=${dataset_version}${userReviewsQuery}`, {
+            method: 'DELETE'
         });
     }
 

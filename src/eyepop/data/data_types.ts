@@ -7,6 +7,7 @@ export interface DataSession extends Session {
 
 export interface DatasetVersionAssetStats {
     total?: number
+    accepted?: number
     annotated?: number
     auto_annotated?: number
     auto_annotated_approved?: number
@@ -18,8 +19,8 @@ export interface DatasetVersion {
     modifiable: boolean
     created_at: Date
     updated_at: Date
-    analysis_started_at?: Date
-    auto_annotate_started_at?: Date
+    assets_modified_at: Date
+    last_analysed_at?: Date
     hero_asset_uuid?: string
     asset_stats?: DatasetVersionAssetStats
 }
