@@ -212,7 +212,7 @@ const example_video_url = 'https://demo-eyepop-videos.s3.amazonaws.com/test1_vlo
 (async() => {
     const endpoint = await EyePop.workerEndpoint().connect()
     try {
-        let results = await endpoint.process({url: example_image_url})
+        let results = await endpoint.process({url: example_video_url})
         for await (let result of results) {
             console.log(result)
         }        
@@ -232,7 +232,7 @@ const example_video_url = 'https://demo-eyepop-videos.s3.amazonaws.com/test1_vlo
 (async() => {
     const endpoint = EyePop.workerEndpoint().connect()
     try {
-        let results = await endpoint.process({url: example_image_url})
+        let results = await endpoint.process({url: example_video_url})
         for await (let result of results) {
             console.log(result)
             if (result['seconds'] >= 10.0) {
