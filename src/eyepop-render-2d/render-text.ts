@@ -18,7 +18,7 @@ export class RenderText implements Render
 
     constructor(options: Partial<RenderTextOptions> = {})
     {
-        const { target = '$..objects[?(@.classLabel=="text")]', fitToBounds = true } = options
+        const { target = '$..objects[?(@.texts)]', fitToBounds = true } = options
         this.target = target
         this.fitToBounds = fitToBounds
     }
@@ -126,9 +126,9 @@ export class RenderText implements Render
     getMinFontSize(context: CanvasRenderingContext2D, element: any, width: number, height: number, style: any, scaleToWidth: boolean = false): number
     {
         let largestLabel = ''
-        for (let i = 0; i < element.labels.length; i++)
+        for (let i = 0; i < element.texts.length; i++)
         {
-            const label = element.labels[ i ].label
+            const label = element.texts[ i ].label
 
             if (!label) continue
 
