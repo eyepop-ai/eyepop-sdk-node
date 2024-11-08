@@ -53,7 +53,11 @@ export {
     ModelTrainingProgress,
     ModelMetrics,
     ModelSample,
-    AssetImport
+    AssetImport,
+    ModelExport,
+    ModelExportStatus,
+    QcAiHubExportParams,
+    ExportedBy
 } from "./data/data_types";
 
 export {

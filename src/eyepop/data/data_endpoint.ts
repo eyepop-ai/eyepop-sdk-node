@@ -16,11 +16,13 @@ import {
     DatasetCreate,
     DatasetHeroAssetUpdate,
     DatasetUpdate,
+    ExportedBy,
     Model,
     ModelCreate,
     ModelTrainingProgress,
     ModelUpdate,
     OnChangeEvent,
+    QcAiHubExportParams,
     TranscodeMode,
     UserReview
 } from "./data_types";
@@ -501,6 +503,16 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
     async publishModel(model_uuid: string): Promise<Model> {
         return this.request(`/models/${model_uuid}/publish`, {
             method: 'POST'
+        });
+    }
+
+    async exportModel(model_uuid: string, export_by: ExportedBy, params: QcAiHubExportParams[]): Promise<void> {
+        if (export_by != ExportedBy.qc_ai_hub) {
+            return Promise.reject(`Unexpected export_by ${export_by}, must be 'qc_ai_hub'`)
+        }
+        await this.request(`/models/${model_uuid}/exports/qc_ai_hub`, {
+            method: 'POST',
+            body: JSON.stringify(params),
         });
     }
 
