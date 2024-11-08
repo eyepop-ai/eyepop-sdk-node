@@ -1,4 +1,5 @@
 import {Prediction, Session} from "EyePop/types";
+import {ModelFormat} from "EyePop/worker/worker_types";
 
 export interface DataSession extends Session {
     readonly accountId: string;
@@ -143,6 +144,28 @@ export interface ModelMetrics {
     cpr?: number[][3]
 }
 
+export enum ModelExportStatus {
+    in_progress = "in_progress",
+    finished = "finished",
+    error = "error"
+}
+
+export enum ExportedBy {
+    eyepop = "eyepop",
+    qc_ai_hub = "qc_ai_hub"
+}
+
+export interface  QcAiHubExportParams {
+    device_name: string
+}
+
+export interface ModelExport {
+    format: ModelFormat
+    exported_by: ExportedBy
+    export_params?: QcAiHubExportParams[]
+    status: ModelExportStatus
+}
+
 export interface Model {
     uuid: string
     name: string
@@ -157,6 +180,7 @@ export interface Model {
     updated_at: Date
     dataset_uuid: string
     dataset_version: number
+    exports?: ModelExport[]
 }
 
 export interface ModelCreate {
