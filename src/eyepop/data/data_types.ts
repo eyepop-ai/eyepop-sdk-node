@@ -162,7 +162,7 @@ export interface  QcAiHubExportParams {
 export interface ModelExport {
     format: ModelFormat
     exported_by: ExportedBy
-    export_params?: QcAiHubExportParams[]
+    export_params?: QcAiHubExportParams
     status: ModelExportStatus
 }
 
