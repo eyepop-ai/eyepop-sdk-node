@@ -9,7 +9,8 @@ export enum EndpointState {
     Busy = "Busy",
     Authenticating = "Authenticating",
     FetchConfig = "FetchConfig",
-    Error = "Error"
+    Error = "Error",
+    NotAvailable = "NotAvailable"
 }
 
 export interface Box {

@@ -405,8 +405,12 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         }
 
         if (response.status != 200) {
-            this.updateState(EndpointState.Error)
             const message = await response.text()
+            if (response.status == 429) {
+                this.updateState(EndpointState.NotAvailable, message)
+            } else {
+                this.updateState(EndpointState.Error, message)
+            }
             return Promise.reject(`Unexpected status ${response.status}: ${message}`)
         }
         let config = (await response.json()) as PopConfig

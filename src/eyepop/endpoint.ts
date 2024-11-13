@@ -22,6 +22,7 @@ export class Endpoint<T extends Endpoint<T>> {
 
     protected _limit: Semaphore
     private _state: EndpointState
+    private _message: null | string
     private _stateChangeHandler: null | ((fromState: EndpointState, toState: EndpointState) => void)
 
     protected _logger: Logger
@@ -37,6 +38,7 @@ export class Endpoint<T extends Endpoint<T>> {
 
         this._limit = new Semaphore(this._options.jobQueueLength ?? 1024)
         this._state = EndpointState.Idle
+        this._message = null
         this._stateChangeHandler = null
 
         let rootLogger
@@ -70,12 +72,16 @@ export class Endpoint<T extends Endpoint<T>> {
         return this._state
     }
 
+    public lastMessage(): string | null {
+        return this._message
+    }
+
     public onStateChanged(handler: (fromState: EndpointState, toState: EndpointState) => void): T {
         this._stateChangeHandler = handler
         return <T><unknown>this
     }
 
-    protected updateState(newState: EndpointState | undefined = undefined) {
+    protected updateState(newState: EndpointState | undefined = undefined, message: string | undefined = undefined) {
         const fromState = this._state
         if (newState == undefined) {
             if (this._limit.getPermits() == this._options.jobQueueLength) {
@@ -85,6 +91,8 @@ export class Endpoint<T extends Endpoint<T>> {
             }
         }
         this._state = newState
+        this._message = message? message: null
+
         if (this._stateChangeHandler) {
             this._stateChangeHandler(fromState, this._state)
         }
