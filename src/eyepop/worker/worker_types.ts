@@ -135,13 +135,15 @@ export enum InferenceType {
 export interface InferenceComponent extends BaseComponent {
     inferenceTypes: InferenceType[]
 	hidden?: boolean
-	modelUuid: string
+	modelUuid?: string
+    model?: string
 	categoryName?: string
 	confidenceThreshold?: number
 	targetFps?: string
 }
 export interface TracingComponent extends BaseComponent {
 	reidModelUuid?: string
+	reidModel?: string
 	maxAgeSeconds?: number
 	iouThreshold?: number
 	simThreshold?: number
