@@ -65,15 +65,29 @@ Valid `inferenceTypes` values are below and have to match or be a subset of the 
 * `semantic_segmentation`
 * `segmentation`
 
+#### Model aliases
+Alternatively, instead of `modelUuid` you can also use the `model` attribute which must be a string `[alias]:[tag]`. The management of model aliases is handled in the Dataset API and not discussed here.  
+A valid alias/tag identifier resolves the a concrete `modelUuid` and this resolution process is transparent to the user. The runtime's responsibility id to initially resolve and frequently check for updated values. The Runtime MAY use the resolved modelUuid for the full lifetime of a pipeline instance. Upon starting new pipelines or changing the Pop definition of a running pipeline, the Runtime SHOULD check resolution of a used alias if it is older than 30 minutes.
+
+For example:
+```json
+{
+   "components": [{
+      "type":"inference",
+      "inferenceTypes": ["object_detection"],
+      "model": "eyepop.person:latest"
+   }]
+}
+```
+
 #### Other attributes for component type: inference
 
-* The attribute `categoryName`tag all meta data result with the given string as `category-name`
+* The attribute `categoryName` tags all meta data result with the given string as `category-name`
 * The attribute `confidenceThreshold` overwrites the default  model confidence threshold and filters out results below this value.
 * The attribute `targetFps` allows a controlled sample rate to run inference on videos, the value has to be string expressing a fraction of integer values, e.g. `"10/1"`
 * the attribute `hidden` will, if set to `true`, produce meta data to the forwarded components but it will be hidden from the final output. This can be helpful when intermediary components are needed for technical reasons (e.g. a face detector before facial expressions) but the end result should apply the leaf node results to the previous component (e.g. the person detector).
 
 For example:
-
 ```json
 {
    "components": [{
