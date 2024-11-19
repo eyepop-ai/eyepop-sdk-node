@@ -37,6 +37,9 @@ interface Pipeline {
     startTime: string
     state: string
     pop?: Pop
+    inferPipeline: string | null
+    modelRefs: ModelRef[] | null
+    postTransform: string | null
 }
 
 interface WsAuthToken {
@@ -166,6 +169,94 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         this._requestLogger.debug('after PATCH pop')
         if (this._pipeline) {
             this._pipeline.pop = pop
+        }
+    }
+
+    /**
+     * @deprecated use pop() instead
+     */
+    public popComp(): string | null {
+        if (this._pipeline) {
+            return this._pipeline.inferPipeline??null
+        } else {
+            return null
+        }
+    }
+
+    /**
+     * @deprecated use changePop() instead
+     */
+    public async changePopComp(popComp: string, modelRefs: ModelRef[] = []): Promise<void> {
+        const client = this._client
+        const baseUrl = this._baseUrl
+        if (!baseUrl || !client) {
+            return Promise.reject("endpoint not connected, use connect() before changePopComp()")
+        }
+
+        const body = {
+            'pipeline': popComp,
+            'modelRefs': modelRefs
+        }
+        let response = await this.fetchWithRetry(async () => {
+            const session = await this.session()
+            let headers = {
+                'Authorization': `Bearer ${session.accessToken}`, 'Content-Type': 'application/json'
+            }
+            const patch_url = `${session.baseUrl}/pipelines/${session.pipelineId}/inferencePipeline`
+            return client.fetch(patch_url, {
+                method: 'PATCH', body: JSON.stringify(body), headers: headers
+            })
+        })
+        if (response.status != 204) {
+            const message = await response.text()
+            console.error(message)
+            return Promise.reject(`Unexpected status ${response.status}: ${message}`)
+        }
+        if (this._pipeline) {
+            this._pipeline.inferPipeline = popComp
+            this._pipeline.modelRefs = modelRefs
+        }
+    }
+
+    /**
+     * @deprecated use pop() instead
+     */
+    public postTransform(): string | null {
+        if (this._pipeline) {
+            return this._pipeline.postTransform
+        } else {
+            return null
+        }
+    }
+
+    /**
+     * @deprecated use changePop() instead
+     */
+    public async changePostTransform(postTransform: string | null): Promise<void> {
+        const client = this._client
+        const baseUrl = this._baseUrl
+        if (!baseUrl || !client) {
+            return Promise.reject("endpoint not connected, use connect() before changePopComp()")
+        }
+        const body = {
+            'transform': postTransform
+        }
+        let response = await this.fetchWithRetry(async () => {
+            const session = await this.session()
+            let headers = {
+                'Authorization': `Bearer ${session.accessToken}`, 'Content-Type': 'application/json'
+            }
+            const patch_url = `${session.baseUrl}/pipelines/${session.pipelineId}/postTransform`
+            return client.fetch(patch_url, {
+                method: 'PATCH', body: JSON.stringify(body), headers: headers
+            })
+        })
+        if (response.status != 204) {
+            const message = await response.text()
+            return Promise.reject(`Unexpected status ${response.status}: ${message}`)
+        }
+        if (this._pipeline) {
+            this._pipeline.postTransform = postTransform
         }
     }
 
