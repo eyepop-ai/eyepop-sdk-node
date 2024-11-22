@@ -285,9 +285,13 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
 
     async getDataset(
         dataset_uuid: string,
-        include_stats: boolean = true
+        include_stats: boolean = true,
+        dataset_version?: number,
+        modifiable_version_only?: boolean,
     ): Promise<Dataset> {
-        return this.request(`/datasets/${dataset_uuid}?include_stats=${include_stats}`, {
+        const versionQuery = dataset_version ? `&dataset_version=${dataset_version}` : '';
+        const modifiableVersionQuery = typeof(modifiable_version_only) !== "undefined" ? `&modifiable_version_only=${modifiable_version_only}` : '';
+        return this.request(`/datasets/${dataset_uuid}?include_stats=${include_stats}${versionQuery}${modifiableVersionQuery}`, {
             method: 'GET'
         });
     }

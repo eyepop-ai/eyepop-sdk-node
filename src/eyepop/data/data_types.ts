@@ -9,6 +9,7 @@ export interface DataSession extends Session {
 export interface DatasetVersionAssetStats {
     total?: number
     accepted?: number
+    rejected?: number
     annotated?: number
     auto_annotated?: number
     auto_annotated_approved?: number
