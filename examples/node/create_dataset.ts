@@ -26,10 +26,9 @@ const example_image_path = process.argv[2]
                 name: "a test dataset", description: "test", tags: [], auto_annotates: ["ep_coco"]
             })
             try {
-                logger.info("created dataset %s", JSON.stringify(dataset))
                 const modifiable_version = dataset.versions.find(v => v.modifiable)?.version
                 const mime_type = mime.lookup(example_image_path) || undefined
-                for (let i = 0; i < 100; i++) {
+                for (let i = 0; i < 1; i++) {
                     const file = await openAsBlob(example_image_path, {type: mime_type})
                     let asset = await endpoint.uploadAsset(dataset.uuid, modifiable_version, file)
                     logger.info("uploaded asset %s", JSON.stringify(asset))
@@ -56,6 +55,20 @@ const example_image_path = process.argv[2]
                     // })
                     // asset = await asset_accepted
                     // logger.info("accepted asset %s", JSON.stringify(asset))
+                }
+                logger.info("created dataset %s", JSON.stringify(dataset))
+                let ds = await endpoint.getDataset(dataset.uuid)
+                logger.info("default: %s", JSON.stringify(ds))
+                ds = await endpoint.getDataset(dataset.uuid, true)
+                logger.info("with stats: %s", JSON.stringify(ds))
+                ds = await endpoint.getDataset(dataset.uuid, true, 1)
+                logger.info("v1: %s", JSON.stringify(ds))
+                ds = await endpoint.getDataset(dataset.uuid, true, undefined, true)
+                logger.info("modifiable: %s", JSON.stringify(ds))
+                try {
+                    await endpoint.getDataset(dataset.uuid, true, 2)
+                } catch (e) {
+                    logger.info("v2 not found, as expected")
                 }
             } finally {
                 endpoint.removeAllDatasetEventHandlers(dataset.uuid)
