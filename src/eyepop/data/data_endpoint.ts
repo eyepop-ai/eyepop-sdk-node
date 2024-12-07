@@ -468,6 +468,12 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         });
     }
 
+    async findModelsForDataset(dataset_uuid: string): Promise<Model[]> {
+        return this.request(`/models?dataset_uuid=${dataset_uuid}`, {
+            method: 'GET'
+        });
+    }
+
     async createModel(dataset_uuid: string, dataset_version: number, data: ModelCreate, start_training: boolean = true): Promise<Model> {
         return this.request(`/models?dataset_uuid=${dataset_uuid}&dataset_version=${dataset_version}&start_training=${start_training}`, {
             method: 'POST', body: JSON.stringify(data),
