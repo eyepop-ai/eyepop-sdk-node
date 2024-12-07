@@ -172,6 +172,8 @@ export interface Model {
     name: string
     description?: string
     external_id?: string
+    pretrained_model_uuid?: string
+    extra_params?: Map<string, any>
     type: ModelType
     status: ModelStatus
     status_message?: string
@@ -188,6 +190,8 @@ export interface ModelCreate {
     name: string
     description: string
     external_id?: string
+    pretrained_model_uuid?: string
+    extra_params?: Map<string, any>
 }
 
 export interface ModelUpdate {
