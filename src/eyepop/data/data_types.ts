@@ -97,6 +97,7 @@ export interface Annotation {
     type: AnnotationType
     user_review: UserReview
     approved_threshold?: number
+    source_model_uuid?: string
     auto_annotate?: string
     auto_annotate_params?: AutoAnnotateParams
     uncertainty_score?: number
