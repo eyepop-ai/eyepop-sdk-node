@@ -387,19 +387,21 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         });
     }
 
-    async listAssets(dataset_uuid: string, dataset_version?: number, include_annotations: boolean = false): Promise<Asset[]> {
+    async listAssets(dataset_uuid: string, dataset_version?: number, include_annotations: boolean = false, top_k?: number): Promise<Asset[]> {
         const versionQuery = dataset_version ? `&dataset_version=${dataset_version}` : '';
         const annotationsQuery = include_annotations ? '&include_annotations=true' : '';
-        return this.request(`/assets?dataset_uuid=${dataset_uuid}${versionQuery}${annotationsQuery}`, {
+        const topKQuery = top_k ? `&top_k=${top_k}` : '';
+        return this.request(`/assets?dataset_uuid=${dataset_uuid}${versionQuery}${annotationsQuery}${topKQuery}`, {
             method: 'GET'
         });
     }
 
-    async getAsset(asset_uuid: string, dataset_uuid?: string, dataset_version?: number, include_annotations: boolean = false): Promise<Asset> {
+    async getAsset(asset_uuid: string, dataset_uuid?: string, dataset_version?: number, include_annotations: boolean = false, top_k?: number): Promise<Asset> {
         const versionQuery = dataset_version ? `&dataset_version=${dataset_version}` : '';
         const annotationsQuery = include_annotations ? '&include_annotations=true' : '';
         const datasetQuery = dataset_uuid ? `&dataset_uuid=${dataset_uuid}` : '';
-        return this.request(`/assets/${asset_uuid}?${datasetQuery}${versionQuery}${annotationsQuery}`, {
+        const topKQuery = top_k ? `&top_k=${top_k}` : '';
+        return this.request(`/assets/${asset_uuid}?${datasetQuery}${versionQuery}${annotationsQuery}${topKQuery}`, {
             method: 'GET'
         });
     }
