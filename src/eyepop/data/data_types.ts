@@ -25,6 +25,7 @@ export interface DatasetVersion {
     last_analysed_at?: Date
     hero_asset_uuid?: string
     asset_stats?: DatasetVersionAssetStats
+    default_source_model_uuid?: string
 }
 
 export interface Dataset {
