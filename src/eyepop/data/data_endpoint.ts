@@ -270,9 +270,11 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
     }
 
     async listDatasets(
-        include_stats: boolean = true
+        include_stats: boolean = true,
+        modifiable_version_only?: boolean
     ): Promise<Dataset[]> {
-        return this.request(`/datasets?account_uuid=${this._accountId}&include_stats=${include_stats}`, {
+        const modifiableVersionQuery = typeof(modifiable_version_only) !== "undefined" ? `&modifiable_version_only=${modifiable_version_only}` : '';
+        return this.request(`/datasets?account_uuid=${this._accountId}&include_stats=${include_stats}${modifiableVersionQuery}`, {
             method: 'GET'
         });
     }
