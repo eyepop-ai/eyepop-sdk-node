@@ -24,9 +24,11 @@ import {
     OnChangeEvent,
     QcAiHubExportParams,
     TranscodeMode,
-    UserReview
+    UserReview,
+    ArtifactType
 } from "./data_types";
 import {Prediction} from "@eyepop.ai/eyepop";
+import {ModelFormat} from "EyePop/worker/worker_types";
 
 
 interface DataConfig {
@@ -528,6 +530,20 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
             method: 'POST',
             body: JSON.stringify(params),
         });
+    }
+
+    async downloadModelArtifacts(model_uuid: string, model_formats?: ModelFormat[], device_name?: string, artifact_type?: ArtifactType) {
+        const artifactTypeQuery = artifact_type ? `artifact_type=${artifact_type}&` : ''
+        const deviceNameQuery = device_name ? `device_name=${encodeURIComponent(device_name)}&` : ''
+        let modelFormatQuery = ""
+        if (model_formats) {
+            for (const model_format of model_formats) {
+                modelFormatQuery += `model_format=${model_format}&`
+            }
+        }
+        return this.request(`/exports/model_artifacts/?model_uuid=${model_uuid}&${artifactTypeQuery}${deviceNameQuery}${modelFormatQuery}`, {
+            method: 'GET'
+        })
     }
 
     public addAccountEventHandler(eventHandler: OnChangeEvent) {

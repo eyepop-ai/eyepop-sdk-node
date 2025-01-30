@@ -57,7 +57,8 @@ export {
     ModelExport,
     ModelExportStatus,
     QcAiHubExportParams,
-    ExportedBy
+    ExportedBy,
+    ArtifactType
 } from "./data/data_types";
 
 export {

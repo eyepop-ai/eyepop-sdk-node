@@ -158,6 +158,11 @@ export enum ExportedBy {
     qc_ai_hub = "qc_ai_hub"
 }
 
+export enum ArtifactType {
+    eyepop_bundle = "eyepop_bundle",
+    weights_file = "weights_file"
+}
+
 export interface  QcAiHubExportParams {
     device_name: string
 }
