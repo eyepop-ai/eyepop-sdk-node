@@ -266,9 +266,12 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
 
         //log whole response
         this._requestLogger.debug('Response - ' + response.status + " " + response.statusText)
-
-
-        return response.json();
+        
+        try {
+            return await response.json();
+        } catch (e) {
+            return await response.blob();
+        }
     }
 
     async listDatasets(
