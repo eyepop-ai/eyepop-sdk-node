@@ -254,24 +254,20 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         }
 
         if (!response.ok) {
-            const errorData = await response.json() as any;
+            const errorData = await response.blob() as any;
             throw new Error(errorData.detail || 'Request failed');
         }
 
         const contentType = response.headers.get('Content-Type');
-        if (contentType && contentType.startsWith('image/')) {
-            const blob = await response.blob();
-            return blob;
+        if (contentType && contentType.startsWith('application/json')) {
+            return await response.json();
         }
 
         //log whole response
         this._requestLogger.debug('Response - ' + response.status + " " + response.statusText)
-        
-        try {
-            return await response.json();
-        } catch (e) {
-            return await response.blob();
-        }
+
+        return await response.blob();
+
     }
 
     async listDatasets(
