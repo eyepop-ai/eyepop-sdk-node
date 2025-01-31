@@ -253,18 +253,22 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
             return null; // Return null if the response is completely empty
         }
 
+        const contentType = response.headers.get('Content-Type');
+        this._requestLogger.debug('Response - ' + response.status + " " + response.statusText)
+
         if (!response.ok) {
-            const errorData = await response.blob() as any;
-            throw new Error(errorData.detail || 'Request failed');
+            if (contentType && (
+                contentType.toLowerCase().startsWith('application/json') || contentType.toLowerCase().startsWith('text/')
+            )) {
+                throw new Error(`Request failed with ${response.status} ${response.statusText}: ${await response.text()}`);
+            } else {
+                throw new Error(`Request failed with ${response.status} ${response.statusText}`);
+            }
         }
 
-        const contentType = response.headers.get('Content-Type');
-        if (contentType && contentType.startsWith('application/json')) {
+        if (contentType && contentType.toLowerCase().startsWith('application/json')) {
             return await response.json();
         }
-
-        //log whole response
-        this._requestLogger.debug('Response - ' + response.status + " " + response.statusText)
 
         return await response.blob();
 
