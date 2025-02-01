@@ -172,6 +172,7 @@ export interface ModelExport {
     exported_by: ExportedBy
     export_params?: QcAiHubExportParams
     status: ModelExportStatus
+    status_message?: string
 }
 
 export interface Model {
