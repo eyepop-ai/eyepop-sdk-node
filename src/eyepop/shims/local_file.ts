@@ -1,11 +1,11 @@
-import {PathSource, StreamSource} from "EyePop";
-import * as fs from "node:fs";
+import * as fs from 'node:fs'
+import { PathSource, StreamSource } from '../index'
 
 export let resolvePath: (source: PathSource) => Promise<StreamSource>
 
 if ('document' in globalThis && 'implementation' in globalThis.document) {
     resolvePath = async (source: PathSource) => {
-        throw new DOMException("resolving a path to a file is not supported in browser")
+        throw new DOMException('resolving a path to a file is not supported in browser')
     }
 } else {
     /**
@@ -13,7 +13,7 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
      */
     async function* nodeStreamToIterator(stream: fs.ReadStream) {
         for await (const chunk of stream) {
-            yield chunk;
+            yield chunk
         }
     }
     /**
@@ -21,18 +21,17 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
      * https://nextjs.org/docs/app/building-your-application/routing/router-handlers#streaming
      * Itself taken from mozilla doc
      * https://developer.mozilla.org/en-US/docs/Web/API/ReadableStream#convert_async_iterator_to_stream
-     * @param {*} iterator 
+     * @param {*} iterator
      * @returns {ReadableStream}
      */
     function iteratorToStream(iterator: AsyncGenerator<any>) {
         return new ReadableStream({
             async pull(controller) {
                 const { value, done } = await iterator.next()
-    
+
                 if (done) {
                     controller.close()
                 } else {
-    
                     controller.enqueue(new Uint8Array(value))
                 }
             },
@@ -49,7 +48,7 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
         const mimeType = mime.lookup(source.path) || 'application/octet-stream'
         return {
             stream: webStream,
-            mimeType: mimeType
+            mimeType: mimeType,
         }
     }
 }

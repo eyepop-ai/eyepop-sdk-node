@@ -1,7 +1,7 @@
-import {WebrtcBase} from './webrtc_base'
-import {HttpClient} from '../shims/http_client'
-import {Logger} from 'pino'
-import {LiveMedia, WorkerSession} from "EyePop/worker/worker_types";
+import { WebrtcBase } from './webrtc_base'
+import { HttpClient } from '../shims/http_client'
+import { Logger } from 'pino'
+import { LiveMedia, WorkerSession } from '../worker/worker_types'
 
 export class WebrtcWhep extends WebrtcBase implements LiveMedia {
     private _stream: MediaStream | null
@@ -13,10 +13,10 @@ export class WebrtcWhep extends WebrtcBase implements LiveMedia {
         const stream = this._stream
         this._stream = null
         if (stream) {
-            const tracks = stream.getTracks();
-            tracks.forEach((track) => {
-                track.stop();
-            });
+            const tracks = stream.getTracks()
+            tracks.forEach(track => {
+                track.stop()
+            })
         }
         return super.close()
     }
@@ -31,10 +31,10 @@ export class WebrtcWhep extends WebrtcBase implements LiveMedia {
 
     public async start(): Promise<WebrtcWhep> {
         const session = await this._getSession()
-        const egressUrl = new URL(this._urlPath, session.baseUrl);
-        this._requestLogger.debug("before GET: %s", egressUrl)
+        const egressUrl = new URL(this._urlPath, session.baseUrl)
+        this._requestLogger.debug('before GET: %s', egressUrl)
         const headers = {
-            'Authorization': `Bearer ${session.accessToken}`
+            Authorization: `Bearer ${session.accessToken}`,
         }
         /* According to https://www.ietf.org/archive/id/draft-ietf-wish-whip-01.html
            this should be a `OPTIONS` request. Unfortunately a lot of CORS middlewares
@@ -44,7 +44,8 @@ export class WebrtcWhep extends WebrtcBase implements LiveMedia {
            the `OPTIONS` request and bypass the CORS preflight trap
          */
         const response = await this._client.fetch(egressUrl, {
-            headers: headers, method: 'GET'
+            headers: headers,
+            method: 'GET',
         })
         if (response.status >= 300) {
             return Promise.reject(`unknown status code for GET '${egressUrl}': ${response.status} (${response.statusText})`)
@@ -71,32 +72,32 @@ export class WebrtcWhep extends WebrtcBase implements LiveMedia {
             throw new Error('onIceServers has stream')
         }
         const pc = new RTCPeerConnection({
-            iceServers: WebrtcBase.linkToIceServers(response.headers.get('Link'))
+            iceServers: WebrtcBase.linkToIceServers(response.headers.get('Link')),
         })
 
-        const direction = "sendrecv"
-        pc.addTransceiver("video", {direction})
-        pc.onicecandidate = (evt) => this.onLocalCandidate(evt)
+        const direction = 'sendrecv'
+        pc.addTransceiver('video', { direction })
+        pc.onicecandidate = evt => this.onLocalCandidate(evt)
 
         this._pc = pc
 
-        this._requestLogger.info("before", pc.iceConnectionState);
+        this._requestLogger.info('before', pc.iceConnectionState)
 
         return new Promise(async (resolve, reject) => {
-            pc.ontrack = (evt) => {
-                this._requestLogger.debug("new track:", evt.track.kind);
-                this._stream = evt.streams[0];
+            pc.ontrack = evt => {
+                this._requestLogger.debug('new track:', evt.track.kind)
+                this._stream = evt.streams[0]
                 resolve(this)
             }
             pc.oniceconnectionstatechange = () => {
                 switch (pc.iceConnectionState) {
-                    case "failed":
-                    case "disconnected":
-                        this._requestLogger.debug("disconnected")
+                    case 'failed':
+                    case 'disconnected':
+                        this._requestLogger.debug('disconnected')
                         reject(`peer connection: ${pc.iceConnectionState}`)
                         break
-                    case "connected":
-                        this._requestLogger.debug("connected")
+                    case 'connected':
+                        this._requestLogger.debug('connected')
                         break
                 }
             }

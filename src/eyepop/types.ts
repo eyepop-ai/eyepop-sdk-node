@@ -1,16 +1,16 @@
 export interface Session {
-    readonly eyepopUrl: string;
-    readonly accessToken: string;
-    readonly validUntil: number;
+    readonly eyepopUrl: string
+    readonly accessToken: string
+    readonly validUntil: number
 }
 
 export enum EndpointState {
-    Idle = "Idle",
-    Busy = "Busy",
-    Authenticating = "Authenticating",
-    FetchConfig = "FetchConfig",
-    Error = "Error",
-    NotAvailable = "NotAvailable"
+    Idle = 'Idle',
+    Busy = 'Busy',
+    Authenticating = 'Authenticating',
+    FetchConfig = 'FetchConfig',
+    Error = 'Error',
+    NotAvailable = 'NotAvailable',
 }
 
 export interface Box {
@@ -109,4 +109,3 @@ export interface PredictedKeyPoints {
 export interface PredictedKeyPoint extends Point3d, PredictedClass {
     visible: boolean | undefined
 }
-

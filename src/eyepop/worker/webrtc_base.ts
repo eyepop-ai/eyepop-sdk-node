@@ -1,9 +1,8 @@
-import {HttpClient} from "../shims/http_client";
-import {Logger} from "pino";
-import {WebrtcWhip} from "./webrtc_whip";
-import path from "path";
-import {WorkerSession} from "EyePop/worker/worker_types";
-
+import { HttpClient } from '../shims/http_client'
+import { Logger } from 'pino'
+import { WebrtcWhip } from './webrtc_whip'
+import path from 'path'
+import { WorkerSession } from '../worker/worker_types'
 
 interface OfferData {
     iceUfrag: string
@@ -61,27 +60,29 @@ export abstract class WebrtcBase {
         await this._pc.setLocalDescription(offer)
 
         const session = await this._getSession()
-        const ingressUrl = new URL(this._urlPath, session.baseUrl);
-        this._requestLogger.debug("before POST: %s", ingressUrl)
+        const ingressUrl = new URL(this._urlPath, session.baseUrl)
+        this._requestLogger.debug('before POST: %s', ingressUrl)
         const headers = {
-            'Authorization': `Bearer ${session.accessToken}`,
+            Authorization: `Bearer ${session.accessToken}`,
             'Content-Type': 'application/sdp',
         }
         const response = await this._client.fetch(ingressUrl, {
             headers: headers,
             method: 'POST',
-            body: offer.sdp
+            body: offer.sdp,
         })
         if (response.status != 201) {
             return Promise.reject(`unknown status code for POST '${ingressUrl}': ${response.status} (${response.statusText})`)
         }
 
-        this._eTag = response.headers.get('ETag')??''
+        this._eTag = response.headers.get('ETag') ?? ''
         this._location = response.headers.get('Location')
-        return this.onRemoteAnswer(new RTCSessionDescription({
-            type: 'answer',
-            sdp: await response.text()
-        }))
+        return this.onRemoteAnswer(
+            new RTCSessionDescription({
+                type: 'answer',
+                sdp: await response.text(),
+            }),
+        )
     }
 
     protected abstract onRemoteAnswer(answer: RTCSessionDescription): Promise<WebrtcBase>
@@ -90,20 +91,20 @@ export abstract class WebrtcBase {
         if (!this._offerData) {
             throw new Error('sendLocalCandidates no offerData')
         }
-        let urlPath: string|undefined = undefined
+        let urlPath: string | undefined = undefined
 
         const session = await this._getSession()
         if (this._location) {
             urlPath = path.join(this._urlPath, this._location)
-        }else {
+        } else {
             urlPath = this._urlPath
         }
-        const ingressUrl = new URL(urlPath, session.baseUrl);
-        this._requestLogger.debug("before PATCH: %s", ingressUrl)
+        const ingressUrl = new URL(urlPath, session.baseUrl)
+        this._requestLogger.debug('before PATCH: %s', ingressUrl)
         const headers = {
-            'Authorization': `Bearer ${session.accessToken}`,
+            Authorization: `Bearer ${session.accessToken}`,
             'Content-Type': 'application/trickle-ice-sdpfrag',
-            'If-Match': this._eTag
+            'If-Match': this._eTag,
         }
         const response = await this._client.fetch(ingressUrl, {
             headers: headers,
@@ -128,116 +129,117 @@ export abstract class WebrtcBase {
     }
 
     static linkToIceServers(links: string | null): RTCIceServer[] {
-        const servers = (links !== null) ? links.split(', ').map((link) => {
-            const m = link.match(/^<(.+?)>; rel="ice-server"(; username="(.*?)"; credential="(.*?)"; credential-type="password")?/i)
-            if (!m) {
-                return null
-            }
-            const iceServer: RTCIceServer = {
-                urls: [m[1]],
-                username: WebrtcWhip.unquoteCredential(m[3]),
-                credential: WebrtcWhip.unquoteCredential(m[4]),
-                // credentialType: m[3]? "password" : undefined
-            }
-            return iceServer
-        }) : []
+        const servers =
+            links !== null
+                ? links.split(', ').map(link => {
+                      const m = link.match(/^<(.+?)>; rel="ice-server"(; username="(.*?)"; credential="(.*?)"; credential-type="password")?/i)
+                      if (!m) {
+                          return null
+                      }
+                      const iceServer: RTCIceServer = {
+                          urls: [m[1]],
+                          username: WebrtcWhip.unquoteCredential(m[3]),
+                          credential: WebrtcWhip.unquoteCredential(m[4]),
+                          // credentialType: m[3]? "password" : undefined
+                      }
+                      return iceServer
+                  })
+                : []
         return <RTCIceServer[]>servers.filter(function (el: null | RTCIceServer) {
             return el != null
         })
     }
 
     protected static editAnswer(answer: string, videoCodec: string, audioCodec: string | undefined, videoBitrate: number, audioBitrate: number | undefined, audioVoice: boolean): string {
-        const sections = answer.split('m=');
+        const sections = answer.split('m=')
 
         for (let i = 0; i < sections.length; i++) {
-            const section = sections[i];
+            const section = sections[i]
             if (section.startsWith('video')) {
-                sections[i] = WebrtcWhip.setVideoBitrate(WebrtcWhip.setCodec(section, videoCodec), videoBitrate);
+                sections[i] = WebrtcWhip.setVideoBitrate(WebrtcWhip.setCodec(section, videoCodec), videoBitrate)
             } else if (section.startsWith('audio')) {
-                sections[i] = WebrtcWhip.setAudioBitrate(WebrtcWhip.setCodec(section, audioCodec), audioBitrate, audioVoice);
+                sections[i] = WebrtcWhip.setAudioBitrate(WebrtcWhip.setCodec(section, audioCodec), audioBitrate, audioVoice)
             }
         }
 
-        return sections.join('m=');
-    };
+        return sections.join('m=')
+    }
 
     private static setCodec(section: string, codec: string | undefined): string {
-        const lines = section.split('\r\n');
-        const lines2 = [];
-        const payloadFormats = [];
+        const lines = section.split('\r\n')
+        const lines2 = []
+        const payloadFormats = []
 
         for (const line of lines) {
             if (!line.startsWith('a=rtpmap:')) {
-                lines2.push(line);
+                lines2.push(line)
             } else {
                 if (codec && line.toLowerCase().includes(codec)) {
-                    payloadFormats.push(line.slice('a=rtpmap:'.length).split(' ')[0]);
-                    lines2.push(line);
+                    payloadFormats.push(line.slice('a=rtpmap:'.length).split(' ')[0])
+                    lines2.push(line)
                 }
             }
         }
 
-        const lines3 = [];
+        const lines3 = []
 
         for (const line of lines2) {
             if (line.startsWith('a=fmtp:')) {
                 if (payloadFormats.includes(line.slice('a=fmtp:'.length).split(' ')[0])) {
-                    lines3.push(line);
+                    lines3.push(line)
                 }
             } else if (line.startsWith('a=rtcp-fb:')) {
                 if (payloadFormats.includes(line.slice('a=rtcp-fb:'.length).split(' ')[0])) {
-                    lines3.push(line);
+                    lines3.push(line)
                 }
             } else {
-                lines3.push(line);
+                lines3.push(line)
             }
         }
 
-        return lines3.join('\r\n');
-    };
+        return lines3.join('\r\n')
+    }
 
     private static setVideoBitrate(section: string, bitrate: number): string {
-        let lines = section.split('\r\n');
+        let lines = section.split('\r\n')
 
         for (let i = 0; i < lines.length; i++) {
             if (lines[i].startsWith('c=')) {
-                lines = [...lines.slice(0, i + 1), 'b=TIAS:' + (bitrate * 1024).toString(), ...lines.slice(i + 1)];
+                lines = [...lines.slice(0, i + 1), 'b=TIAS:' + (bitrate * 1024).toString(), ...lines.slice(i + 1)]
                 break
             }
         }
 
-        return lines.join('\r\n');
-    };
+        return lines.join('\r\n')
+    }
 
     private static setAudioBitrate(section: string, bitrate: number | undefined, voice: boolean) {
-        let opusPayloadFormat = '';
-        let lines = section.split('\r\n');
+        let opusPayloadFormat = ''
+        let lines = section.split('\r\n')
 
         for (let i = 0; i < lines.length; i++) {
             if (lines[i].startsWith('a=rtpmap:') && lines[i].toLowerCase().includes('opus/')) {
-                opusPayloadFormat = lines[i].slice('a=rtpmap:'.length).split(' ')[0];
-                break;
+                opusPayloadFormat = lines[i].slice('a=rtpmap:'.length).split(' ')[0]
+                break
             }
         }
 
         if (opusPayloadFormat === '') {
-            return section;
+            return section
         }
 
         for (let i = 0; i < lines.length; i++) {
             if (lines[i].startsWith('a=fmtp:' + opusPayloadFormat + ' ')) {
                 if (voice) {
-                    lines[i] = 'a=fmtp:' + opusPayloadFormat + ' minptime=10;useinbandfec=1;maxaveragebitrate='
-                        + ((bitrate ?? 0) * 1024).toString();
+                    lines[i] = 'a=fmtp:' + opusPayloadFormat + ' minptime=10;useinbandfec=1;maxaveragebitrate=' + ((bitrate ?? 0) * 1024).toString()
                 } else {
-                    lines[i] = 'a=fmtp:' + opusPayloadFormat + ' maxplaybackrate=48000;stereo=1;sprop-stereo=1;maxaveragebitrate'
-                        + ((bitrate ?? 0) * 1024).toString();
+                    lines[i] = 'a=fmtp:' + opusPayloadFormat + ' maxplaybackrate=48000;stereo=1;sprop-stereo=1;maxaveragebitrate' + ((bitrate ?? 0) * 1024).toString()
                 }
             }
         }
 
-        return lines.join('\r\n');
-    };
+        return lines.join('\r\n')
+    }
 
     static parseOffer(offer: string): OfferData {
         let medias = []
@@ -246,11 +248,11 @@ export abstract class WebrtcBase {
 
         for (const line of offer.split('\r\n')) {
             if (line.startsWith('m=')) {
-                medias.push(line.slice('m='.length));
+                medias.push(line.slice('m='.length))
             } else if (iceUfrag === '' && line.startsWith('a=ice-ufrag:')) {
-                iceUfrag = line.slice('a=ice-ufrag:'.length);
+                iceUfrag = line.slice('a=ice-ufrag:'.length)
             } else if (icePwd === '' && line.startsWith('a=ice-pwd:')) {
-                icePwd = line.slice('a=ice-pwd:'.length);
+                icePwd = line.slice('a=ice-pwd:'.length)
             }
         }
 
@@ -275,21 +277,19 @@ export abstract class WebrtcBase {
             }
         }
 
-        let frag = 'a=ice-ufrag:' + offerData.iceUfrag + '\r\n'
-            + 'a=ice-pwd:' + offerData.icePwd + '\r\n';
-        let mid = 0;
+        let frag = 'a=ice-ufrag:' + offerData.iceUfrag + '\r\n' + 'a=ice-pwd:' + offerData.icePwd + '\r\n'
+        let mid = 0
 
         for (const media of offerData.medias) {
             let matched = candidatesByMedia.get(mid)
             if (matched !== undefined) {
-                frag += 'm=' + media + '\r\n'
-                    + 'a=mid:' + mid + '\r\n';
+                frag += 'm=' + media + '\r\n' + 'a=mid:' + mid + '\r\n'
 
                 for (const candidate of matched) {
-                    frag += 'a=' + candidate.candidate + '\r\n';
+                    frag += 'a=' + candidate.candidate + '\r\n'
                 }
             }
-            mid++;
+            mid++
         }
         return frag
     }
@@ -299,5 +299,5 @@ export abstract class WebrtcBase {
             return ''
         }
         return JSON.parse(`"${v}"`)
-    };
+    }
 }

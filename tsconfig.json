@@ -1,5 +1,5 @@
 {
-  "include": ["src/eyepop", "src/eyepop-render-2d" ,"tests/eyepop", "examples/node"],
+  "include": [ "src/eyepop", "src/eyepop-render-2d", "tests/eyepop", "examples/node" ],
   "sourceMap": true,
   "compilerOptions": {
     "target": "es2020",
@@ -10,12 +10,15 @@
     "module": "esnext",
     "moduleResolution": "node",
     "esModuleInterop": true,
-    "baseUrl": ".",
+    "baseUrl": "./src",
     "paths": {
-      "EyePop/*": ["src/eyepop/*"],
-      "EyePop": ["src/eyepop/index.ts"],
-      "EyePop/Render2d/*": ["src/eyepop-render-2d/*"],
-      "EyePop/Render2d": ["src/eyepop-render-2d/index.ts"]
+      "EyePop/*": [ "eyepop/*" ],
+      "EyePop": [ "src/eyepop/index.ts" ],
+      "EyePop/Render2d/*": [ "src/eyepop-render-2d/*" ],
+      "EyePop/Render2d": [ "src/eyepop-render-2d/index.ts" ],
+      "EyePopRenderer/*": [ "eyepop-render-2d/*" ],
+      "@eyepop.ai/eyepop/*": [ "eyepop/*" ],
+      "@eyepop.ai/eyepop-render-2d/*": [ "eyepop-render-2d/*" ]
     },
     "noEmit": true,
 
