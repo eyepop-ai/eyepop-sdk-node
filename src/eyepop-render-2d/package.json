@@ -1,48 +1,49 @@
 {
-  "name": "@eyepop.ai/eyepop-render-2d",
-  "version": "1.9.2",
-  "description": "The Node.js / Typescript library for 2d rendering of EyePop.ai's inference API",
-  "keywords": [
-    "AI",
-    "CV",
-    "ML",
-    "EyePop"
-  ],
-  "author": "EyePop.ai",
-  "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/eyepop-ai/eyepop-sdk-node/issues"
-  },
-  "homepage": "https://github.com/eyepop-ai/eyepop-sdk-node#readme",
-  "main": "./dist/eyepop.render2d.index.js",
-  "module": "./dist/eyepop.render2d.index.mjs",
-  "types": "./dist/eyepop.render2d.index.d.ts",
-  "type": "commonjs",
-  "files": [
-    "dist"
-  ],
-  "browser": {
-    "fs": false,
-    "fs/promises": false,
-    "undici": false
-  },
-  "scripts": {
-    "build": "tsup && webpack",
-    "dev": "tsup && webpack; npx chokidar '*.ts' -c 'npx tsup && webpack'"
-  },
-  "dependencies": {
-    "@eyepop.ai/eyepop": "1.9.2",
-    "@juggle/resize-observer": "^3.4.0",
-    "@types/jsonpath": "^0.2.4",
-    "canvas": "^2.11.2",
-    "jsonpath": "^1.1.1",
-    "webpack": "^5.92.0",
-    "url-join": "^5.0.0"
-  },
-  "devDependencies": {
-    "chokidar-cli": "^3.0.0",
-    "eslint-config-prettier": "^9.1.0",
-    "eslint-plugin-prettier": "^5.2.1",
-    "prettier": "^3.3.3"
-  }
+    "name": "@eyepop.ai/eyepop-render-2d",
+    "version": "1.9.2",
+    "description": "The Node.js / Typescript library for 2d rendering of EyePop.ai's inference API",
+    "keywords": [
+        "AI",
+        "CV",
+        "ML",
+        "EyePop"
+    ],
+    "author": "EyePop.ai",
+    "license": "MIT",
+    "bugs": {
+        "url": "https://github.com/eyepop-ai/eyepop-sdk-node/issues"
+    },
+    "homepage": "https://github.com/eyepop-ai/eyepop-sdk-node#readme",
+    "main": "./dist/eyepop.render2d.index.js",
+    "module": "./dist/eyepop.render2d.index.mjs",
+    "types": "./dist/eyepop.render2d.index.d.ts",
+    "type": "commonjs",
+    "files": [
+        "dist"
+    ],
+    "browser": {
+        "fs": false,
+        "fs/promises": false,
+        "undici": false
+    },
+    "scripts": {
+        "build": "tsup && webpack",
+        "dev": "tsup && webpack; npx chokidar '**/*.ts' -c 'npx tsup && webpack'",
+        "format": "prettier --write '**/*.{js,ts,json,md}'"
+    },
+    "dependencies": {
+        "@eyepop.ai/eyepop": "1.9.2",
+        "@juggle/resize-observer": "^3.4.0",
+        "@types/jsonpath": "^0.2.4",
+        "canvas": "^2.11.2",
+        "jsonpath": "^1.1.1",
+        "webpack": "^5.92.0",
+        "url-join": "^5.0.0"
+    },
+    "devDependencies": {
+        "chokidar-cli": "^3.0.0",
+        "eslint-config-prettier": "^9.1.0",
+        "eslint-plugin-prettier": "^5.2.1",
+        "prettier": "^3.3.3"
+    }
 }
