@@ -1,8 +1,8 @@
-import {v4 as uuidv4} from 'uuid'
-import {HttpClient} from '../shims/http_client'
-import {Logger} from 'pino'
-import {WebrtcBase} from './webrtc_base'
-import {LiveMedia, WorkerSession} from "EyePop/worker/worker_types";
+import { v4 as uuidv4 } from 'uuid'
+import { HttpClient } from '../shims/http_client'
+import { Logger } from 'pino'
+import { WebrtcBase } from './webrtc_base'
+import { LiveMedia, WorkerSession } from 'EyePop/worker/worker_types'
 
 export class WebrtcWhip extends WebrtcBase implements LiveMedia {
     private _stream: MediaStream | null
@@ -12,10 +12,10 @@ export class WebrtcWhip extends WebrtcBase implements LiveMedia {
     }
     public async start(): Promise<WebrtcWhip> {
         const session = await this._getSession()
-        const ingressUrl = new URL(this._urlPath, session.baseUrl);
-        this._requestLogger.debug("before GET: %s", ingressUrl)
+        const ingressUrl = new URL(this._urlPath, session.baseUrl)
+        this._requestLogger.debug('before GET: %s', ingressUrl)
         const headers = {
-            'Authorization': `Bearer ${session.accessToken}`
+            Authorization: `Bearer ${session.accessToken}`,
         }
         /* According to https://www.ietf.org/archive/id/draft-ietf-wish-whip-01.html
            this should be a `OPTIONS` request. Unfortunately a lot of CORS middlewares
@@ -25,7 +25,8 @@ export class WebrtcWhip extends WebrtcBase implements LiveMedia {
            the `OPTIONS` request and bypass the CORS preflight trap
          */
         const response = await this._client.fetch(ingressUrl, {
-            headers: headers, method: 'GET'
+            headers: headers,
+            method: 'GET',
         })
         if (response.status >= 300) {
             return Promise.reject(`unknown status code for GET '${ingressUrl}': ${response.status} (${response.statusText})`)
@@ -60,32 +61,32 @@ export class WebrtcWhip extends WebrtcBase implements LiveMedia {
         }
         const stream = this._stream
         const pc = new RTCPeerConnection({
-            iceServers: WebrtcBase.linkToIceServers(response.headers.get('Link'))
+            iceServers: WebrtcBase.linkToIceServers(response.headers.get('Link')),
         })
 
         this._pc = pc
-        pc.onicecandidate = (evt) => this.onLocalCandidate(evt)
+        pc.onicecandidate = evt => this.onLocalCandidate(evt)
 
         return new Promise(async (resolve, reject) => {
             pc.oniceconnectionstatechange = () => {
                 switch (pc.iceConnectionState) {
-                    case "failed":
-                    case "disconnected":
+                    case 'failed':
+                    case 'disconnected':
                         reject(`peer connection: ${pc.iceConnectionState}`)
                         break
-                    case "connected":
+                    case 'connected':
                         resolve(this)
                         break
                 }
             }
-            stream.getTracks().forEach((track) => {
+            stream.getTracks().forEach(track => {
                 this._requestLogger.debug('onIceServers our stream has track: %s', track)
                 pc.addTrack(track, stream)
-            });
-            stream.addEventListener("addtrack", (trackEvent) => {
+            })
+            stream.addEventListener('addtrack', trackEvent => {
                 this._requestLogger.debug('onIceServers got lazy track: ', trackEvent.track)
                 pc.addTrack(trackEvent.track, stream)
-            });
+            })
             await this.onLocalOffer(await pc.createOffer())
         })
     }
@@ -94,10 +95,10 @@ export class WebrtcWhip extends WebrtcBase implements LiveMedia {
         const stream = this._stream
         this._stream = null
         if (stream) {
-            const tracks = stream.getTracks();
-            tracks.forEach((track) => {
-                track.stop();
-            });
+            const tracks = stream.getTracks()
+            tracks.forEach(track => {
+                track.stop()
+            })
         }
         return super.close()
     }

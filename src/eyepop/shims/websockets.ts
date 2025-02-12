@@ -1,4 +1,4 @@
-export let createWebSocket : (url: string | URL, protocols?: string | string[]) => WebSocket
+export let createWebSocket: (url: string | URL, protocols?: string | string[]) => WebSocket
 
 if ('document' in globalThis && 'implementation' in globalThis.document) {
     createWebSocket = (url: string | URL, protocols?: string | string[]) => {
@@ -6,7 +6,7 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
     }
 } else {
     createWebSocket = (url: string | URL, protocols?: string | string[]) => {
-        const ws = require("ws")
+        const ws = require('ws')
         return new ws.WebSocket(url, protocols)
     }
 }

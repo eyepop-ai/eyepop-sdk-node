@@ -1,4 +1,3 @@
-
 export interface HttpClient {
     fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response>
     close(): Promise<void>
@@ -8,16 +7,13 @@ export let createHttpClient: () => Promise<HttpClient>
 
 if ('document' in globalThis && 'implementation' in globalThis.document) {
     class HttpClient {
-        constructor() {
-        }
+        constructor() {}
 
         public async fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
             return fetch(input, init)
         }
 
-        public async close(): Promise<void> {
-
-        }
+        public async close(): Promise<void> {}
     }
 
     createHttpClient = async () => {
@@ -48,7 +44,7 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
             keepAliveTimeout: 10000,
             connections: 5,
             // two parallel streaming requests to the same host seem to deadlock with pipelining > 0
-            pipelining: 0
+            pipelining: 0,
         })
         return new HttpClient(agent)
     }
