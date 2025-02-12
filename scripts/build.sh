@@ -1,4 +1,5 @@
-# /usr/bin/bash
+#!/usr/bin/env bash
+
 
 # Set the current directory of shell file into a variable
 current_dir=$(dirname "$0")
