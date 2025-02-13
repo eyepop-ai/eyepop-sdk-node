@@ -1,15 +1,15 @@
-import {Auth0Options, OAuth2Auth, Options, SecretKeyAuth, SessionAuth} from "./options"
-import {EndpointState, Session} from "./types"
-import {createHttpClient, HttpClient} from './shims/http_client'
-import {Semaphore} from "./semaphore"
+import { Auth0Options, OAuth2Auth, Options, SecretKeyAuth, SessionAuth } from './options'
+import { EndpointState, Session } from './types'
+import { createHttpClient, HttpClient } from './shims/http_client'
+import { Semaphore } from './semaphore'
 
-import {Logger, pino} from "pino"
-import {authenticateBrowserSession} from "./shims/browser_session"
+import { Logger, pino } from 'pino'
+import { authenticateBrowserSession } from './shims/browser_session'
 
 interface AccessToken {
-    access_token: string;
-    expires_in: number;
-    token_type: string;
+    access_token: string
+    expires_in: number
+    token_type: string
 }
 
 export class Endpoint<T extends Endpoint<T>> {
@@ -47,8 +47,8 @@ export class Endpoint<T extends Endpoint<T>> {
         } else {
             rootLogger = pino()
         }
-        this._logger = rootLogger.child({module: 'eyepop'})
-        this._requestLogger = this._logger.child({module: 'requests'})
+        this._logger = rootLogger.child({ module: 'eyepop' })
+        this._requestLogger = this._logger.child({ module: 'requests' })
     }
 
     protected setStatusRetryHandlers(statusRetryHandlers: Map<number, Function> | undefined = undefined) {
@@ -78,7 +78,7 @@ export class Endpoint<T extends Endpoint<T>> {
 
     public onStateChanged(handler: (fromState: EndpointState, toState: EndpointState) => void): T {
         this._stateChangeHandler = handler
-        return <T><unknown>this
+        return <T>(<unknown>this)
     }
 
     protected updateState(newState: EndpointState | undefined = undefined, message: string | undefined = undefined) {
@@ -91,7 +91,7 @@ export class Endpoint<T extends Endpoint<T>> {
             }
         }
         this._state = newState
-        this._message = message? message: null
+        this._message = message ? message : null
 
         if (this._stateChangeHandler) {
             this._stateChangeHandler(fromState, this._state)
@@ -101,23 +101,21 @@ export class Endpoint<T extends Endpoint<T>> {
     public async connect(): Promise<T> {
         if (this._client) {
             this._logger.warn('endpoint already connected')
-            return <T><unknown>this
+            return <T>(<unknown>this)
         }
         if (!this._options.eyepopUrl) {
-            return Promise.reject("option eyepopUrl or environment variable EYEPOP_URL is required")
+            return Promise.reject('option eyepopUrl or environment variable EYEPOP_URL is required')
         }
         if (this._options.auth === undefined) {
-            return Promise.reject("cannot connect without defined auth option")
+            return Promise.reject('cannot connect without defined auth option')
         }
         if ((this._options.auth as SessionAuth).session !== undefined) {
             this._token = (this._options.auth as SessionAuth).session.accessToken
             this._expire_token_time = (this._options.auth as SessionAuth).session.validUntil / 1000
         } else if ((this._options.auth as OAuth2Auth).oAuth2 !== undefined) {
-
         } else if ((this._options.auth as SecretKeyAuth).secretKey !== undefined) {
-
         } else {
-            return Promise.reject("option secretKey or environment variable EYEPOP_SECRET_KEY is required")
+            return Promise.reject('option secretKey or environment variable EYEPOP_SECRET_KEY is required')
         }
 
         this._client = await createHttpClient()
@@ -144,20 +142,19 @@ export class Endpoint<T extends Endpoint<T>> {
     public async session(): Promise<Session> {
         await this.currentAccessToken()
         if (this._token == null || this._expire_token_time == null) {
-            return Promise.reject("endpoint not connected")
+            return Promise.reject('endpoint not connected')
         }
         return {
             eyepopUrl: <string>this._options.eyepopUrl,
             accessToken: this._token,
-            validUntil: this._expire_token_time * 1000
+            validUntil: this._expire_token_time * 1000,
         }
     }
 
     protected statusHandler401(statusCode: number): void {
-        this._token = null;
-        this._expire_token_time = null;
+        this._token = null
+        this._expire_token_time = null
     }
-
 
     protected async fetchWithRetry(fetcher: () => Promise<Response>, retries: number = 1): Promise<Response> {
         while (true) {
@@ -196,34 +193,36 @@ export class Endpoint<T extends Endpoint<T>> {
     }
 
     protected async reconnect(): Promise<T> {
-        throw new Error("reconnect() not implemented");
+        throw new Error('reconnect() not implemented')
     }
 
     protected async authorizationHeader(): Promise<string> {
-        return `Bearer ${await this.currentAccessToken()}`;
+        return `Bearer ${await this.currentAccessToken()}`
     }
 
     private async currentAccessToken(): Promise<string> {
-        const now = Date.now() / 1000;
+        const now = Date.now() / 1000
         if (!this._token || <number>this._expire_token_time < now) {
             this.updateState(EndpointState.Authenticating)
             try {
                 if (!this._client) {
-                    return Promise.reject("endpoint not connected")
+                    return Promise.reject('endpoint not connected')
                 } else if ((this._options.auth as SessionAuth).session !== undefined) {
-                    return Promise.reject("temporary access token expired")
+                    return Promise.reject('temporary access token expired')
                 } else if ((this._options.auth as OAuth2Auth).oAuth2 !== undefined && this._options.eyepopUrl) {
-                    const session = await authenticateBrowserSession(((this._options.auth as OAuth2Auth).oAuth2 as Auth0Options), this._options)
+                    const session = await authenticateBrowserSession((this._options.auth as OAuth2Auth).oAuth2 as Auth0Options, this._options)
                     this._token = session.accessToken
                     this._expire_token_time = session.validUntil / 1000
                 } else if ((this._options.auth as SecretKeyAuth).secretKey !== undefined && this._options.eyepopUrl) {
                     const secretKeyAuth = this._options.auth as SecretKeyAuth
-                    const body = {'secret_key': secretKeyAuth.secretKey}
-                    const headers = {'Content-Type': 'application/json'}
+                    const body = { secret_key: secretKeyAuth.secretKey }
+                    const headers = { 'Content-Type': 'application/json' }
                     const post_url = `${this.eyepopUrl()}/authentication/token`
                     this._requestLogger.debug('before POST %s', post_url)
                     const response = await this._client.fetch(post_url, {
-                        method: 'POST', headers: headers, body: JSON.stringify(body)
+                        method: 'POST',
+                        headers: headers,
+                        body: JSON.stringify(body),
                     })
                     if (response.status != 200) {
                         const message = await response.text()
@@ -235,7 +234,7 @@ export class Endpoint<T extends Endpoint<T>> {
                     this._token = token.access_token
                     this._expire_token_time = now + token.expires_in - 60
                 } else {
-                    return Promise.reject("no valid auth option")
+                    return Promise.reject('no valid auth option')
                 }
             } finally {
                 this.updateState()
