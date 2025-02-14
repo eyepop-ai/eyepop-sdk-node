@@ -38,6 +38,5 @@
   },
   "dependencies": {
     "pino-pretty": "^11.2.2",
-    "typescript": "^4.4.4"
   }
 }

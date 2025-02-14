@@ -18,7 +18,9 @@
       "EyePop/Render2d": [ "src/eyepop-render-2d/index.ts" ],
       "EyePopRenderer/*": [ "eyepop-render-2d/*" ],
       "@eyepop.ai/eyepop/*": [ "eyepop/*" ],
-      "@eyepop.ai/eyepop-render-2d/*": [ "eyepop-render-2d/*" ]
+      "@eyepop.ai/eyepop-render-2d/*": [ "eyepop-render-2d/*" ],
+      "@eyepop.ai/eyepop": [ "eyepop/" ],
+      "@eyepop.ai/eyepop-render-2d": [ "eyepop-render-2d/" ]
     },
     "noEmit": true,
 
