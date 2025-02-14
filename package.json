@@ -37,6 +37,6 @@
     "uuid": "^9.0.1"
   },
   "dependencies": {
-    "pino-pretty": "^11.2.2",
+    "pino-pretty": "^11.2.2"
   }
 }
