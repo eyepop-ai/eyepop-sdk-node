@@ -6,6 +6,7 @@ import { Render, DEFAULT_TARGET, RenderTarget } from './render'
 export type RenderClassesOptions = {
     showNestedClasses?: boolean // Whether to show nested classes, such as "person" + "necklace"
     showConfidence?: boolean // Whether to show confidence, such as "0.95"
+    showDottedOutline?: boolean // Whether to show a dotted outline around the object
 } & RenderTarget
 
 export class RenderClasses implements Render {
@@ -15,13 +16,15 @@ export class RenderClasses implements Render {
     private style: Style | undefined
     private showNestedClasses: boolean
     private showConfidence: boolean
+    private showDottedOutline: boolean
 
     constructor(options: Partial<RenderClassesOptions> = {}) {
-        const { showConfidence = false, showNestedClasses = false, target = '$' } = options
+        const { showConfidence = false, showNestedClasses = false, showDottedOutline = false, target = '$' } = options
 
         this.target = target
         this.showNestedClasses = showNestedClasses
         this.showConfidence = showConfidence
+        this.showDottedOutline = showDottedOutline
     }
 
     start(context: CanvasRenderingContext2D, style: Style) {
@@ -63,12 +66,34 @@ export class RenderClasses implements Render {
         const padding = 5
         const labelWidth = textDetails.width + 2 * padding
         const labelHeight = textDetails.actualBoundingBoxAscent + textDetails.actualBoundingBoxDescent + 2 * padding
+        const borderRadius = labelHeight / 2
 
         context.fillStyle = '#009dff'
+        if(this.showDottedOutline){
+            context.globalAlpha = 0.5
+        }else{
+            context.globalAlpha = 1
+        }
 
         context.beginPath()
-        context.fillRect(xOffset, yOffset - labelHeight / 2, labelWidth, labelHeight)
+        context.moveTo(xOffset + borderRadius, yOffset - labelHeight / 2)
+        context.lineTo(xOffset + labelWidth - borderRadius, yOffset - labelHeight / 2)
+        context.quadraticCurveTo(xOffset + labelWidth, yOffset - labelHeight / 2, xOffset + labelWidth, yOffset - labelHeight / 2 + borderRadius)
+        context.lineTo(xOffset + labelWidth, yOffset + labelHeight / 2 - borderRadius)
+        context.quadraticCurveTo(xOffset + labelWidth, yOffset + labelHeight / 2, xOffset + labelWidth - borderRadius, yOffset + labelHeight / 2)
+        context.lineTo(xOffset + borderRadius, yOffset + labelHeight / 2)
+        context.quadraticCurveTo(xOffset, yOffset + labelHeight / 2, xOffset, yOffset + labelHeight / 2 - borderRadius)
+        context.lineTo(xOffset, yOffset - labelHeight / 2 + borderRadius)
+        context.quadraticCurveTo(xOffset, yOffset - labelHeight / 2, xOffset + borderRadius, yOffset - labelHeight / 2)
         context.closePath()
+        context.fill()
+
+        if (this.showDottedOutline) {
+            context.strokeStyle = '#ffffff'
+            context.setLineDash([5, 3])
+            context.stroke()
+            context.setLineDash([])
+        }
 
         context.fillStyle = '#ffffff'
         context.textAlign = 'left'
