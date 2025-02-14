@@ -1,8 +1,8 @@
-import {EyePop, Session} from '../../../src/eyepop'
+import { EyePop, Session } from '../../../src/eyepop'
 
-import {MockServer} from 'jest-mock-server'
-import {describe, expect, test} from '@jest/globals'
-import {v4 as uuidv4} from 'uuid'
+import { MockServer } from 'jest-mock-server'
+import { describe, expect, test } from '@jest/globals'
+import { v4 as uuidv4 } from 'uuid'
 
 describe('EyePopSdk endpoint module auth and connect', () => {
     const server = new MockServer()
@@ -19,47 +19,38 @@ describe('EyePopSdk endpoint module auth and connect', () => {
     const long_token_valid_time = 1000 * 1000
 
     test('EyePopSdk connect', async () => {
-
-        const authenticationRoute = server
-            .post('/authentication/token')
-            .mockImplementationOnce((ctx) => {
-                ctx.status = 200
-                ctx.response.headers['content-type'] = 'application/json'
-                ctx.body = JSON.stringify({
-                    access_token: test_access_token,
-                    expires_in: long_token_valid_time,
-                    token_type: 'Bearer'
-                })
+        const authenticationRoute = server.post('/authentication/token').mockImplementationOnce(ctx => {
+            ctx.status = 200
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify({
+                access_token: test_access_token,
+                expires_in: long_token_valid_time,
+                token_type: 'Bearer',
             })
+        })
 
-        const popConfigRoute = server
-            .get(`/pops/${test_pop_id}/config`)
-            .mockImplementationOnce((ctx) => {
-                ctx.status = 200
-                ctx.response.headers['content-type'] = 'application/json'
-                ctx.body = JSON.stringify({base_url: `${server.getURL()}worker/`, pipeline_id: test_pipeline_id})
-            })
+        const popConfigRoute = server.get(`/pops/${test_pop_id}/config`).mockImplementationOnce(ctx => {
+            ctx.status = 200
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify({ base_url: `${server.getURL()}worker/`, pipeline_id: test_pipeline_id })
+        })
 
-        const stopRoute = server
-            .patch(`/worker/pipelines/${test_pipeline_id}/source`)
-            .mockImplementationOnce((ctx) => {
-                ctx.status = 204
-            })
+        const stopRoute = server.patch(`/worker/pipelines/${test_pipeline_id}/source`).mockImplementationOnce(ctx => {
+            ctx.status = 204
+        })
 
-        const getPipelineRoute = server
-            .get(`/worker/pipelines/${test_pipeline_id}`)
-            .mockImplementationOnce((ctx) => {
-                ctx.status = 200
-                ctx.response.headers['content-type'] = 'application/json'
-                ctx.body = JSON.stringify({
-                    id: test_pipeline_id
-                })
+        const getPipelineRoute = server.get(`/worker/pipelines/${test_pipeline_id}`).mockImplementationOnce(ctx => {
+            ctx.status = 200
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify({
+                id: test_pipeline_id,
             })
+        })
 
         const endpoint = EyePop.workerEndpoint({
             eyepopUrl: server.getURL().toString(),
             popId: test_pop_id,
-            auth: {secretKey: test_secret_key}
+            auth: { secretKey: test_secret_key },
         })
         expect(endpoint).toBeDefined()
         try {
@@ -79,44 +70,38 @@ describe('EyePopSdk endpoint module auth and connect', () => {
         const test_access_token = uuidv4()
         const long_token_valid_time = 1000 * 1000
 
-        const authenticationRoute = server
-            .post('/authentication/token')
-            .mockImplementation((ctx) => {
-                ctx.status = 200
-                ctx.response.headers['content-type'] = 'application/json'
-                ctx.body = JSON.stringify({
-                    access_token: test_access_token,
-                    expires_in: long_token_valid_time,
-                    token_type: 'Bearer'
-                })
+        const authenticationRoute = server.post('/authentication/token').mockImplementation(ctx => {
+            ctx.status = 200
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify({
+                access_token: test_access_token,
+                expires_in: long_token_valid_time,
+                token_type: 'Bearer',
             })
+        })
 
-        const popConfigRoute = server
-            .get(`/pops/${test_pop_id}/config`)
-            .mockImplementation((ctx) => {
-                ctx.status = 200
-                ctx.response.headers['content-type'] = 'application/json'
-                ctx.body = JSON.stringify({base_url: `${server.getURL()}worker/`, pipeline_id: test_pipeline_id})
-            })
+        const popConfigRoute = server.get(`/pops/${test_pop_id}/config`).mockImplementation(ctx => {
+            ctx.status = 200
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify({ base_url: `${server.getURL()}worker/`, pipeline_id: test_pipeline_id })
+        })
 
-        const getPipelineRoute = server
-            .get(`/worker/pipelines/${test_pipeline_id}`)
-            .mockImplementation((ctx) => {
-                ctx.status = 200
-                ctx.response.headers['content-type'] = 'application/json'
-                ctx.body = JSON.stringify({
-                    id: test_pipeline_id
-                })
+        const getPipelineRoute = server.get(`/worker/pipelines/${test_pipeline_id}`).mockImplementation(ctx => {
+            ctx.status = 200
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify({
+                id: test_pipeline_id,
             })
+        })
 
-        server
-            .patch(`/worker/pipelines/${test_pipeline_id}/source`)
-            .mockImplementation((ctx) => {
-                ctx.status = 204
-            })
+        server.patch(`/worker/pipelines/${test_pipeline_id}/source`).mockImplementation(ctx => {
+            ctx.status = 204
+        })
 
         const endpoint = EyePop.workerEndpoint({
-            eyepopUrl: server.getURL().toString(), popId: test_pop_id, auth: {secretKey: test_secret_key}
+            eyepopUrl: server.getURL().toString(),
+            popId: test_pop_id,
+            auth: { secretKey: test_secret_key },
         })
         expect(endpoint).toBeDefined()
         try {
@@ -141,45 +126,44 @@ describe('EyePopSdk endpoint module auth and connect', () => {
     test('EyePopSdk re-auth on expired token', async () => {
         const authenticationRoute = server
             .post('/authentication/token')
-            .mockImplementationOnce((ctx) => {
+            .mockImplementationOnce(ctx => {
                 ctx.status = 200
                 ctx.response.headers['content-type'] = 'application/json'
                 ctx.body = JSON.stringify({
                     access_token: test_access_token,
                     expires_in: short_token_valid_time,
-                    token_type: 'Bearer'
+                    token_type: 'Bearer',
                 })
             })
-            .mockImplementation((ctx) => {
+            .mockImplementation(ctx => {
                 ctx.status = 200
                 ctx.response.headers['content-type'] = 'application/json'
                 ctx.body = JSON.stringify({
                     access_token: test_access_token,
                     expires_in: long_token_valid_time,
-                    token_type: 'Bearer'
+                    token_type: 'Bearer',
                 })
             })
 
-        const popConfigRoute = server
-            .get(`/pops/${test_pop_id}/config`)
-            .mockImplementation((ctx) => {
-                ctx.status = 200
-                ctx.response.headers['content-type'] = 'application/json'
-                ctx.body = JSON.stringify({base_url: `${server.getURL()}worker/`, pipeline_id: test_pipeline_id})
-            })
+        const popConfigRoute = server.get(`/pops/${test_pop_id}/config`).mockImplementation(ctx => {
+            ctx.status = 200
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify({ base_url: `${server.getURL()}worker/`, pipeline_id: test_pipeline_id })
+        })
 
-        const getPipelineRoute = server
-            .get(`/worker/pipelines/${test_pipeline_id}`)
-            .mockImplementation((ctx) => {
-                ctx.status = 200
-                ctx.response.headers['content-type'] = 'application/json'
-                ctx.body = JSON.stringify({
-                    id: test_pipeline_id
-                })
+        const getPipelineRoute = server.get(`/worker/pipelines/${test_pipeline_id}`).mockImplementation(ctx => {
+            ctx.status = 200
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify({
+                id: test_pipeline_id,
             })
+        })
 
         const endpoint = EyePop.workerEndpoint({
-            eyepopUrl: server.getURL().toString(), popId: test_pop_id, stopJobs: false, auth: {secretKey: test_secret_key}
+            eyepopUrl: server.getURL().toString(),
+            popId: test_pop_id,
+            stopJobs: false,
+            auth: { secretKey: test_secret_key },
         })
         expect(endpoint).toBeDefined()
         try {
@@ -202,47 +186,44 @@ describe('EyePopSdk endpoint module auth and connect', () => {
     })
 
     test('EyePopSdk re-auth on 401', async () => {
-        const authenticationRoute = server
-            .post('/authentication/token')
-            .mockImplementation((ctx) => {
-                ctx.status = 200
-                ctx.response.headers['content-type'] = 'application/json'
-                ctx.body = JSON.stringify({
-                    access_token: test_access_token,
-                    expires_in: short_token_valid_time,
-                    token_type: 'Bearer'
-                })
+        const authenticationRoute = server.post('/authentication/token').mockImplementation(ctx => {
+            ctx.status = 200
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify({
+                access_token: test_access_token,
+                expires_in: short_token_valid_time,
+                token_type: 'Bearer',
             })
+        })
 
         const popConfigRoute = server
             .get(`/pops/${test_pop_id}/config`)
-            .mockImplementationOnce((ctx) => {
+            .mockImplementationOnce(ctx => {
                 ctx.status = 401
             })
-            .mockImplementation((ctx) => {
+            .mockImplementation(ctx => {
                 ctx.status = 200
                 ctx.response.headers['content-type'] = 'application/json'
-                ctx.body = JSON.stringify({base_url: `${server.getURL()}worker/`, pipeline_id: test_pipeline_id})
+                ctx.body = JSON.stringify({ base_url: `${server.getURL()}worker/`, pipeline_id: test_pipeline_id })
             })
 
-        const getPipelineRoute = server
-            .get(`/worker/pipelines/${test_pipeline_id}`)
-            .mockImplementationOnce((ctx) => {
-                ctx.status = 200
-                ctx.response.headers['content-type'] = 'application/json'
-                ctx.body = JSON.stringify({
-                    id: test_pipeline_id
-                })
+        const getPipelineRoute = server.get(`/worker/pipelines/${test_pipeline_id}`).mockImplementationOnce(ctx => {
+            ctx.status = 200
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify({
+                id: test_pipeline_id,
             })
+        })
 
-        server
-            .patch(`/worker/pipelines/${test_pipeline_id}/source`)
-            .mockImplementation((ctx) => {
-                ctx.status = 204
-            })
+        server.patch(`/worker/pipelines/${test_pipeline_id}/source`).mockImplementation(ctx => {
+            ctx.status = 204
+        })
 
         const endpoint = EyePop.workerEndpoint({
-            eyepopUrl: server.getURL().toString(), popId: test_pop_id, stopJobs: false, auth: {secretKey: test_secret_key}
+            eyepopUrl: server.getURL().toString(),
+            popId: test_pop_id,
+            stopJobs: false,
+            auth: { secretKey: test_secret_key },
         })
         expect(endpoint).toBeDefined()
         try {
@@ -257,44 +238,39 @@ describe('EyePopSdk endpoint module auth and connect', () => {
     })
 
     test('EyePopSdk auth with session', async () => {
-        const authenticationRoute = server
-            .post('/authentication/token')
-            .mockImplementation((ctx) => {
-                ctx.status = 200
-                ctx.response.headers['content-type'] = 'application/json'
-                ctx.body = JSON.stringify({
-                    access_token: test_access_token,
-                    expires_in: long_token_valid_time,
-                    token_type: 'Bearer'
-                })
+        const authenticationRoute = server.post('/authentication/token').mockImplementation(ctx => {
+            ctx.status = 200
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify({
+                access_token: test_access_token,
+                expires_in: long_token_valid_time,
+                token_type: 'Bearer',
             })
+        })
 
-        const popConfigRoute = server
-            .get(`/pops/${test_pop_id}/config`)
-            .mockImplementation((ctx) => {
-                ctx.status = 200
-                ctx.response.headers['content-type'] = 'application/json'
-                ctx.body = JSON.stringify({base_url: `${server.getURL()}worker/`, pipeline_id: test_pipeline_id})
-            })
+        const popConfigRoute = server.get(`/pops/${test_pop_id}/config`).mockImplementation(ctx => {
+            ctx.status = 200
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify({ base_url: `${server.getURL()}worker/`, pipeline_id: test_pipeline_id })
+        })
 
-        const getPipelineRoute = server
-            .get(`/worker/pipelines/${test_pipeline_id}`)
-            .mockImplementation((ctx) => {
-                ctx.status = 200
-                ctx.response.headers['content-type'] = 'application/json'
-                ctx.body = JSON.stringify({
-                    id: test_pipeline_id
-                })
+        const getPipelineRoute = server.get(`/worker/pipelines/${test_pipeline_id}`).mockImplementation(ctx => {
+            ctx.status = 200
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify({
+                id: test_pipeline_id,
             })
+        })
 
-        server
-            .patch(`/worker/pipelines/${test_pipeline_id}/source`)
-            .mockImplementation((ctx) => {
-                ctx.status = 204
-            })
+        server.patch(`/worker/pipelines/${test_pipeline_id}/source`).mockImplementation(ctx => {
+            ctx.status = 204
+        })
 
         const endpoint1 = EyePop.workerEndpoint({
-            eyepopUrl: server.getURL().toString(), popId: test_pop_id, stopJobs: false, auth: {secretKey: test_secret_key}
+            eyepopUrl: server.getURL().toString(),
+            popId: test_pop_id,
+            stopJobs: false,
+            auth: { secretKey: test_secret_key },
         })
         expect(endpoint1).toBeDefined()
 
@@ -314,7 +290,10 @@ describe('EyePopSdk endpoint module auth and connect', () => {
         popConfigRoute.mockClear()
 
         const endpoint2 = EyePop.workerEndpoint({
-            eyepopUrl: server.getURL().toString(), popId: test_pop_id, stopJobs: false, auth: {session: session}
+            eyepopUrl: server.getURL().toString(),
+            popId: test_pop_id,
+            stopJobs: false,
+            auth: { session: session },
         })
         expect(endpoint2).toBeDefined()
 
@@ -326,6 +305,5 @@ describe('EyePopSdk endpoint module auth and connect', () => {
         } finally {
             await endpoint2.disconnect()
         }
-
     })
 })
