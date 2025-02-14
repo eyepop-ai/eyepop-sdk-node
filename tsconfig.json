@@ -27,7 +27,6 @@
     "emitDeclarationOnly": false,
 
     "forceConsistentCasingInFileNames": true,
-
     "strict": true,
     "noImplicitAny": true,
     "strictNullChecks": true,
