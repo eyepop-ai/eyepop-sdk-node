@@ -1,4 +1,4 @@
-import { Options } from 'EyePop/options'
+import { Options } from '../options'
 
 export enum TransientPopId {
     Transient = 'transient',

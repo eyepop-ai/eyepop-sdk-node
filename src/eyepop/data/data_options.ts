@@ -1,4 +1,4 @@
-import { Options } from 'EyePop/options'
+import { Options } from '../options'
 
 export interface DataOptions extends Options {
     /**

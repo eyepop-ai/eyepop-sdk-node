@@ -86,7 +86,6 @@ server.listen(8080, '127.0.0.1')
 
 ```javascript
 import { EyePop } from '@eyepop.ai/eyepop'
-
 ;(async () => {
     const session = await (await fetch('http://127.0.0.1:8080')).json()
     const endpoint = await EyePop.workerEndpoint({ auth: { session: session } }).connect()
