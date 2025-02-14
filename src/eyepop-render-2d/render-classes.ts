@@ -4,7 +4,6 @@ import { CanvasRenderingContext2D } from 'canvas'
 import { Render, DEFAULT_TARGET, RenderTarget } from './render'
 
 export type RenderClassesOptions = {
-    showNestedClasses?: boolean // Whether to show nested classes, such as "person" + "necklace"
     showConfidence?: boolean // Whether to show confidence, such as "0.95"
     showDottedOutline?: boolean // Whether to show a dotted outline around the object
 } & RenderTarget
@@ -14,15 +13,14 @@ export class RenderClasses implements Render {
 
     private context: CanvasRenderingContext2D | undefined
     private style: Style | undefined
-    private showNestedClasses: boolean
+
     private showConfidence: boolean
     private showDottedOutline: boolean
 
     constructor(options: Partial<RenderClassesOptions> = {}) {
-        const { showConfidence = false, showNestedClasses = false, showDottedOutline = false, target = '$' } = options
+        const { showConfidence = false, showDottedOutline = false, target = '$' } = options
 
         this.target = target
-        this.showNestedClasses = showNestedClasses
         this.showConfidence = showConfidence
         this.showDottedOutline = showDottedOutline
     }
@@ -69,9 +67,9 @@ export class RenderClasses implements Render {
         const borderRadius = labelHeight / 2
 
         context.fillStyle = '#009dff'
-        if(this.showDottedOutline){
+        if (this.showDottedOutline) {
             context.globalAlpha = 0.5
-        }else{
+        } else {
             context.globalAlpha = 1
         }
 
