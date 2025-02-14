@@ -6,6 +6,7 @@ import { Render, DEFAULT_TARGET, RenderTarget } from './render'
 export type RenderClassesOptions = {
     showConfidence?: boolean // Whether to show confidence, such as "0.95"
     showDottedOutline?: boolean // Whether to show a dotted outline around the object
+    disabledClasses?: string[] // Classes to disable rendering for
 } & RenderTarget
 
 export class RenderClasses implements Render {
@@ -15,14 +16,15 @@ export class RenderClasses implements Render {
     private style: Style | undefined
 
     private showConfidence: boolean
-    private showDottedOutline: boolean
+
+    private disabledClasses: string[] = []
 
     constructor(options: Partial<RenderClassesOptions> = {}) {
-        const { showConfidence = false, showDottedOutline = false, target = '$' } = options
+        const { showConfidence = false, disabledClasses = [], target = '$' } = options
 
         this.target = target
         this.showConfidence = showConfidence
-        this.showDottedOutline = showDottedOutline
+        this.disabledClasses = disabledClasses
     }
 
     start(context: CanvasRenderingContext2D, style: Style) {
@@ -43,11 +45,14 @@ export class RenderClasses implements Render {
 
         if (element.classes) {
             element.classes.forEach((cls: PredictedClass) => {
+                let drawDisabled = this.disabledClasses.includes(cls.classLabel)
+
                 let label = cls.classLabel
                 if (this.showConfidence && cls.confidence) {
                     label += ` ${Math.round(cls.confidence * 100)}%`
                 }
-                const labelWidth = this.drawLabel(label, context, xOff, yOff, style)
+
+                const labelWidth = this.drawLabel(label, context, xOff, yOff, style, drawDisabled)
 
                 xOff += labelWidth + 10
 
@@ -58,7 +63,7 @@ export class RenderClasses implements Render {
             })
         }
     }
-    drawLabel(label: string, context: CanvasRenderingContext2D, xOffset: number, yOffset: number, style: Style): number {
+    drawLabel(label: string, context: CanvasRenderingContext2D, xOffset: number, yOffset: number, style: Style, drawDisabled: boolean): number {
         context.font = style.font
         const textDetails = context.measureText(label)
         const padding = 5
@@ -67,8 +72,14 @@ export class RenderClasses implements Render {
         const borderRadius = labelHeight / 2
 
         context.fillStyle = '#009dff'
-        if (this.showDottedOutline) {
+
+        if (drawDisabled) {
+            context.fillStyle = '#004d7d'
             context.globalAlpha = 0.5
+            context.strokeStyle = '#ffffff'
+            context.setLineDash([5, 3])
+            context.stroke()
+            context.setLineDash([])
         } else {
             context.globalAlpha = 1
         }
@@ -85,13 +96,6 @@ export class RenderClasses implements Render {
         context.quadraticCurveTo(xOffset, yOffset - labelHeight / 2, xOffset + borderRadius, yOffset - labelHeight / 2)
         context.closePath()
         context.fill()
-
-        if (this.showDottedOutline) {
-            context.strokeStyle = '#ffffff'
-            context.setLineDash([5, 3])
-            context.stroke()
-            context.setLineDash([])
-        }
 
         context.fillStyle = '#ffffff'
         context.textAlign = 'left'
