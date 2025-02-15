@@ -63,7 +63,7 @@ export abstract class WebrtcBase {
         const ingressUrl = new URL(this._urlPath, session.baseUrl)
         this._requestLogger.debug('before POST: %s', ingressUrl)
         const headers = {
-            Authorization: `Bearer ${session.accessToken}`,
+            ...session.authenticationHeaders(),
             'Content-Type': 'application/sdp',
         }
         const response = await this._client.fetch(ingressUrl, {
@@ -102,7 +102,7 @@ export abstract class WebrtcBase {
         const ingressUrl = new URL(urlPath, session.baseUrl)
         this._requestLogger.debug('before PATCH: %s', ingressUrl)
         const headers = {
-            Authorization: `Bearer ${session.accessToken}`,
+            ...session.authenticationHeaders(),
             'Content-Type': 'application/trickle-ice-sdpfrag',
             'If-Match': this._eTag,
         }

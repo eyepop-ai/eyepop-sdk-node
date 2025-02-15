@@ -12,4 +12,5 @@ export interface WorkerOptions extends Options {
     isSandbox?: boolean
     autoStart?: boolean
     stopJobs?: boolean
+    isLocalMode?: boolean
 }

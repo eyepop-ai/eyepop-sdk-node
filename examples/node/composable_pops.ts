@@ -18,8 +18,7 @@ const TEXT_ON_OBJECTS = {
   components: [
     {
       type: PopComponentType.INFERENCE,
-      inferenceTypes: [InferenceType.OBJECT_DETECTION],
-      modelUuid: "yolov7:YOLOv7-TINY_COCO_TensorFlowLite_float32", // replace with your own model uuid
+      model: "eyepop.coco.yolov7-tiny:latest",
       forward: {
         operator: {
           type: ForwardOperatorType.CROP,
@@ -27,8 +26,7 @@ const TEXT_ON_OBJECTS = {
         targets: [
           {
             type: PopComponentType.INFERENCE,
-            inferenceTypes: [InferenceType.OBJECT_DETECTION],
-            modelUuid: "eyepop-text:EPTextB1_Text_TorchScriptCuda_float32",
+            model: "eyepop.text:latest",
             hidden: false,
             forward: {
               operator: {
@@ -37,8 +35,7 @@ const TEXT_ON_OBJECTS = {
               targets: [
                 {
                   type: PopComponentType.INFERENCE,
-                  inferenceTypes: [InferenceType.OCR],
-                  modelUuid: "PARSeq:PARSeq224_TextDataset_TorchScriptCuda_float32",
+                  model: "eyepop.text.recognize.square:latest",
                 },
               ],
             },
@@ -53,8 +50,7 @@ const OBJECT_TRACKING = {
   components: [
     {
       type: PopComponentType.INFERENCE,
-      inferenceTypes: [InferenceType.OBJECT_DETECTION],
-      modelUuid: "yolov7:YOLOv7-TINY_COCO_TensorFlowLite_float32", // replace with your own model uuid
+      model: "eyepop.coco.yolov7-tiny:latest",
       forward: {
         operator: {
           type: ForwardOperatorType.CROP,
@@ -73,13 +69,11 @@ const OBJECT_PLUS_PERSON = {
   components: [
     {
       type: PopComponentType.INFERENCE,
-      inferenceTypes: [InferenceType.OBJECT_DETECTION],
-      modelUuid: "yolov7:YOLOv7-TINY_COCO_TensorFlowLite_float32", // replace with your own model uuid
+      model: "eyepop.coco.yolov7-tiny:latest",
     },
     {
       type: PopComponentType.INFERENCE,
-      inferenceTypes: [InferenceType.OBJECT_DETECTION],
-      modelUuid: "eyepop-person:EPPersonB1_Person_TorchScriptCuda_float32",
+      model: "eyepop.person:latest",
       categoryName: "person",
       confidenceThreshold: 0.8,
       forward: {
@@ -89,9 +83,8 @@ const OBJECT_PLUS_PERSON = {
         targets: [
           {
             type: PopComponentType.INFERENCE,
-            inferenceTypes: [InferenceType.KEY_POINTS],
             categoryName: "2d-body-points",
-            modelUuid: "Mediapipe:MoveNet_SinglePose_Thunder_MoveNet_TensorFlowLite_float32",
+            model: "eyepop.person.2d-body-points:latest",
           },
         ],
       },
@@ -209,7 +202,7 @@ const OBJECT_SEGMENTATION = {
     })
     .connect();
   try {
-    await endpoint.changePop(OBJECT_SEGMENTATION);
+    await endpoint.changePop(OBJECT_PLUS_PERSON);
     let results = await endpoint.process(example_input);
     for await (let result of results) {
       logger.info("result: %s", JSON.stringify(result));
