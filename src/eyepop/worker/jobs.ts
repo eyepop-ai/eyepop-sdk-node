@@ -3,7 +3,7 @@ import { Stream, StreamEvent } from '../streaming'
 import { HttpClient } from '../shims/http_client'
 
 import { Logger } from 'pino'
-import { ResultStream, WorkerSession } from 'EyePop/worker/worker_types'
+import { ResultStream, WorkerSession } from '../worker/worker_types'
 
 export class AbstractJob implements ResultStream {
     protected _getSession: () => Promise<WorkerSession>

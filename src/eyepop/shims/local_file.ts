@@ -1,5 +1,5 @@
-import { PathSource, StreamSource } from 'EyePop'
 import * as fs from 'node:fs'
+import { PathSource, StreamSource } from '../index'
 
 export let resolvePath: (source: PathSource) => Promise<StreamSource>
 

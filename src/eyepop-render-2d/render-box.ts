@@ -12,6 +12,7 @@ export enum BoxType {
 export type RenderBoxOptions = {
     showClass?: boolean // Whether to show class labels, such as "person"
     showNestedClasses?: boolean // Whether to show nested classes, such as "person" + "necklace"
+    showText?: boolean // Whether to show text labels
     showConfidence?: boolean // Whether to show confidence, such as "0.95"
     showTraceId?: boolean // Whether to show trace ID, such as "132"
     boxType?: BoxType // The style of the box bounds
@@ -291,7 +292,7 @@ export class RenderBox implements Render {
             context.arc(corner.x, corner.y, cornerSize, 0, 2 * Math.PI)
             context.lineWidth = scale * 4
             context.strokeStyle = color || style.colors.primary_color
-            context.fillStyle = 'white' || style.colors.primary_color
+            context.fillStyle = 'white'
             context.fill()
             context.stroke()
         })
@@ -303,7 +304,7 @@ export class RenderBox implements Render {
             context.arc(corner.x, corner.y, cornerSize, 0, 2 * Math.PI)
             context.lineWidth = scale * 4
             context.strokeStyle = color || style.colors.primary_color
-            context.fillStyle = 'white' || style.colors.primary_color
+            context.fillStyle = 'white'
             context.fill()
             context.stroke()
         })

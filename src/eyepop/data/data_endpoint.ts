@@ -28,7 +28,7 @@ import {
     ArtifactType,
 } from './data_types'
 import { Prediction } from '@eyepop.ai/eyepop'
-import { ModelFormat } from 'EyePop/worker/worker_types'
+import { ModelFormat } from '../worker/worker_types'
 
 interface DataConfig {
     base_url: string

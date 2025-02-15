@@ -5,22 +5,8 @@ import { WebrtcWhip } from './webrtc_whip'
 import { WebrtcWhep } from './webrtc_whep'
 import { resolvePath } from '../shims/local_file'
 import { Endpoint } from '../endpoint'
-import { TransientPopId, WorkerOptions } from 'EyePop/worker/worker_options'
-import {
-    FileSource,
-    IngressEvent,
-    LiveMedia,
-    LiveSource,
-    ModelInstanceDef,
-    PathSource,
-    ResultStream,
-    Source,
-    SourcesEntry,
-    StreamSource,
-    UrlSource,
-    WorkerSession,
-    Pop,
-} from 'EyePop/worker/worker_types'
+import { TransientPopId, WorkerOptions } from '../worker/worker_options'
+import { FileSource, IngressEvent, LiveMedia, LiveSource, ModelInstanceDef, PathSource, ResultStream, Source, SourcesEntry, StreamSource, UrlSource, WorkerSession, Pop } from '../worker/worker_types'
 
 interface PopConfig {
     base_url: string

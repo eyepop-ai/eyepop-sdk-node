@@ -1,11 +1,11 @@
-import {EyePop} from '../../src/eyepop'
+import { EyePop } from '../../src/eyepop'
 import process from 'process'
 
 async function upload_photos_sequentially(image_paths: Array<string>) {
     const endpoint = await EyePop.workerEndpoint().connect()
     try {
         for (let i = 0; i < image_paths.length; i++) {
-            let results = await endpoint.process({path: image_paths[i]})
+            let results = await endpoint.process({ path: image_paths[i] })
             for await (let result of results) {
                 // console.log(result)
             }
@@ -19,8 +19,8 @@ async function upload_photos_parallel(image_paths: Array<string>) {
     const endpoint = await EyePop.workerEndpoint().connect()
     try {
         for (let i = 0; i < image_paths.length; i++) {
-            const job = endpoint.process({path: image_paths[i]})
-            job.then(async (results) => {
+            const job = endpoint.process({ path: image_paths[i] })
+            job.then(async results => {
                 for await (let result of results) {
                     // console.log(result)
                 }
@@ -30,7 +30,6 @@ async function upload_photos_parallel(image_paths: Array<string>) {
         await endpoint.disconnect()
     }
 }
-
 
 if (!process.argv[2]) {
     console.error('first argument must be path to an image')
@@ -53,7 +52,7 @@ const num_of_iterations: number = Number.parseInt(process.argv[3])
         let t1 = Date.now()
         await upload_photos_sequentially(example_image_paths)
         let t2 = Date.now()
-        console.log(`${example_image_paths.length} x photo sequential took ${(t2 - t1)} seconds`)
+        console.log(`${example_image_paths.length} x photo sequential took ${t2 - t1} seconds`)
     } catch (e) {
         console.error(e)
     }
@@ -66,7 +65,7 @@ const num_of_iterations: number = Number.parseInt(process.argv[3])
         let t1 = Date.now()
         await upload_photos_parallel(example_image_paths)
         let t2 = Date.now()
-        console.log(`${example_image_paths.length} x photo parallel took ${(t2 - t1)} seconds`)
+        console.log(`${example_image_paths.length} x photo parallel took ${t2 - t1} seconds`)
     } catch (e) {
         console.error(e)
     }

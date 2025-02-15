@@ -1,5 +1,5 @@
-import { Prediction, Session } from 'EyePop/types'
-import { ModelFormat } from 'EyePop/worker/worker_types'
+import { Prediction, Session } from '../types'
+import { ModelFormat } from '../worker/worker_types'
 
 export interface DataSession extends Session {
     readonly accountId: string
