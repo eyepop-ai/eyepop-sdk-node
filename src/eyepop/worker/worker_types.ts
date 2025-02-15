@@ -161,6 +161,7 @@ export enum ContourType {
 
 export interface ContourFinderComponent extends BaseComponent {
     contourType: ContourType
+    areaThreshold?: number
 }
 
 export interface ComponentFinderComponent extends BaseComponent {
