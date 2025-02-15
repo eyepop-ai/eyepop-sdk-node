@@ -1,5 +1,5 @@
-import { SessionAuth } from '../options'
-import { EndpointState, SourceParams } from '../types'
+import { LocalAuth, SessionAuth } from '../options'
+import { EndpointState, Session, SourceParams } from '../types'
 import { AbstractJob, LoadFromJob, LoadLiveIngressJob, UploadJob } from './jobs'
 import { WebrtcWhip } from './webrtc_whip'
 import { WebrtcWhep } from './webrtc_whep'
@@ -70,7 +70,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
 
         this._sandboxId = null
         const sessionAuth: SessionAuth = options.auth as SessionAuth
-        if (sessionAuth.session !== undefined) {
+        if (sessionAuth !== undefined && sessionAuth.session !== undefined) {
             const workerSession = sessionAuth.session as WorkerSession
             if (workerSession.sandboxId) {
                 this._sandboxId = workerSession.sandboxId
@@ -84,6 +84,22 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
     }
 
     public override async disconnect(wait: boolean = true): Promise<void> {
+        if (this.options().popId == TransientPopId.Transient && this._pipelineId) {
+            const deleteUrl = `${this._baseUrl}/pipelines/${this._pipelineId}`
+            const headers = {
+                Authorization: await this.authorizationHeader(),
+            }
+            this._requestLogger.debug('before DELETE %s', deleteUrl)
+            let response = await this._client?.fetch(deleteUrl, {
+                method: 'DELETE',
+                headers: headers,
+            })
+            this._requestLogger.debug('after DELETE %s', deleteUrl)
+            if (response?.status != 204) {
+                const message = await response?.text()
+                this._logger.info(`stoppping pipeline failed, status ${response?.status}: ${message}`)
+            }
+        }
         if (this._sandboxId && this._baseUrl) {
             const sandboxUrl = `${this._baseUrl}/sandboxes/${this._sandboxId}`
             const headers = {
@@ -97,7 +113,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             this._requestLogger.debug('after DELETE %s', sandboxUrl)
             if (response?.status != 204) {
                 const message = await response?.text()
-                return Promise.reject(`disconnecting sandbox failed, status ${response?.status}: ${message}`)
+                this._logger.info(`disconnecting sandbox failed, status ${response?.status}: ${message}`)
             }
             this._sandboxId = null
         }
@@ -125,6 +141,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             baseUrl: this._baseUrl as string,
             pipelineId: this._pipelineId as string,
             sandboxId: this._sandboxId ?? undefined,
+            authenticationHeaders: () => this._authenticationHeaders(session),
         }
     }
 
@@ -150,12 +167,12 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         let response = await this.fetchWithRetry(async () => {
             const session = await this.session()
             let headers = {
-                Authorization: `Bearer ${session.accessToken}`,
                 'Content-Type': 'application/json',
+                ...this._authenticationHeaders(session),
             }
             const patch_url = `${session.baseUrl}/pipelines/${session.pipelineId}/pop`
             this._requestLogger.debug('before PATCH %s - %s', patch_url, JSON.stringify(pop))
-            return client.fetch(patch_url, {
+            return await client.fetch(patch_url, {
                 method: 'PATCH',
                 body: JSON.stringify(pop),
                 headers: headers,
@@ -163,13 +180,16 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         })
         if (response.status != 204) {
             const message = await response.text()
-            console.error(message)
             return Promise.reject(`Unexpected status ${response.status}: ${message}`)
         }
         this._requestLogger.debug('after PATCH pop')
         if (this._pipeline) {
             this._pipeline.pop = pop
         }
+    }
+
+    private _authenticationHeaders(session: Session): any {
+        return (this._options.auth as LocalAuth).isLocal !== undefined ? {} : { Authorization: `Bearer ${session.accessToken}` }
     }
 
     /**
@@ -200,7 +220,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         let response = await this.fetchWithRetry(async () => {
             const session = await this.session()
             let headers = {
-                Authorization: `Bearer ${session.accessToken}`,
+                ...this._authenticationHeaders(session),
                 'Content-Type': 'application/json',
             }
             const patch_url = `${session.baseUrl}/pipelines/${session.pipelineId}/inferencePipeline`
@@ -212,7 +232,6 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         })
         if (response.status != 204) {
             const message = await response.text()
-            console.error(message)
             return Promise.reject(`Unexpected status ${response.status}: ${message}`)
         }
         if (this._pipeline) {
@@ -247,7 +266,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         let response = await this.fetchWithRetry(async () => {
             const session = await this.session()
             let headers = {
-                Authorization: `Bearer ${session.accessToken}`,
+                ...this._authenticationHeaders(session),
                 'Content-Type': 'application/json',
             }
             const patch_url = `${session.baseUrl}/pipelines/${session.pipelineId}/postTransform`
@@ -335,7 +354,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             const session = await this.session()
             let response = await this.fetchWithRetry(async () => {
                 const headers = {
-                    Authorization: `Bearer ${session.accessToken}`,
+                    ...this._authenticationHeaders(session),
                 }
                 const getTokenUrl = `${session.baseUrl}/liveIngress/events/token`
                 return client.fetch(getTokenUrl, { headers: headers })
@@ -746,7 +765,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         let response = await this.fetchWithRetry(async () => {
             const session = await this.session()
             let headers = {
-                Authorization: `Bearer ${session.accessToken}`,
+                ...this._authenticationHeaders(session),
                 'Content-Type': 'application/json',
             }
             this._requestLogger.debug('before GET %s', get_path)
@@ -777,7 +796,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         let response = await this.fetchWithRetry(async () => {
             const session = await this.session()
             let headers = {
-                Authorization: `Bearer ${session.accessToken}`,
+                ...this._authenticationHeaders(session),
                 'Content-Type': 'application/json',
             }
             this._requestLogger.debug('before GET %s', get_path)
@@ -808,7 +827,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         let response = await this.fetchWithRetry(async () => {
             const session = await this.session()
             let headers = {
-                Authorization: `Bearer ${session.accessToken}`,
+                ...this._authenticationHeaders(session),
                 'Content-Type': 'application/json',
             }
             this._requestLogger.debug('before PUT %s', put_url)
@@ -841,7 +860,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         let response = await this.fetchWithRetry(async () => {
             const session = await this.session()
             let headers = {
-                Authorization: `Bearer ${session.accessToken}`,
+                ...this._authenticationHeaders(session),
                 'Content-Type': 'application/json',
             }
             this._requestLogger.debug('before POST %s', post_url)
@@ -877,7 +896,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         let response = await this.fetchWithRetry(async () => {
             const session = await this.session()
             let headers = {
-                Authorization: `Bearer ${session.accessToken}`,
+                ...this._authenticationHeaders(session),
                 'Content-Type': 'application/json',
             }
             this._requestLogger.debug('before DELETE %s', delete_url)

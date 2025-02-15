@@ -14,9 +14,6 @@ export class WebrtcWhip extends WebrtcBase implements LiveMedia {
         const session = await this._getSession()
         const ingressUrl = new URL(this._urlPath, session.baseUrl)
         this._requestLogger.debug('before GET: %s', ingressUrl)
-        const headers = {
-            Authorization: `Bearer ${session.accessToken}`,
-        }
         /* According to https://www.ietf.org/archive/id/draft-ietf-wish-whip-01.html
            this should be a `OPTIONS` request. Unfortunately a lot of CORS middlewares
            hijack the OPTIONS request and only return those headers that are necessary
@@ -25,7 +22,7 @@ export class WebrtcWhip extends WebrtcBase implements LiveMedia {
            the `OPTIONS` request and bypass the CORS preflight trap
          */
         const response = await this._client.fetch(ingressUrl, {
-            headers: headers,
+            headers: session.authenticationHeaders(),
             method: 'GET',
         })
         if (response.status >= 300) {

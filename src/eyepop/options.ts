@@ -30,7 +30,14 @@ export interface OAuth2Auth {
     oAuth2: true | Auth0Options
 }
 
-export type Authentication = undefined | SecretKeyAuth | SessionAuth | OAuth2Auth
+export interface LocalAuth {
+    /**
+     * Implicit auth w/o credentials to a local endpoint.
+     */
+    isLocal: true
+}
+
+export type Authentication = undefined | SecretKeyAuth | SessionAuth | OAuth2Auth | LocalAuth
 
 export interface Options {
     auth?: Authentication | undefined

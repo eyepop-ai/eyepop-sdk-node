@@ -1,4 +1,4 @@
-import { Auth0Options, OAuth2Auth, Options, SecretKeyAuth, SessionAuth } from './options'
+import { Auth0Options, LocalAuth, OAuth2Auth, Options, SecretKeyAuth, SessionAuth } from './options'
 import { EndpointState, Session } from './types'
 import { createHttpClient, HttpClient } from './shims/http_client'
 import { Semaphore } from './semaphore'
@@ -114,6 +114,7 @@ export class Endpoint<T extends Endpoint<T>> {
             this._expire_token_time = (this._options.auth as SessionAuth).session.validUntil / 1000
         } else if ((this._options.auth as OAuth2Auth).oAuth2 !== undefined) {
         } else if ((this._options.auth as SecretKeyAuth).secretKey !== undefined) {
+        } else if ((this._options.auth as LocalAuth).isLocal !== undefined) {
         } else {
             return Promise.reject('option secretKey or environment variable EYEPOP_SECRET_KEY is required')
         }
@@ -160,7 +161,7 @@ export class Endpoint<T extends Endpoint<T>> {
         while (true) {
             try {
                 const response = await fetcher()
-                if (response.status <= 300) {
+                if (response.ok) {
                     return response
                 } else {
                     const handler = this._statusRetryHandlers.get(response.status)
@@ -169,10 +170,10 @@ export class Endpoint<T extends Endpoint<T>> {
                         if (retries--) {
                             this._requestLogger.info('received %d response, retry', response.status)
                         } else {
-                            return Promise.reject(`response ${response.status}: ${response.statusText}`)
+                            return response
                         }
                     } else {
-                        return Promise.reject(`response ${response.status}: ${response.statusText}`)
+                        return response
                     }
                 }
             } catch (error) {
@@ -197,6 +198,9 @@ export class Endpoint<T extends Endpoint<T>> {
     }
 
     protected async authorizationHeader(): Promise<string> {
+        if ((this._options.auth as LocalAuth).isLocal !== undefined) {
+            return `Implicit`
+        }
         return `Bearer ${await this.currentAccessToken()}`
     }
 
@@ -207,6 +211,9 @@ export class Endpoint<T extends Endpoint<T>> {
             try {
                 if (!this._client) {
                     return Promise.reject('endpoint not connected')
+                } else if ((this._options.auth as LocalAuth).isLocal !== undefined) {
+                    this._token = "implicit"
+                    this._expire_token_time = Number.MAX_VALUE
                 } else if ((this._options.auth as SessionAuth).session !== undefined) {
                     return Promise.reject('temporary access token expired')
                 } else if ((this._options.auth as OAuth2Auth).oAuth2 !== undefined && this._options.eyepopUrl) {

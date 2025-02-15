@@ -137,7 +137,7 @@ export class UploadJob extends AbstractJob {
                 formData.append('file', this._uploadStream)
 
                 const headers = {
-                    Authorization: `Bearer ${session.accessToken}`,
+                    ...session.authenticationHeaders(),
                     Accept: 'application/jsonl',
                 }
 
@@ -152,7 +152,7 @@ export class UploadJob extends AbstractJob {
             } else {
                 this._requestLogger.debug('before POST %s with stream as body', postUrl)
                 const headers = {
-                    Authorization: `Bearer ${session.accessToken}`,
+                    ...session.authenticationHeaders(),
                     Accept: 'application/jsonl',
                     'Content-Type': this._mimeType,
                 }
@@ -193,7 +193,7 @@ export class UploadJob extends AbstractJob {
         if (this._needsFullDuplex) {
             const prepareUrl: string = `${session.baseUrl.replace(/\/+$/, '')}/pipelines/${session.pipelineId}/prepareSource?timeout=10s`
             const headers = {
-                Authorization: `Bearer ${session.accessToken}`,
+                ...session.authenticationHeaders(),
                 Accept: 'application/jsonl',
             }
             this._requestLogger.debug('before POST %s to prepare full duplex upload', prepareUrl)
@@ -216,7 +216,7 @@ export class UploadJob extends AbstractJob {
                 formData.append('file', this._uploadStream)
 
                 const headers = {
-                    Authorization: `Bearer ${session.accessToken}`,
+                    ...session.authenticationHeaders(),
                     Accept: 'application/jsonl',
                 }
 
@@ -232,7 +232,7 @@ export class UploadJob extends AbstractJob {
             } else {
                 this._requestLogger.debug('before POST %s with stream as body', postUrl)
                 const headers = {
-                    Authorization: `Bearer ${session.accessToken}`,
+                    ...session.authenticationHeaders(),
                     Accept: 'application/jsonl',
                     'Content-Type': this._mimeType,
                 }
@@ -274,7 +274,7 @@ export class LoadFromJob extends AbstractJob {
             params: this._params,
         }
         const headers = {
-            Authorization: `Bearer ${session.accessToken}`,
+            ...session.authenticationHeaders(),
             Accept: 'application/jsonl',
             'Content-Type': 'application/json',
         }
@@ -314,7 +314,7 @@ export class LoadLiveIngressJob extends AbstractJob {
             params: this._params,
         }
         const headers = {
-            Authorization: `Bearer ${session.accessToken}`,
+            ...session.authenticationHeaders(),
             Accept: 'application/jsonl',
             'Content-Type': 'application/json',
         }
