@@ -1,9 +1,9 @@
-import { OAuth2Auth, SecretKeyAuth, SessionAuth, LocalAuth, Options } from './options'
+import { LocalAuth, OAuth2Auth, Options, SecretKeyAuth, SessionAuth } from './options'
 
 import { WorkerEndpoint } from './worker/worker_endpoint'
 import { DataEndpoint } from './data/data_endpoint'
 
-import { WorkerOptions } from './worker/worker_options'
+import { TransientPopId, WorkerOptions } from './worker/worker_options'
 import { DataOptions } from './data/data_options'
 import { WorkerSession } from './worker/worker_types'
 import { DataSession } from './data/data_types'
@@ -82,7 +82,7 @@ const stringToBooleanSafe = (str?: string): boolean => {
         return false
     }
     const loweCaseStr = str.toLowerCase()
-    return loweCaseStr == 'true' || loweCaseStr == 'yes';
+    return loweCaseStr == 'true' || loweCaseStr == 'yes'
 }
 
 export namespace EyePop {
@@ -103,16 +103,16 @@ export namespace EyePop {
         if (opts.isLocalMode === undefined) {
             opts.isLocalMode = stringToBooleanSafe(readEnv('EYEPOP_LOCAL_MODE'))
         }
-        _fill_default_options(opts, opts.isLocalMode? 'http://127.0.0.1:8080/standalone': undefined)
+        _fill_default_options(opts, opts.isLocalMode ? 'http://127.0.0.1:8080/standalone' : undefined)
         if (opts.auth === undefined) {
-            if  (opts.isLocalMode) {
+            if (opts.isLocalMode) {
                 opts.auth = { isLocal: true } as LocalAuth
             } else {
                 throw new Error('auth option or EYEPOP_SECRET_KEY environment variable is required')
             }
         }
         if (opts.popId === undefined) {
-            opts.popId = readEnv('EYEPOP_POP_ID')
+            opts.popId = readEnv('EYEPOP_POP_ID') || TransientPopId.Transient
         }
 
         if (opts.autoStart === undefined) {

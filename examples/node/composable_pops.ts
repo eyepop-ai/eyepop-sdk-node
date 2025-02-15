@@ -96,8 +96,7 @@ const OBJECT_PLUS_PERSON_WITH_TRACKING = {
   components: [
     {
       type: PopComponentType.INFERENCE,
-      inferenceTypes: [InferenceType.OBJECT_DETECTION],
-      modelUuid: "yolov7:YOLOv7-TINY_COCO_TensorFlowLite_float32", // replace with your own model uuid
+      model: "eyepop.coco.yolov7-tiny:latest",
       forward: {
         operator: {
           type: ForwardOperatorType.CROP,
@@ -111,18 +110,20 @@ const OBJECT_PLUS_PERSON_WITH_TRACKING = {
     },
     {
       type: PopComponentType.INFERENCE,
-      inferenceTypes: [InferenceType.OBJECT_DETECTION],
-      modelUuid: "eyepop-person:EPPersonB1_Person_TorchScriptCuda_float32",
+      model: "eyepop.person:latest",
       categoryName: "person",
       confidenceThreshold: 0.8,
       forward: {
         operator: {
           type: ForwardOperatorType.CROP,
+          crop: {
+            maxItems: 128
+          },
         },
         targets: [
           {
             type: PopComponentType.TRACING,
-            reidModelUuid: "legacy:reid-mobilenetv2_x1_4_ImageNet_TensorFlowLite_int8",
+            reidModel: "eyepop.person.reid:latest",
             forward: {
               operator: {
                 type: ForwardOperatorType.CROP,
@@ -133,9 +134,8 @@ const OBJECT_PLUS_PERSON_WITH_TRACKING = {
               targets: [
                 {
                   type: PopComponentType.INFERENCE,
-                  inferenceTypes: [InferenceType.KEY_POINTS],
                   categoryName: "2d-body-points",
-                  modelUuid: "Mediapipe:MoveNet_SinglePose_Thunder_MoveNet_TensorFlowLite_float32",
+                  model: "eyepop.person.2d-body-points:latest"
                 },
               ],
             },
@@ -150,8 +150,7 @@ const OBJECT_SEGMENTATION = {
   components: [
     {
       type: PopComponentType.INFERENCE,
-      inferenceTypes: [InferenceType.OBJECT_DETECTION],
-      modelUuid: "yolov7:YOLOv7-TINY_COCO_TensorFlowLite_float32", // replace with your own model uuid
+      model: "eyepop.coco.yolov7-tiny:latest",
       forward: {
         operator: {
           type: ForwardOperatorType.CROP,
@@ -162,8 +161,7 @@ const OBJECT_SEGMENTATION = {
         targets: [
           {
             type: PopComponentType.INFERENCE,
-            inferenceTypes: [InferenceType.SEMANTIC_SEGMENTATION],
-            modelUuid: "legacy:EfficientSAM_Sm_Grounded_TorchScript_float32",
+            model: "eyepop.sam.small:latest",
             forward: {
               operator: {
                 type: ForwardOperatorType.FULL,
@@ -172,6 +170,7 @@ const OBJECT_SEGMENTATION = {
                 {
                   type: PopComponentType.CONTOUR_FINDER,
                   contourType: ContourType.POLYGON,
+                  areaThreshold: 0.005
                 },
               ],
             },
@@ -194,7 +193,6 @@ const OBJECT_SEGMENTATION = {
   const context = canvas.getContext("2d");
 
   const endpoint = await EyePop.workerEndpoint({
-    popId: TransientPopId.Transient,
     logger: logger,
   })
     .onStateChanged((fromState: EndpointState, toState: EndpointState) => {
@@ -202,7 +200,7 @@ const OBJECT_SEGMENTATION = {
     })
     .connect();
   try {
-    await endpoint.changePop(OBJECT_PLUS_PERSON);
+    await endpoint.changePop(OBJECT_SEGMENTATION);
     let results = await endpoint.process(example_input);
     for await (let result of results) {
       logger.info("result: %s", JSON.stringify(result));
