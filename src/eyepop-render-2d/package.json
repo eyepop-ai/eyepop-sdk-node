@@ -29,7 +29,6 @@
     "scripts": {
         "build": "tsup && webpack",
         "dev": "tsup && webpack; npx chokidar '**/*.ts' -i 'dist' -c 'npx tsup && webpack'",
-        "format": "prettier --write '**/*.{js,ts,json,md}'"
     },
     "dependencies": {
         "@eyepop.ai/eyepop": "1.9.2",
@@ -41,9 +40,6 @@
         "url-join": "^5.0.0"
     },
     "devDependencies": {
-        "chokidar-cli": "^3.0.0",
-        "eslint-config-prettier": "^9.1.0",
-        "eslint-plugin-prettier": "^5.2.1",
-        "prettier": "^3.3.3"
+        "chokidar-cli": "^3.0.0"
     }
 }

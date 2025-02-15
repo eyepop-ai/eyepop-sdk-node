@@ -1,59 +1,58 @@
-import {EyePop} from '@eyepop.ai/eyepop'
-import {Render2d} from '@eyepop.ai/eyepop-render-2d'
+import { EyePop } from '@eyepop.ai/eyepop'
+import { Render2d } from '@eyepop.ai/eyepop-render-2d'
 
-let endpoint = undefined;
-let context = undefined;
+let endpoint = undefined
+let context = undefined
 
-const popNameElement = document.getElementById("pop-name");
-const uploadButton = document.getElementById('file-upload');
-const imagePreview = document.getElementById('image-preview');
-const resultOverlay = document.getElementById('result-overlay');
-const timingSpan = document.getElementById("timing");
-const resultSpan = document.getElementById('txt_json');
-
+const popNameElement = document.getElementById('pop-name')
+const uploadButton = document.getElementById('file-upload')
+const imagePreview = document.getElementById('image-preview')
+const resultOverlay = document.getElementById('result-overlay')
+const timingSpan = document.getElementById('timing')
+const resultSpan = document.getElementById('txt_json')
 
 async function setup() {
-    const session = await (await fetch("eyepop-session.json")).json()
+    const session = await (await fetch('eyepop-session.json')).json()
     endpoint = EyePop.workerEndpoint({
-        auth: {session: session}
+        auth: { session: session },
     })
     endpoint.onStateChanged((from, to) => {
-       console.log("Endpoint state transition from " + from + " to " + to);
-    });
-    await endpoint.connect();
-    popNameElement.innerHTML = endpoint.popName();
-    uploadButton.disabled = false;
-    uploadButton.addEventListener('change', upload);
+        console.log('Endpoint state transition from ' + from + ' to ' + to)
+    })
+    await endpoint.connect()
+    popNameElement.innerHTML = endpoint.popName()
+    uploadButton.disabled = false
+    uploadButton.addEventListener('change', upload)
 
-    context = resultOverlay.getContext("2d");
+    context = resultOverlay.getContext('2d')
 }
 
 async function upload(event) {
-    const file = event.target.files[0];
-    const reader = new FileReader();
+    const file = event.target.files[0]
+    const reader = new FileReader()
     reader.onload = function () {
-        context.clearRect(0,0,resultOverlay.width, resultOverlay.height);
-        imagePreview.src = reader.result;
-    };
+        context.clearRect(0, 0, resultOverlay.width, resultOverlay.height)
+        imagePreview.src = reader.result
+    }
 
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(file)
 
-    const renderer = Render2d.renderer(context);
+    const renderer = Render2d.renderer(context)
 
-    const startTime = performance.now();
-    timingSpan.innerHTML = "__ms";
-    resultSpan.innerHTML = "<span class='text-muted'>processing</a>";
-    context.clearRect(0,0,resultOverlay.width, resultOverlay.height);
-    endpoint.process({file: file}).then(async (results) => {
+    const startTime = performance.now()
+    timingSpan.innerHTML = '__ms'
+    resultSpan.innerHTML = "<span class='text-muted'>processing</a>"
+    context.clearRect(0, 0, resultOverlay.width, resultOverlay.height)
+    endpoint.process({ file: file }).then(async results => {
         for await (let result of results) {
-            resultSpan.textContent = JSON.stringify(result, " ", 2);
-            resultOverlay.width = result.source_width;
-            resultOverlay.height = result.source_height;
-            context.clearRect(0,0,resultOverlay.width, resultOverlay.height);
-            renderer.draw(result);
+            resultSpan.textContent = JSON.stringify(result, ' ', 2)
+            resultOverlay.width = result.source_width
+            resultOverlay.height = result.source_height
+            context.clearRect(0, 0, resultOverlay.width, resultOverlay.height)
+            renderer.draw(result)
         }
-        timingSpan.innerHTML = Math.floor(performance.now() - startTime) + "ms";
-    });
+        timingSpan.innerHTML = Math.floor(performance.now() - startTime) + 'ms'
+    })
 }
 
-await setup();
+await setup()

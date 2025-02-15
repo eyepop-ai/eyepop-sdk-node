@@ -1,13 +1,13 @@
-import {EyePop} from '../../src/eyepop'
-import process from "process";
-import {pino} from "pino";
+import { EyePop } from '../../src/eyepop'
+import process from 'process'
+import { pino } from 'pino'
 
-const logger = pino({level: 'debug', name: 'eyepop-example'})
+const logger = pino({ level: 'debug', name: 'eyepop-example' })
 
 async function upload_video(video_path: string, seconds: number) {
-    const endpoint = await EyePop.workerEndpoint({logger: logger}).connect()
+    const endpoint = await EyePop.workerEndpoint({ logger: logger }).connect()
     try {
-        const results = await endpoint.process({path: video_path})
+        const results = await endpoint.process({ path: video_path })
         for await (let result of results) {
             // @ts-ignore
             if (result['seconds'] >= seconds) {
@@ -20,8 +20,7 @@ async function upload_video(video_path: string, seconds: number) {
     }
 }
 
-
-(async() => {
+;(async () => {
     try {
         const video_file = process.argv[2]
         const seconds = 60.0

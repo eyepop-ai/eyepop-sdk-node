@@ -1,8 +1,8 @@
-import {EyePop, EndpointState} from '@eyepop.ai/eyepop'
-import {Render2d} from '@eyepop.ai/eyepop-render-2d'
+import { EyePop, EndpointState } from '@eyepop.ai/eyepop'
+import { Render2d } from '@eyepop.ai/eyepop-render-2d'
 
-import {createCanvas, loadImage} from "canvas"
-import {open} from 'openurl'
+import { createCanvas, loadImage } from 'canvas'
+import { open } from 'openurl'
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -10,22 +10,24 @@ import { tmpdir } from 'node:os'
 import { pino } from 'pino'
 import process from 'process'
 
-const logger = pino({level: 'info', name: 'eyepop-example'})
+const logger = pino({ level: 'info', name: 'eyepop-example' })
 
 const example_image_path = process.argv[2]
 
 ;(async () => {
     const image = await loadImage(example_image_path)
     const canvas = createCanvas(image.width, image.height)
-    const context = canvas.getContext("2d")
+    const context = canvas.getContext('2d')
 
     const endpoint = await EyePop.workerEndpoint({
-        logger: logger
-    }).onStateChanged((fromState:EndpointState, toState:EndpointState) => {
-        logger.info("Endpoint changed state %s -> %s", fromState, toState)
-    }).connect()
+        logger: logger,
+    })
+        .onStateChanged((fromState: EndpointState, toState: EndpointState) => {
+            logger.info('Endpoint changed state %s -> %s', fromState, toState)
+        })
+        .connect()
     try {
-        let results = await endpoint.process({path: example_image_path})
+        let results = await endpoint.process({ path: example_image_path })
         for await (let result of results) {
             canvas.width = result.source_width
             canvas.height = result.source_height
@@ -45,4 +47,3 @@ const example_image_path = process.argv[2]
 
     open(`file://${temp_file}`)
 })()
-
