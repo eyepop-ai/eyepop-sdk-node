@@ -1,4 +1,4 @@
-import { Prediction, Session } from 'EyePop/types'
+import { Prediction, Session } from '../types'
 
 export interface WorkerSession extends Session {
     readonly popId: string

@@ -1,155 +1,161 @@
-console.log("Hello EyePop Demo");
+console.log('Hello EyePop Demo')
 
-let endpoint = undefined;
-let context = undefined;
-let popNameElement = undefined;
-let connectButton = undefined;
-let fileChooser = undefined;
-let processButton = undefined;
-let imagePreview = undefined;
-let resultOverlay = undefined;
-let roiOverlay = undefined;
-let pop = undefined;
-let updatePop = undefined;
-let timingSpan = undefined;
-let resultSpan = undefined;
+let endpoint = undefined
+let context = undefined
+let popNameElement = undefined
+let connectButton = undefined
+let fileChooser = undefined
+let processButton = undefined
+let imagePreview = undefined
+let resultOverlay = undefined
+let roiOverlay = undefined
+let pop = undefined
+let updatePop = undefined
+let timingSpan = undefined
+let resultSpan = undefined
 
 async function setup() {
-    popNameElement = document.getElementById("pop-name");
-    connectButton = document.getElementById('connect');
-    fileChooser = document.getElementById('file-upload');
-    processButton = document.getElementById('process');
-    imagePreview = document.getElementById('image-preview');
-    resultOverlay = document.getElementById('result-overlay');
-    roiOverlay = document.getElementById('roi-overlay');
-    pop = document.getElementById('pop-comp');
-    updatePop = document.getElementById('update-pop-comp');
-    timingSpan = document.getElementById("timing");
-    resultSpan = document.getElementById('txt_json');
+    popNameElement = document.getElementById('pop-name')
+    connectButton = document.getElementById('connect')
+    fileChooser = document.getElementById('file-upload')
+    processButton = document.getElementById('process')
+    imagePreview = document.getElementById('image-preview')
+    resultOverlay = document.getElementById('result-overlay')
+    roiOverlay = document.getElementById('roi-overlay')
+    pop = document.getElementById('pop-comp')
+    updatePop = document.getElementById('update-pop-comp')
+    timingSpan = document.getElementById('timing')
+    resultSpan = document.getElementById('txt_json')
 
-    connectButton.disabled = false;
-    connectButton.addEventListener('click', connect);
-    fileChooser.addEventListener('change', fileChanged);
-    processButton.addEventListener('click', upload);
+    connectButton.disabled = false
+    connectButton.addEventListener('click', connect)
+    fileChooser.addEventListener('change', fileChanged)
+    processButton.addEventListener('click', upload)
 
-    context = resultOverlay.getContext("2d");
+    context = resultOverlay.getContext('2d')
 
-    imagePreview.addEventListener('load', (event => {
+    imagePreview.addEventListener('load', event => {
         console.log(event)
-    }))
+    })
 }
 
 async function connect(event) {
     if (!endpoint) {
-        const queryString = window.location.search;
-        const urlParams = new URLSearchParams(queryString);
-        const popId = urlParams.get('popId');
-        const eyepopUrl = urlParams.get('eyepopUrl') || undefined;
+        const queryString = window.location.search
+        const urlParams = new URLSearchParams(queryString)
+        const popId = urlParams.get('popId')
+        const eyepopUrl = urlParams.get('eyepopUrl') || undefined
 
         endpoint = await EyePop.workerEndpoint({
-            auth: {oAuth2: true},
+            auth: { oAuth2: true },
             popId: popId,
-            eyepopUrl: eyepopUrl
-        }).onStateChanged((from, to) => {
-            console.log("Endpoint state transition from " + from + " to " + to);
-        }).onIngressEvent((ingressEvent) => {
-            console.log(ingressEvent);
-        }).connect();
+            eyepopUrl: eyepopUrl,
+        })
+            .onStateChanged((from, to) => {
+                console.log('Endpoint state transition from ' + from + ' to ' + to)
+            })
+            .onIngressEvent(ingressEvent => {
+                console.log(ingressEvent)
+            })
+            .connect()
     }
-    fileChooser.disabled = false;
-    popNameElement.innerHTML = endpoint.popName();
-    pop.value = JSON.stringify(endpoint.pop());
-    pop.style.overflow = 'hidden';
-    pop.style.height = 0;
-    pop.style.height = pop.scrollHeight + 'px';
+    fileChooser.disabled = false
+    popNameElement.innerHTML = endpoint.popName()
+    pop.value = JSON.stringify(endpoint.pop())
+    pop.style.overflow = 'hidden'
+    pop.style.height = 0
+    pop.style.height = pop.scrollHeight + 'px'
 
-    pop.addEventListener('change', async (event) => {
-       console.log('pop changed');
-       updatePop.disabled = false;
-    });
+    pop.addEventListener('change', async event => {
+        console.log('pop changed')
+        updatePop.disabled = false
+    })
 
-    updatePop.addEventListener('click', async (event) => {
-       console.log('updated');
-       updatePop.disabled = true;
-       await endpoint.changePop(JSON.parse(pop.value));
-    });
+    updatePop.addEventListener('click', async event => {
+        console.log('updated')
+        updatePop.disabled = true
+        await endpoint.changePop(JSON.parse(pop.value))
+    })
 }
 
 async function fileChanged(event) {
-    const file = fileChooser.files[0];
-    const reader = new FileReader();
+    const file = fileChooser.files[0]
+    const reader = new FileReader()
     reader.onload = function () {
-        context.clearRect(0,0,resultOverlay.width, resultOverlay.height);
-        imagePreview.src = reader.result;
-        imagePreview.decode().then((i) => {
-            resultOverlay.width = imagePreview.naturalWidth;
-            resultOverlay.height = imagePreview.naturalHeight;
-            roiOverlay.width = imagePreview.naturalWidth;
-            roiOverlay.height = imagePreview.naturalHeight;
-            initForRoi();
+        context.clearRect(0, 0, resultOverlay.width, resultOverlay.height)
+        imagePreview.src = reader.result
+        imagePreview.decode().then(i => {
+            resultOverlay.width = imagePreview.naturalWidth
+            resultOverlay.height = imagePreview.naturalHeight
+            roiOverlay.width = imagePreview.naturalWidth
+            roiOverlay.height = imagePreview.naturalHeight
+            initForRoi()
         })
-    };
+    }
 
     try {
-        reader.readAsDataURL(file);
-        processButton.disabled = false;
+        reader.readAsDataURL(file)
+        processButton.disabled = false
     } catch (e) {
-        console.log(e);
-        processButton.disabled = true;
+        console.log(e)
+        processButton.disabled = true
     }
 }
 
 async function upload(event) {
-    const file = fileChooser.files[0];
-    const reader = new FileReader();
+    const file = fileChooser.files[0]
+    const reader = new FileReader()
     reader.onload = function () {
-        context.clearRect(0,0,resultOverlay.width, resultOverlay.height);
-        imagePreview.src = reader.result;
-    };
+        context.clearRect(0, 0, resultOverlay.width, resultOverlay.height)
+        imagePreview.src = reader.result
+    }
 
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(file)
 
-    const startTime = performance.now();
-    timingSpan.innerHTML = "__ms";
-    resultSpan.innerHTML = "<span class='text-muted'>processing</a>";
+    const startTime = performance.now()
+    timingSpan.innerHTML = '__ms'
+    resultSpan.innerHTML = "<span class='text-muted'>processing</a>"
 
-    let params = undefined;
+    let params = undefined
     if (roiRect.top || roiPoints.length) {
         params = {
-            roi: {}
-        };
+            roi: {},
+        }
         if (roiPoints.length) {
-            params.roi["points"] = roiPoints;
+            params.roi['points'] = roiPoints
         }
         if (roiRect.top) {
-            params.roi["boxes"] = [{
-                topLeft:{
-                    x:roiRect.left,
-                    y:roiRect.top
-                }, bottomRight:{
-                    x:roiRect.right,
-                    y:roiRect.bottom
-                }
-            }];
+            params.roi['boxes'] = [
+                {
+                    topLeft: {
+                        x: roiRect.left,
+                        y: roiRect.top,
+                    },
+                    bottomRight: {
+                        x: roiRect.right,
+                        y: roiRect.bottom,
+                    },
+                },
+            ]
         }
     }
-    endpoint.process({file: file}, params=params).then(async (results) => {
+    endpoint.process({ file: file }, (params = params)).then(async results => {
         for await (let result of results) {
-            resultSpan.textContent = JSON.stringify(result, " ", 2);
-            context.clearRect(0,0,resultOverlay.width, resultOverlay.height);
-            const renderer = Render2d.renderer(context,[
-              Render2d.renderMask(),
-              Render2d.renderContour(),
-              Render2d.renderKeypoints(),
-              // Render2d.renderBox()
-            ]);
-            renderer.draw(result);
-            initForRoi();
+            resultSpan.textContent = JSON.stringify(result, ' ', 2)
+            context.clearRect(0, 0, resultOverlay.width, resultOverlay.height)
+            const renderer = Render2d.renderer(context, [
+                Render2d.renderMask(),
+                Render2d.renderContour(),
+                Render2d.renderKeypoints(),
+                // Render2d.renderBox()
+            ])
+            renderer.draw(result)
+            initForRoi()
         }
-        timingSpan.innerHTML = Math.floor(performance.now() - startTime) + "ms";
-    });
+        timingSpan.innerHTML = Math.floor(performance.now() - startTime) + 'ms'
+    })
 }
 
-document.addEventListener("DOMContentLoaded", async (event) => {
-    await setup();
-});
+document.addEventListener('DOMContentLoaded', async event => {
+    await setup()
+})

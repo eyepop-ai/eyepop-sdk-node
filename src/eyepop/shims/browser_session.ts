@@ -2,7 +2,7 @@ import { Session } from '../types'
 import { Auth0Options, OAuth2Auth, Options } from '../options'
 import { createAuth0Client } from '@auth0/auth0-spa-js'
 import { Auth0ClientOptions } from '@auth0/auth0-spa-js/src/global'
-import { WorkerOptions, WorkerSession } from 'EyePop'
+import { WorkerOptions, WorkerSession } from '../index'
 
 export let authenticateBrowserSession: (auth0: Auth0Options, options: Options) => Promise<Session>
 

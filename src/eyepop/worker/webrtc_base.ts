@@ -2,7 +2,7 @@ import { HttpClient } from '../shims/http_client'
 import { Logger } from 'pino'
 import { WebrtcWhip } from './webrtc_whip'
 import path from 'path'
-import { WorkerSession } from 'EyePop/worker/worker_types'
+import { WorkerSession } from '../worker/worker_types'
 
 interface OfferData {
     iceUfrag: string
