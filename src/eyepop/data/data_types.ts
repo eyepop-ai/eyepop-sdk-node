@@ -88,9 +88,23 @@ export enum UserReview {
     unknown = 'unknown',
 }
 
+export interface AutoAnnotatePrompt {
+    prompt: string
+    label: string
+}
+
+export enum AutoAnnotateTask {
+    object_detection = 'object_detection',
+    image_classification = 'image_classification'
+}
+
 export interface AutoAnnotateParams {
+    /**
+    * @deprecated use prompts instead
+    */
     candidate_labels?: string[]
-    prompt?: string
+    prompts?: AutoAnnotatePrompt[]
+    task?: AutoAnnotateTask
     confidence_threshold?: number
 }
 
@@ -132,6 +146,11 @@ export interface Asset {
 
 export enum ModelType {
     epdet_b1 = 'epdet_b1',
+}
+
+export enum ModelTask {
+    object_detection = 'object_detection',
+    image_classification = 'image_classification'
 }
 
 export enum ModelStatus {
@@ -182,6 +201,8 @@ export interface Model {
     external_id?: string
     pretrained_model_uuid?: string
     extra_params?: Map<string, any>
+    task?: ModelTask
+    classes?: string[]
     type: ModelType
     status: ModelStatus
     status_message?: string
@@ -200,12 +221,16 @@ export interface ModelCreate {
     external_id?: string
     pretrained_model_uuid?: string
     extra_params?: Map<string, any>
+    task?: ModelTask
+    classes?: string[]
 }
 
 export interface ModelUpdate {
     name: string
     description: string
     external_id?: string
+    task?: ModelTask
+    classes?: string[]
 }
 
 export enum ModelTrainingStage {

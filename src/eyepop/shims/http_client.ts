@@ -10,7 +10,7 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
         constructor() {}
 
         public async fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-            return fetch(input, init)
+            return await fetch(input, init)
         }
 
         public async close(): Promise<void> {}
@@ -30,7 +30,7 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
             init ||= {}
             // @ts-ignore
             init.dispatcher = this.agent
-            return fetch(input, init)
+            return await fetch(input, init)
         }
 
         public async close(): Promise<void> {

@@ -5,6 +5,7 @@ export interface WorkerSession extends Session {
     readonly baseUrl: string | undefined
     readonly pipelineId: string | undefined
     readonly sandboxId: string | undefined
+    authenticationHeaders() : any
 }
 
 export interface LiveMedia {
@@ -160,6 +161,7 @@ export enum ContourType {
 
 export interface ContourFinderComponent extends BaseComponent {
     contourType: ContourType
+    areaThreshold?: number
 }
 
 export interface ComponentFinderComponent extends BaseComponent {
