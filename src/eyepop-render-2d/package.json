@@ -28,7 +28,7 @@
     },
     "scripts": {
         "build": "tsup && webpack",
-        "dev": "tsup && webpack; npx chokidar '**/*.ts' -i 'dist' -c 'npx tsup && webpack'",
+        "dev": "tsup && webpack; npx chokidar '**/*.ts' -i 'dist' -c 'npx tsup && webpack'"
     },
     "dependencies": {
         "@eyepop.ai/eyepop": "1.9.2",

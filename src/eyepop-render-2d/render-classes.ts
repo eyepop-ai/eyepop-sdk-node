@@ -4,10 +4,18 @@ import { CanvasRenderingContext2D } from 'canvas'
 import { Render, DEFAULT_TARGET, RenderTarget } from './render'
 
 export type RenderClassesOptions = {
-    showConfidence?: boolean // Whether to show confidence, such as "0.95"
+    showConfidence?: boolean // Whether to show confidence, such as "male 95%"
     showDottedOutline?: boolean // Whether to show a dotted outline around the object
-    disabledClasses?: string[] // Classes to disable rendering for
+    classProperties?: ClassificationProperties[] // Classes to disable rendering for
 } & RenderTarget
+
+export type ClassificationProperties = {
+    classLabel: string
+
+    color?: string
+    disabled?: boolean
+    disabledOpacity?: number
+}
 
 export class RenderClasses implements Render {
     public target: string = '$'
@@ -17,14 +25,14 @@ export class RenderClasses implements Render {
 
     private showConfidence: boolean
 
-    private disabledClasses: string[] = []
+    private classProperties: ClassificationProperties[] = []
 
     constructor(options: Partial<RenderClassesOptions> = {}) {
-        const { showConfidence = false, disabledClasses = [], target = '$' } = options
+        const { showConfidence = true, classProperties = [], target = '$' } = options
 
         this.target = target
         this.showConfidence = showConfidence
-        this.disabledClasses = disabledClasses
+        this.classProperties = classProperties
     }
 
     start(context: CanvasRenderingContext2D, style: Style) {
@@ -45,9 +53,18 @@ export class RenderClasses implements Render {
 
         if (element.classes) {
             element.classes.forEach((cls: PredictedClass) => {
-                let drawDisabled = this.disabledClasses.includes(cls.classLabel)
+                const properties = this.classProperties.find((prop: ClassificationProperties) => {
+                    return prop.classLabel === cls.classLabel
+                })
+
+                const drawDisabled = properties?.disabled ?? false
+                style.colors.primary_color = properties?.color ?? '#009dff'
 
                 let label = cls.classLabel
+                if (drawDisabled) {
+                    context.globalAlpha = properties?.disabledOpacity ?? 0.5
+                }
+
                 if (this.showConfidence && cls.confidence) {
                     label += ` ${Math.round(cls.confidence * 100)}%`
                 }
@@ -71,10 +88,9 @@ export class RenderClasses implements Render {
         const labelHeight = textDetails.actualBoundingBoxAscent + textDetails.actualBoundingBoxDescent + 2 * padding
         const borderRadius = labelHeight / 2
 
-        context.fillStyle = '#009dff'
+        context.fillStyle = style.colors.primary_color
 
         if (drawDisabled) {
-            context.fillStyle = '#004d7d'
             context.globalAlpha = 0.5
             context.strokeStyle = '#ffffff'
             context.setLineDash([5, 3])
