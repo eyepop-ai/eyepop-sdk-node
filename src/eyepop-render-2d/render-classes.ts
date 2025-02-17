@@ -1,6 +1,6 @@
 import { PredictedObject, StreamTime, PredictedClass } from '@eyepop.ai/eyepop'
 import { Style } from './style'
-import { CanvasRenderingContext2D } from 'canvas'
+import { Canvas, CanvasRenderingContext2D } from 'canvas'
 import { Render, DEFAULT_TARGET, RenderTarget } from './render'
 
 export type RenderClassesOptions = {
@@ -10,8 +10,6 @@ export type RenderClassesOptions = {
 } & RenderTarget
 
 export type ClassificationProperties = {
-    classLabel: string
-
     color?: string
     disabled?: boolean
     disabledOpacity?: number
@@ -25,10 +23,10 @@ export class RenderClasses implements Render {
 
     private showConfidence: boolean
 
-    private classProperties: ClassificationProperties[] = []
+    private classProperties: { [classLabel: string]: ClassificationProperties } = {}
 
     constructor(options: Partial<RenderClassesOptions> = {}) {
-        const { showConfidence = true, classProperties = [], target = '$' } = options
+        const { showConfidence = false, classProperties = {}, target = '$' } = options
 
         this.target = target
         this.showConfidence = showConfidence
@@ -48,19 +46,39 @@ export class RenderClasses implements Render {
             throw new Error('render() called before start()')
         }
 
-        let yOff = context.canvas.height - 20
-        let xOff = 10
+        const canvas = context?.canvas as HTMLCanvasElement | Canvas
+        const width = canvas?.width ?? 640
+        const height = canvas?.height ?? 480
+
+        const xPadding = Math.min(Math.max(10, height * 0.015), 100)
+        const yPadding = xPadding * 8
+
+        let yOff = height - yPadding
+        let xOff = xPadding
+        const minFontSize = Math.min(Math.max(width * 0.068, 12), 50)
 
         if (element.classes) {
+            let labelHeight = 0
+
+            // Find the maximum label height, to keep the label height consistent
             element.classes.forEach((cls: PredictedClass) => {
-                const properties = this.classProperties.find((prop: ClassificationProperties) => {
-                    return prop.classLabel === cls.classLabel
-                })
+                let label = cls.classLabel
+                style.font = minFontSize + 'px serif'
+                context.font = style.font
+
+                const textDetails = context?.measureText(label)
+                const currentLabelHeight = textDetails.actualBoundingBoxAscent + textDetails.actualBoundingBoxDescent + 2 * xPadding
+                labelHeight = Math.max(currentLabelHeight, labelHeight)
+            })
+
+            // Draw the labels
+            element.classes.forEach((cls: PredictedClass) => {
+                let label = cls.classLabel
+                const properties = this.classProperties?.[cls.classLabel]
 
                 const drawDisabled = properties?.disabled ?? false
                 style.colors.primary_color = properties?.color ?? '#009dff'
 
-                let label = cls.classLabel
                 if (drawDisabled) {
                     context.globalAlpha = properties?.disabledOpacity ?? 0.5
                 }
@@ -69,36 +87,51 @@ export class RenderClasses implements Render {
                     label += ` ${Math.round(cls.confidence * 100)}%`
                 }
 
-                const labelWidth = this.drawLabel(label, context, xOff, yOff, style, drawDisabled)
+                const textDetails = context.measureText(label)
+                const labelWidth = textDetails.width + 2 * xPadding
+                const borderRadius = labelHeight / 2
 
-                xOff += labelWidth + 10
+                this.drawLabel(label, context, xOff, yOff, style, drawDisabled, xPadding, yPadding, labelWidth, labelHeight, borderRadius)
 
-                if (xOff + labelWidth > context.canvas.width * 0.95) {
-                    xOff = 10
-                    yOff -= 30
+                xOff += labelWidth + xPadding
+
+                const maxWidth = width * 0.9 - xPadding
+
+                if (xOff + labelWidth > maxWidth) {
+                    xOff = xPadding
+                    yOff -= yPadding
                 }
             })
         }
     }
-    drawLabel(label: string, context: CanvasRenderingContext2D, xOffset: number, yOffset: number, style: Style, drawDisabled: boolean): number {
-        context.font = style.font
-        const textDetails = context.measureText(label)
-        const padding = 5
-        const labelWidth = textDetails.width + 2 * padding
-        const labelHeight = textDetails.actualBoundingBoxAscent + textDetails.actualBoundingBoxDescent + 2 * padding
-        const borderRadius = labelHeight / 2
 
+    drawLabel(
+        label: string,
+        context: CanvasRenderingContext2D,
+        xOffset: number,
+        yOffset: number,
+        style: Style,
+        drawDisabled: boolean,
+        xPadding: number,
+        yPadding: number,
+        labelWidth: number,
+        labelHeight: number,
+        borderRadius: number,
+    ) {
+        context.font = style.font
         context.fillStyle = style.colors.primary_color
 
         if (drawDisabled) {
             context.globalAlpha = 0.5
-            context.strokeStyle = '#ffffff'
-            context.setLineDash([5, 3])
-            context.stroke()
-            context.setLineDash([])
         } else {
             context.globalAlpha = 1
         }
+
+        context.strokeStyle = '#ffffff'
+        context.setLineDash([10, 10])
+        context.lineWidth = labelHeight / 20
+        context.stroke()
+        context.setLineDash([])
 
         context.beginPath()
         context.moveTo(xOffset + borderRadius, yOffset - labelHeight / 2)
@@ -116,8 +149,6 @@ export class RenderClasses implements Render {
         context.fillStyle = '#ffffff'
         context.textAlign = 'left'
         context.textBaseline = 'middle'
-        context.fillText(label, xOffset + padding, yOffset)
-
-        return labelWidth
+        context.fillText(label, xOffset + xPadding, yOffset)
     }
 }
