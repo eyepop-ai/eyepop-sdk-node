@@ -17,6 +17,22 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
     }
 
     createHttpClient = async () => {
+        console.debug('EyePop: creating HttpClient in browser')
+        return new HttpClient()
+    }
+} if (typeof navigator !== "undefined" && navigator.product === "ReactNative") {
+    class HttpClient {
+        constructor() {}
+
+        public async fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+            return await fetch(input, init)
+        }
+
+        public async close(): Promise<void> {}
+    }
+
+    createHttpClient = async () => {
+        console.debug('EyePop: creating HttpClient in ReactNative')
         return new HttpClient()
     }
 } else {
@@ -39,6 +55,7 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
     }
 
     createHttpClient = async () => {
+        console.debug('EyePop: creating HttpClient with undici agent in Node')
         const undici = require('undici')
         const agent = new undici.Agent({
             keepAliveTimeout: 10000,
