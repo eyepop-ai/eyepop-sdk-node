@@ -24,7 +24,7 @@ export class Stream<Prediction> implements AsyncIterable<Prediction> {
         let consumed = false
 
         async function* iterLines(): AsyncGenerator<string, void, unknown> {
-            const lineDecoder = new LineDecoder()
+            const lineDecoder = new EyepopLineDecoder()
             const iter = readableStreamAsyncIterable<Bytes>(await readableStream)
             for await (const chunk of iter) {
                 for (const line of lineDecoder.decode(chunk)) {
@@ -80,7 +80,7 @@ export class Stream<Prediction> implements AsyncIterable<Prediction> {
         let consumed = false
 
         async function* iterLines(): AsyncGenerator<string, void, unknown> {
-            const lineDecoder = new LineDecoder()
+            const lineDecoder = new EyepopLineDecoder()
 
             const iter = readableStreamAsyncIterable<Bytes>(readableStream)
             for await (const chunk of iter) {
@@ -187,7 +187,7 @@ export class Stream<Prediction> implements AsyncIterable<Prediction> {
  *
  * https://github.com/encode/httpx/blob/920333ea98118e9cf617f246905d7b202510941c/httpx/_decoders.py#L258
  */
-class LineDecoder {
+class EyepopLineDecoder {
     // prettier-ignore
     static NEWLINE_CHARS = new Set(['\n', '\r', '\x0b', '\x0c', '\x1c', '\x1d', '\x1e', '\x85', '\u2028', '\u2029']);
     static NEWLINE_REGEXP = /\r\n|[\n\r\x0b\x0c\x1c\x1d\x1e\x85\u2028\u2029]/g
@@ -217,8 +217,8 @@ class LineDecoder {
             return []
         }
 
-        const trailingNewline = LineDecoder.NEWLINE_CHARS.has(text[text.length - 1] || '')
-        let lines = text.split(LineDecoder.NEWLINE_REGEXP)
+        const trailingNewline = EyepopLineDecoder.NEWLINE_CHARS.has(text[text.length - 1] || '')
+        let lines = text.split(EyepopLineDecoder.NEWLINE_REGEXP)
 
         if (lines.length === 1 && !trailingNewline) {
             this.buffer.push(lines[0]!)
