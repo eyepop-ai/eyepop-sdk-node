@@ -26,7 +26,11 @@ export class Stream<Prediction> implements AsyncIterable<Prediction> {
         async function* iterLines(): AsyncGenerator<string, void, unknown> {
             const lineDecoder = new EyepopLineDecoder()
             const iter = readableStreamAsyncIterable<Bytes>(await readableStream)
-            for await (const chunk of iter) {
+            for await (let chunk of iter) {
+                // TODO review the behaviour in ReactNative
+                if (typeof chunk === 'number') {
+                    chunk = new Uint8Array([(chunk as number) & 0xff])
+                }
                 for (const line of lineDecoder.decode(chunk)) {
                     yield line
                 }
@@ -83,7 +87,11 @@ export class Stream<Prediction> implements AsyncIterable<Prediction> {
             const lineDecoder = new EyepopLineDecoder()
 
             const iter = readableStreamAsyncIterable<Bytes>(readableStream)
-            for await (const chunk of iter) {
+            for await (let chunk of iter) {
+                // TODO review the behaviour in ReactNative
+                if (typeof chunk === 'number') {
+                    chunk = new Uint8Array([(chunk as number) & 0xff])
+                }
                 for (const line of lineDecoder.decode(chunk)) {
                     yield line
                 }
