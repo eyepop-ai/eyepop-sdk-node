@@ -27,10 +27,6 @@ export class Stream<Prediction> implements AsyncIterable<Prediction> {
             const lineDecoder = new EyepopLineDecoder()
             const iter = readableStreamAsyncIterable<Bytes>(await readableStream)
             for await (let chunk of iter) {
-                // TODO review the behaviour in ReactNative
-                if (typeof chunk === 'number') {
-                    chunk = new Uint8Array([(chunk as number) & 0xff])
-                }
                 for (const line of lineDecoder.decode(chunk)) {
                     yield line
                 }
@@ -76,57 +72,6 @@ export class Stream<Prediction> implements AsyncIterable<Prediction> {
         return iterator()
     }
 
-    /**
-     * Generates a Stream from a newline-separated ReadableStream
-     * where each item is a JSON value.
-     */
-    static fromReadableStream<Prediction>(readableStream: ReadableStream<Uint8Array>, controller: AbortController): Stream<Prediction> {
-        let consumed = false
-
-        async function* iterLines(): AsyncGenerator<string, void, unknown> {
-            const lineDecoder = new EyepopLineDecoder()
-
-            const iter = readableStreamAsyncIterable<Bytes>(readableStream)
-            for await (let chunk of iter) {
-                // TODO review the behaviour in ReactNative
-                if (typeof chunk === 'number') {
-                    chunk = new Uint8Array([(chunk as number) & 0xff])
-                }
-                for (const line of lineDecoder.decode(chunk)) {
-                    yield line
-                }
-            }
-
-            for (const line of lineDecoder.flush()) {
-                yield line
-            }
-        }
-
-        async function* iterator(): AsyncIterator<Prediction, any, undefined> {
-            if (consumed) {
-                throw new Error('Cannot iterate over a consumed stream, use `.tee()` to split the stream.')
-            }
-            consumed = true
-            let done = false
-            try {
-                for await (const line of iterLines()) {
-                    if (done) continue
-                    if (line) yield JSON.parse(line)
-                }
-                done = true
-            } catch (e) {
-                // If the user calls `stream.controller.abort()`, we should exit without throwing.
-                if (e instanceof Error && e.name === 'AbortError') return
-                throw e
-            } finally {
-                // If the user `break`s, abort the ongoing request.
-                if (!done) controller.abort()
-            }
-        }
-
-        return new Stream(iterator, controller)
-    }
-
     [Symbol.asyncIterator](): AsyncIterator<Prediction> {
         return this.iterator()
     }
@@ -154,38 +99,6 @@ export class Stream<Prediction> implements AsyncIterable<Prediction> {
         }
 
         return [new Stream(() => teeIterator(left), this.controller), new Stream(() => teeIterator(right), this.controller)]
-    }
-
-    /**
-     * Converts this stream to a newline-separated ReadableStream of
-     * JSON stringified values in the stream
-     * which can be turned back into a Stream with `Stream.fromReadableStream()`.
-     */
-    toReadableStream(): ReadableStream {
-        const self = this
-        let iter: AsyncIterator<Prediction>
-        const encoder = new TextEncoder()
-
-        return new ReadableStream({
-            async start() {
-                iter = self[Symbol.asyncIterator]()
-            },
-            async pull(ctrl) {
-                try {
-                    const { value, done } = await iter.next()
-                    if (done) return ctrl.close()
-
-                    const bytes = encoder.encode(JSON.stringify(value) + '\n')
-
-                    ctrl.enqueue(bytes)
-                } catch (err) {
-                    ctrl.error(err)
-                }
-            },
-            async cancel() {
-                await iter.return?.()
-            },
-        })
     }
 }
 
@@ -295,9 +208,12 @@ class EyepopLineDecoder {
  * This polyfill was pulled from https://github.com/MattiasBuelens/web-streams-polyfill/pull/122#issuecomment-1627354490
  */
 function readableStreamAsyncIterable<T>(stream: any): AsyncIterableIterator<T> {
-    if (stream[Symbol.asyncIterator]) return stream
+    if (stream[Symbol.asyncIterator]) {
+        return stream[Symbol.asyncIterator]()
+    }
 
     const reader = stream.getReader()
+
     return {
         async next() {
             try {

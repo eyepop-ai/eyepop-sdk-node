@@ -6,7 +6,7 @@ export interface HttpClient {
 export let createHttpClient: () => Promise<HttpClient>
 
 if ('document' in globalThis && 'implementation' in globalThis.document) {
-    class HttpClient {
+    class BrowserHttpClient {
         constructor() {}
 
         public async fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
@@ -18,13 +18,15 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
 
     createHttpClient = async () => {
         console.debug('EyePop: creating HttpClient in browser')
-        return new HttpClient()
+        return new BrowserHttpClient()
     }
 } if (typeof navigator !== "undefined" && navigator.product === "ReactNative") {
-    class HttpClient {
+    class ReactNativeHttpClient {
         constructor() {}
 
-        public async fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+        public async fetch(input: RequestInfo | URL, init?: any): Promise<Response> {
+            init ||= {}
+            init.reactNative = { textStreaming: true }
             return await fetch(input, init)
         }
 
@@ -33,10 +35,10 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
 
     createHttpClient = async () => {
         console.debug('EyePop: creating HttpClient in ReactNative')
-        return new HttpClient()
+        return new ReactNativeHttpClient()
     }
 } else {
-    class HttpClient {
+    class NodeHttpClient {
         private readonly agent: any
         constructor(agent: any) {
             this.agent = agent
@@ -63,6 +65,6 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
             // two parallel streaming requests to the same host seem to deadlock with pipelining > 0
             pipelining: 0,
         })
-        return new HttpClient(agent)
+        return new NodeHttpClient(agent)
     }
 }
