@@ -1,6 +1,6 @@
 {
     "name": "@eyepop.ai/eyepop-render-2d",
-    "version": "1.11.5",
+    "version": "1.11.6",
     "description": "The Node.js / Typescript library for 2d rendering of EyePop.ai's inference API",
     "keywords": [
         "AI",
@@ -31,7 +31,7 @@
         "dev": "tsup && webpack; npx chokidar '**/*.ts' -i 'dist' -c 'npx tsup && webpack'"
     },
     "dependencies": {
-        "@eyepop.ai/eyepop": "1.11.5",
+        "@eyepop.ai/eyepop": "1.11.6",
         "@juggle/resize-observer": "^3.4.0",
         "@types/jsonpath": "^0.2.4",
         "canvas": "^2.11.2",
