@@ -20,7 +20,7 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
         console.debug('EyePop: creating HttpClient in browser')
         return new BrowserHttpClient()
     }
-} if (typeof navigator !== "undefined" && navigator.product === "ReactNative") {
+} else if (typeof navigator !== "undefined" && navigator.product === "ReactNative") {
     class ReactNativeHttpClient {
         constructor() {}
 
