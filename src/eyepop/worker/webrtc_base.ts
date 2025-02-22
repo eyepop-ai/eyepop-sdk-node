@@ -3,6 +3,7 @@ import { Logger } from 'pino'
 import { WebrtcWhip } from './webrtc_whip'
 import path from 'path'
 import { WorkerSession } from '../worker/worker_types'
+import * as url from 'node:url'
 
 interface OfferData {
     iceUfrag: string
@@ -49,6 +50,22 @@ export abstract class WebrtcBase {
         return this._ingressId
     }
 
+    protected gresUrl(session: WorkerSession, location: string | null = null): URL {
+        let urlPath
+        if (location) {
+            urlPath = path.join(this._urlPath, location)
+        } else {
+            urlPath = this._urlPath
+        }
+        let baseUrl
+        if (session.baseUrl?.endsWith('/')) {
+            baseUrl = session.baseUrl
+        } else {
+            baseUrl = session.baseUrl + '/'
+        }
+        return new URL(urlPath, baseUrl)
+    }
+
     protected async onLocalOffer(offer: RTCSessionDescriptionInit): Promise<WebrtcBase> {
         if (!this._pc) {
             throw new Error('onLocalOffer no peer connection')
@@ -60,7 +77,8 @@ export abstract class WebrtcBase {
         await this._pc.setLocalDescription(offer)
 
         const session = await this._getSession()
-        const ingressUrl = new URL(this._urlPath, session.baseUrl)
+        const ingressUrl = this.gresUrl(session)
+
         this._requestLogger.debug('before POST: %s', ingressUrl)
         const headers = {
             ...session.authenticationHeaders(),
@@ -94,12 +112,8 @@ export abstract class WebrtcBase {
         let urlPath: string | undefined = undefined
 
         const session = await this._getSession()
-        if (this._location) {
-            urlPath = path.join(this._urlPath, this._location)
-        } else {
-            urlPath = this._urlPath
-        }
-        const ingressUrl = new URL(urlPath, session.baseUrl)
+        const ingressUrl = this.gresUrl(session, this._location)
+
         this._requestLogger.debug('before PATCH: %s', ingressUrl)
         const headers = {
             ...session.authenticationHeaders(),

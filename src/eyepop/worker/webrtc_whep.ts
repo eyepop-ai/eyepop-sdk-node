@@ -31,7 +31,7 @@ export class WebrtcWhep extends WebrtcBase implements LiveMedia {
 
     public async start(): Promise<WebrtcWhep> {
         const session = await this._getSession()
-        const egressUrl = new URL(this._urlPath, session.baseUrl)
+        const egressUrl = this.gresUrl(session)
         this._requestLogger.debug('before GET: %s', egressUrl)
         /* According to https://www.ietf.org/archive/id/draft-ietf-wish-whip-01.html
            this should be a `OPTIONS` request. Unfortunately a lot of CORS middlewares
