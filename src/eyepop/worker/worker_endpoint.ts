@@ -315,7 +315,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         return whep.start()
     }
 
-    public async process(source: Source, params: SourceParams | undefined = undefined): Promise<ResultStream> {
+    public async process(source: Source, params?: SourceParams): Promise<ResultStream> {
         if ((source as FileSource).file !== undefined) {
             return this.uploadFile(source as FileSource, params)
         } else if ((source as StreamSource).stream !== undefined) {
@@ -374,7 +374,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         try {
             this.updateState()
             const job = new UploadJob(
-                source.file,
+                source.file.stream(),
                 source.file.type,
                 params,
                 async () => {
