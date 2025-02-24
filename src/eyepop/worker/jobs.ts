@@ -102,7 +102,7 @@ export class AbstractJob implements ResultStream {
 }
 
 export class UploadJob extends AbstractJob {
-    private readonly _uploadStream: Blob
+    private readonly _uploadStream: ReadableStream<Uint8Array>
     private readonly _mimeType: string
     private readonly _needsFullDuplex: boolean
 
@@ -110,7 +110,7 @@ export class UploadJob extends AbstractJob {
         return 'uploadJob'
     }
 
-    constructor(stream: any, mimeType: string, params: SourceParams | undefined, getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger) {
+    constructor(stream: ReadableStream<Uint8Array>, mimeType: string, params: SourceParams | undefined, getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger) {
         super(params, getSession, client, requestLogger)
         this._uploadStream = stream
         this._mimeType = mimeType
@@ -133,9 +133,9 @@ export class UploadJob extends AbstractJob {
                 const params = JSON.stringify(this._params)
                 const paramBlob = new Blob([params], { type: 'application/json' })
                 const formData = new FormData()
+                const fileBlob = await new Response(this._uploadStream).blob();
                 formData.append('params', paramBlob)
-                formData.append('file', this._uploadStream)
-
+                formData.append('file', fileBlob)
                 const headers = {
                     ...session.authenticationHeaders(),
                     Accept: 'application/jsonl',
@@ -212,9 +212,9 @@ export class UploadJob extends AbstractJob {
                 const params = JSON.stringify(this._params)
                 const paramBlob = new Blob([params], { type: 'application/json' })
                 const formData = new FormData()
+                const fileBlob = await new Response(this._uploadStream).blob();
                 formData.append('params', paramBlob)
-                formData.append('file', this._uploadStream)
-
+                formData.append('file', fileBlob)
                 const headers = {
                     ...session.authenticationHeaders(),
                     Accept: 'application/jsonl',

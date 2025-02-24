@@ -19,11 +19,11 @@ export interface Box {
 }
 
 export interface Roi {
-    readonly points: Point2d[] | undefined
-    readonly boxes: Box[] | undefined
+    readonly points?: Point2d[]
+    readonly boxes?: Box[]
 }
 export interface SourceParams {
-    readonly roi: Roi | undefined
+    readonly roi?: Roi
 }
 
 export interface StreamTime {
