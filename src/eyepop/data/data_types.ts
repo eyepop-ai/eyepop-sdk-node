@@ -28,6 +28,11 @@ export interface DatasetVersion {
     default_source_model_uuid?: string
 }
 
+export interface DatasetParent {
+    dataset_uuid: string
+    dataset_version: number
+}
+
 export interface Dataset {
     uuid: string
     name: string
@@ -40,6 +45,7 @@ export interface Dataset {
     updated_at: Date
     modifiable_version?: number
     versions: DatasetVersion[]
+    parent?: DatasetParent
 }
 
 export interface DatasetCreate {
