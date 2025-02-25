@@ -45,6 +45,7 @@ export {
     QcAiHubExportParams,
     ExportedBy,
     ArtifactType,
+    DatasetParent
 } from './data/data_types'
 
 export {
