@@ -26,7 +26,7 @@ export interface FileSource {
 }
 
 export interface StreamSource {
-    readonly stream: ReadableStream<Uint8Array>
+    readonly stream: ReadableStream<Uint8Array> | Blob | BufferSource
     readonly mimeType: string
 }
 
