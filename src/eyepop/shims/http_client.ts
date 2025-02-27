@@ -1,6 +1,7 @@
 export interface HttpClient {
     fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response>
     close(): Promise<void>
+    isFullDuplex(): boolean
 }
 
 export let createHttpClient: () => Promise<HttpClient>
@@ -14,6 +15,7 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
         }
 
         public async close(): Promise<void> {}
+        public isFullDuplex() { return false; }
     }
 
     createHttpClient = async () => {
@@ -21,17 +23,19 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
     }
 } else if (typeof navigator !== "undefined" && navigator.product === "ReactNative") {
     class ReactNativeHttpClient {
-        constructor() {}
+        constructor() {
+        }
 
-        public async fetch(input: RequestInfo | URL, init?: any): Promise<Response> {
+        public async fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
             init ||= {}
+            // @ts-ignore
             init.reactNative = { textStreaming: true }
             return await fetch(input, init)
         }
 
         public async close(): Promise<void> {}
+        public isFullDuplex() { return true; }
     }
-
     createHttpClient = async () => {
         return new ReactNativeHttpClient()
     }
@@ -52,6 +56,7 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
         public async close(): Promise<void> {
             return this.agent.close()
         }
+        public isFullDuplex() { return false; }
     }
 
     createHttpClient = async () => {
