@@ -114,7 +114,7 @@ export class UploadJob extends AbstractJob {
         super(params, getSession, client, requestLogger)
         this._uploadStream = stream
         this._mimeType = mimeType
-        this._needsFullDuplex = mimeType.startsWith('video/')
+        this._needsFullDuplex = !client.isFullDuplex() && mimeType.startsWith('video/')
     }
 
     protected override async onEvent(event: StreamEvent): Promise<void> {
@@ -194,21 +194,21 @@ export class UploadJob extends AbstractJob {
             const prepareUrl: string = `${session.baseUrl.replace(/\/+$/, '')}/pipelines/${session.pipelineId}/prepareSource?timeout=10s`
             const headers = {
                 ...session.authenticationHeaders(),
-                Accept: 'application/jsonl',
+                Accept: 'application/jsonl'
             }
-            this._requestLogger.debug('before POST %s to prepare full duplex upload', prepareUrl)
+            this._requestLogger.debug('before POST {} to prepare full duplex upload', prepareUrl)
             response = await this._client.fetch(prepareUrl, {
                 headers: headers,
                 method: 'POST',
                 signal: this._controller.signal,
                 // @ts-ignore
-                duplex: 'half',
+                duplex: 'half'
             })
-            this._requestLogger.debug('after POST %s to prepare full duplex upload', prepareUrl)
+            this._requestLogger.debug('after POST {} to prepare full duplex upload {} {}', prepareUrl, response.status, response.statusText)
         } else {
             const postUrl: string = `${session.baseUrl.replace(/\/+$/, '')}/pipelines/${session.pipelineId}/source?mode=queue&processing=sync`
             if (this._params) {
-                this._requestLogger.debug('before POST %s with multipart body because of params', postUrl)
+                this._requestLogger.debug('before POST {} with multipart body because of params', postUrl)
                 const params = JSON.stringify(this._params)
                 const paramBlob = new Blob([params], { type: 'application/json' })
                 const formData = new FormData()
