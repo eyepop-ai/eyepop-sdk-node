@@ -464,6 +464,11 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
     }
 
     private async loadFrom(source: UrlSource, params: SourceParams | undefined): Promise<ResultStream> {
+        if (source.url.startsWith('file://')) {
+            return await this.uploadPath({
+                path: source.url.substring('file://'.length)
+            }, params)
+        }
         if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
             throw new Error('endpoint not connected, use connect() before loadFrom()')
         }

@@ -32,6 +32,7 @@ export interface StreamSource {
 
 export interface PathSource {
     readonly path: string
+    readonly mimeType?: string
 }
 
 export interface LiveSource {
