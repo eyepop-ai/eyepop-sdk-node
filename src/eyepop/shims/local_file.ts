@@ -1,11 +1,22 @@
 import * as fs from 'node:fs'
 import { PathSource, StreamSource } from '../index'
+import filehandle from "node:fs/promises";
+import mime from "mime-types";
 
 export let resolvePath: (source: PathSource) => Promise<StreamSource>
 
 if ('document' in globalThis && 'implementation' in globalThis.document) {
     resolvePath = async (source: PathSource) => {
         throw new DOMException('resolving a path to a file is not supported in browser')
+    }
+} else if (typeof navigator !== "undefined" && navigator.product === "ReactNative") {
+    resolvePath = async (source: PathSource) => {
+        const response = await fetch(`file://${source.path}`);
+        const blob = await response.blob();
+        return {
+          stream: blob,
+          mimeType: source.mimeType || 'image/*'
+        }
     }
 } else {
     /**
@@ -45,7 +56,7 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
         const iterator = nodeStreamToIterator(stream)
         const webStream = iteratorToStream(iterator)
 
-        const mimeType = mime.lookup(source.path) || 'application/octet-stream'
+        const mimeType = source.mimeType? source.mimeType : (mime.lookup(source.path) || 'image/*')
         return {
             stream: webStream,
             mimeType: mimeType,
