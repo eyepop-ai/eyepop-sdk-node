@@ -3,7 +3,7 @@ import { Stream, StreamEvent } from '../streaming'
 import { HttpClient } from '../shims/http_client'
 
 import { Logger } from 'pino'
-import { ResultStream, WorkerSession } from '../worker/worker_types'
+import {ResultStream, VideoMode, WorkerSession} from '../worker/worker_types'
 
 export class AbstractJob implements ResultStream {
     protected _getSession: () => Promise<WorkerSession>
@@ -105,15 +105,16 @@ export class UploadJob extends AbstractJob {
     private readonly _uploadStream: ReadableStream<Uint8Array> | Blob | BufferSource
     private readonly _mimeType: string
     private readonly _needsFullDuplex: boolean
-
+    private readonly _videoMode: VideoMode | undefined
     get [Symbol.toStringTag](): string {
         return 'uploadJob'
     }
 
-    constructor(stream: ReadableStream<Uint8Array> | Blob | BufferSource, mimeType: string, params: SourceParams | undefined, getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger) {
+    constructor(stream: ReadableStream<Uint8Array> | Blob | BufferSource, mimeType: string, videoMode: VideoMode | undefined, params: SourceParams | undefined, getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger) {
         super(params, getSession, client, requestLogger)
         this._uploadStream = stream
         this._mimeType = mimeType
+        this._videoMode = videoMode
         this._needsFullDuplex = !client.isFullDuplex() && mimeType.startsWith('video/')
     }
 
@@ -127,7 +128,8 @@ export class UploadJob extends AbstractJob {
                 return Promise.reject('session.baseUrl must not ne null')
             }
             let request
-            const postUrl: string = `${session.baseUrl.replace(/\/+$/, '')}/pipelines/${session.pipelineId}/source?mode=queue&processing=async&sourceId=${event.source_id}`
+            const videoModeQuery = this._videoMode ? `&videoMode=${this._videoMode}` : ''
+            const postUrl: string = `${session.baseUrl.replace(/\/+$/, '')}/pipelines/${session.pipelineId}/source?mode=queue&processing=async&sourceId=${event.source_id}${videoModeQuery}`
             if (this._params) {
                 this._requestLogger.debug('before POST %s with multipart body because of params', postUrl)
                 const params = JSON.stringify(this._params)
@@ -206,7 +208,8 @@ export class UploadJob extends AbstractJob {
             })
             this._requestLogger.debug('after POST {} to prepare full duplex upload {} {}', prepareUrl, response.status, response.statusText)
         } else {
-            const postUrl: string = `${session.baseUrl.replace(/\/+$/, '')}/pipelines/${session.pipelineId}/source?mode=queue&processing=sync`
+            const videoModeQuery = this._videoMode ? `&videoMode=${this._videoMode}` : ''
+            const postUrl: string = `${session.baseUrl.replace(/\/+$/, '')}/pipelines/${session.pipelineId}/source?mode=queue&processing=sync${videoModeQuery}`
             if (this._params) {
                 this._requestLogger.debug('before POST {} with multipart body because of params', postUrl)
                 const params = JSON.stringify(this._params)

@@ -63,6 +63,7 @@ export {
     StreamSource,
     ResultStream,
     IngressEvent,
+    VideoMode
 } from './worker/worker_types'
 
 export { Options, Authentication, SessionAuth, SecretKeyAuth, OAuth2Auth, Auth0Options } from './options'
