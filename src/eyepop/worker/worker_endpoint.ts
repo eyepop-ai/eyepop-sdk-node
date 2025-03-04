@@ -376,6 +376,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             const job = new UploadJob(
                 source.file.stream(),
                 source.file.type,
+                source.videoMode,
                 params,
                 async () => {
                     return this.session()
@@ -408,6 +409,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             const job = new UploadJob(
                 source.stream,
                 source.mimeType,
+                source.videoMode,
                 params,
                 async () => {
                     return this.session()
@@ -441,6 +443,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             const job = new UploadJob(
                 streamSource.stream,
                 streamSource.mimeType,
+                source.videoMode,
                 params,
                 async () => {
                     return this.session()

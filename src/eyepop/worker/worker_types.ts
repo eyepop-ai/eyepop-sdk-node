@@ -10,10 +10,13 @@ export interface WorkerSession extends Session {
 
 export interface LiveMedia {
     ingressId(): string
-
     stream(): Promise<MediaStream>
-
     close(): Promise<void>
+}
+
+export enum VideoMode {
+    stream = 'stream',
+    buffer = 'buffer'
 }
 
 export interface IngressEvent {
@@ -23,16 +26,19 @@ export interface IngressEvent {
 
 export interface FileSource {
     readonly file: File
+    readonly videoMode?: VideoMode
 }
 
 export interface StreamSource {
     readonly stream: ReadableStream<Uint8Array> | Blob | BufferSource
     readonly mimeType: string
+    readonly videoMode?: VideoMode
 }
 
 export interface PathSource {
     readonly path: string
     readonly mimeType?: string
+    readonly videoMode?: VideoMode
 }
 
 export interface LiveSource {
