@@ -15,8 +15,8 @@ export interface LiveMedia {
 }
 
 export enum VideoMode {
-    stream = 'stream',
-    buffer = 'buffer'
+    STREAM = 'stream',
+    BUFFER = 'buffer'
 }
 
 export interface IngressEvent {
