@@ -1,8 +1,8 @@
-import { Prediction, SourceParams } from '../types'
-import { Stream, StreamEvent } from '../streaming'
-import { HttpClient } from '../shims/http_client'
+import {Prediction, SourceParams} from '../types'
+import {Stream, StreamEvent} from '../streaming'
+import {HttpClient} from '../shims/http_client'
 
-import { Logger } from 'pino'
+import {Logger} from 'pino'
 import {ResultStream, VideoMode, WorkerSession} from '../worker/worker_types'
 
 export class AbstractJob implements ResultStream {
@@ -115,7 +115,7 @@ export class UploadJob extends AbstractJob {
         this._uploadStream = stream
         this._mimeType = mimeType
         this._videoMode = videoMode
-        this._needsFullDuplex = !client.isFullDuplex() && mimeType.startsWith('video/')
+        this._needsFullDuplex = !client.isFullDuplex() && mimeType.startsWith('video/') && videoMode == VideoMode.STREAM
     }
 
     protected override async onEvent(event: StreamEvent): Promise<void> {
