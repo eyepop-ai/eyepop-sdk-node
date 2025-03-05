@@ -104,16 +104,18 @@ export class AbstractJob implements ResultStream {
 export class UploadJob extends AbstractJob {
     private readonly _uploadStream: ReadableStream<Uint8Array> | Blob | BufferSource
     private readonly _mimeType: string
+    private readonly _size: number | undefined
     private readonly _needsFullDuplex: boolean
     private readonly _videoMode: VideoMode | undefined
     get [Symbol.toStringTag](): string {
         return 'uploadJob'
     }
 
-    constructor(stream: ReadableStream<Uint8Array> | Blob | BufferSource, mimeType: string, videoMode: VideoMode | undefined, params: SourceParams | undefined, getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger) {
+    constructor(stream: ReadableStream<Uint8Array> | Blob | BufferSource, mimeType: string, size: number | undefined, videoMode: VideoMode | undefined, params: SourceParams | undefined, getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger) {
         super(params, getSession, client, requestLogger)
         this._uploadStream = stream
         this._mimeType = mimeType
+        this._size = size
         this._videoMode = videoMode
         this._needsFullDuplex = !client.isFullDuplex() && mimeType.startsWith('video/') && videoMode == VideoMode.STREAM
     }
@@ -157,6 +159,9 @@ export class UploadJob extends AbstractJob {
                     ...session.authenticationHeaders(),
                     Accept: 'application/jsonl',
                     'Content-Type': this._mimeType,
+                }
+                if (this._size) {
+                    headers['Content-Length'] = `${this._size}`
                 }
                 request = this._client.fetch(postUrl, {
                     headers: headers,
@@ -238,6 +243,9 @@ export class UploadJob extends AbstractJob {
                     ...session.authenticationHeaders(),
                     Accept: 'application/jsonl',
                     'Content-Type': this._mimeType,
+                }
+                if (this._size) {
+                    headers['Content-Length'] = `${this._size}`
                 }
                 response = await this._client.fetch(postUrl, {
                     headers: headers,

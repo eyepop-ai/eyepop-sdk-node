@@ -108,7 +108,7 @@ export class Stream<Prediction> implements AsyncIterable<Prediction> {
  *
  * https://github.com/encode/httpx/blob/920333ea98118e9cf617f246905d7b202510941c/httpx/_decoders.py#L258
  */
-class EyepopLineDecoder {
+export class EyepopLineDecoder {
     // prettier-ignore
     static NEWLINE_CHARS = new Set(['\n', '\r', '\x0b', '\x0c', '\x1c', '\x1d', '\x1e', '\x85', '\u2028', '\u2029']);
     static NEWLINE_REGEXP = /\r\n|[\n\r\x0b\x0c\x1c\x1d\x1e\x85\u2028\u2029]/g

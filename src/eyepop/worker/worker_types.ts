@@ -32,6 +32,7 @@ export interface FileSource {
 export interface StreamSource {
     readonly stream: ReadableStream<Uint8Array> | Blob | BufferSource
     readonly mimeType: string
+    readonly size?: number
     readonly videoMode?: VideoMode
 }
 
