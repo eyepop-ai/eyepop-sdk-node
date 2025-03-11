@@ -21,25 +21,25 @@ export enum VideoMode {
 
 export interface IngressEvent {
     readonly ingressId: string
-    readonly event: 'stream-ready' | 'stream-ready'
+    readonly event: 'stream-ready' | 'stream-not-ready'
 }
 
 export interface FileSource {
     readonly file: File
-    readonly videoMode?: VideoMode
+    readonly videoMode?: VideoMode  | undefined
 }
 
 export interface StreamSource {
     readonly stream: ReadableStream<Uint8Array> | Blob | BufferSource
     readonly mimeType: string
-    readonly size?: number
-    readonly videoMode?: VideoMode
+    readonly size?: number | undefined
+    readonly videoMode?: VideoMode  | undefined
 }
 
 export interface PathSource {
     readonly path: string
-    readonly mimeType?: string
-    readonly videoMode?: VideoMode
+    readonly mimeType?: string | undefined
+    readonly videoMode?: VideoMode | undefined
 }
 
 export interface LiveSource {

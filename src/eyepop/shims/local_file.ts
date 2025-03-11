@@ -87,17 +87,9 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
                 mimeType: source.mimeType || 'image/*'
             }
         }
-        logger.warn(`Could not load '${RNFSName}' (reason" ${RNFSLoadError}) or ` +
+        return Promise.reject(`Could not load '${RNFSName}' (reason" ${RNFSLoadError}) or ` +
             `'${EFSName}' (reason" ${EFSLoadError}), include either of those packages in your ` +
-            'application to enable streamed uploads; without this package local files have to be loaded into ' +
-            'memory using fetch() before uploading and this will cause Out-Of-Memory errors for large files.')
-        const response = await fetch(`file://${source.path}`);
-        const blob = await response.blob();
-        return {
-          stream: blob,
-          size: blob.size,
-          mimeType: source.mimeType || 'image/*'
-        }
+            'application to enable uploads via PathSource - or provide the stream itself via StreamSource.')
     }
 } else {
     /**

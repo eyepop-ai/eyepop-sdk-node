@@ -70,7 +70,7 @@ export class AbstractJob implements ResultStream {
                             reject(`upload error ${response.status}: ${await response.text()}`)
                             break
                         } else if (!response.body) {
-                            reject(`response body is empty`)
+                            reject('response body is empty')
                             break
                         } else {
                             resolve(response.body)
@@ -133,7 +133,7 @@ export class UploadJob extends AbstractJob {
             const videoModeQuery = this._videoMode ? `&videoMode=${this._videoMode}` : ''
             const postUrl: string = `${session.baseUrl.replace(/\/+$/, '')}/pipelines/${session.pipelineId}/source?mode=queue&processing=async&sourceId=${event.source_id}${videoModeQuery}`
             if (this._params) {
-                this._requestLogger.debug('before POST %s with multipart body because of params', postUrl)
+                this._requestLogger.debug(`before POST ${postUrl} with multipart body because of params`)
                 const params = JSON.stringify(this._params)
                 const paramBlob = new Blob([params], { type: 'application/json' })
                 const formData = new FormData()
@@ -154,7 +154,7 @@ export class UploadJob extends AbstractJob {
                     duplex: 'half',
                 })
             } else {
-                this._requestLogger.debug('before POST %s with stream as body', postUrl)
+                this._requestLogger.debug(`before POST ${postUrl} with stream as body`)
                 const headers = {
                     ...session.authenticationHeaders(),
                     Accept: 'application/jsonl',
@@ -175,18 +175,15 @@ export class UploadJob extends AbstractJob {
             request
                 .then(async value => {
                     if (value.status != 204) {
-                        this._requestLogger.debug('unexpected status %d (%s) for POST %s ', value.status, await value.text(), postUrl)
+                        this._requestLogger.debug(`unexpected status ${value.status} (${await value.text()}) for POST ${postUrl}`)
                     }
                 })
                 .catch(reason => {
-                    this._requestLogger.debug('error %v for POST %s ', reason, postUrl)
+                    this._requestLogger.debug(`error ${reason} for POST ${postUrl}`)
                 })
                 .finally(() => {
-                    this._requestLogger.debug('after POST %s ', postUrl)
+                    this._requestLogger.debug(`after POST ${postUrl}`)
                 })
-            // if (response.status != 204) {
-            //     return Promise.reject(`upload error ${response.status}: ${await response.text()}`)
-            // }
         }
         return Promise.resolve()
     }
@@ -194,7 +191,7 @@ export class UploadJob extends AbstractJob {
     protected override async startJob(): Promise<Response> {
         const session = await this._getSession()
         if (!session.baseUrl) {
-            return Promise.reject('session.baseUrl must not ne null')
+            return Promise.reject('session.baseUrl must not be null')
         }
         let response
         if (this._needsFullDuplex) {
@@ -203,7 +200,7 @@ export class UploadJob extends AbstractJob {
                 ...session.authenticationHeaders(),
                 Accept: 'application/jsonl'
             }
-            this._requestLogger.debug('before POST {} to prepare full duplex upload', prepareUrl)
+            this._requestLogger.debug(`before POST ${prepareUrl} to prepare full duplex upload`)
             response = await this._client.fetch(prepareUrl, {
                 headers: headers,
                 method: 'POST',
@@ -211,12 +208,12 @@ export class UploadJob extends AbstractJob {
                 // @ts-ignore
                 duplex: 'half'
             })
-            this._requestLogger.debug('after POST {} to prepare full duplex upload {} {}', prepareUrl, response.status, response.statusText)
+            this._requestLogger.debug(`after POST ${prepareUrl} to prepare full duplex upload ${response.status} ${response.statusText}`)
         } else {
             const videoModeQuery = this._videoMode ? `&videoMode=${this._videoMode}` : ''
             const postUrl: string = `${session.baseUrl.replace(/\/+$/, '')}/pipelines/${session.pipelineId}/source?mode=queue&processing=sync${videoModeQuery}`
             if (this._params) {
-                this._requestLogger.debug('before POST {} with multipart body because of params', postUrl)
+                this._requestLogger.debug(`before POST ${postUrl} with multipart body because of params`)
                 const params = JSON.stringify(this._params)
                 const paramBlob = new Blob([params], { type: 'application/json' })
                 const formData = new FormData()
@@ -236,9 +233,9 @@ export class UploadJob extends AbstractJob {
                     // @ts-ignore
                     duplex: 'half',
                 })
-                this._requestLogger.debug('after POST %s with multipart body because of params', postUrl)
+                this._requestLogger.debug(`after POST ${postUrl} with multipart body because of params)`)
             } else {
-                this._requestLogger.debug('before POST %s with stream as body', postUrl)
+                this._requestLogger.debug(`before POST ${postUrl} with stream as body`)
                 const headers = {
                     ...session.authenticationHeaders(),
                     Accept: 'application/jsonl',
@@ -255,7 +252,7 @@ export class UploadJob extends AbstractJob {
                     // @ts-ignore
                     duplex: 'half',
                 })
-                this._requestLogger.debug('after POST %s with stream as body', postUrl)
+                this._requestLogger.debug(`after POST ${postUrl} with stream as body`)
             }
         }
         return response
