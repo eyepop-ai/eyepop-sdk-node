@@ -376,6 +376,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             const job = new UploadJob(
                 source.file.stream(),
                 source.file.type,
+                source.file.size,
                 source.videoMode,
                 params,
                 async () => {
@@ -409,6 +410,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             const job = new UploadJob(
                 source.stream,
                 source.mimeType,
+                source.size,
                 source.videoMode,
                 params,
                 async () => {
@@ -439,10 +441,11 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         await this._limit.acquire()
         try {
             this.updateState()
-            const streamSource = await resolvePath(source as PathSource)
+            const streamSource = await resolvePath(source as PathSource, this._logger)
             const job = new UploadJob(
                 streamSource.stream,
                 streamSource.mimeType,
+                streamSource.size,
                 source.videoMode,
                 params,
                 async () => {
@@ -665,6 +668,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
                 const body = { sourceType: 'NONE' }
                 const headers = {
                     Authorization: await this.authorizationHeader(),
+                    "Content-Type": "application/json"
                 }
                 const stop_url = `${this._baseUrl}/pipelines/${this._pipeline.id}/source?mode=preempt&processing=sync`
                 let response = await this._client.fetch(stop_url, {

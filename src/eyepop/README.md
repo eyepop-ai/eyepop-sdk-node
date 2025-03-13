@@ -6,16 +6,27 @@ TypeScript or JavaScript language.
 ## Installation
 
 ### Node
+EyePop Sdk is tested with the LTS versions `node v20.11.0` and `npm v10.2.4`. Getting started with:
+```shell
+npm install --save @eyepop.ai/eyepop
+```
+See the [Node example folder](https://github.com/eyepop-ai/eyepop-sdk-node/blob/main/examples/node) for code examples. 
 
+### Browser
+EyePop Sdk supports all model browsers and can be used with Javascript w/o any additional dependencies:  
+```html
+<script src="https://cdn.jsdelivr.net/npm/@eyepop.ai/eyepop/dist/eyepop.min.js"></script>
+```
+See the [Web example folder](https://github.com/eyepop-ai/eyepop-sdk-node/tree/main/examples/web/static) for code examples. 
+
+### React Native
 ```shell
 npm install --save @eyepop.ai/eyepop
 ```
 
-### Browser
+See the [ReactNative example folder](https://github.com/eyepop-ai/eyepop-sdk-node/tree/main/examples/react_native/upload-example) for code 
+examples and tips for to debug your configuration. 
 
-```html
-<script src="https://cdn.jsdelivr.net/npm/@eyepop.ai/eyepop/dist/eyepop.min.js"></script>
-```
 
 ## Configuration
 

@@ -1,5 +1,5 @@
 import { Session } from '../types'
-import { Auth0Options, OAuth2Auth, Options } from '../options'
+import { Auth0Options, LocalAuth, OAuth2Auth, Options } from '../options'
 import { createAuth0Client } from '@auth0/auth0-spa-js'
 import { Auth0ClientOptions } from '@auth0/auth0-spa-js/src/global'
 import { WorkerOptions, WorkerSession } from '../index'
@@ -38,6 +38,9 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
                 baseUrl: undefined,
                 pipelineId: undefined,
                 sandboxId: undefined,
+                authenticationHeaders: () => {
+                    return { Authorization: `Bearer ${accessToken}` }
+                }
             }
             session = workerSession
         } else {

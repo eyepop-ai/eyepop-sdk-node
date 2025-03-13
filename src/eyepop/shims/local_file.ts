@@ -1,22 +1,95 @@
+
 import * as fs from 'node:fs'
 import { PathSource, StreamSource } from '../index'
-import filehandle from "node:fs/promises";
-import mime from "mime-types";
+import { Logger } from 'pino'
 
-export let resolvePath: (source: PathSource) => Promise<StreamSource>
+export let resolvePath: (source: PathSource, logger: Logger) => Promise<StreamSource>
 
 if ('document' in globalThis && 'implementation' in globalThis.document) {
-    resolvePath = async (source: PathSource) => {
+    resolvePath = async (source: PathSource, logger: Logger) => {
         throw new DOMException('resolving a path to a file is not supported in browser')
     }
 } else if (typeof navigator !== "undefined" && navigator.product === "ReactNative") {
-    resolvePath = async (source: PathSource) => {
-        const response = await fetch(`file://${source.path}`);
-        const blob = await response.blob();
-        return {
-          stream: blob,
-          mimeType: source.mimeType || 'image/*'
+
+    let RNFSName = 'react-native-fs';
+    let RNFS: any
+    let RNFSLoadError: any
+    try {
+        RNFS = require(RNFSName);
+    } catch (e) {
+        RNFSLoadError = e
+    }
+
+    let EFSName = 'expo-file-system';
+    let EFS: any
+    let EFSLoadError: any
+    try {
+        EFS = require(EFSName);
+    } catch (e) {
+        EFSLoadError = e
+    }
+
+    resolvePath = async (source: PathSource, logger: Logger) => {
+        if (RNFS?.read !== undefined) {
+            logger.debug("Using react-native-fs to read local file");
+            const bufferSize = 1024 * 1024;
+            let pos = 0;
+            let eof = false;
+            const stream = new ReadableStream({
+                async pull(controller: any) {
+                    if (eof) {
+                        return;
+                    }
+                    const chunkAsB64 = await RNFS.read(source.path, bufferSize, pos, 'base64');
+                    if (chunkAsB64.length > 0) {
+                        const chunk = Buffer.from(chunkAsB64, 'base64')
+                        controller.enqueue(chunk)
+                        pos += chunk.length
+                    } else {
+                        eof = true;
+                        controller.close()
+                    }
+                },
+            })
+            return {
+                stream: stream,
+                size: (await RNFS.stat(source.path)).size,
+                mimeType: source.mimeType || 'image/*'
+            }
+        } else if (EFS?.readAsStringAsync !== undefined) {
+            logger.debug("Using expo-file-system to read local file");
+            const bufferSize = 1024 * 1024;
+            let pos = 0;
+            let eof = false;
+            const stream = new ReadableStream({
+                async pull(controller: any) {
+                    if (eof) {
+                        return;
+                    }
+                    const chunkAsB64 = await EFS.readAsStringAsync(`file://${source.path}`, {
+                        length: bufferSize,
+                        position: pos,
+                        encoding: 'base64'
+                    });
+                    if (chunkAsB64) {
+                        const chunk = Buffer.from(chunkAsB64, 'base64')
+                        controller.enqueue(chunk)
+                        pos += chunk.length
+                    } else {
+                        eof = true;
+                        controller.close()
+                    }
+                },
+            })
+            return {
+                stream: stream,
+                size: (await EFS.getInfoAsync(`file://${source.path}`)).size,
+                mimeType: source.mimeType || 'image/*'
+            }
         }
+        return Promise.reject(`Could not load '${RNFSName}' (reason" ${RNFSLoadError}) or ` +
+            `'${EFSName}' (reason" ${EFSLoadError}), include either of those packages in your ` +
+            'application to enable uploads via PathSource - or provide the stream itself via StreamSource.')
     }
 } else {
     /**
@@ -48,7 +121,7 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
             },
         })
     }
-    resolvePath = async (source: PathSource) => {
+    resolvePath = async (source: PathSource, logger: Logger) => {
         const mime = require('mime-types')
         const filehandle = require('node:fs/promises')
         const fd = await filehandle.open(source.path, 'r')

@@ -79,6 +79,7 @@ web_modules/
 .env.test.local
 .env.production.local
 .env.local
+expo-env.d.ts
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache
@@ -138,3 +139,6 @@ coverage/
 
 examples/vite/public
 examples/web/static/env.js
+
+examples/react_native/*/android
+examples/react_native/*/ios

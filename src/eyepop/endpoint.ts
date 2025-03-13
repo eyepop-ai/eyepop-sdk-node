@@ -119,7 +119,7 @@ export class Endpoint<T extends Endpoint<T>> {
             return Promise.reject('option secretKey or environment variable EYEPOP_SECRET_KEY is required')
         }
 
-        this._client = await createHttpClient()
+        this._client = await createHttpClient(this._logger)
 
         return await this.reconnect()
     }
