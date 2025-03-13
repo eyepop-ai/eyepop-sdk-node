@@ -47,12 +47,12 @@ export default function homeScreen() {
     const [videoResultQueue, setVideoResultQueue] = useState<Queue<Prediction> | null>(null)
     const [lastVideoResultRendered, setLastVideoResultRendered] = useState<number>(-1)
 
-        /** Initialize an EyePop Endpoint and keeping it alive while this component lives */
+    /** Initialize an EyePop Endpoint and keeping it alive while this component lives */
     useEffect(() => {
         const endpoint = EyePop.workerEndpoint({
-            auth: { secretKey: process.env.EYEPOP_API_KEY || '' },
-            popId: process.env.EYEPOP_POP_UUID,
-            eyepopUrl: process.env.EYEPOP_URL || undefined,
+            auth: { secretKey: process.env.EXPO_PUBLIC_EYEPOP_API_KEY || '' },
+            popId: process.env.EXPO_PUBLIC_EYEPOP_POP_UUID,
+            eyepopUrl: process.env.EXPO_PUBLIC_EYEPOP_URL || undefined,
             logger: logger,
         })
         setSpinner('Connecting to EyePop...')
