@@ -14,7 +14,7 @@
         "test": "jest",
         "format": "prettier --write '**/*.{js,ts,json,md}'"
     },
-    "devDependencies": {
+    "dependencies": {
         "@babel/preset-typescript": "^7.23.3",
         "@jest/globals": "^29.7.0",
         "@rollup/plugin-json": "^6.1.0",
@@ -36,9 +36,9 @@
         "typedoc": "^0.25.8",
         "typescript": "^5.3.3",
         "uuid": "^9.0.1",
-	"webpack-cli": "6.0.1"
+	    "webpack-cli": "6.0.1"
     },
-    "dependencies": {
+    "devDependencies": {
         "pino-pretty": "^11.2.2",
         "eslint-config-prettier": "^9.1.0",
         "eslint-plugin-prettier": "^5.2.1",
