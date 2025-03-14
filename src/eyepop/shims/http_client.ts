@@ -92,7 +92,7 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
                         url, method, headers, streamBody, contentLength, TcpSockets, this.logger
                     );
                 } else {
-                    this.logger.warn(`[${TcpSockets}] Could not load '${TcpSocketsName}' (reason" ${TcpSocketsError}), ` +
+                    this.logger.warn(`[${TcpSockets}] Could not load '${TcpSocketsName}' (reason: ${TcpSocketsError}), ` +
                         'include this package in your application to enable streamed uploads; without this package ' +
                         'local files have to be loaded into memory uploading and this will cause Out-Of-Memory errors ' +
                         'for large files.')

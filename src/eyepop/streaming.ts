@@ -236,3 +236,11 @@ function readableStreamAsyncIterable<T>(stream: any): AsyncIterableIterator<T> {
         },
     }
 }
+export function readableStreamFromString(s: string) : ReadableStream<Uint8Array> {
+    return new ReadableStream({
+        start(controller) {
+            controller.enqueue(Buffer.from(s));
+            controller.close();
+        }
+    });
+}

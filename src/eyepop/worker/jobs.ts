@@ -1,7 +1,6 @@
 import {Prediction, SourceParams} from '../types'
-import {Stream, StreamEvent} from '../streaming'
+import {Stream, StreamEvent, readableStreamFromString} from '../streaming'
 import {HttpClient} from '../shims/http_client'
-
 import {Logger} from 'pino'
 import {ResultStream, VideoMode, WorkerSession} from '../worker/worker_types'
 
@@ -69,12 +68,18 @@ export class AbstractJob implements ResultStream {
                         } else if (response.status != 200) {
                             reject(`upload error ${response.status}: ${await response.text()}`)
                             break
-                        } else if (!response.body) {
-                            reject('response body is empty')
-                            break
-                        } else {
+                        } else if (response.body) {
                             resolve(response.body)
                             break
+                        } else {
+                            const text = await response.text();
+                            if (text) {
+                                resolve(readableStreamFromString(text));
+                                break
+                            } else {
+                                reject('response body is empty')
+                                break
+                            }
                         }
                     } catch (error) {
                         if (retries--) {
