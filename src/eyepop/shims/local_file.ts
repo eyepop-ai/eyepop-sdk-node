@@ -1,4 +1,3 @@
-
 import * as fs from 'node:fs'
 import { PathSource, StreamSource } from '../index'
 import { Logger } from 'pino'
@@ -9,74 +8,98 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
     resolvePath = async (source: PathSource, logger: Logger) => {
         throw new DOMException('resolving a path to a file is not supported in browser')
     }
-} else if (typeof navigator !== "undefined" && navigator.product === "ReactNative") {
-
-    let RNFSName = 'react-native-fs';
+} else if (typeof navigator !== 'undefined' && navigator.product === 'ReactNative') {
+    let RNFSName = 'react-native-fs'
     let RNFS: any
     let RNFSLoadError: any
     try {
-        RNFS = require(RNFSName);
+        RNFS = require(RNFSName)
     } catch (e) {
         RNFSLoadError = e
     }
 
-    let EFSName = 'expo-file-system';
+    let EFSName = 'expo-file-system'
     let EFS: any
     let EFSLoadError: any
     try {
-        EFS = require(EFSName);
+        EFS = require(EFSName)
     } catch (e) {
         EFSLoadError = e
     }
 
     resolvePath = async (source: PathSource, logger: Logger) => {
         if (RNFS?.read !== undefined) {
-            logger.debug("Using react-native-fs to read local file");
-            const bufferSize = 1024 * 1024;
-            let pos = 0;
-            let eof = false;
+            logger.debug('Using react-native-fs to read local file')
+            const bufferSize = 1024 * 1024
+            let pos = 0
+            let eof = false
+            let fileContentBase64 = ''
+
             const stream = new ReadableStream({
-                async pull(controller: any) {
-                    if (eof) {
-                        return;
+                async start() {
+                    try {
+                        fileContentBase64 = await RNFS.readFile(source.path, 'base64')
+                    } catch (error) {
+                        console.error('Error reading full file:', error)
+                        eof = true
                     }
-                    const chunkAsB64 = await RNFS.read(source.path, bufferSize, pos, 'base64');
-                    if (chunkAsB64.length > 0) {
+                },
+
+                async pull(controller) {
+                    if (eof) {
+                        controller.close()
+                        return
+                    }
+
+                    try {
+                        // Extract a chunk manually
+                        const chunkAsB64 = fileContentBase64.substring(pos, pos + bufferSize)
+
+                        if (!chunkAsB64 || chunkAsB64.length === 0) {
+                            eof = true
+                            console.log('End of file reached.')
+                            controller.close()
+                            return
+                        }
+
                         const chunk = Buffer.from(chunkAsB64, 'base64')
                         controller.enqueue(chunk)
-                        pos += chunk.length
-                    } else {
-                        eof = true;
-                        controller.close()
+                        pos += bufferSize // Move to next chunk
+                    } catch (error) {
+                        console.error('Error processing chunk:', error)
+                        controller.error(error)
                     }
                 },
             })
+
+            const stats = await RNFS.stat(source.path)
+
             return {
                 stream: stream,
-                size: (await RNFS.stat(source.path)).size,
-                mimeType: source.mimeType || 'image/*'
+                size: stats.size,
+                mimeType: source.mimeType || 'image/*',
             }
         } else if (EFS?.readAsStringAsync !== undefined) {
-            logger.debug("Using expo-file-system to read local file");
-            const bufferSize = 1024 * 1024;
-            let pos = 0;
-            let eof = false;
+            logger.debug('Using expo-file-system to read local file')
+            const bufferSize = 1024 * 1024
+            let pos = 0
+            let eof = false
             const stream = new ReadableStream({
                 async pull(controller: any) {
                     if (eof) {
-                        return;
+                        return
                     }
                     const chunkAsB64 = await EFS.readAsStringAsync(`file://${source.path}`, {
                         length: bufferSize,
                         position: pos,
-                        encoding: 'base64'
-                    });
+                        encoding: 'base64',
+                    })
                     if (chunkAsB64) {
                         const chunk = Buffer.from(chunkAsB64, 'base64')
                         controller.enqueue(chunk)
                         pos += chunk.length
                     } else {
-                        eof = true;
+                        eof = true
                         controller.close()
                     }
                 },
@@ -84,12 +107,14 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
             return {
                 stream: stream,
                 size: (await EFS.getInfoAsync(`file://${source.path}`)).size,
-                mimeType: source.mimeType || 'image/*'
+                mimeType: source.mimeType || 'image/*',
             }
         }
-        return Promise.reject(`Could not load '${RNFSName}' (reason" ${RNFSLoadError}) or ` +
-            `'${EFSName}' (reason" ${EFSLoadError}), include either of those packages in your ` +
-            'application to enable uploads via PathSource - or provide the stream itself via StreamSource.')
+        return Promise.reject(
+            `Could not load '${RNFSName}' (reason" ${RNFSLoadError}) or ` +
+                `'${EFSName}' (reason" ${EFSLoadError}), include either of those packages in your ` +
+                'application to enable uploads via PathSource - or provide the stream itself via StreamSource.',
+        )
     }
 } else {
     /**
@@ -129,7 +154,7 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
         const iterator = nodeStreamToIterator(stream)
         const webStream = iteratorToStream(iterator)
 
-        const mimeType = source.mimeType? source.mimeType : (mime.lookup(source.path) || 'image/*')
+        const mimeType = source.mimeType ? source.mimeType : mime.lookup(source.path) || 'image/*'
         return {
             stream: webStream,
             mimeType: mimeType,
