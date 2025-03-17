@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "@expo/vector-icons": "^14.0.2",
-    "@eyepop.ai/eyepop": "^1.14.1",
+    "@eyepop.ai/eyepop": "file:../../../eyepop.ai-eyepop-1.14.3.tgz",
     "@eyepop.ai/eyepop-render-2d": "^1.14.1",
     "@react-navigation/bottom-tabs": "^7.2.0",
     "@react-navigation/native": "^7.0.14",
@@ -40,7 +40,7 @@
     "react-dom": "18.3.1",
     "react-native": "0.76.7",
     "react-native-canvas": "^0.1.40",
-    "react-native-fs": "^2.20.0",
+    "react-native-fetch-api": "^3.0.0",
     "react-native-gesture-handler": "~2.20.2",
     "react-native-loading-spinner-overlay": "^3.0.1",
     "react-native-polyfill-globals": "^3.1.0",
