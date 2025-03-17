@@ -30,21 +30,11 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
     resolvePath = async (source: PathSource, logger: Logger) => {
         if (RNFS?.read !== undefined) {
             logger.debug('Using react-native-fs to read local file')
-            const bufferSize = 1024 * 1024
+            const bufferSize = 1024 * 1024 // 1MB buffer size
             let pos = 0
             let eof = false
-            let fileContentBase64 = ''
 
             const stream = new ReadableStream({
-                async start() {
-                    try {
-                        fileContentBase64 = await RNFS.readFile(source.path, 'base64')
-                    } catch (error) {
-                        console.error('Error reading full file:', error)
-                        eof = true
-                    }
-                },
-
                 async pull(controller) {
                     if (eof) {
                         controller.close()
@@ -52,21 +42,18 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
                     }
 
                     try {
-                        // Extract a chunk manually
-                        const chunkAsB64 = fileContentBase64.substring(pos, pos + bufferSize)
-
-                        if (!chunkAsB64 || chunkAsB64.length === 0) {
+                        const chunk = await RNFS.read(source.path, bufferSize, pos, 'base64')
+                        if (chunk.length === 0) {
                             eof = true
-                            console.log('End of file reached.')
                             controller.close()
                             return
                         }
 
-                        const chunk = Buffer.from(chunkAsB64, 'base64')
-                        controller.enqueue(chunk)
-                        pos += bufferSize // Move to next chunk
+                        const buffer = Buffer.from(chunk, 'base64')
+                        controller.enqueue(buffer)
+                        pos += buffer.length
                     } catch (error) {
-                        console.error('Error processing chunk:', error)
+                        console.error('Error reading chunk:', error)
                         controller.error(error)
                     }
                 },
@@ -110,11 +97,38 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
                 mimeType: source.mimeType || 'image/*',
             }
         }
-        return Promise.reject(
-            `Could not load '${RNFSName}' (reason" ${RNFSLoadError}) or ` +
-                `'${EFSName}' (reason" ${EFSLoadError}), include either of those packages in your ` +
-                'application to enable uploads via PathSource - or provide the stream itself via StreamSource.',
-        )
+
+        logger.debug('Using fetch to read local file')
+        const response = await fetch(`file://${source.path}`)
+        const reader = response.body?.getReader()
+        const stream = new ReadableStream({
+            async pull(controller) {
+                if (!reader) {
+                    controller.close()
+                    return
+                }
+
+                try {
+                    const { done, value } = await reader.read()
+
+                    if (done) {
+                        controller.close()
+                        return
+                    }
+
+                    controller.enqueue(value)
+                } catch (error) {
+                    console.error('Error reading chunk:', error)
+                    controller.error(error)
+                }
+            },
+        })
+
+        return {
+            stream: stream,
+            size: response.headers.get('content-length'),
+            mimeType: response.headers.get('content-type') || source.mimeType || 'image/*',
+        }
     }
 } else {
     /**
