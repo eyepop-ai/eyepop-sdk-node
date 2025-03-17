@@ -26,24 +26,24 @@ const RENDER_RULES = [EyepopRender2d.renderBox()]
 
 export default function homeScreen() {
     /** Keep an EyePop Endpoint alive for the lifetime of this component */
-    const [workerEndpoint, setWorkerEndpoint] = useState<WorkerEndpoint | null>(null);
+    const [workerEndpoint, setWorkerEndpoint] = useState<WorkerEndpoint | null>(null)
 
     /** UI state */
-    const [spinner, setSpinner] = useState<string | false>(false);
-    const [imageSource, setImageSource] = useState<string | null>(null);
-    const [videoSource, setVideoSource] = useState<string | null>(null);
-    const [mimeType, setMimeType] = useState<string | null>(null);
-    const [previewWidth, setPreviewWidth] = useState<number>(0);
+    const [spinner, setSpinner] = useState<string | false>(false)
+    const [imageSource, setImageSource] = useState<string | null>(null)
+    const [videoSource, setVideoSource] = useState<string | null>(null)
+    const [mimeType, setMimeType] = useState<string | null>(null)
+    const [previewWidth, setPreviewWidth] = useState<number>(0)
     const [previewHeight, setPreviewHeight] = useState<number>(0)
 
     /** Refs to UI components */
-    const previewImage = useRef<Image>(null);
-    const previewVideo = useRef<VideoRef>(null);
+    const previewImage = useRef<Image>(null)
+    const previewVideo = useRef<VideoRef>(null)
     const previewCanvas = useRef<Canvas>(null)
 
     /** Inference results to render */
-    const [previewResult, setPreviewResult] = useState<Prediction | null>(null);
-    const [resultSummary, setResultSummary] = useState<string | null>(null);
+    const [previewResult, setPreviewResult] = useState<Prediction | null>(null)
+    const [resultSummary, setResultSummary] = useState<string | null>(null)
     const [videoResultQueue, setVideoResultQueue] = useState<Queue<Prediction> | null>(null)
     const [lastVideoResultRendered, setLastVideoResultRendered] = useState<number>(-1)
 
@@ -56,195 +56,243 @@ export default function homeScreen() {
             logger: logger,
         })
         setSpinner('Connecting to EyePop...')
-        endpoint.connect().then(value => {
-            setWorkerEndpoint(value)
-        }).catch(reason => {
-            logger.error(reason)
-            Alert.alert(`got error ${reason}`)
-        }).finally(() => {
-            setSpinner(false)
-        })
-        return () => {
-            endpoint.disconnect().catch(reason => {
-                logger.error(reason);
-            }).finally(() => {
-                if (endpoint === workerEndpoint) {
-                    setWorkerEndpoint(null)
-                }
+        endpoint
+            .connect()
+            .then(value => {
+                setWorkerEndpoint(value)
             })
+            .catch(reason => {
+                logger.error(reason)
+                Alert.alert(`got error ${reason}`)
+            })
+            .finally(() => {
+                setSpinner(false)
+            })
+        return () => {
+            endpoint
+                .disconnect()
+                .catch(reason => {
+                    logger.error(reason)
+                })
+                .finally(() => {
+                    if (endpoint === workerEndpoint) {
+                        setWorkerEndpoint(null)
+                    }
+                })
         }
     }, [])
 
     /** Submit picked files for processing to EyePop endpoint */
     useEffect(() => {
-        const sourceUri = imageSource? imageSource: videoSource;
-        const sourceMimeType = mimeType;
-        const endpoint = workerEndpoint;
+        const sourceUri = imageSource ? imageSource : videoSource
+        const sourceMimeType = mimeType
+        const endpoint = workerEndpoint
 
         if (!sourceUri || !sourceMimeType) {
-            return;
+            return
         }
         if (!endpoint) {
-            Alert.alert('Asset picked but endpoint is not connected');
-            return;
+            Alert.alert('Asset picked but endpoint is not connected')
+            return
         }
-        endpoint.process({
-            path: sourceUri.substring('file://'.length),
-            mimeType: sourceMimeType,
-        }).then(results => {
-            processResults(results, sourceMimeType.startsWith("video/") || false).catch(reason => {
-                console.error(reason);
-            }).finally(() => {
-                setSpinner(false);
+
+        const init = {
+            reactNative: {
+                textStreaming: true,
+                method: 'GET',
+                headers: {
+                    Accept: 'application/octet-stream', // Ensure correct MIME type
+                },
+                mode: 'cors', // Needed for cross-origin requests
+                cache: 'no-store', // Prevent caching
+                credentials: 'same-origin', // Include credentials if needed
+            },
+        } as RequestInit
+
+        fetch(sourceUri, init)
+            .then(response => {
+                if (!response.body) {
+                    throw new Error('ReadableStream not supported or empty response body')
+                }
+                const reader = response.blob()
+
+                // const reader = response.body.getReader({ mode: 'byob' })
+                const stream = new ReadableStream({
+                    type: 'bytes',
+
+                    start(controller) {
+                        async function pump() {
+                            const bufferSize = 64 * 1024 // 64KB buffer
+                            while (true) {
+                                const buffer = new Uint8Array(bufferSize)
+                                try {
+                                    const { done, value } = await reader.read(buffer)
+                                    if (done) {
+                                        controller.close()
+                                        break
+                                    }
+                                    console.log('🎡 Received chunk:', value.byteLength, 'bytes')
+                                    controller.enqueue(value)
+                                } catch (error) {
+                                    console.error('Stream read error:', error)
+                                    controller.error(error)
+                                    break
+                                }
+                            }
+                        }
+                        pump()
+                    },
+                })
+                console.log('📫 Stream created:', stream)
+                // The stream is now being consumed via the pump() function above.
             })
-        }).catch(reason => {
-            console.error(reason);
-            setSpinner(false);
-        })
+            .catch(error => {
+                console.error('Error fetching file:', error)
+            })
     }, [imageSource, videoSource, workerEndpoint])
 
-        /** Let the user pick a local image or video and submit to EyePop for processing */
+    /** Let the user pick a local image or video and submit to EyePop for processing */
     const pickAsset = () => {
         ImagePicker.launchImageLibraryAsync({
             mediaTypes: ['images', 'videos'],
             quality: 1,
-            base64: false
+            base64: false,
         }).then(picked => {
             if (picked.canceled || !picked.assets[0]?.uri) {
                 return
             }
-            const file = picked.assets[0];
-            const { current: video } = previewVideo;
+            const file = picked.assets[0]
+            const { current: video } = previewVideo
             if (video) {
-                video.pause();
+                video.pause()
             }
             setSpinner(`Processing '${file.fileName}'...`)
-            if (file.mimeType?.startsWith("image/")) {
-                setImageSource(file.uri);
-                setVideoSource(null);
-                setMimeType(file.mimeType);
-            } else if (file.mimeType?.startsWith("video/")) {
-                setImageSource(null);
-                setVideoSource(file.uri);
-                setMimeType(file.mimeType);
+            if (file.mimeType?.startsWith('image/')) {
+                setImageSource(file.uri)
+                setVideoSource(null)
+                setMimeType(file.mimeType)
+            } else if (file.mimeType?.startsWith('video/')) {
+                setImageSource(null)
+                setVideoSource(file.uri)
+                setMimeType(file.mimeType)
             }
-            setPreviewResult(null);
-            setResultSummary(null);
+            setPreviewResult(null)
+            setResultSummary(null)
         })
     }
 
     /** Resizing the preview area based on the actual image dimensions */
     useEffect(() => {
-        const imageUri = imageSource;
+        const imageUri = imageSource
         if (imageUri) {
             Image.getSize(imageUri, (width, height) => {
-                setPreviewHeight(previewWidth * height / width);
-            });
+                setPreviewHeight((previewWidth * height) / width)
+            })
         }
-    }, [imageSource]);
+    }, [imageSource])
 
     /** Calculate the true width/height ration after rotation */
-    const onVideoTrack = (event: OnVideoTracksData) : void => {
+    const onVideoTrack = (event: OnVideoTracksData): void => {
         if (event.videoTracks && event.videoTracks[0] && event.videoTracks[0].height && event.videoTracks[0].width) {
             // @ts-ignore
-            const alpha = (event.videoTracks[0].rotation || 0) * Math.PI/180;
-            const w = Math.abs(event.videoTracks[0].width * Math.cos(alpha) - event.videoTracks[0].height * Math.sin(alpha));
-            const h = Math.abs(event.videoTracks[0].width * Math.sin(alpha) + event.videoTracks[0].height * Math.cos(alpha));
-            setPreviewHeight(previewWidth * h / w);
+            const alpha = ((event.videoTracks[0].rotation || 0) * Math.PI) / 180
+            const w = Math.abs(event.videoTracks[0].width * Math.cos(alpha) - event.videoTracks[0].height * Math.sin(alpha))
+            const h = Math.abs(event.videoTracks[0].width * Math.sin(alpha) + event.videoTracks[0].height * Math.cos(alpha))
+            setPreviewHeight((previewWidth * h) / w)
         }
-    };
+    }
 
     /** Re-render preview if new results are reported */
     const renderImageOverlay = () => {
-        const { current: canvas } = previewCanvas;
+        const { current: canvas } = previewCanvas
         if (canvas && previewResult) {
-            canvas.width = previewWidth;
-            canvas.height = previewHeight;
-            const ctx = canvas.getContext('2d');
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            canvas.width = previewWidth
+            canvas.height = previewHeight
+            const ctx = canvas.getContext('2d')
+            ctx.clearRect(0, 0, canvas.width, canvas.height)
             logger.debug(`redraw canvas.width=${canvas.width}, canvas.height=${canvas.height}`)
             // @ts-ignore
-            let renderer = EyepopRender2d.renderer(ctx, RENDER_RULES);
-            renderer.draw(previewResult);
+            let renderer = EyepopRender2d.renderer(ctx, RENDER_RULES)
+            renderer.draw(previewResult)
         }
     }
     useEffect(() => {
-        renderImageOverlay();
-    }, [previewResult]);
+        renderImageOverlay()
+    }, [previewResult])
     useEffect(() => {
-        const { current: canvas } = previewCanvas;
+        const { current: canvas } = previewCanvas
         if (canvas) {
             logger.debug(`height change ${canvas.width}x${canvas.height} => ${previewWidth}x${previewHeight}`)
-            canvas.width = previewWidth;
-            canvas.height = previewHeight;
+            canvas.width = previewWidth
+            canvas.height = previewHeight
         }
-        setTimeout(renderImageOverlay, 100);
+        setTimeout(renderImageOverlay, 100)
     }, [previewHeight])
 
     /** Synchronize playback with inference results */
-    const onVideoProgress = (event: OnProgressData) : void => {
-        const {current: video } = previewVideo;
-        const { current: canvas } = previewCanvas;
-        let lastRendered = lastVideoResultRendered;
+    const onVideoProgress = (event: OnProgressData): void => {
+        const { current: video } = previewVideo
+        const { current: canvas } = previewCanvas
+        let lastRendered = lastVideoResultRendered
         let queue = videoResultQueue
         if (video !== null && queue !== null && canvas !== null) {
-            const ctx = canvas.getContext('2d');
+            const ctx = canvas.getContext('2d')
             // @ts-ignore
-            let renderer = EyepopRender2d.renderer(ctx, RENDER_RULES);
+            let renderer = EyepopRender2d.renderer(ctx, RENDER_RULES)
             while (event.currentTime > lastRendered && !queue.isEmpty()) {
-                let result;
+                let result
                 // react-native-canvas is versy slow, so we skip forward if video playback is faster
                 do {
-                    result = queue.dequeue();
-                } while (result !== null && (result.seconds || 0) < event.currentTime && !queue.isEmpty());
+                    result = queue.dequeue()
+                } while (result !== null && (result.seconds || 0) < event.currentTime && !queue.isEmpty())
                 if (result) {
                     if (canvas && ctx) {
-                        canvas.width = previewWidth;
-                        canvas.height = previewHeight;
-                        ctx.clearRect(0, 0, canvas.width, canvas.height);
-                        renderer.draw(result);
+                        canvas.width = previewWidth
+                        canvas.height = previewHeight
+                        ctx.clearRect(0, 0, canvas.width, canvas.height)
+                        renderer.draw(result)
                     }
-                    lastRendered = result.seconds || 0;
+                    lastRendered = result.seconds || 0
                 }
             }
-            setLastVideoResultRendered(lastRendered);
+            setLastVideoResultRendered(lastRendered)
         }
     }
 
     /** Helper to demonstrate basic programmatic usage of Prediction results */
     const calculateSummary = (result: Prediction): void => {
-        const summary = new Map();
+        const summary = new Map()
         for (const o of result.objects || []) {
-            summary.set(o.classLabel, (summary.get(o.classLabel) || 0) + 1);
+            summary.set(o.classLabel, (summary.get(o.classLabel) || 0) + 1)
         }
         if (summary.size > 0) {
             setResultSummary(`Found object counts: ${JSON.stringify(Object.fromEntries(summary.entries()))}`)
         } else {
             setResultSummary(`No objects found`)
         }
-    };
+    }
 
-    const processResults = async (results: AsyncIterable<Prediction>, isVideo: boolean) : Promise<void> => {
+    const processResults = async (results: AsyncIterable<Prediction>, isVideo: boolean): Promise<void> => {
         if (!isVideo) {
             for await (const result of results) {
-                setPreviewResult(result);
-                calculateSummary(result);
+                setPreviewResult(result)
+                calculateSummary(result)
             }
         } else {
-            const queue = new Queue<Prediction>();
+            const queue = new Queue<Prediction>()
             try {
-                setSpinner('Waiting for first results ...');
-                setVideoResultQueue(queue);
-                setLastVideoResultRendered(-1);
+                setSpinner('Waiting for first results ...')
+                setVideoResultQueue(queue)
+                setLastVideoResultRendered(-1)
                 logger.debug(`queue = ${queue}`)
                 for await (const result of results) {
-                    setSpinner(`Buffering results for: ${result.seconds?.toFixed(1)} secs`);
-                    queue.enqueue(result);
+                    setSpinner(`Buffering results for: ${result.seconds?.toFixed(1)} secs`)
+                    queue.enqueue(result)
                 }
             } finally {
-                const { current: video } = previewVideo;
+                const { current: video } = previewVideo
                 if (video) {
-                    await video.resume();
+                    await video.resume()
                 }
             }
         }
@@ -281,27 +329,35 @@ export default function homeScreen() {
                     to select a local image or video and process it using your Pop.
                 </ThemedText>
             </ThemedView>
-            <ThemedView style={styles.previewContainer}
-                        onLayout={(event) => {setPreviewWidth(event.nativeEvent.layout.width)}} >
-                <Image ref={previewImage}
-                       source={imageSource? {uri: imageSource}: undefined}
-                       style={Object.assign({}, styles.previewImage, {height: imageSource? previewHeight: 0})}
+            <ThemedView
+                style={styles.previewContainer}
+                onLayout={event => {
+                    setPreviewWidth(event.nativeEvent.layout.width)
+                }}
+            >
+                <Image
+                    ref={previewImage}
+                    source={imageSource ? { uri: imageSource } : undefined}
+                    style={Object.assign({}, styles.previewImage, { height: imageSource ? previewHeight : 0 })}
                 />
-                <Video ref={previewVideo}
-                       source={videoSource? {uri: videoSource}: undefined}
-                       onVideoTracks={onVideoTrack}
-                       onProgress={onVideoProgress}
-                       progressUpdateInterval={100}
-                       style={Object.assign({}, styles.previewVideo, {height: videoSource? previewHeight: 0})}
+                <Video
+                    ref={previewVideo}
+                    source={videoSource ? { uri: videoSource } : undefined}
+                    onVideoTracks={onVideoTrack}
+                    onProgress={onVideoProgress}
+                    progressUpdateInterval={100}
+                    style={Object.assign({}, styles.previewVideo, { height: videoSource ? previewHeight : 0 })}
                 />
-                <Canvas ref={previewCanvas} style={Object.assign({}, styles.previewCanvas, {width: previewWidth, height: previewHeight})}/>
+                <Canvas
+                    ref={previewCanvas}
+                    style={Object.assign({}, styles.previewCanvas, { width: previewWidth, height: previewHeight })}
+                />
             </ThemedView>
             <ThemedView style={styles.stepContainer}>
                 <ThemedText>
                     <Text>{resultSummary}</Text>
                 </ThemedText>
             </ThemedView>
-
         </ParallaxScrollView>
     )
 }
@@ -336,31 +392,31 @@ const styles = StyleSheet.create({
     },
 
     previewContainer: {
-        width: "100%",
+        width: '100%',
     },
 
     previewCanvas: {
-        width: "100%",
+        width: '100%',
         position: 'absolute',
-        borderStyle: "solid",
-        borderColor: "black",
-        zIndex:9999
+        borderStyle: 'solid',
+        borderColor: 'black',
+        zIndex: 9999,
     },
 
-    previewImage : {
-        width: "100%",
-        backgroundColor: "grey",
+    previewImage: {
+        width: '100%',
+        backgroundColor: 'grey',
         resizeMode: 'contain',
         objectFit: 'contain',
         position: 'relative',
-        zIndex:1
+        zIndex: 1,
     },
-    previewVideo : {
-        width: "100%",
-        backgroundColor: "grey",
+    previewVideo: {
+        width: '100%',
+        backgroundColor: 'grey',
         resizeMode: 'contain',
         objectFit: 'contain',
         position: 'relative',
-        zIndex:1
-    }
+        zIndex: 1,
+    },
 })
