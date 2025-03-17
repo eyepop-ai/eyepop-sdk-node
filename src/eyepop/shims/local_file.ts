@@ -56,7 +56,8 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
                 size: (await RNFS.stat(source.path)).size,
                 mimeType: source.mimeType || 'image/*'
             }
-        } else if (EFS?.readAsStringAsync !== undefined) {
+        }
+        if (EFS?.readAsStringAsync !== undefined) {
             logger.debug("Using expo-file-system to read local file");
             const bufferSize = 1024 * 1024;
             let pos = 0;
@@ -87,9 +88,41 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
                 mimeType: source.mimeType || 'image/*'
             }
         }
-        return Promise.reject(`Could not load '${RNFSName}' (reason" ${RNFSLoadError}) or ` +
-            `'${EFSName}' (reason" ${EFSLoadError}), include either of those packages in your ` +
-            'application to enable uploads via PathSource - or provide the stream itself via StreamSource.')
+        logger.info(`Could not load '${RNFSName}' (reason" ${RNFSLoadError}) or ` +
+            `'${EFSName}' (reason" ${EFSLoadError}). Falling back to fetch() which might cause memory issues.` +
+            ' Include either of those packages in your ' +
+            'application to enable uploads via PathSource - or provide the stream itself via StreamSource.' +
+            `We will try to load file://${source.path} via fetch()`)
+        const init = {
+            reactNative: {
+                textStreaming: true
+            }
+        } as RequestInit
+        const response = await fetch(`file://${source.path}`, init)
+        if (!response.ok) {
+            throw new Error(`local file read via fetch() error ${response.status} ${response.statusText}`)
+        }
+        let stream = response.body;
+        if (!stream) {
+            logger.info(`local file read via fetch() no response body, attempt to use blob()`);
+            const blob = await response.blob();
+            stream = blob.stream();
+            if (!stream) {
+                logger.info(`local file read via fetch() no blob() - fully buffer in memory`);
+                const buffer = await response.arrayBuffer();
+                stream = new ReadableStream({
+                    async start(controller: any) {
+                        controller.enqueue(new Uint8Array(buffer));
+                        controller.close();
+                    }
+                });
+            }
+        }
+        return {
+            stream: stream,
+            size: response.headers.get('content-length') || undefined,
+            mimeType: response.headers.get('content-type') || source.mimeType || 'image/*'
+        }
     }
 } else {
     /**
