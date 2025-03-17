@@ -16,6 +16,7 @@ import * as ImagePicker from 'expo-image-picker'
 import Queue from 'queue-fifo'
 import { EyePop, Prediction, WorkerEndpoint } from '@eyepop.ai/eyepop'
 import EyepopRender2d from '@eyepop.ai/eyepop-render-2d'
+import { fetch } from 'expo/fetch'
 
 import { pino } from 'pino'
 import type { OnProgressData, OnVideoTracksData } from 'react-native-video/src/specs/VideoNativeComponent'
@@ -96,55 +97,33 @@ export default function homeScreen() {
             return
         }
 
-        const init = {
-            reactNative: {
-                textStreaming: true,
-                method: 'GET',
-                headers: {
-                    Accept: 'application/octet-stream', // Ensure correct MIME type
-                },
-                mode: 'cors', // Needed for cross-origin requests
-                cache: 'no-store', // Prevent caching
-                credentials: 'same-origin', // Include credentials if needed
+        const writableStream = new WritableStream({
+            write(chunk) {
+                console.log('🎡 Received chunk:', chunk.byteLength, 'bytes')
             },
-        } as RequestInit
+            close() {
+                return new Promise<undefined>(resolve => {
+                    console.log('🏁 Stream closed')
+                    resolve(undefined)
+                })
+            },
+            abort(err) {
+                console.error('Stream error:', err)
+            },
+        })
 
-        fetch(sourceUri, init)
+        fetch(sourceUri)
             .then(response => {
                 if (!response.body) {
                     throw new Error('ReadableStream not supported or empty response body')
                 }
-                const reader = response.blob()
+                const stream = response.body
 
-                // const reader = response.body.getReader({ mode: 'byob' })
-                const stream = new ReadableStream({
-                    type: 'bytes',
-
-                    start(controller) {
-                        async function pump() {
-                            const bufferSize = 64 * 1024 // 64KB buffer
-                            while (true) {
-                                const buffer = new Uint8Array(bufferSize)
-                                try {
-                                    const { done, value } = await reader.read(buffer)
-                                    if (done) {
-                                        controller.close()
-                                        break
-                                    }
-                                    console.log('🎡 Received chunk:', value.byteLength, 'bytes')
-                                    controller.enqueue(value)
-                                } catch (error) {
-                                    console.error('Stream read error:', error)
-                                    controller.error(error)
-                                    break
-                                }
-                            }
-                        }
-                        pump()
-                    },
-                })
-                console.log('📫 Stream created:', stream)
-                // The stream is now being consumed via the pump() function above.
+                // @ts-ignore
+                return stream.pipeTo(writableStream)
+            })
+            .then(() => {
+                console.log('📫 Stream created and piped successfully')
             })
             .catch(error => {
                 console.error('Error fetching file:', error)
