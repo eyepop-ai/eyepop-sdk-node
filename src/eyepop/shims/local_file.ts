@@ -11,13 +11,13 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
     }
 } else if (typeof navigator !== "undefined" && navigator.product === "ReactNative") {
 
-    let RNFSName = 'react-native-fs';
-    let RNFS: any
-    let RNFSLoadError: any
+    let RNFAName = 'react-native-file-access';
+    let RNFA: any
+    let RNFALoadError: any
     try {
-        RNFS = require(RNFSName);
+        RNFA = require(RNFAName);
     } catch (e) {
-        RNFSLoadError = e
+        RNFALoadError = e
     }
 
     let EFSName = 'expo-file-system';
@@ -30,19 +30,21 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
     }
 
     resolvePath = async (source: PathSource, logger: Logger) => {
-        if (RNFS?.read !== undefined) {
-            logger.debug("Using react-native-fs to read local file");
+        if (RNFA?.FileSystem?.readFileChunk !== undefined) {
+            logger.debug("Using react-native-file-access to read local file");
             const bufferSize = 1024 * 1024;
             let pos = 0;
+            const size = (await RNFA.FileSystem.stat(source.path)).size;
             let eof = false;
             const stream = new ReadableStream({
                 async pull(controller: any) {
                     if (eof) {
                         return;
                     }
-                    const chunkAsB64 = await RNFS.read(source.path, bufferSize, pos, 'base64');
+                    const chunkSize = Math.min(bufferSize, size-pos);
+                    const chunkAsB64 = await RNFA.FileSystem.readFileChunk(source.path, pos, chunkSize, 'base64');
                     if (chunkAsB64.length > 0) {
-                        const chunk = Buffer.from(chunkAsB64, 'base64')
+                        const chunk = Buffer.from(chunkAsB64, 'base64').subarray(0, chunkSize)
                         controller.enqueue(chunk)
                         pos += chunk.length
                     } else {
@@ -53,12 +55,14 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
             })
             return {
                 stream: stream,
-                size: (await RNFS.stat(source.path)).size,
+                size: size,
                 mimeType: source.mimeType || 'image/*'
             }
-        } else if (EFS?.readAsStringAsync !== undefined) {
+        }
+        if (EFS?.readAsStringAsync !== undefined) {
             logger.debug("Using expo-file-system to read local file");
             const bufferSize = 1024 * 1024;
+            const size = (await EFS.getInfoAsync(`file://${source.path}`)).size;
             let pos = 0;
             let eof = false;
             const stream = new ReadableStream({
@@ -66,8 +70,9 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
                     if (eof) {
                         return;
                     }
+                    const chunkSize = Math.min(bufferSize, size-pos);
                     const chunkAsB64 = await EFS.readAsStringAsync(`file://${source.path}`, {
-                        length: bufferSize,
+                        length: chunkSize,
                         position: pos,
                         encoding: 'base64'
                     });
@@ -83,13 +88,15 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
             })
             return {
                 stream: stream,
-                size: (await EFS.getInfoAsync(`file://${source.path}`)).size,
+                size: size,
                 mimeType: source.mimeType || 'image/*'
             }
         }
-        return Promise.reject(`Could not load '${RNFSName}' (reason" ${RNFSLoadError}) or ` +
-            `'${EFSName}' (reason" ${EFSLoadError}), include either of those packages in your ` +
-            'application to enable uploads via PathSource - or provide the stream itself via StreamSource.')
+        throw new Error(`Could not load '${RNFAName}' (reason" ${RNFALoadError}) or ` +
+            `'${EFSName}' (reason" ${EFSLoadError}). Falling back to fetch() which might cause memory issues.` +
+            ' Include either of those packages in your ' +
+            'application to enable uploads via PathSource - or provide the stream itself via StreamSource.' +
+            `We will try to load file://${source.path} via fetch()`)
     }
 } else {
     /**
