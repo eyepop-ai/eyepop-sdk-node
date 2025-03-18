@@ -100,7 +100,9 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
                         const chunks = []
                         const reader = streamBody.getReader();
                         while (true) {
-                            const { done, value } = await reader.read()
+                            this.logger.debug(`before reader.read()`);
+                            const { done, value } = await reader.read();
+                            this.logger.debug(`after reader.read() = ${done}, ${value}`);
                             if (done) {
                                 break;
                             }

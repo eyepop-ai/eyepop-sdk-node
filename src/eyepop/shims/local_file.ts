@@ -11,13 +11,13 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
     }
 } else if (typeof navigator !== "undefined" && navigator.product === "ReactNative") {
 
-    let RNFSName = 'react-native-fs';
-    let RNFS: any
-    let RNFSLoadError: any
+    let RNFAName = 'react-native-file-access';
+    let RNFA: any
+    let RNFALoadError: any
     try {
-        RNFS = require(RNFSName);
+        RNFA = require(RNFAName);
     } catch (e) {
-        RNFSLoadError = e
+        RNFALoadError = e
     }
 
     let EFSName = 'expo-file-system';
@@ -30,8 +30,8 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
     }
 
     resolvePath = async (source: PathSource, logger: Logger) => {
-        if (RNFS?.read !== undefined) {
-            logger.debug("Using react-native-fs to read local file");
+        if (RNFA?.FileSystem?.readFileChunk !== undefined) {
+            logger.debug("Using react-native-file-access to read local file");
             const bufferSize = 1024 * 1024;
             let pos = 0;
             let eof = false;
@@ -40,7 +40,7 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
                     if (eof) {
                         return;
                     }
-                    const chunkAsB64 = await RNFS.read(source.path, bufferSize, pos, 'base64');
+                    const chunkAsB64 = await RNFA.FileSystem.readFileChunk(source.path, pos, bufferSize, 'base64');
                     if (chunkAsB64.length > 0) {
                         const chunk = Buffer.from(chunkAsB64, 'base64')
                         controller.enqueue(chunk)
@@ -53,7 +53,7 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
             })
             return {
                 stream: stream,
-                size: (await RNFS.stat(source.path)).size,
+                size: (await RNFA.FileSystem.stat(source.path)).size,
                 mimeType: source.mimeType || 'image/*'
             }
         }
@@ -88,41 +88,11 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
                 mimeType: source.mimeType || 'image/*'
             }
         }
-        logger.info(`Could not load '${RNFSName}' (reason" ${RNFSLoadError}) or ` +
+        throw new Error(`Could not load '${RNFAName}' (reason" ${RNFALoadError}) or ` +
             `'${EFSName}' (reason" ${EFSLoadError}). Falling back to fetch() which might cause memory issues.` +
             ' Include either of those packages in your ' +
             'application to enable uploads via PathSource - or provide the stream itself via StreamSource.' +
             `We will try to load file://${source.path} via fetch()`)
-        const init = {
-            reactNative: {
-                textStreaming: true
-            }
-        } as RequestInit
-        const response = await fetch(`file://${source.path}`, init)
-        if (!response.ok) {
-            throw new Error(`local file read via fetch() error ${response.status} ${response.statusText}`)
-        }
-        let stream = response.body;
-        if (!stream) {
-            logger.info(`local file read via fetch() no response body, attempt to use blob()`);
-            const blob = await response.blob();
-            stream = blob.stream();
-            if (!stream) {
-                logger.info(`local file read via fetch() no blob() - fully buffer in memory`);
-                const buffer = await response.arrayBuffer();
-                stream = new ReadableStream({
-                    async start(controller: any) {
-                        controller.enqueue(new Uint8Array(buffer));
-                        controller.close();
-                    }
-                });
-            }
-        }
-        return {
-            stream: stream,
-            size: response.headers.get('content-length') || undefined,
-            mimeType: response.headers.get('content-type') || source.mimeType || 'image/*'
-        }
     }
 } else {
     /**
