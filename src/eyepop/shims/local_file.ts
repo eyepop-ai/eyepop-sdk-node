@@ -34,15 +34,17 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
             logger.debug("Using react-native-file-access to read local file");
             const bufferSize = 1024 * 1024;
             let pos = 0;
+            const size = (await RNFA.FileSystem.stat(source.path)).size;
             let eof = false;
             const stream = new ReadableStream({
                 async pull(controller: any) {
                     if (eof) {
                         return;
                     }
-                    const chunkAsB64 = await RNFA.FileSystem.readFileChunk(source.path, pos, bufferSize, 'base64');
+                    const chunkSize = Math.min(bufferSize, size-pos);
+                    const chunkAsB64 = await RNFA.FileSystem.readFileChunk(source.path, pos, chunkSize, 'base64');
                     if (chunkAsB64.length > 0) {
-                        const chunk = Buffer.from(chunkAsB64, 'base64')
+                        const chunk = Buffer.from(chunkAsB64, 'base64').subarray(0, chunkSize)
                         controller.enqueue(chunk)
                         pos += chunk.length
                     } else {
@@ -53,13 +55,14 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
             })
             return {
                 stream: stream,
-                size: (await RNFA.FileSystem.stat(source.path)).size,
+                size: size,
                 mimeType: source.mimeType || 'image/*'
             }
         }
         if (EFS?.readAsStringAsync !== undefined) {
             logger.debug("Using expo-file-system to read local file");
             const bufferSize = 1024 * 1024;
+            const size = (await EFS.getInfoAsync(`file://${source.path}`)).size;
             let pos = 0;
             let eof = false;
             const stream = new ReadableStream({
@@ -67,8 +70,9 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
                     if (eof) {
                         return;
                     }
+                    const chunkSize = Math.min(bufferSize, size-pos);
                     const chunkAsB64 = await EFS.readAsStringAsync(`file://${source.path}`, {
-                        length: bufferSize,
+                        length: chunkSize,
                         position: pos,
                         encoding: 'base64'
                     });
@@ -84,7 +88,7 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
             })
             return {
                 stream: stream,
-                size: (await EFS.getInfoAsync(`file://${source.path}`)).size,
+                size: size,
                 mimeType: source.mimeType || 'image/*'
             }
         }
