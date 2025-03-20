@@ -62,6 +62,13 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
                 }
             } else if (init?.body instanceof ReadableStream) {
                 streamBody = init.body
+            } else if (typeof init?.body === "string") {
+                streamBody = new ReadableStream({
+                    start: controller => {
+                        controller.enqueue(Buffer.from(init?.body as string, "utf8"))
+                        controller.close()
+                    }
+                })
             }
             if (streamBody) {
                 if (TcpSockets?.TLSSocket !== undefined) {

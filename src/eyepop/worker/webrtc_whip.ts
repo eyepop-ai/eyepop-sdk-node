@@ -30,7 +30,7 @@ export class WebrtcWhip extends WebrtcBase implements LiveMedia {
         if (response.status >= 300) {
             return Promise.reject(`unknown status code for GET '${ingressUrl}': ${response.status} (${response.statusText})`)
         }
-        return this.onIceServers(response)
+        return await this.onIceServers(response)
     }
 
     public async stream(): Promise<MediaStream> {
