@@ -79,7 +79,7 @@ export abstract class WebrtcBase {
         const session = await this._getSession()
         const ingressUrl = this.gresUrl(session)
 
-        this._requestLogger.debug('before POST: %s', ingressUrl)
+        this._requestLogger.debug(`before POST: ${ingressUrl}`)
         const headers = {
             ...session.authenticationHeaders(),
             'Content-Type': 'application/sdp',
@@ -89,18 +89,16 @@ export abstract class WebrtcBase {
             method: 'POST',
             body: offer.sdp,
         })
+        this._requestLogger.debug(`after POST: ${ingressUrl} status: ${response.status}`)
         if (response.status != 201) {
             return Promise.reject(`unknown status code for POST '${ingressUrl}': ${response.status} (${response.statusText})`)
         }
-
         this._eTag = response.headers.get('ETag') ?? ''
         this._location = response.headers.get('Location')
-        return this.onRemoteAnswer(
-            new RTCSessionDescription({
-                type: 'answer',
-                sdp: await response.text(),
-            }),
-        )
+        return await this.onRemoteAnswer(new RTCSessionDescription({
+            type: 'answer',
+            sdp: await response.text()
+        }))
     }
 
     protected abstract onRemoteAnswer(answer: RTCSessionDescription): Promise<WebrtcBase>
