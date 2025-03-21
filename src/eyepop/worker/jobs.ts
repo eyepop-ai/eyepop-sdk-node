@@ -1,8 +1,8 @@
-import {Prediction, SourceParams} from '../types'
+import { Prediction, SourceParams } from '../types'
 import {Stream, StreamEvent, readableStreamFromString} from '../streaming'
-import {HttpClient} from '../shims/http_client'
 import {Logger} from 'pino'
 import {ResultStream, VideoMode, WorkerSession} from '../worker/worker_types'
+import { HttpClient } from '../options'
 
 export class AbstractJob implements ResultStream {
     protected _getSession: () => Promise<WorkerSession>

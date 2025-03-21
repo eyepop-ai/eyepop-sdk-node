@@ -1,7 +1,7 @@
 import { WebrtcBase } from './webrtc_base'
-import { HttpClient } from '../shims/http_client'
 import { Logger } from 'pino'
 import { LiveMedia, WorkerSession } from '../worker/worker_types'
+import { HttpClient } from '../options'
 
 export class WebrtcWhep extends WebrtcBase implements LiveMedia {
     private _stream: MediaStream | null

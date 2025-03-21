@@ -1,8 +1,8 @@
 import { v4 as uuidv4 } from 'uuid'
-import { HttpClient } from '../shims/http_client'
 import { Logger } from 'pino'
 import { WebrtcBase } from './webrtc_base'
 import { LiveMedia, WorkerSession } from '../worker/worker_types'
+import { HttpClient } from '../options'
 
 export class WebrtcWhip extends WebrtcBase implements LiveMedia {
     private _stream: MediaStream | null

@@ -441,7 +441,12 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         await this._limit.acquire()
         try {
             this.updateState()
-            const streamSource = await resolvePath(source as PathSource, this._logger)
+            let streamSource
+            if (this._options.platformSupport?.resolvePath) {
+                streamSource = await this._options.platformSupport.resolvePath(source as PathSource, this._logger)
+            } else {
+                streamSource = await resolvePath(source as PathSource, this._logger)
+            }
             const job = new UploadJob(
                 streamSource.stream,
                 streamSource.mimeType,

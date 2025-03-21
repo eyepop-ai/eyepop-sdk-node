@@ -4,7 +4,8 @@
     },
     "workspaces": [
         "src/eyepop",
-        "src/eyepop-render-2d"
+        "src/eyepop-render-2d",
+        "src/react-native-eyepop"
     ],
     "repository": {
         "type": "git",

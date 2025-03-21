@@ -1,81 +1,84 @@
-'use strict'
-
 // RFC-2068 Start-Line definitions:
 //   Request-Line: Method SP Request-URI SP HTTP-Version CRLF
 //   Status-Line:  HTTP-Version SP Status-Code SP Reason-Phrase CRLF
-var startLine = /^[A-Z_]+(\/\d\.\d)? /
-var requestLine = /^([A-Z_]+) (.+) [A-Z]+\/(\d)\.(\d)$/
-var statusLine = /^[A-Z]+\/(\d)\.(\d) (\d{3}) (.*)$/
+var startLine = /^[A-Z_]+(\/\d\.\d)? /;
+var requestLine = /^([A-Z_]+) (.+) [A-Z]+\/(\d)\.(\d)$/;
+var statusLine = /^[A-Z]+\/(\d)\.(\d) (\d{3}) (.*)$/;
 
 export function parseHttpHeader(lines: string[], onlyHeaders: boolean) {
-  var line = lines[0]
-  var match
+  let line = lines[0] || '';
+  let match;
 
   if (onlyHeaders && startLine.test(line)) {
-    return parseHeaders(lines)
+    return parseHeaders(lines);
   } else if ((match = line.match(requestLine)) !== null) {
     return {
       method: match[1],
       url: match[2],
-      version: { major: parseInt(match[3], 10), minor: parseInt(match[4], 10) },
-      headers: parseHeaders(lines)
-    }
+      version: {
+        major: parseInt(match[3] || '', 10),
+        minor: parseInt(match[4] || '', 10),
+      },
+      headers: parseHeaders(lines),
+    };
   } else if ((match = line.match(statusLine)) !== null) {
     return {
-      version: { major: parseInt(match[1], 10), minor: parseInt(match[2], 10) },
-      statusCode: parseInt(match[3], 10),
+      version: {
+        major: parseInt(match[1] || '', 10),
+        minor: parseInt(match[2] || '', 10),
+      },
+      statusCode: parseInt(match[3] || '', 10),
       statusMessage: match[4],
-      headers: parseHeaders(lines)
-    }
+      headers: parseHeaders(lines),
+    };
   } else {
-    return parseHeaders(lines)
+    return parseHeaders(lines);
   }
 }
 
-function parseHeaders (lines: string[]) {
-
-  var headers = {}
-  var i = 0
-  var line = lines[i]
-  var index, name, value
+function parseHeaders(lines: string[]) {
+  var headers = {};
+  var i = 0;
+  var line = lines[i] || '';
+  var index, name, value;
 
   if (startLine.test(line)) {
-      line = line[++i]
+    line = line[++i] || '';
   }
 
   while (line) {
     // subsequent lines in multi-line headers start with whitespace
     if (line[0] === ' ' || line[0] === '\t') {
-      value += ' ' + line.trim()
-      i++
+      value += ' ' + line.trim();
+      i++;
       if (i < lines.length) {
-          line = lines[i]
+        line = lines[i] || '';
       } else {
-          line = ""
+        line = '';
       }
-      continue
+      continue;
     }
 
     if (name && value) {
-        addHeaderLine(name, value, headers)
+      addHeaderLine(name, value, headers);
     }
 
-    index = line.indexOf(':')
-    name = line.substr(0, index)
-    value = line.substr(index + 1).trim()
-    i++
+    index = line.indexOf(':');
+    name = line.substr(0, index);
+    value = line.substr(index + 1).trim();
+    i++;
     if (i < lines.length) {
-      line = lines[i]
+      line = lines[i] || '';
     } else {
-      line = ""
+      line = '';
     }
   }
 
   if (name && value) {
-      addHeaderLine(name, value, headers)
+    addHeaderLine(name, value, headers);
   }
 
-  return headers
+  return headers;
 }
 
 // The following function is lifted from:
@@ -88,17 +91,17 @@ function parseHeaders (lines: string[]) {
 // multiple values this way. If not, we declare the first instance the winner
 // and drop the second. Extended header fields (those beginning with 'x-') are
 // always joined.
-function addHeaderLine (field: string, value: string, dest: any) {
-  field = field.toLowerCase()
+function addHeaderLine(field: string, value: string, dest: any) {
+  field = field.toLowerCase();
   switch (field) {
     // Array headers:
     case 'set-cookie':
       if (dest[field] !== undefined) {
-        dest[field].push(value)
+        dest[field].push(value);
       } else {
-        dest[field] = [value]
+        dest[field] = [value];
       }
-      break
+      break;
 
     // list is taken from:
     // https://mxr.mozilla.org/mozilla/source/netwerk/protocol/http/src/nsHttpHeaderArray.cpp
@@ -121,15 +124,15 @@ function addHeaderLine (field: string, value: string, dest: any) {
     case 'age':
     case 'expires':
       // drop duplicates
-      if (dest[field] === undefined) dest[field] = value
-      break
+      if (dest[field] === undefined) dest[field] = value;
+      break;
 
     default:
       // make comma-separated list
       if (typeof dest[field] === 'string') {
-        dest[field] += ', ' + value
+        dest[field] += ', ' + value;
       } else {
-        dest[field] = value
+        dest[field] = value;
       }
   }
 }

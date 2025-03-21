@@ -1,6 +1,6 @@
-import { Auth0Options, LocalAuth, OAuth2Auth, Options, SecretKeyAuth, SessionAuth } from './options'
+import { Auth0Options, HttpClient, LocalAuth, OAuth2Auth, Options, SecretKeyAuth, SessionAuth } from './options'
 import { EndpointState, Session } from './types'
-import { createHttpClient, HttpClient } from './shims/http_client'
+import { createHttpClient } from './shims/http_client'
 import { Semaphore } from './semaphore'
 
 import { Logger, pino } from 'pino'
@@ -119,7 +119,11 @@ export class Endpoint<T extends Endpoint<T>> {
             return Promise.reject('option secretKey or environment variable EYEPOP_SECRET_KEY is required')
         }
 
-        this._client = await createHttpClient(this._logger)
+        if (this._options.platformSupport?.createHttpClient !== undefined) {
+            this._client = await this._options.platformSupport.createHttpClient(this._logger)
+        } else {
+            this._client = await createHttpClient(this._logger)
+        }
 
         return await this.reconnect()
     }

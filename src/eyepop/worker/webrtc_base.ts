@@ -1,9 +1,9 @@
-import { HttpClient } from '../shims/http_client'
 import { Logger } from 'pino'
 import { WebrtcWhip } from './webrtc_whip'
 import path from 'path'
 import { WorkerSession } from '../worker/worker_types'
 import * as url from 'node:url'
+import { HttpClient } from '../options'
 
 interface OfferData {
     iceUfrag: string

@@ -8,60 +8,34 @@ EyePop has been tested with `react-native==0.76.7` and `expo==52.0.36` and the E
 any additional dependencies for its base functionality. There is no strict dependency on using `expo`, but 
 EyePop does not provide those tested configurations and examples (e.g. using `@react-native-community/cli`).
 
-### Required packages and polyfills
+### Required packages
 
-Unfortunately debugging and solving configuration and version issues involving Node, Npm, Npx, Babel, React Native,
-Metro, Expo etc can be difficult and confusing. Below, we provide some of the lessons we have learned.
+EyePop provides a ReactNative specific package that replaces some underlying packages to support local 
+file access, WebRTC-based live streaming and uniform networking including fast streamed HTTP request and 
+response bodies. The latter is necessary because the EyePop protocol is designed to operate in streaming 
+mode for all media types and inference responses. 
 
-#### Http
-The `fetch` implementation in React Native does not support streamed request bodies (some versions _do_ support 
-streamed response bodies). For large uploads, either from the local file system or retrieved by your application
-through some other remote protocol, this can lead to out of memory errors in your application code. 
-We strongly recommend to include `react-native-tcp-socket>=^6.2.0` in you application. If the EyePop SDK identifies 
-this package at runtime, it will use a custom implementation to upload large files.
+```shell
+npm i @eyepop.ai/react-native-eyepop --save
+```
 
-#### Native Fs  
-To enable local file uploads vie the `PathSource` parameter type include _either_ `react-native-fs>=2.20.0` 
-_or_ `expo-file-system>=18.0.11`. The presence of one of those libraries will enable the EyePop SDK to read 
-and upload local files in chunks.
+In the current version, the application still has to include some extra libraries in their own `package.json`. 
+Although those packages are defined as `peerDependencies`, they will be included, but neither expo nor 
+react-native/cli will autolink their native implementations (_note: there must be a better solution, feedback from ReactNative experts is welcome_).
 
-#### Other polyfills and Buffer
-For the required polyfills add the following to your package.json 
+Theses are all the dependencies to add to the application's `package.json`:
+
 ```json
 {
   "dependencies": {
-    "react-native-polyfill-globals": "^3.1.0"
+    "@eyepop.ai/react-native-eyepop": "1.15.1",
+    "react-native-canvas": "^0.1.40",
+    "react-native-file-access": "^3.1.1",
+    "react-native-tcp-socket": "^6.2.0",
+    "react-native-webrtc": "^124.0.5"
   }
 }
 ```
-And this on top of your central source file 
-```typescript
-import 'react-native-polyfill-globals/auto'
-global.Buffer = require('buffer').Buffer
-```
-
-#### Async Iterable, i.e. for await (x of iterable)
-In some versions of react native, you might encounter a runtime error `TypeError: Object is not async iterable`. 
-In this case your environment does not provide the symbol `Symbol.asyncIterator`. Fix this by adding to your package.json
-```json
-{
-  "dependencies": {
-      "@azure/core-asynciterator-polyfill": "^1.0.2"
-  }
-}
-```
-And this on top of your central source file 
-```typescript
-import '@azure/core-asynciterator-polyfill'
-```
-
-#### Others 
-
-If you encounter an error `response body is empty` then you are not using the most recent version of `react-native-fetch-api`.
-Our expo-based example will automatically use recent versions of React Native packages and should not have this issue.
-To solve this error you can try to include the most recent version of `react-native-fetch-api` or provide follow the instructions 
-uin the Http section above to force streamed HTTP responses using Tcp sockets. 
-
 ## Get started
 
 1. Install dependencies
