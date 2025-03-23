@@ -31,8 +31,10 @@ Theses are all the dependencies to add to the application's `package.json`:
     "@eyepop.ai/react-native-eyepop": "1.15.1",
     "react-native-canvas": "^0.1.40",
     "react-native-file-access": "^3.1.1",
+    "react-native-polyfill-globals": "^3.1.0",
     "react-native-tcp-socket": "^6.2.0",
-    "react-native-webrtc": "^124.0.5"
+    "react-native-webrtc": "^124.0.5",
+    "web-streams-polyfill": "^3.3.3"
   }
 }
 ```

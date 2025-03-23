@@ -4,8 +4,6 @@ import { reactNativeStreamingFetch } from './rn_streaming_fetch';
 import { HttpClient } from '@eyepop.ai/eyepop';
 import TcpSockets from 'react-native-tcp-socket';
 
-import { ReadableStream } from 'web-streams-polyfill/ponyfill';
-
 export async function createHttpClientRN(logger: Logger): Promise<HttpClient> {
   class ReactNativeHttpClient {
     private readonly logger: Logger;

@@ -3,10 +3,6 @@ globalThis.Buffer = require('buffer').Buffer;
 
 import '@azure/core-asynciterator-polyfill';
 
-import { ReadableStream } from 'web-streams-polyfill/ponyfill';
-// @ts-ignore
-globalThis.ReadableStream = ReadableStream;
-
 import { RTCPeerConnection, RTCSessionDescription } from 'react-native-webrtc';
 // @ts-ignore
 globalThis.RTCPeerConnection = RTCPeerConnection;

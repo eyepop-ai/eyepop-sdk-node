@@ -4,14 +4,6 @@ import { EyepopLineDecoder } from '@eyepop.ai/eyepop';
 import { parseHttpHeader } from './rn_http_header_parser';
 import { Logger } from 'pino';
 
-// @ts-ignore
-import { Response } from 'react-native-fetch-api';
-
-import {
-  ReadableStream,
-  ReadableStreamDefaultController,
-} from 'web-streams-polyfill/ponyfill';
-
 enum ResponseState {
   RECEIVING_HEADER,
   RECEIVING_BODY,
@@ -151,6 +143,7 @@ export class ResponseParser {
           },
         });
         this.resolve(
+          // @ts-ignore
           new Response(responseBody, {
             status: responseHeader.statusCode,
             statusText: responseHeader.statusText,
