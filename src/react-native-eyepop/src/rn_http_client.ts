@@ -3,6 +3,7 @@ import { Logger } from 'pino';
 import { reactNativeStreamingFetch } from './rn_streaming_fetch';
 import { HttpClient } from '@eyepop.ai/eyepop';
 import TcpSockets from 'react-native-tcp-socket';
+import { ReadableStream } from 'web-streams-polyfill/ponyfill/es6';
 
 /** HTTP client that will work around the RN fetch implementation and truly stream request and response bodies.
  *
@@ -45,14 +46,14 @@ export async function createHttpClientRN(logger: Logger): Promise<HttpClient> {
           if (typeof requestBody === 'string') {
             streamBody = new ReadableStream({
               start: (controller) => {
-                controller.enqueue(Buffer.from(init.body as string, 'utf8'));
+                controller.enqueue(Buffer.from(requestBody as string, 'utf8'));
                 controller.close();
               },
             });
           } else if (requestBody instanceof Uint8Array) {
             streamBody = new ReadableStream({
               start: (controller) => {
-                controller.enqueue(init.body as Uint8Array);
+                controller.enqueue(requestBody as Uint8Array);
                 controller.close();
               },
             });

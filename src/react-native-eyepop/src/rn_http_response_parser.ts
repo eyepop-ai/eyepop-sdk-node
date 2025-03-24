@@ -3,6 +3,10 @@ import 'react-native-polyfill-globals/auto';
 import { EyepopLineDecoder } from '@eyepop.ai/eyepop';
 import { parseHttpHeader } from './rn_http_header_parser';
 import { Logger } from 'pino';
+import {
+  ReadableStream,
+  ReadableStreamDefaultController,
+} from 'web-streams-polyfill/ponyfill/es6';
 
 enum ResponseState {
   RECEIVING_HEADER,

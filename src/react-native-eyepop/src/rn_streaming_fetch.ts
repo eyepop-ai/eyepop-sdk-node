@@ -2,6 +2,7 @@ import 'react-native-polyfill-globals/auto';
 
 import { Logger } from 'pino';
 import { ResponseParser } from './rn_http_response_parser';
+import { ReadableStream } from 'web-streams-polyfill/ponyfill/es6';
 
 export async function reactNativeStreamingFetch(
   url: URL,
