@@ -368,7 +368,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         try {
             this.updateState()
             const job = new UploadJob(
-                source.file.stream(),
+                source.file,
                 source.file.type,
                 source.file.size,
                 source.videoMode,
