@@ -66,11 +66,13 @@ export {
     VideoMode
 } from './worker/worker_types'
 
-export { Options, Authentication, SessionAuth, SecretKeyAuth, OAuth2Auth, Auth0Options } from './options'
+export { Options, Authentication, SessionAuth, SecretKeyAuth, OAuth2Auth, Auth0Options, HttpClient, PlatformSupport, LocalAuth } from './options'
 
 export { DataOptions } from './data/data_options'
 
 export { WorkerOptions, TransientPopId } from './worker/worker_options'
+
+export { EyepopLineDecoder } from './streaming'
 
 const readEnv = (env: string): string | undefined => {
     if (typeof process !== 'undefined') {

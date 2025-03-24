@@ -1,7 +1,7 @@
 import { WebrtcBase } from './webrtc_base'
-import { HttpClient } from '../shims/http_client'
 import { Logger } from 'pino'
 import { LiveMedia, WorkerSession } from '../worker/worker_types'
+import { HttpClient } from '../options'
 
 export class WebrtcWhep extends WebrtcBase implements LiveMedia {
     private _stream: MediaStream | null
@@ -32,7 +32,6 @@ export class WebrtcWhep extends WebrtcBase implements LiveMedia {
     public async start(): Promise<WebrtcWhep> {
         const session = await this._getSession()
         const egressUrl = this.gresUrl(session)
-        this._requestLogger.debug('before GET: %s', egressUrl)
         /* According to https://www.ietf.org/archive/id/draft-ietf-wish-whip-01.html
            this should be a `OPTIONS` request. Unfortunately a lot of CORS middlewares
            hijack the OPTIONS request and only return those headers that are necessary
@@ -78,11 +77,11 @@ export class WebrtcWhep extends WebrtcBase implements LiveMedia {
 
         this._pc = pc
 
-        this._requestLogger.info('before', pc.iceConnectionState)
+        this._requestLogger.info(`onIceServers ${pc.iceConnectionState}`)
 
         return new Promise(async (resolve, reject) => {
             pc.ontrack = evt => {
-                this._requestLogger.debug('new track:', evt.track.kind)
+                this._requestLogger.debug(`new track: ${evt.track.kind}`)
                 this._stream = evt.streams[0]
                 resolve(this)
             }
@@ -90,11 +89,11 @@ export class WebrtcWhep extends WebrtcBase implements LiveMedia {
                 switch (pc.iceConnectionState) {
                     case 'failed':
                     case 'disconnected':
-                        this._requestLogger.debug('disconnected')
+                        this._requestLogger.debug('oniceconnectionstatechange disconnected')
                         reject(`peer connection: ${pc.iceConnectionState}`)
                         break
                     case 'connected':
-                        this._requestLogger.debug('connected')
+                        this._requestLogger.debug('oniceconnectionstatechange connected')
                         break
                 }
             }

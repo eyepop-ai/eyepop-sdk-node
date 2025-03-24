@@ -1,5 +1,6 @@
 import { Logger } from 'pino'
 import { Session } from './types'
+import { PathSource, StreamSource } from 'EyePop/worker/worker_types'
 
 export interface Auth0Options {
     domain: string
@@ -39,6 +40,17 @@ export interface LocalAuth {
 
 export type Authentication = undefined | SecretKeyAuth | SessionAuth | OAuth2Auth | LocalAuth
 
+export interface HttpClient {
+    fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response>
+    close(): Promise<void>
+    isFullDuplex(): boolean
+}
+
+export interface PlatformSupport {
+    createHttpClient?: (logger: Logger) => Promise<HttpClient>
+    resolvePath: (source: PathSource, logger: Logger) => Promise<StreamSource>
+}
+
 export interface Options {
     auth?: Authentication | undefined
 
@@ -52,4 +64,6 @@ export interface Options {
     jobQueueLength?: number
 
     logger?: Logger | undefined
+
+    platformSupport?: PlatformSupport
 }

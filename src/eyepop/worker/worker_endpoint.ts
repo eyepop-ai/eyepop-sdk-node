@@ -75,12 +75,10 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             const headers = {
                 Authorization: await this.authorizationHeader(),
             }
-            this._requestLogger.debug('before DELETE %s', deleteUrl)
             let response = await this._client?.fetch(deleteUrl, {
                 method: 'DELETE',
                 headers: headers,
             })
-            this._requestLogger.debug('after DELETE %s', deleteUrl)
             if (response?.status != 204) {
                 const message = await response?.text()
                 this._logger.info(`stoppping pipeline failed, status ${response?.status}: ${message}`)
@@ -91,12 +89,10 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             const headers = {
                 Authorization: await this.authorizationHeader(),
             }
-            this._requestLogger.debug('before DELETE %s', sandboxUrl)
             let response = await this._client?.fetch(sandboxUrl, {
                 method: 'DELETE',
                 headers: headers,
             })
-            this._requestLogger.debug('after DELETE %s', sandboxUrl)
             if (response?.status != 204) {
                 const message = await response?.text()
                 this._logger.info(`disconnecting sandbox failed, status ${response?.status}: ${message}`)
@@ -147,7 +143,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         const client = this._client
         const baseUrl = this._baseUrl
         if (!baseUrl || !client) {
-            return Promise.reject('endpoint not connected, use connect() before changePopComp()')
+            return Promise.reject('endpoint not connected, use connect()')
         }
 
         let response = await this.fetchWithRetry(async () => {
@@ -157,7 +153,6 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
                 ...this._authenticationHeaders(session),
             }
             const patch_url = `${session.baseUrl}/pipelines/${session.pipelineId}/pop`
-            this._requestLogger.debug('before PATCH %s - %s', patch_url, JSON.stringify(pop))
             return await client.fetch(patch_url, {
                 method: 'PATCH',
                 body: JSON.stringify(pop),
@@ -168,7 +163,6 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             const message = await response.text()
             return Promise.reject(`Unexpected status ${response.status}: ${message}`)
         }
-        this._requestLogger.debug('after PATCH pop')
         if (this._pipeline) {
             this._pipeline.pop = pop
         }
@@ -196,7 +190,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         const client = this._client
         const baseUrl = this._baseUrl
         if (!baseUrl || !client) {
-            return Promise.reject('endpoint not connected, use connect() before changePopComp()')
+            return Promise.reject('endpoint not connected, use connect()')
         }
 
         const body = {
@@ -244,7 +238,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         const client = this._client
         const baseUrl = this._baseUrl
         if (!baseUrl || !client) {
-            return Promise.reject('endpoint not connected, use connect() before changePopComp()')
+            return Promise.reject('endpoint not connected, use connect()')
         }
         const body = {
             transform: postTransform,
@@ -287,7 +281,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
 
     public async liveIngress(stream: MediaStream): Promise<LiveMedia> {
         if (!this._baseUrl || !this._client) {
-            return Promise.reject('endpoint not connected, use connect() before ingress()')
+            return Promise.reject('endpoint not connected, use connect()')
         }
         const whip = new WebrtcWhip(
             stream,
@@ -302,7 +296,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
 
     public async liveEgress(ingressId: string): Promise<LiveMedia> {
         if (!this._baseUrl || !this._client) {
-            return Promise.reject('endpoint not connected, use connect() before ingress()')
+            return Promise.reject('endpoint not connected, use connect()')
         }
         const whep = new WebrtcWhep(
             ingressId,
@@ -368,7 +362,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
 
     private async uploadFile(source: FileSource, params: SourceParams | undefined): Promise<ResultStream> {
         if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
-            return Promise.reject('endpoint not connected, use connect() before upload()')
+            return Promise.reject('endpoint not connected, use connect()')
         }
         await this._limit.acquire()
         try {
@@ -402,7 +396,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
 
     private async uploadStream(source: StreamSource, params: SourceParams | undefined): Promise<ResultStream> {
         if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
-            return Promise.reject('endpoint not connected, use connect() before upload()')
+            return Promise.reject('endpoint not connected, use connect()')
         }
         await this._limit.acquire()
         try {
@@ -436,12 +430,17 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
 
     private async uploadPath(source: PathSource, params: SourceParams | undefined): Promise<ResultStream> {
         if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
-            throw new Error('endpoint not connected, use connect() before process()')
+            throw new Error('endpoint not connected, use connect()')
         }
         await this._limit.acquire()
         try {
             this.updateState()
-            const streamSource = await resolvePath(source as PathSource, this._logger)
+            let streamSource
+            if (this._options.platformSupport?.resolvePath) {
+                streamSource = await this._options.platformSupport.resolvePath(source as PathSource, this._logger)
+            } else {
+                streamSource = await resolvePath(source as PathSource, this._logger)
+            }
             const job = new UploadJob(
                 streamSource.stream,
                 streamSource.mimeType,
@@ -476,7 +475,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             }, params)
         }
         if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
-            throw new Error('endpoint not connected, use connect() before loadFrom()')
+            throw new Error('endpoint not connected, use connect()')
         }
         await this._limit.acquire()
         try {
@@ -507,7 +506,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
 
     private async loadLiveIngress(source: LiveSource, params: SourceParams | undefined): Promise<ResultStream> {
         if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
-            throw new Error('endpoint not connected, use connect() before loadLiveIngress()')
+            throw new Error('endpoint not connected, use connect()')
         }
         await this._limit.acquire()
         try {
@@ -563,10 +562,9 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             Authorization: await this.authorizationHeader(),
         }
         this.updateState(EndpointState.FetchConfig)
-        this._requestLogger.debug('before GET %s', config_url)
         let response = await this._client.fetch(config_url, { headers: headers })
         if (response.status == 401) {
-            this._requestLogger.debug('after GET %s: 401, about to retry with fresh access token', config_url)
+            this._requestLogger.debug('GET %s: 401, about to retry with fresh access token', config_url)
             // one retry, the token might have just expired
             this.statusHandler401(response.status)
             const headers = {
@@ -588,7 +586,6 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             return Promise.reject(`Unexpected status ${response.status}: ${message}`)
         }
         let config = (await response.json()) as PopConfig
-        this._requestLogger.debug('after GET %s', config_url)
         if (!config.base_url && this.options().autoStart) {
             const auto_start_config_url = `${this.eyepopUrl()}/pops/${this.options().popId}/config?auto_start=true`
             this._requestLogger.debug('pop was not running, trying to autostart with: %s', auto_start_config_url)
@@ -618,7 +615,6 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
                     Authorization: await this.authorizationHeader(),
                 }
                 const createSandboxUrl = `${this._baseUrl}/sandboxes`
-                this._requestLogger.debug('before POST %s', createSandboxUrl)
                 const response = await this._client.fetch(createSandboxUrl, {
                     method: 'POST',
                     headers: headers,
@@ -630,7 +626,6 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
                 }
 
                 const responseJson = await response.json()
-                this._requestLogger.debug('after POST %s', createSandboxUrl)
 
                 if (responseJson) {
                     this._sandboxId = responseJson
@@ -652,7 +647,6 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             const headers = {
                 Authorization: await this.authorizationHeader(),
             }
-            this._requestLogger.debug('before GET %s', get_url)
             let response = await this._client.fetch(get_url, {
                 method: 'GET',
                 headers: headers,
@@ -661,7 +655,6 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
                 const message = await response.text()
                 return Promise.reject(`Unexpected status ${response.status}: ${message}`)
             }
-            this._requestLogger.debug('after GET %s', get_url)
             this._pipeline = (await response.json()) as Pipeline
 
             if (this.options().stopJobs) {
@@ -731,7 +724,6 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
                 'Content-Type': 'application/json',
                 Authorization: await this.authorizationHeader(),
             }
-            this._requestLogger.debug('before POST %s', post_url)
             return client.fetch(post_url, {
                 method: 'POST',
                 body: JSON.stringify(body),
@@ -743,7 +735,6 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             return Promise.reject(`Unexpected status ${response.status}: ${message}`)
         }
         const result = await response.json()
-        this._requestLogger.debug('after POST %s', post_url)
         return result['id']
     }
 
@@ -752,7 +743,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         const client = this._client
         const baseUrl = this._baseUrl
         if (!baseUrl || !client) {
-            return Promise.reject('endpoint not connected, use connect() before getManifest()')
+            return Promise.reject('endpoint not connected, use connect()')
         }
         let get_path: string
         if (this._sandboxId === null) {
@@ -766,16 +757,13 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
                 ...this._authenticationHeaders(session),
                 'Content-Type': 'application/json',
             }
-            this._requestLogger.debug('before GET %s', get_path)
             return client.fetch(get_path, { headers: headers })
         })
         if (!response.ok) {
             const message = await response.text()
             return Promise.reject(`Unexpected status ${response.status}: ${message}`)
         }
-        const result = (await response.json()) as SourcesEntry[]
-        this._requestLogger.debug('after GET %s', get_path)
-        return result
+        return (await response.json()) as SourcesEntry[]
     }
 
     public async models(): Promise<ModelInstanceDef[]> {
@@ -783,7 +771,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         const client = this._client
         const baseUrl = this._baseUrl
         if (!baseUrl || !client) {
-            return Promise.reject('endpoint not connected, use connect() before listModels()')
+            return Promise.reject('endpoint not connected, use connect()')
         }
         let get_path: string
         if (this._sandboxId === null) {
@@ -797,7 +785,6 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
                 ...this._authenticationHeaders(session),
                 'Content-Type': 'application/json',
             }
-            this._requestLogger.debug('before GET %s', get_path)
             return client.fetch(get_path, { headers: headers })
         })
         if (!response.ok) {
@@ -805,7 +792,6 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             return Promise.reject(`Unexpected status ${response.status}: ${message}`)
         }
         const result = (await response.json()) as ModelInstanceDef[]
-        this._requestLogger.debug('after GET %s', get_path)
         return result
     }
 
@@ -814,7 +800,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         const client = this._client
         const baseUrl = this._baseUrl
         if (!baseUrl || !client) {
-            return Promise.reject('endpoint not connected, use connect() before setManifest()')
+            return Promise.reject('endpoint not connected, use connect()')
         }
         let put_url: string
         if (this._sandboxId === null) {
@@ -828,7 +814,6 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
                 ...this._authenticationHeaders(session),
                 'Content-Type': 'application/json',
             }
-            this._requestLogger.debug('before PUT %s', put_url)
             return client.fetch(put_url, {
                 method: 'PUT',
                 body: JSON.stringify(manifests),
@@ -839,7 +824,6 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             const message = await response.text()
             return Promise.reject(`Unexpected status ${response.status}: ${message}`)
         }
-        this._requestLogger.debug('after PUT %s', put_url)
     }
 
     public async loadModel(model: ModelInstanceDef): Promise<ModelInstanceDef> {
@@ -847,7 +831,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         const client = this._client
         const baseUrl = this._baseUrl
         if (!baseUrl || !client) {
-            return Promise.reject('endpoint not connected, use connect() before loadModel()')
+            return Promise.reject('endpoint not connected, use connect()')
         }
         let post_url: string
         if (this._sandboxId === null) {
@@ -861,7 +845,6 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
                 ...this._authenticationHeaders(session),
                 'Content-Type': 'application/json',
             }
-            this._requestLogger.debug('before POST %s', post_url)
             return client.fetch(post_url, {
                 method: 'POST',
                 body: JSON.stringify(model),
@@ -873,9 +856,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             const message = await response.text()
             return Promise.reject(`Unexpected status ${response.status}: ${message}`)
         }
-        const result = (await response.json()) as ModelInstanceDef
-        this._requestLogger.debug('after POST %s', post_url)
-        return result
+        return (await response.json()) as ModelInstanceDef
     }
 
     public async unloadModel(modelId: string): Promise<void> {
@@ -883,7 +864,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         const client = this._client
         const baseUrl = this._baseUrl
         if (!baseUrl || !client) {
-            return Promise.reject('endpoint not connected, use connect() before unloadModel()')
+            return Promise.reject('endpoint not connected, use connect()')
         }
         let delete_url: string
         if (this._sandboxId === null) {
@@ -897,13 +878,11 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
                 ...this._authenticationHeaders(session),
                 'Content-Type': 'application/json',
             }
-            this._requestLogger.debug('before DELETE %s', delete_url)
             return client.fetch(delete_url, { method: 'DELETE', headers: headers })
         })
         if (!response.ok) {
             const message = await response.text()
             return Promise.reject(`Unexpected status ${response.status}: ${message}`)
         }
-        this._requestLogger.debug('after DELETE %s', delete_url)
     }
 }

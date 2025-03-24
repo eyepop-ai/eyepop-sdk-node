@@ -1,5 +1,5 @@
 {
-  "include": [ "src/eyepop", "src/eyepop-render-2d", "tests/eyepop", "examples/node" ],
+  "include": [ "src/eyepop", "src/eyepop-render-2d", "src/react-native-eyepop", "tests/eyepop", "examples/node" ],
   "sourceMap": true,
   "compilerOptions": {
     "target": "es2020",
@@ -16,8 +16,10 @@
       "EyePopRenderer/*": [ "eyepop-render-2d/*" ],
       "@eyepop.ai/eyepop/*": [ "eyepop/*" ],
       "@eyepop.ai/eyepop-render-2d/*": [ "eyepop-render-2d/*" ],
+      "@eyepop.ai/react-native-eyepop/*": [ "react-native-eyepop/*" ],
       "@eyepop.ai/eyepop": [ "eyepop/" ],
-      "@eyepop.ai/eyepop-render-2d": [ "eyepop-render-2d/" ]
+      "@eyepop.ai/eyepop-render-2d": [ "eyepop-render-2d/" ],
+      "@eyepop.ai/react-native-eyepop": [ "react-native-eyepop/" ]
     },
     "noEmit": true,
 

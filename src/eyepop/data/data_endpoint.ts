@@ -97,10 +97,9 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
             Authorization: await this.authorizationHeader(),
         }
         this.updateState(EndpointState.FetchConfig)
-        this._requestLogger.debug('before GET %s', config_url)
         let response = await this._client.fetch(config_url, { headers: headers })
         if (response.status == 401) {
-            this._requestLogger.debug('after GET %s: 401, about to retry with fresh access token', config_url)
+            this._requestLogger.debug('GET %s: 401, about to retry with fresh access token', config_url)
             // one retry, the token might have just expired
             this.statusHandler401(response.status)
             headers = {
@@ -118,7 +117,6 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
             return Promise.reject(`Unexpected status ${response.status}: ${message}`)
         }
         let config = (await response.json()) as DataConfig
-        this._requestLogger.debug('after GET %s', config_url)
         const baseUrl = new URL(config.base_url, this.eyepopUrl())
         this._baseUrl = baseUrl.toString()
 

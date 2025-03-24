@@ -1,7 +1,3 @@
-import 'react-native-polyfill-globals/auto'
-
-global.Buffer = require('buffer').Buffer
-
 import React, { useEffect, useState, useRef } from 'react'
 import { Alert, Image, StyleSheet, Text } from 'react-native'
 import Canvas from 'react-native-canvas'
@@ -14,13 +10,11 @@ import { ThemedText } from '@/components/ThemedText'
 import { ThemedView } from '@/components/ThemedView'
 import * as ImagePicker from 'expo-image-picker'
 import Queue from 'queue-fifo'
-import { EyePop, Prediction, WorkerEndpoint } from '@eyepop.ai/eyepop'
+import { Prediction, WorkerEndpoint } from '@eyepop.ai/eyepop'
+import { EyePop } from '@eyepop.ai/react-native-eyepop'
 import EyepopRender2d from '@eyepop.ai/eyepop-render-2d'
 
-import { pino } from 'pino'
 import type { OnProgressData, OnVideoTracksData } from 'react-native-video/src/specs/VideoNativeComponent'
-
-const logger = pino({ level: 'debug', name: 'eyepop-example' })
 
 const RENDER_RULES = [EyepopRender2d.renderBox()]
 
@@ -53,20 +47,19 @@ export default function homeScreen() {
             auth: { secretKey: process.env.EXPO_PUBLIC_EYEPOP_API_KEY || '' },
             popId: process.env.EXPO_PUBLIC_EYEPOP_POP_UUID,
             eyepopUrl: process.env.EXPO_PUBLIC_EYEPOP_URL || undefined,
-            logger: logger,
         })
         setSpinner('Connecting to EyePop...')
         endpoint.connect().then(value => {
             setWorkerEndpoint(value)
         }).catch(reason => {
-            logger.error(reason)
+            console.error(reason)
             Alert.alert(`got error ${reason}`)
         }).finally(() => {
             setSpinner(false)
         })
         return () => {
             endpoint.disconnect().catch(reason => {
-                logger.error(reason);
+                console.error(reason);
             }).finally(() => {
                 if (endpoint === workerEndpoint) {
                     setWorkerEndpoint(null)
@@ -162,7 +155,7 @@ export default function homeScreen() {
             canvas.height = previewHeight;
             const ctx = canvas.getContext('2d');
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            logger.debug(`redraw canvas.width=${canvas.width}, canvas.height=${canvas.height}`)
+            console.debug(`redraw canvas.width=${canvas.width}, canvas.height=${canvas.height}`)
             // @ts-ignore
             let renderer = EyepopRender2d.renderer(ctx, RENDER_RULES);
             renderer.draw(previewResult);
@@ -174,7 +167,7 @@ export default function homeScreen() {
     useEffect(() => {
         const { current: canvas } = previewCanvas;
         if (canvas) {
-            logger.debug(`height change ${canvas.width}x${canvas.height} => ${previewWidth}x${previewHeight}`)
+            console.debug(`height change ${canvas.width}x${canvas.height} => ${previewWidth}x${previewHeight}`)
             canvas.width = previewWidth;
             canvas.height = previewHeight;
         }
@@ -236,7 +229,7 @@ export default function homeScreen() {
                 setSpinner('Waiting for first results ...');
                 setVideoResultQueue(queue);
                 setLastVideoResultRendered(-1);
-                logger.debug(`queue = ${queue}`)
+                console.debug(`queue = ${queue}`)
                 for await (const result of results) {
                     setSpinner(`Buffering results for: ${result.seconds?.toFixed(1)} secs`);
                     queue.enqueue(result);

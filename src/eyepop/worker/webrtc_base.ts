@@ -1,9 +1,9 @@
-import { HttpClient } from '../shims/http_client'
 import { Logger } from 'pino'
 import { WebrtcWhip } from './webrtc_whip'
 import path from 'path'
 import { WorkerSession } from '../worker/worker_types'
 import * as url from 'node:url'
+import { HttpClient } from '../options'
 
 interface OfferData {
     iceUfrag: string
@@ -79,7 +79,6 @@ export abstract class WebrtcBase {
         const session = await this._getSession()
         const ingressUrl = this.gresUrl(session)
 
-        this._requestLogger.debug(`before POST: ${ingressUrl}`)
         const headers = {
             ...session.authenticationHeaders(),
             'Content-Type': 'application/sdp',
@@ -89,7 +88,6 @@ export abstract class WebrtcBase {
             method: 'POST',
             body: offer.sdp,
         })
-        this._requestLogger.debug(`after POST: ${ingressUrl} status: ${response.status}`)
         if (response.status != 201) {
             return Promise.reject(`unknown status code for POST '${ingressUrl}': ${response.status} (${response.statusText})`)
         }
@@ -112,7 +110,6 @@ export abstract class WebrtcBase {
         const session = await this._getSession()
         const ingressUrl = this.gresUrl(session, this._location)
 
-        this._requestLogger.debug('before PATCH: %s', ingressUrl)
         const headers = {
             ...session.authenticationHeaders(),
             'Content-Type': 'application/trickle-ice-sdpfrag',

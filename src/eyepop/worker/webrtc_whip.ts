@@ -1,8 +1,8 @@
 import { v4 as uuidv4 } from 'uuid'
-import { HttpClient } from '../shims/http_client'
 import { Logger } from 'pino'
 import { WebrtcBase } from './webrtc_base'
 import { LiveMedia, WorkerSession } from '../worker/worker_types'
+import { HttpClient } from '../options'
 
 export class WebrtcWhip extends WebrtcBase implements LiveMedia {
     private _stream: MediaStream | null
@@ -15,7 +15,6 @@ export class WebrtcWhip extends WebrtcBase implements LiveMedia {
 
         const ingressUrl = this.gresUrl(session)
 
-        this._requestLogger.debug('before GET: %s', ingressUrl)
         /* According to https://www.ietf.org/archive/id/draft-ietf-wish-whip-01.html
            this should be a `OPTIONS` request. Unfortunately a lot of CORS middlewares
            hijack the OPTIONS request and only return those headers that are necessary
