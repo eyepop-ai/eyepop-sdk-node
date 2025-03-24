@@ -138,7 +138,6 @@ export class UploadJob extends AbstractJob {
             const videoModeQuery = this._videoMode ? `&videoMode=${this._videoMode}` : ''
             const postUrl: string = `${session.baseUrl.replace(/\/+$/, '')}/pipelines/${session.pipelineId}/source?mode=queue&processing=async&sourceId=${event.source_id}${videoModeQuery}`
             if (this._params) {
-                this._requestLogger.debug(`before POST ${postUrl} with multipart body because of params`)
                 const params = JSON.stringify(this._params)
                 const paramBlob = new Blob([params], { type: 'application/json' })
                 const formData = new FormData()
@@ -160,7 +159,6 @@ export class UploadJob extends AbstractJob {
                     eyepop: { responseStreaming: true }
                 })
             } else {
-                this._requestLogger.debug(`before POST ${postUrl} with stream as body`)
                 const headers = {
                     ...session.authenticationHeaders(),
                     Accept: 'application/jsonl',
@@ -188,9 +186,6 @@ export class UploadJob extends AbstractJob {
                 .catch(reason => {
                     this._requestLogger.debug(`error ${reason} for POST ${postUrl}`)
                 })
-                .finally(() => {
-                    this._requestLogger.debug(`after POST ${postUrl}`)
-                })
         }
         return Promise.resolve()
     }
@@ -207,7 +202,6 @@ export class UploadJob extends AbstractJob {
                 ...session.authenticationHeaders(),
                 Accept: 'application/jsonl'
             }
-            this._requestLogger.debug(`before POST ${prepareUrl} to prepare full duplex upload`)
             response = await this._client.fetch(prepareUrl, {
                 headers: headers,
                 method: 'POST',
@@ -216,12 +210,10 @@ export class UploadJob extends AbstractJob {
                 duplex: 'half',
                 eyepop: { responseStreaming: true }
             })
-            this._requestLogger.debug(`after POST ${prepareUrl} to prepare full duplex upload ${response.status} ${response.statusText}`)
         } else {
             const videoModeQuery = this._videoMode ? `&videoMode=${this._videoMode}` : ''
             const postUrl: string = `${session.baseUrl.replace(/\/+$/, '')}/pipelines/${session.pipelineId}/source?mode=queue&processing=sync${videoModeQuery}`
             if (this._params) {
-                this._requestLogger.debug(`before POST ${postUrl} with multipart body because of params`)
                 const params = JSON.stringify(this._params)
                 const paramBlob = new Blob([params], { type: 'application/json' })
                 const formData = new FormData()
@@ -242,9 +234,7 @@ export class UploadJob extends AbstractJob {
                     duplex: 'half',
                     eyepop: { responseStreaming: true }
                 })
-                this._requestLogger.debug(`after POST ${postUrl} with multipart body because of params)`)
             } else {
-                this._requestLogger.debug(`before POST ${postUrl} with stream as body`)
                 const headers = {
                     ...session.authenticationHeaders(),
                     Accept: 'application/jsonl',
@@ -261,7 +251,6 @@ export class UploadJob extends AbstractJob {
                     // @ts-ignore
                     duplex: 'half',
                 })
-                this._requestLogger.debug(`after POST ${postUrl} with stream as body`)
             }
         }
         return response
@@ -296,8 +285,7 @@ export class LoadFromJob extends AbstractJob {
             'Content-Type': 'application/json',
         }
         const patchUrl: string = `${session.baseUrl.replace(/\/+$/, '')}/pipelines/${session.pipelineId}/source?mode=queue&processing=sync`
-        this._requestLogger.debug('before PATCH %s with url %s as source', patchUrl, this._location)
-        const response = await this._client.fetch(patchUrl, {
+        return await this._client.fetch(patchUrl, {
             headers: headers,
             method: 'PATCH',
             body: JSON.stringify(body),
@@ -305,8 +293,6 @@ export class LoadFromJob extends AbstractJob {
             // @ts-ignore
             eyepop: { responseStreaming: true },
         })
-        this._requestLogger.debug('after PATCH %s with url %s as source', patchUrl, this._location)
-        return response
     }
 }
 
@@ -338,8 +324,7 @@ export class LoadLiveIngressJob extends AbstractJob {
             'Content-Type': 'application/json',
         }
         const patchUrl: string = `${session.baseUrl.replace(/\/+$/, '')}/pipelines/${session.pipelineId}/source?mode=preempt&processing=sync`
-        this._requestLogger.debug('before PATCH %s with url %s as source', patchUrl, this._ingressId)
-        const response = await this._client.fetch(patchUrl, {
+        return await this._client.fetch(patchUrl, {
             headers: headers,
             method: 'PATCH',
             body: JSON.stringify(body),
@@ -347,7 +332,5 @@ export class LoadLiveIngressJob extends AbstractJob {
             // @ts-ignore
             eyepop: { responseStreaming: true }
         })
-        this._requestLogger.debug('after PATCH %s with url %s as source', patchUrl, this._ingressId)
-        return response
     }
 }

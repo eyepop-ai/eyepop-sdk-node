@@ -88,9 +88,9 @@ export async function createHttpClientRN(logger: Logger): Promise<HttpClient> {
           headers.append('Transfer-Encoding', 'chunked');
         }
         this.logger.debug(
-          `using reactNativeStreamingFetch for ${method} ${url}`
+          `reactNativeStreamingFetch() BEFORE ${method} ${url}`
         );
-        return await reactNativeStreamingFetch(
+        const response = await reactNativeStreamingFetch(
           url,
           method,
           headers,
@@ -99,11 +99,16 @@ export async function createHttpClientRN(logger: Logger): Promise<HttpClient> {
           TcpSockets,
           this.logger
         );
+        this.logger.debug(`AFTER ${method} ${url} -> ${response.status}`);
+        return response;
       }
-      this.logger.debug(`using fetch() for ${input}`);
       // @ts-ignore
       init.reactNative = { textStreaming: true };
-      return await fetch(input, init);
+      const logLine = logLineFromRequest(input, init);
+      this.logger.debug(`ReactNative fetch() BEFORE ${logLine}`);
+      const response = await fetch(input, init);
+      this.logger.debug(`AFTER ${logLine} -> ${response.status}`);
+      return response;
     }
 
     public async close(): Promise<void> {}
@@ -114,4 +119,16 @@ export async function createHttpClientRN(logger: Logger): Promise<HttpClient> {
   }
 
   return new ReactNativeHttpClient(logger);
+}
+
+function logLineFromRequest(
+  input: RequestInfo | URL,
+  init?: RequestInit
+): string {
+  const url = input instanceof Request ? input.url : input;
+  const method =
+    input instanceof Request
+      ? input.method
+      : init?.method || (init?.body !== undefined ? 'POST' : 'GET');
+  return `${method} ${url}`;
 }

@@ -1,9 +1,8 @@
-import { Asset, AssetImport, ChangeType, DataEndpoint, Dataset, EyePop, Model, ModelCreate, ModelStatus, Prediction, UserReview } from '@eyepop.ai/eyepop'
+import { Asset, AssetImport, AutoAnnotateParams, ChangeType, DataEndpoint, Dataset, EyePop, Model, ModelCreate, ModelStatus, Prediction, UserReview } from '@eyepop.ai/eyepop'
 
 import { pino } from 'pino'
 
 import sampleAssets from './sample_assets.json'
-import { AutoAnnotateParams } from 'EyePop'
 
 const logger = pino({ level: 'info', name: 'eyepop-example' })
 

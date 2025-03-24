@@ -120,9 +120,9 @@ export class Endpoint<T extends Endpoint<T>> {
         }
 
         if (this._options.platformSupport?.createHttpClient !== undefined) {
-            this._client = await this._options.platformSupport.createHttpClient(this._logger)
+            this._client = await this._options.platformSupport.createHttpClient(this._requestLogger)
         } else {
-            this._client = await createHttpClient(this._logger)
+            this._client = await createHttpClient(this._requestLogger)
         }
 
         return await this.reconnect()
@@ -229,7 +229,6 @@ export class Endpoint<T extends Endpoint<T>> {
                     const body = { secret_key: secretKeyAuth.secretKey }
                     const headers = { 'Content-Type': 'application/json' }
                     const post_url = `${this.eyepopUrl()}/authentication/token`
-                    this._requestLogger.debug('before POST %s', post_url)
                     const response = await this._client.fetch(post_url, {
                         method: 'POST',
                         headers: headers,
@@ -239,7 +238,6 @@ export class Endpoint<T extends Endpoint<T>> {
                         const message = await response.text()
                         return Promise.reject(`Unexpected status ${response.status}: ${message}`)
                     }
-                    this._requestLogger.debug('after POST %s', post_url)
                     const data = await response.json()
                     const token: AccessToken = data as AccessToken
                     this._token = token.access_token
