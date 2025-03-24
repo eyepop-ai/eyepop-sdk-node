@@ -157,6 +157,7 @@ export class UploadJob extends AbstractJob {
                     signal: this._controller.signal,
                     // @ts-ignore
                     duplex: 'half',
+                    eyepop: { responseStreaming: true }
                 })
             } else {
                 this._requestLogger.debug(`before POST ${postUrl} with stream as body`)
@@ -175,6 +176,7 @@ export class UploadJob extends AbstractJob {
                     signal: this._controller.signal,
                     // @ts-ignore
                     duplex: 'half',
+                    eyepop: { responseStreaming: true }
                 })
             }
             request
@@ -211,7 +213,8 @@ export class UploadJob extends AbstractJob {
                 method: 'POST',
                 signal: this._controller.signal,
                 // @ts-ignore
-                duplex: 'half'
+                duplex: 'half',
+                eyepop: { responseStreaming: true }
             })
             this._requestLogger.debug(`after POST ${prepareUrl} to prepare full duplex upload ${response.status} ${response.statusText}`)
         } else {
@@ -237,6 +240,7 @@ export class UploadJob extends AbstractJob {
                     signal: this._controller.signal,
                     // @ts-ignore
                     duplex: 'half',
+                    eyepop: { responseStreaming: true }
                 })
                 this._requestLogger.debug(`after POST ${postUrl} with multipart body because of params)`)
             } else {
@@ -298,6 +302,8 @@ export class LoadFromJob extends AbstractJob {
             method: 'PATCH',
             body: JSON.stringify(body),
             signal: this._controller.signal,
+            // @ts-ignore
+            eyepop: { responseStreaming: true },
         })
         this._requestLogger.debug('after PATCH %s with url %s as source', patchUrl, this._location)
         return response
@@ -338,6 +344,8 @@ export class LoadLiveIngressJob extends AbstractJob {
             method: 'PATCH',
             body: JSON.stringify(body),
             signal: this._controller.signal,
+            // @ts-ignore
+            eyepop: { responseStreaming: true }
         })
         this._requestLogger.debug('after PATCH %s with url %s as source', patchUrl, this._ingressId)
         return response

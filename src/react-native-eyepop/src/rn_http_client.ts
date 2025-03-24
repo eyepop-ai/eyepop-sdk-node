@@ -4,6 +4,20 @@ import { reactNativeStreamingFetch } from './rn_streaming_fetch';
 import { HttpClient } from '@eyepop.ai/eyepop';
 import TcpSockets from 'react-native-tcp-socket';
 
+/** HTTP client that will work around the RN fetch implementation and truly stream request and response bodies.
+ *
+ * While '{ textStreaming: true }' helps somewhat for the response body, it does not truly stream the response
+ * body, instead it keeps a large buffer and does not stream bytes to the consumer as they come in.
+ * Additionally, it does not support streaming request bodies which forces the consumer to load large files
+ * into memory w/o any possibility to avoid OOMs.
+ *
+ * This implementation implements selected HTTP interactions by using TCP sockets directly. The implementation
+ * is minimal and far from complete, e.g. no redirect support. For that reason, EyePop wil prefer to use the
+ * built-in fetch() except for cases when (a) the request requires a ReadableStream request body, or
+ * (b) the response is supposed to truly stream as indicated by the proprietary init parameter
+ * '{ eyepop: { responseStreaming: true}  }'.
+ *
+ * */
 export async function createHttpClientRN(logger: Logger): Promise<HttpClient> {
   class ReactNativeHttpClient {
     private readonly logger: Logger;
@@ -18,19 +32,36 @@ export async function createHttpClientRN(logger: Logger): Promise<HttpClient> {
     ): Promise<Response> {
       init ||= {};
       let streamBody: ReadableStream<Uint8Array> | undefined;
-      if (input instanceof Request) {
-        if (input.body instanceof ReadableStream) {
-          streamBody = input.body;
-        }
+      if (input instanceof Request && input.body instanceof ReadableStream) {
+        // Request body streaming not supported by RN fetch
+        streamBody = input.body;
       } else if (init?.body instanceof ReadableStream) {
         streamBody = init.body;
-      } else if (typeof init?.body === 'string') {
-        streamBody = new ReadableStream({
-          start: (controller) => {
-            controller.enqueue(Buffer.from(init?.body as string, 'utf8'));
-            controller.close();
-          },
-        });
+        // @ts-ignore
+      } else if (init?.eyepop?.responseStreaming) {
+        const requestBody = input instanceof Request ? input.body : init?.body;
+        if (requestBody !== undefined) {
+          // The limited HTTP post requires a ReadableStream request body
+          if (typeof requestBody === 'string') {
+            streamBody = new ReadableStream({
+              start: (controller) => {
+                controller.enqueue(Buffer.from(init.body as string, 'utf8'));
+                controller.close();
+              },
+            });
+          } else if (requestBody instanceof Uint8Array) {
+            streamBody = new ReadableStream({
+              start: (controller) => {
+                controller.enqueue(init.body as Uint8Array);
+                controller.close();
+              },
+            });
+          } else {
+            this.logger.warn(
+              `EyePop responseStreaming requires a request body of type ReadableStream | string | Uint8Array but is ${typeof requestBody}`
+            );
+          }
+        }
       }
       if (streamBody) {
         let url: URL;
@@ -55,7 +86,9 @@ export async function createHttpClientRN(logger: Logger): Promise<HttpClient> {
         } else {
           headers.append('Transfer-Encoding', 'chunked');
         }
-
+        this.logger.debug(
+          `using reactNativeStreamingFetch for ${method} ${url}`
+        );
         return await reactNativeStreamingFetch(
           url,
           method,
@@ -66,7 +99,7 @@ export async function createHttpClientRN(logger: Logger): Promise<HttpClient> {
           this.logger
         );
       }
-
+      this.logger.debug(`using fetch() for ${input}`);
       // @ts-ignore
       init.reactNative = { textStreaming: true };
       return await fetch(input, init);
