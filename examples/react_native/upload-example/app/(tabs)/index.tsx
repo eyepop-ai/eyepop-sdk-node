@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react'
-import { Alert, Button, Image, StyleSheet, Text } from 'react-native'
+import { Alert, Image, StyleSheet, Text } from 'react-native'
 import Canvas from 'react-native-canvas'
 import Spinner from 'react-native-loading-spinner-overlay'
 import Video, { VideoRef } from 'react-native-video'
@@ -18,7 +18,7 @@ import type { OnProgressData, OnVideoTracksData } from 'react-native-video/src/s
 
 const RENDER_RULES = [EyepopRender2d.renderBox()]
 
-export default function indexScreen() {
+export default function homeScreen() {
     /** Keep an EyePop Endpoint alive for the lifetime of this component */
     const [workerEndpoint, setWorkerEndpoint] = useState<WorkerEndpoint | null>(null);
 
