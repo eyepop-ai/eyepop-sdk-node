@@ -1,6 +1,6 @@
 {
   "name": "@eyepop.ai/react-native-eyepop",
-  "version": "1.15.1",
+  "version": "1.15.2",
   "description": "The official Typescript library for EyePop.ai's inference API for React Native",
   "source": "./src/index.ts",
   "main": "./lib/commonjs/index.js",
