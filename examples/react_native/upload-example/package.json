@@ -16,9 +16,9 @@
   },
   "dependencies": {
     "@expo/vector-icons": "^14.0.2",
-    "@eyepop.ai/eyepop": "1.15.0",
-    "@eyepop.ai/eyepop-render-2d": "1.15.0",
-    "@eyepop.ai/react-native-eyepop": "1.15.0",
+    "@eyepop.ai/eyepop": "1.15.1",
+    "@eyepop.ai/eyepop-render-2d": "1.15.1",
+    "@eyepop.ai/react-native-eyepop": "1.15.1",
     "@react-navigation/bottom-tabs": "^7.2.0",
     "@react-navigation/native": "^7.0.14",
     "@types/react-native-canvas": "^0.1.14",
