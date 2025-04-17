@@ -290,3 +290,18 @@ export interface ChangeEvent {
 }
 
 export type OnChangeEvent = (event: ChangeEvent) => Promise<void>
+
+export interface CreateWorkflowConfig {
+    dataset_uuid: string
+    dataset_version?: number
+    model_uuid?: string
+    config?: Map<string, any>
+}
+
+export interface CreateWorkflow {
+    parameters?: CreateWorkflowConfig
+}
+
+export interface Workflow {
+    workflow_id: string
+}

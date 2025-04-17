@@ -25,7 +25,7 @@ import {
     QcAiHubExportParams,
     TranscodeMode,
     UserReview,
-    ArtifactType,
+    ArtifactType, CreateWorkflow, Workflow,
 } from './data_types'
 import { Prediction } from '@eyepop.ai/eyepop'
 import { ModelFormat } from '../worker/worker_types'
@@ -599,6 +599,13 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
             ws.send(msg)
         }
         this._dataset_uuid_to_event_handlers.delete(dataset_uuid)
+    }
+
+    public async startWorkflow(account_uuid: string, template_name: string, workflow: CreateWorkflow): Promise<Workflow> {
+        return this.request(`/workflows?account_uuid=${account_uuid}&template_name=${template_name}`, {
+            method: 'POST',
+            body: JSON.stringify(workflow),
+        })
     }
 
     private async dispatchChangeEvent(change_event: ChangeEvent): Promise<void> {
