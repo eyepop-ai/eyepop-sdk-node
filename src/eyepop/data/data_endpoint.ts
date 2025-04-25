@@ -26,6 +26,7 @@ import {
     TranscodeMode,
     UserReview,
     ArtifactType, CreateWorkflow, Workflow,
+    WorkflowPhase
 } from './data_types'
 import { Prediction } from '@eyepop.ai/eyepop'
 import { ModelFormat } from '../worker/worker_types'
@@ -606,6 +607,17 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
             method: 'POST',
             body: JSON.stringify(workflow),
         })
+    }
+    
+    public async listWorkflows(account_uuid: string, dataset_uuids?: string[], model_uuids?: string[], phase?: WorkflowPhase[]): Promise<Workflow> {
+        const datasetQuery = dataset_uuids?.map(uuid => `dataset_uuid=${uuid}`).join('&') || '';
+        const modelQuery = model_uuids?.map(uuid => `model_uuid=${uuid}`).join('&') || '';
+        const phaseQuery = phase?.map(p => `phase=${p}`).join('&') || '';
+        const queryParams = [datasetQuery, modelQuery, phaseQuery].filter(q => q).join('&');
+        
+        return this.request(`/workflows?account_uuid=${account_uuid}${queryParams ? `&${queryParams}` : ''}`, {
+            method: 'GET'
+        });
     }
 
     private async dispatchChangeEvent(change_event: ChangeEvent): Promise<void> {

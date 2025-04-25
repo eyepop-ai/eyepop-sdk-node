@@ -305,3 +305,12 @@ export interface CreateWorkflow {
 export interface Workflow {
     workflow_id: string
 }
+
+export enum WorkflowPhase {
+    unknown = "Unknown",
+    pending = "Pending",
+    running = "Running",
+    succeeded = "Succeeded",
+    failed = "Failed",
+    error = "Error",
+}
