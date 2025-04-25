@@ -303,7 +303,7 @@ export interface CreateWorkflow {
 }
 
 export interface Workflow {
-    run_id: string
+    workflow_id: string
 }
 
 export interface ListWorkflowItemMetadataLabels {
@@ -314,7 +314,7 @@ export interface ListWorkflowItemMetadataLabels {
 }
 
 export interface ListWorkFlowItemMetadata {
-    name: string
+    workflow_id: string
     created_at: Date
     labels: ListWorkflowItemMetadataLabels
 }

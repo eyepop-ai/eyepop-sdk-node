@@ -609,6 +609,12 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
             body: JSON.stringify(workflow),
         })
     }
+
+    public async getWorkflow(workflow_id: string, account_uuid: string): Promise<ListWorkFlowItem> {
+        return this.request(`/workflows/${workflow_id}&account_uuid=${account_uuid}`, {
+            method: 'GET'
+        });
+    }
     
     public async listWorkflows(account_uuid: string, dataset_uuids?: string[], model_uuids?: string[], phase?: WorkflowPhase[]): Promise<ListWorkFlowItem[]> {
         const datasetQuery = dataset_uuids?.map(uuid => `dataset_uuid=${uuid}`).join('&') || '';
