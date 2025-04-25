@@ -40,7 +40,7 @@ function printHelpAndExit(message?: string, exitCode: number = -1) {
         "\n\t-a or --accountUuid=[uuid]" +
         "\n\t-d or --datasetUuid=[uuid]" +
         "\n\t-t or --templateName=[uuid]" +
-        "\n\t-c or --config=JSON (optional)" +
+        "\n\t-c or --config=\"JSON\" (optional)" +
         "\n\t-h --help to print this help message")
     process.exit(exitCode);
 }
