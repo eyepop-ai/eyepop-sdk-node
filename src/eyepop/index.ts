@@ -45,7 +45,10 @@ export {
     QcAiHubExportParams,
     ExportedBy,
     ArtifactType,
-    DatasetParent
+    DatasetParent,
+    CreateWorkflowConfig,
+    CreateWorkflow,
+    Workflow
 } from './data/data_types'
 
 export {

@@ -25,7 +25,9 @@ import {
     QcAiHubExportParams,
     TranscodeMode,
     UserReview,
-    ArtifactType,
+    ArtifactType, CreateWorkflow, Workflow,
+    WorkflowPhase,
+    ListWorkFlowItem
 } from './data_types'
 import { Prediction } from '@eyepop.ai/eyepop'
 import { ModelFormat } from '../worker/worker_types'
@@ -599,6 +601,30 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
             ws.send(msg)
         }
         this._dataset_uuid_to_event_handlers.delete(dataset_uuid)
+    }
+
+    public async startWorkflow(account_uuid: string, template_name: string, workflow: CreateWorkflow): Promise<Workflow> {
+        return this.request(`/workflows?account_uuid=${account_uuid}&template_name=${template_name}`, {
+            method: 'POST',
+            body: JSON.stringify(workflow),
+        })
+    }
+
+    public async getWorkflow(workflow_id: string, account_uuid: string): Promise<ListWorkFlowItem> {
+        return this.request(`/workflows/${workflow_id}?account_uuid=${account_uuid}`, {
+            method: 'GET'
+        });
+    }
+    
+    public async listWorkflows(account_uuid: string, dataset_uuids?: string[], model_uuids?: string[], phases?: WorkflowPhase[]): Promise<ListWorkFlowItem[]> {
+        const datasetQuery = dataset_uuids?.map(uuid => `dataset_uuid=${uuid}`).join('&') || '';
+        const modelQuery = model_uuids?.map(uuid => `model_uuid=${uuid}`).join('&') || '';
+        const phaseQuery = phase?.map(p => `phase=${p}`).join('&') || '';
+        const queryParams = [datasetQuery, modelQuery, phaseQuery].filter(q => q).join('&');
+        
+        return this.request(`/workflows?account_uuid=${account_uuid}${queryParams ? `&${queryParams}` : ''}`, {
+            method: 'GET'
+        });
     }
 
     private async dispatchChangeEvent(change_event: ChangeEvent): Promise<void> {

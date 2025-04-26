@@ -290,3 +290,44 @@ export interface ChangeEvent {
 }
 
 export type OnChangeEvent = (event: ChangeEvent) => Promise<void>
+
+export interface CreateWorkflowConfig {
+    dataset_uuid?: string
+    dataset_version?: number
+    model_uuid?: string
+    config?: Map<string, any>
+}
+
+export interface CreateWorkflow {
+    parameters?: CreateWorkflowConfig
+}
+
+export interface Workflow {
+    workflow_id: string
+}
+
+export interface ListWorkflowItemMetadataLabels {
+    account_uuid: string
+    dataset_uuid?: string
+    model_uuid?: string
+    phase: WorkflowPhase
+}
+
+export interface ListWorkFlowItemMetadata {
+    workflow_id: string
+    created_at: Date
+    labels: ListWorkflowItemMetadataLabels
+}
+
+export interface ListWorkFlowItem {
+    metadata: ListWorkFlowItemMetadata
+}
+
+export enum WorkflowPhase {
+    unknown = "Unknown",
+    pending = "Pending",
+    running = "Running",
+    succeeded = "Succeeded",
+    failed = "Failed",
+    error = "Error",
+}
