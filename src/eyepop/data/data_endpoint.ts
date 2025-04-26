@@ -616,7 +616,7 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         });
     }
     
-    public async listWorkflows(account_uuid: string, dataset_uuids?: string[], model_uuids?: string[], phase?: WorkflowPhase[]): Promise<ListWorkFlowItem[]> {
+    public async listWorkflows(account_uuid: string, dataset_uuids?: string[], model_uuids?: string[], phases?: WorkflowPhase[]): Promise<ListWorkFlowItem[]> {
         const datasetQuery = dataset_uuids?.map(uuid => `dataset_uuid=${uuid}`).join('&') || '';
         const modelQuery = model_uuids?.map(uuid => `model_uuid=${uuid}`).join('&') || '';
         const phaseQuery = phase?.map(p => `phase=${p}`).join('&') || '';
