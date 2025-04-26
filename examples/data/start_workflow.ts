@@ -27,7 +27,7 @@ const { positionals, values } = parseArgs({
     waitUntilDone: {
       type: "boolean",
       short: "w",
-      default: true
+      default: false
     },
     help: {
       type: "boolean",
@@ -46,6 +46,7 @@ function printHelpAndExit(message?: string, exitCode: number = -1) {
         "\n\t--accountUuid=[uuid]" +
         "\n\t--datasetUuid=[uuid]" +
         "\n\t--templateName=image-contents-latest" +
+        "\n\t--waitUntilDone" +
         "\n\t--config=\'{\"evaluator\": {\"model\": {\"prompt\": \"What is in image\"} } }\' (optional)" +
         "\n\t--help to print this help message")
     process.exit(exitCode);
