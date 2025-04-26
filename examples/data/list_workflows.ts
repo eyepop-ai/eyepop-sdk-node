@@ -38,10 +38,10 @@ function printHelpAndExit(message?: string, exitCode: number = -1) {
   }
   console.info(
     'EyePop example, usage: ' +
-      '\n\t-a or --accountUuid=[uuid]' +
-      '\n\t-d or --datasetUuids=[comma-separated uuids] (optional)' +
-      '\n\t-m or --modelUuids=[comma-separated uuids] (optional)' +
-      '\n\t-p or --phases=[comma-separated phases] (optional)' +
+      '\n\t--accountUuid=[uuid]' +
+      '\n\t--datasetUuids=[comma-separated uuids] (optional)' +
+      '\n\t--modelUuids=[comma-separated uuids] (optional)' +
+      '\n\t--phases=[comma-separated phases] (optional)' +
       '\n\t-h --help to print this help message'
   );
   process.exit(exitCode);
