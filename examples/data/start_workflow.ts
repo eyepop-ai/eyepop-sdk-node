@@ -2,6 +2,7 @@ import { parseArgs } from 'node:util';
 import {CreateWorkflow, EyePop } from '@eyepop.ai/eyepop'
 import { pino } from 'pino'
 import process from "process";
+import { waitForDebugger } from 'node:inspector';
 
 const logger = pino({ level: 'debug', name: 'eyepop-example' })
 
@@ -22,6 +23,11 @@ const { positionals, values } = parseArgs({
     config: {
       type: "string",
       short: "c"
+    },
+    waitUntilDone: {
+      type: "boolean",
+      short: "w",
+      default: true
     },
     help: {
       type: "boolean",
@@ -64,6 +70,20 @@ function printHelpAndExit(message?: string, exitCode: number = -1) {
               }
           )
           console.log(`workflow started: ${JSON.stringify(workflow)}`)
+
+          if (parameters.waitUntilDone) {
+            let workflowStatus;
+            do {
+              await new Promise(resolve => setTimeout(resolve, 5000)); // Wait for 5 seconds before checking again
+              workflowStatus = await endpoint.getWorkflow(workflow.workflow_id, parameters.accountUuid);
+              console.log(`Waiting for workflow to complete. Workflow status: ${JSON.stringify(workflowStatus, null, 2)}`);
+              if (workflowStatus.phase === 'Succeeded' || workflowStatus.phase === 'Failed') {
+                break;
+              }
+            } while (true);
+
+            console.log(`Workflow completed with phase: ${workflowStatus.phase}`);
+          }
       } finally {
           await endpoint.disconnect()
       }

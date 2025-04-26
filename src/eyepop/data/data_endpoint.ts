@@ -611,7 +611,7 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
     }
 
     public async getWorkflow(workflow_id: string, account_uuid: string): Promise<ListWorkFlowItem> {
-        return this.request(`/workflows/${workflow_id}&account_uuid=${account_uuid}`, {
+        return this.request(`/workflows/${workflow_id}?account_uuid=${account_uuid}`, {
             method: 'GET'
         });
     }
