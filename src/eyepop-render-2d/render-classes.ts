@@ -7,6 +7,7 @@ export type RenderClassesOptions = {
     showConfidence?: boolean // Whether to show confidence, such as "male 95%"
     showDottedOutline?: boolean // Whether to show a dotted outline around the object
     classProperties?: ClassificationProperties[] // Classes to disable rendering for
+    labelSizePercentage?: number // The label size as a percentage of the image width
 } & RenderTarget
 
 export type ClassificationProperties = {
@@ -22,15 +23,17 @@ export class RenderClasses implements Render {
     private style: Style | undefined
 
     private showConfidence: boolean
+    private labelSizePercentage: number
 
     private classProperties: { [classLabel: string]: ClassificationProperties } = {}
 
     constructor(options: Partial<RenderClassesOptions> = {}) {
-        const { showConfidence = false, classProperties = {}, target = '$' } = options
+        const { showConfidence = false, classProperties = {}, target = '$', labelSizePercentage = 0.05 } = options
 
         this.target = target
         this.showConfidence = showConfidence
         this.classProperties = classProperties
+        this.labelSizePercentage = labelSizePercentage
     }
 
     start(context: CanvasRenderingContext2D, style: Style) {
@@ -50,12 +53,14 @@ export class RenderClasses implements Render {
         const width = canvas?.width ?? 640
         const height = canvas?.height ?? 480
 
-        const xPadding = Math.min(Math.max(10, height * 0.015), 100)
-        const yPadding = xPadding * 8
+        // Calculate sizes based on image dimensions
+        const baseSize = Math.min(width, height) * this.labelSizePercentage
+        const xPadding = baseSize * 0.3
+        const yPadding = baseSize * 2.4
+        const fontSize = baseSize * 1.3
 
         let yOff = height - yPadding
         let xOff = xPadding
-        const minFontSize = Math.min(Math.max(width * 0.068, 12), 50)
 
         if (element.classes) {
             let labelHeight = 0
@@ -63,11 +68,11 @@ export class RenderClasses implements Render {
             // Find the maximum label height, to keep the label height consistent
             element.classes.forEach((cls: PredictedClass) => {
                 let label = cls.classLabel
-                style.font = minFontSize + 'px serif'
+                style.font = `${fontSize}px serif`
                 context.font = style.font
 
                 const textDetails = context?.measureText(label)
-                const currentLabelHeight = textDetails.actualBoundingBoxAscent + textDetails.actualBoundingBoxDescent + 2 * xPadding
+                const currentLabelHeight = textDetails.actualBoundingBoxAscent + textDetails.actualBoundingBoxDescent + 2 * xPadding * 0.5
                 labelHeight = Math.max(currentLabelHeight, labelHeight)
             })
 
@@ -88,10 +93,10 @@ export class RenderClasses implements Render {
                 }
 
                 const textDetails = context.measureText(label)
-                const labelWidth = textDetails.width + 2 * xPadding
+                const labelWidth = textDetails.width + 2 * xPadding * 0.5
                 const borderRadius = labelHeight / 2
 
-                this.drawLabel(label, context, xOff, yOff, style, drawDisabled, xPadding, yPadding, labelWidth, labelHeight, borderRadius)
+                this.drawLabel(label, context, xOff, yOff, style, drawDisabled, xPadding * 0.5, yPadding, labelWidth, labelHeight, borderRadius)
 
                 xOff += labelWidth + xPadding
 
@@ -128,10 +133,9 @@ export class RenderClasses implements Render {
         }
 
         context.strokeStyle = '#ffffff'
-        context.setLineDash([10, 10])
+        context.setLineDash([labelHeight / 10, labelHeight / 10])
         context.lineWidth = labelHeight / 20
-        context.stroke()
-        context.setLineDash([])
+        // Don't stroke yet - need to define the path first
 
         context.beginPath()
         context.moveTo(xOffset + borderRadius, yOffset - labelHeight / 2)
@@ -145,6 +149,7 @@ export class RenderClasses implements Render {
         context.quadraticCurveTo(xOffset, yOffset - labelHeight / 2, xOffset + borderRadius, yOffset - labelHeight / 2)
         context.closePath()
         context.fill()
+        context.stroke() // Apply the stroke to the path
 
         context.fillStyle = '#ffffff'
         context.textAlign = 'left'
