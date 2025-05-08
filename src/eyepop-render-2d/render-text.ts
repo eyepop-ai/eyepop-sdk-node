@@ -6,19 +6,22 @@ import { Render, DEFAULT_TARGET, RenderTarget } from './render'
 export type RenderTextOptions = {
     showText: boolean // Whether to show labels, such as OCR text
     fitToBounds: boolean // Whether to scale the font size to fit the bounding box
+    textPadding?: number // Padding as percentage of container (0.0-1.0)
 } & RenderTarget
 
 export class RenderText implements Render {
     public target: string = DEFAULT_TARGET
     public fitToBounds: boolean = true
+    public textPadding: number = 0.1
 
     private context: CanvasRenderingContext2D | undefined
     private style: Style | undefined
 
     constructor(options: Partial<RenderTextOptions> = {}) {
-        const { target = '$..objects[?(@.texts)]', fitToBounds = true } = options
+        const { target = '$..objects[?(@.texts)]', fitToBounds = true, textPadding = 0.1 } = options
         this.target = target
         this.fitToBounds = fitToBounds
+        this.textPadding = Math.max(0.02, Math.min(0.2, textPadding)) // Clamp between 2% and 20%
     }
 
     start(context: CanvasRenderingContext2D, style: Style) {
@@ -27,6 +30,11 @@ export class RenderText implements Render {
     }
 
     public draw(element: PredictedObject, xOffset: number, yOffset: number, xScale: number, yScale: number, streamTime: StreamTime): void {
+        // Safety checks to prevent freezes
+        if (!element || element.width <= 0 || element.height <= 0 || !element.texts || element.texts.length === 0) {
+            return
+        }
+
         const context = this.context
         const style = this.style
         if (!context || !style) {
@@ -38,80 +46,73 @@ export class RenderText implements Render {
 
         let canvasDimension = Math.min(context.canvas.width, context.canvas.height)
 
-        let padding = canvasDimension * style.cornerPadding
-        padding = Math.min(padding, w / 10, h / 10)
+        let padding = canvasDimension * this.textPadding * style.cornerPadding
+        padding = Math.min(padding, w * this.textPadding, h * this.textPadding)
 
         const boundingBoxWidth = w - padding * 2
         const boundingBoxHeight = h - padding * 2
 
-        if (!element.texts) return
-
         let fontSize = this.getMinFontSize(context, element, boundingBoxWidth, boundingBoxHeight, style, this.fitToBounds)
         let label = ''
 
+        // Collect text metrics for centering
+        const fontType = style.font.split(' ')[1]
+        context.font = `${fontSize}px ${fontType}`
+
+        // Calculate total text height for vertical centering
+        let totalTextHeight = 0
+        const textMetrics = []
+
         for (let i = 0; i < element.texts.length; i++) {
-            label = element.texts[i]?.text
+            label = element.texts[i]?.text || ''
             if (!label) continue
 
-            yOffset += this.drawText(label, context, element, yScale, xScale, yOffset - padding, xOffset, style, boundingBoxWidth, padding, this.fitToBounds, fontSize)
+            const metrics = context.measureText(label)
+            const lineHeight = metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent
+            totalTextHeight += lineHeight
+
+            textMetrics.push({
+                text: label,
+                width: metrics.width,
+                height: lineHeight,
+            })
+        }
+
+        // Add spacing between lines
+        const spacing = fontSize * 0.2
+        if (element.texts.length > 1) {
+            totalTextHeight += spacing * (element.texts.length - 1)
+        }
+
+        // Calculate vertical position for centering all text
+        let textY = element.y * yScale + yOffset + (h - totalTextHeight) / 2
+
+        // Now draw each line of text centered
+        for (let i = 0; i < textMetrics.length; i++) {
+            const metrics = textMetrics[i]
+
+            // Center text horizontally
+            let textX = element.x * xScale + xOffset + (w - metrics.width) / 2
+
+            this.drawText(metrics.text, context, textX, textY, style, fontSize)
+
+            // Move to next line
+            textY += metrics.height + spacing
         }
     }
 
-    // Draw a label on the canvas, scaling the font size to fit the bounding box
-    drawText(
-        text: string,
-        context: CanvasRenderingContext2D,
-        element: any,
-        yScale: number,
-        xScale: number,
-        yOffset: number,
-        xOffset: number,
-        style: Style,
-        boundingBoxWidth: number,
-        padding: number,
-        scaleToBounds = false,
-        fontSize?: number,
-    ): number {
+    // Draw a label on the canvas
+    drawText(text: string, context: CanvasRenderingContext2D, xPos: number, yPos: number, style: Style, fontSize: number): void {
         context.fillStyle = '#ffffff'
         context.textAlign = 'left'
         context.textBaseline = 'top'
 
-        // Set the original font size
-        context.font = style.font
-
-        // Measure the text with the original font size
-        let textDetails = context.measureText(text)
-
-        // Calculate the scale factor
-        let scaleFactor = boundingBoxWidth / textDetails.width
-
+        // Set the font size
         let fontType = style.font.split(' ')[1]
-        if (fontSize) {
-            context.font = `${fontSize}px ` + fontType
-        } else {
-            // We calculate the font size if it is not provided,
-            //   further scaling it up to the bounds of the rect if enabled
-            let fontSize = parseInt(style.font.split(' ')[0])
+        context.font = `${fontSize}px ${fontType}`
 
-            if (scaleToBounds) {
-                fontSize *= scaleFactor
-            } else {
-                // Apply the scale factor to the font size, but limit the maximum size to the original font size
-                fontSize = Math.min(fontSize, fontSize * scaleFactor)
-            }
-            context.font = `${fontSize}px ${fontType}`
-        }
-
-        // Measure the text again with the new font size
-        textDetails = context.measureText(text)
-
-        let xPos = element.x * xScale + xOffset + 1.5 * padding
-        let yPos = element.y * yScale + yOffset + 1.5 * padding
-
+        // Draw the text
         context.fillText(text, xPos, yPos)
-        const boxSize = padding + textDetails.actualBoundingBoxAscent + textDetails.actualBoundingBoxDescent
-        yPos += boxSize
-        return padding + textDetails.actualBoundingBoxDescent
     }
 
     static toTitleCase(str: string) {
@@ -121,49 +122,70 @@ export class RenderText implements Render {
         })
     }
 
-    // Gets the largest label from all the labels to be displayed
-    getMinFontSize(context: CanvasRenderingContext2D, element: any, width: number, height: number, style: any, scaleToWidth: boolean = false): number {
-        let largestLabel = ''
-        for (let i = 0; i < element.texts.length; i++) {
-            const label = element.texts[i].label
+    // Gets the optimal font size for all labels to fit in the bounding box
+    getMinFontSize(context: CanvasRenderingContext2D, element: any, width: number, height: number, style: any, scaleToFit: boolean = false): number {
+        const textLines = (element.texts || []).map((t: any) => t?.text || '').filter((t: string) => t)
+        const textCount = textLines.length
+        if (textCount === 0) return parseInt(style.font.split(' ')[0])
 
-            if (!label) continue
+        const baseFontSize = parseInt(style.font.split(' ')[0])
+        if (!scaleToFit) {
+            return baseFontSize
+        }
 
-            if (label.length > largestLabel.length) {
-                largestLabel = label
+        // Simple direct approach focused on performance
+        try {
+            const fontType = style.font.split(' ')[1]
+
+            // For single line, calculate directly based on height and width constraints
+            if (textCount === 1) {
+                // Target 90% of height for single line to leave small padding
+                const targetHeight = height * 0.9
+
+                // Start with a height-based size and measure
+                let fontSize = Math.floor(targetHeight)
+                context.font = `${fontSize}px ${fontType}`
+                const metrics = context.measureText(textLines[0])
+
+                // If width exceeds container, scale down proportionally
+                if (metrics.width > width) {
+                    // Simple, direct calculation
+                    fontSize = Math.floor(fontSize * (width / metrics.width) * 0.95)
+                }
+
+                return Math.max(5, fontSize)
             }
+
+            // For multiple lines, allocate height based on line count
+            // Faster approach - one direct calculation
+
+            // Set aside 10% of height for spacing between lines
+            const availableHeight = height * 0.9
+            const lineSpacing = textCount > 1 ? (availableHeight * 0.1) / (textCount - 1) : 0
+
+            // Calculate height per line
+            const heightPerLine = (availableHeight - (textCount - 1) * lineSpacing) / textCount
+
+            // Initial font size based on height per line
+            let fontSize = Math.floor(heightPerLine)
+            context.font = `${fontSize}px ${fontType}`
+
+            // Find longest line at this font size
+            let maxWidth = 0
+            for (const line of textLines) {
+                const lineWidth = context.measureText(line).width
+                maxWidth = Math.max(maxWidth, lineWidth)
+            }
+
+            // Scale down if width constraint is exceeded
+            if (maxWidth > width) {
+                fontSize = Math.floor(fontSize * (width / maxWidth) * 0.95)
+            }
+
+            return Math.max(5, fontSize)
+        } catch (error) {
+            // Ultra-safe fallback that will never cause performance issues
+            return Math.min(height / (textCount + 1), width / 10)
         }
-
-        let fontSize = this.getFontSize(largestLabel, context, style, width, height, scaleToWidth)
-
-        return fontSize
-    }
-
-    getFontSize(label: string, context: CanvasRenderingContext2D, style: Style, boundingBoxWidth: number, boundingBoxHeight: number, scaleToWidth: boolean = false): number {
-        context.textAlign = 'center'
-        context.textBaseline = 'top'
-
-        // Set the original font size
-        context.font = style.font
-
-        // Measure the text with the original font size
-        let textDetails = context.measureText(label)
-
-        // Calculate the scale factor
-        let scaleFactor = boundingBoxWidth / textDetails.width
-        let scaleHeightFactor = boundingBoxHeight / (textDetails.actualBoundingBoxAscent - textDetails.actualBoundingBoxDescent)
-
-        scaleFactor = Math.max(scaleFactor, scaleHeightFactor)
-
-        // make sure the text fits in the height as well
-        let fontSize = parseInt(style.font.split(' ')[0])
-
-        if (scaleToWidth) {
-            fontSize *= scaleFactor
-        } else {
-            fontSize = Math.min(fontSize, fontSize * scaleFactor)
-        }
-
-        return fontSize
     }
 }
