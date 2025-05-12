@@ -2,7 +2,6 @@ import { Logger } from 'pino'
 import { WebrtcWhip } from './webrtc_whip'
 import path from 'path'
 import { WorkerSession } from '../worker/worker_types'
-import * as url from 'node:url'
 import { HttpClient } from '../options'
 
 interface OfferData {
@@ -25,7 +24,7 @@ export abstract class WebrtcBase {
     protected _queuedCandidates: RTCIceCandidate[]
     protected _offerData: OfferData | null
 
-    constructor(getSession: () => Promise<WorkerSession>, client: HttpClient, ingressId: string, urlBasePath: string, requestLogger: Logger) {
+    protected constructor(getSession: () => Promise<WorkerSession>, client: HttpClient, ingressId: string, urlBasePath: string, requestLogger: Logger) {
         this._getSession = getSession
         this._client = client
         this._requestLogger = requestLogger
@@ -105,7 +104,6 @@ export abstract class WebrtcBase {
         if (!this._offerData) {
             throw new Error('sendLocalCandidates no offerData')
         }
-        let urlPath: string | undefined = undefined
 
         const session = await this._getSession()
         const ingressUrl = this.gresUrl(session, this._location)

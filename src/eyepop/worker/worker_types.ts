@@ -70,6 +70,8 @@ export enum ModelFormat {
     TorchScript = 'TorchScript',
     TorchScriptCpu = 'TorchScriptCpu',
     TorchScriptCuda = 'TorchScriptCuda',
+    PyTorch = 'PyTorch',
+    ModelLess = 'ModelLess'
 }
 
 export enum ModelPrecisionType {
@@ -124,6 +126,7 @@ export interface PopForward {
 }
 export interface BaseComponent {
     type: PopComponentType
+    id?: number
     forward?: PopForward
 }
 
@@ -141,10 +144,12 @@ export enum InferenceType {
 }
 
 export interface InferenceComponent extends BaseComponent {
-    inferenceTypes: InferenceType[]
+    inferenceTypes?: InferenceType[]
     hidden?: boolean
     modelUuid?: string
     model?: string
+    abilityUuid?: string
+    ability?: string
     categoryName?: string
     confidenceThreshold?: number
     targetFps?: string
@@ -184,4 +189,9 @@ export type PopComponent = ForwardComponent | InferenceComponent | TracingCompon
 export interface Pop {
     components: PopComponent[]
     postTransform?: string
+}
+
+export interface ComponentParams {
+    componentId: number
+    values: {[index: string]: any}
 }

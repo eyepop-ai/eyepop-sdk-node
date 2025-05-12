@@ -1,12 +1,27 @@
 import { LocalAuth, SessionAuth } from '../options'
-import { EndpointState, Session, SourceParams } from '../types'
+import { EndpointState, Session } from '../types'
 import { AbstractJob, LoadFromJob, LoadLiveIngressJob, UploadJob } from './jobs'
 import { WebrtcWhip } from './webrtc_whip'
 import { WebrtcWhep } from './webrtc_whep'
 import { resolvePath } from '../shims/local_file'
 import { Endpoint } from '../endpoint'
 import { TransientPopId, WorkerOptions } from '../worker/worker_options'
-import { FileSource, IngressEvent, LiveMedia, LiveSource, ModelInstanceDef, PathSource, ResultStream, Source, SourcesEntry, StreamSource, UrlSource, WorkerSession, Pop } from '../worker/worker_types'
+import {
+    FileSource,
+    IngressEvent,
+    LiveMedia,
+    LiveSource,
+    ModelInstanceDef,
+    PathSource,
+    ResultStream,
+    Source,
+    SourcesEntry,
+    StreamSource,
+    UrlSource,
+    WorkerSession,
+    Pop,
+    ComponentParams,
+} from '../worker/worker_types'
 
 interface PopConfig {
     base_url: string
@@ -309,7 +324,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         return whep.start()
     }
 
-    public async process(source: Source, params?: SourceParams): Promise<ResultStream> {
+    public async process(source: Source, params?: ComponentParams[]): Promise<ResultStream> {
         if ((source as FileSource).file !== undefined) {
             return this.uploadFile(source as FileSource, params)
         } else if ((source as StreamSource).stream !== undefined) {
@@ -360,7 +375,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         }
     }
 
-    private async uploadFile(source: FileSource, params: SourceParams | undefined): Promise<ResultStream> {
+    private async uploadFile(source: FileSource, params: ComponentParams[] | undefined): Promise<ResultStream> {
         if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
             return Promise.reject('endpoint not connected, use connect()')
         }
@@ -394,7 +409,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         }
     }
 
-    private async uploadStream(source: StreamSource, params: SourceParams | undefined): Promise<ResultStream> {
+    private async uploadStream(source: StreamSource, params: ComponentParams[] | undefined): Promise<ResultStream> {
         if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
             return Promise.reject('endpoint not connected, use connect()')
         }
@@ -428,7 +443,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         }
     }
 
-    private async uploadPath(source: PathSource, params: SourceParams | undefined): Promise<ResultStream> {
+    private async uploadPath(source: PathSource, params: ComponentParams[] | undefined): Promise<ResultStream> {
         if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
             throw new Error('endpoint not connected, use connect()')
         }
@@ -468,7 +483,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         }
     }
 
-    private async loadFrom(source: UrlSource, params: SourceParams | undefined): Promise<ResultStream> {
+    private async loadFrom(source: UrlSource, params: ComponentParams[] | undefined): Promise<ResultStream> {
         if (source.url.startsWith('file://')) {
             return await this.uploadPath({
                 path: source.url.substring('file://'.length)
@@ -504,7 +519,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         }
     }
 
-    private async loadLiveIngress(source: LiveSource, params: SourceParams | undefined): Promise<ResultStream> {
+    private async loadLiveIngress(source: LiveSource, params: ComponentParams[] | undefined): Promise<ResultStream> {
         if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
             throw new Error('endpoint not connected, use connect()')
         }

@@ -1,4 +1,11 @@
-import { ContourType, EndpointState, EyePop, ForwardOperatorType, InferenceType, PopComponentType, TransientPopId } from "@eyepop.ai/eyepop";
+import {
+  ComponentParams,
+  ContourType,
+  EndpointState,
+  EyePop,
+  ForwardOperatorType,
+  PopComponentType,
+} from '@eyepop.ai/eyepop'
 import { Render2d } from "@eyepop.ai/eyepop-render-2d";
 
 import { createCanvas, loadImage } from "canvas";
@@ -157,6 +164,7 @@ const POP_EXAMPLES = {
   "sam1": { components: [{
     type: PopComponentType.INFERENCE,
     model: 'eyepop.sam.small:latest',
+    id: 1,
     forward: {
       operator: {
         type: ForwardOperatorType.FULL,
@@ -177,6 +185,7 @@ const POP_EXAMPLES = {
       targets: [{
         type: PopComponentType.INFERENCE,
         model: 'eyepop.sam2.decoder:latest',
+        id: 1,
         forward: {
           operator: {
             type: ForwardOperatorType.FULL,
@@ -190,6 +199,19 @@ const POP_EXAMPLES = {
       }]
     }
   }]},
+
+  "image-contents": { components: [{
+    type: PopComponentType.INFERENCE,
+    id: 1,
+    ability: 'eyepop.image-contents:latest',
+  }]},
+
+  "localize-objects": { components: [{
+    type: PopComponentType.INFERENCE,
+    id: 1,
+    ability: 'eyepop.localize-objects:latest',
+  }]},
+
 }
 const logger = pino({ level: "debug", name: "eyepop-example" });
 
@@ -235,6 +257,10 @@ const { positionals, values } = parseArgs({
     boxes: {
       type: "string",
     },
+    prompt: {
+      type: "string",
+      multiple: true
+    },
     help: {
       type: "boolean",
       short: "h",
@@ -257,6 +283,7 @@ function printHelpAndExit(message?: string, exitCode: number = -1) {
         "\n\t-2 --sam2 to compose a model given by --model with segmentation using SAM2" +
         "\n\t--points list of POIs as coordinates like (x1, y1), (x2, y2) in the original image coordinate system" +
         "\n\t--boxes list of POIs as boxes like (left1, top1, right1, bottom1), (left1, top1, right1, bottom1) in the original image coordinate system" +
+        "\n\t--prompt text prompt to pass as parameter" +
         "\n\t-v --visualize to visualize the result" +
         "\n\t-o --output to print the result to stdout" +
         "\n\t-h --help to print this help message")
@@ -387,19 +414,32 @@ function list_of_boxes(arg: string) {
     process.exit(-1);
   }
 
-  let sourceParams = undefined;
+  let sourceParams: ComponentParams[] | undefined = undefined;
   if (parameters.points) {
-    sourceParams = {
-      roi : {
-        points: list_of_points(parameters.points)
+    sourceParams = [{
+      componentId: 1,
+      values: {
+        roi: {
+          points: list_of_points(parameters.points)
+        }
       }
-    }
+    }]
   } else if (parameters.boxes) {
-    sourceParams = {
-      roi : {
-        boxes: list_of_boxes(parameters.boxes)
+    sourceParams = [{
+      componentId: 1,
+      values: {
+        roi: {
+          boxes: list_of_boxes(parameters.boxes)
+        }
       }
-    }
+    }]
+  } else if (parameters.prompt) {
+    sourceParams = [{
+      componentId: 1,
+      values: {
+        prompts: parameters.prompt.map((prompt) => {return {prompt: prompt}})
+      }
+    }]
   }
 
   const canvas = createCanvas(image.width, image.height);

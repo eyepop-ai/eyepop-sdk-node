@@ -1,13 +1,13 @@
-import { Prediction, SourceParams } from '../types'
+import { Prediction } from '../types'
 import {Stream, StreamEvent, readableStreamFromString} from '../streaming'
 import {Logger} from 'pino'
-import {ResultStream, VideoMode, WorkerSession} from '../worker/worker_types'
+import { ComponentParams, ResultStream, VideoMode, WorkerSession } from '../worker/worker_types'
 import { HttpClient } from '../options'
 
 export class AbstractJob implements ResultStream {
     protected _getSession: () => Promise<WorkerSession>
 
-    protected _params: SourceParams | null
+    protected _params: ComponentParams[] | null
 
     protected _responseStream: Promise<ReadableStream<Uint8Array>> | null = null
     protected _controller: AbortController = new AbortController()
@@ -25,7 +25,7 @@ export class AbstractJob implements ResultStream {
         })
     }
 
-    protected constructor(params: SourceParams | undefined, getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger) {
+    protected constructor(params: ComponentParams[] | undefined, getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger) {
         this._getSession = getSession
         this._params = params ?? null
         this._client = client
@@ -116,7 +116,7 @@ export class UploadJob extends AbstractJob {
         return 'uploadJob'
     }
 
-    constructor(stream: ReadableStream<Uint8Array> | Blob | BufferSource, mimeType: string, size: number | undefined, videoMode: VideoMode | undefined, params: SourceParams | undefined, getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger) {
+    constructor(stream: ReadableStream<Uint8Array> | Blob | BufferSource, mimeType: string, size: number | undefined, videoMode: VideoMode | undefined, params: ComponentParams[] | undefined, getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger) {
         super(params, getSession, client, requestLogger)
         this._uploadStream = stream
         this._mimeType = mimeType
@@ -260,7 +260,7 @@ export class UploadJob extends AbstractJob {
 export class LoadFromJob extends AbstractJob {
     private readonly _location: string
 
-    constructor(location: string, params: SourceParams | undefined, getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger) {
+    constructor(location: string, params: ComponentParams[] | undefined, getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger) {
         super(params, getSession, client, requestLogger)
         this._location = location
     }
@@ -299,7 +299,7 @@ export class LoadFromJob extends AbstractJob {
 export class LoadLiveIngressJob extends AbstractJob {
     private readonly _ingressId: string
 
-    constructor(ingressId: string, params: SourceParams | undefined, getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger) {
+    constructor(ingressId: string, params: ComponentParams[] | undefined, getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger) {
         super(params, getSession, client, requestLogger)
         this._ingressId = ingressId
     }
