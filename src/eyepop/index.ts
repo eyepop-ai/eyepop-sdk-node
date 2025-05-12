@@ -66,7 +66,8 @@ export {
     StreamSource,
     ResultStream,
     IngressEvent,
-    VideoMode
+    VideoMode,
+    ComponentParams
 } from './worker/worker_types'
 
 export { Options, Authentication, SessionAuth, SecretKeyAuth, OAuth2Auth, Auth0Options, HttpClient, PlatformSupport, LocalAuth } from './options'

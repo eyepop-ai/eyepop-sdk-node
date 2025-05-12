@@ -18,14 +18,6 @@ export interface Box {
     readonly bottomRight: Point2d
 }
 
-export interface Roi {
-    readonly points?: Point2d[]
-    readonly boxes?: Box[]
-}
-export interface SourceParams {
-    readonly roi?: Roi
-}
-
 export interface StreamTime {
     timestamp?: number
     seconds?: number
