@@ -153,6 +153,7 @@ export interface InferenceComponent extends BaseComponent {
     categoryName?: string
     confidenceThreshold?: number
     targetFps?: string
+    params?: {[index: string]: any}
 }
 export interface TracingComponent extends BaseComponent {
     reidModelUuid?: string
