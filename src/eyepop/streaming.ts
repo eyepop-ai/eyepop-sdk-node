@@ -50,9 +50,7 @@ export class Stream<Prediction> implements AsyncIterable<Prediction> {
                         const message = JSON.parse(line)
                         const event = message['event']
                         if (event !== undefined) {
-                            eventHandler(event).then(() => {
-                                // console.log("event handler done")
-                            })
+                            await eventHandler(event)
                         } else {
                             yield message
                         }

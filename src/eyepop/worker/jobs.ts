@@ -37,6 +37,9 @@ export class AbstractJob implements ResultStream {
     }
 
     protected async onEvent(event: StreamEvent): Promise<void> {
+        if (event.type == "error") {
+            return Promise.reject(`Error event for source ${event.source_id}: ${event.message}`)
+        }
         return Promise.resolve()
     }
 
