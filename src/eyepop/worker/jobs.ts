@@ -299,6 +299,45 @@ export class LoadFromJob extends AbstractJob {
     }
 }
 
+export class LoadFromAssetUuidJob extends AbstractJob {
+    private readonly _assetUuid: string
+
+    constructor(assetUuid: string, params: ComponentParams[] | undefined, getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger) {
+        super(params, getSession, client, requestLogger)
+        this._assetUuid = assetUuid
+    }
+
+    get [Symbol.toStringTag](): string {
+        return 'loadFromAssetUuidJob'
+    }
+
+    protected override async startJob(): Promise<Response> {
+        const session = await this._getSession()
+        if (!session.baseUrl) {
+            return Promise.reject('session.baseUrl must not ne null')
+        }
+        const body = {
+            sourceType: 'ASSET_UUID',
+            assetUuid: this._assetUuid,
+            params: this._params,
+        }
+        const headers = {
+            ...session.authenticationHeaders(),
+            Accept: 'application/jsonl',
+            'Content-Type': 'application/json',
+        }
+        const patchUrl: string = `${session.baseUrl.replace(/\/+$/, '')}/pipelines/${session.pipelineId}/source?mode=queue&processing=sync`
+        return await this._client.fetch(patchUrl, {
+            headers: headers,
+            method: 'PATCH',
+            body: JSON.stringify(body),
+            signal: this._controller.signal,
+            // @ts-ignore
+            eyepop: { responseStreaming: true },
+        })
+    }
+}
+
 export class LoadLiveIngressJob extends AbstractJob {
     private readonly _ingressId: string
 
