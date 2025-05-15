@@ -61,6 +61,7 @@ export {
     ModelFormat,
     PathSource,
     UrlSource,
+    AssetUuidSource,
     ModelInstanceDef,
     SourcesEntry,
     StreamSource,

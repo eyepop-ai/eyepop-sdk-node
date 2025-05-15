@@ -1,6 +1,6 @@
 import { LocalAuth, SessionAuth } from '../options'
 import { EndpointState, Session } from '../types'
-import { AbstractJob, LoadFromJob, LoadLiveIngressJob, UploadJob } from './jobs'
+import { AbstractJob, LoadFromAssetUuidJob, LoadFromJob, LoadLiveIngressJob, UploadJob } from './jobs'
 import { WebrtcWhip } from './webrtc_whip'
 import { WebrtcWhep } from './webrtc_whep'
 import { resolvePath } from '../shims/local_file'
@@ -20,8 +20,9 @@ import {
     UrlSource,
     WorkerSession,
     Pop,
-    ComponentParams,
+    ComponentParams, AssetUuidSource,
 } from '../worker/worker_types'
+import { Asset } from 'EyePop/data/data_types'
 
 interface PopConfig {
     base_url: string
@@ -335,6 +336,8 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             return this.loadFrom(source as UrlSource, params)
         } else if ((source as LiveSource).ingressId !== undefined) {
             return this.loadLiveIngress(source as LiveSource, params)
+        } else if ((source as AssetUuidSource).assetUuid !== undefined) {
+            return this.loadFromAssetUuid(source as AssetUuidSource, params)
         } else {
             return Promise.reject('unknown source type')
         }
@@ -497,6 +500,37 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             this.updateState()
             const job = new LoadFromJob(
                 source.url,
+                params,
+                async () => {
+                    return this.session()
+                },
+                this._client,
+                this._requestLogger,
+            )
+            return job.start(
+                () => {
+                    this.jobDone(job)
+                },
+                (statusCode: number) => {
+                    this.jobStatus(job, statusCode)
+                },
+            )
+        } catch (e) {
+            // we'll have to reset our queue counter in case the job canot be started
+            this._limit.release()
+            throw e
+        }
+    }
+
+        private async loadFromAssetUuid(source: AssetUuidSource, params: ComponentParams[] | undefined): Promise<ResultStream> {
+        if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
+            throw new Error('endpoint not connected, use connect()')
+        }
+        await this._limit.acquire()
+        try {
+            this.updateState()
+            const job = new LoadFromAssetUuidJob(
+                source.assetUuid,
                 params,
                 async () => {
                     return this.session()

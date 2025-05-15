@@ -50,7 +50,11 @@ export interface UrlSource {
     readonly url: string
 }
 
-export type Source = FileSource | StreamSource | PathSource | LiveSource | UrlSource
+export interface AssetUuidSource {
+    readonly assetUuid: string
+}
+
+export type Source = FileSource | StreamSource | PathSource | LiveSource | UrlSource | AssetUuidSource
 
 export interface ResultStream extends AsyncIterable<Prediction> {
     cancel(): void

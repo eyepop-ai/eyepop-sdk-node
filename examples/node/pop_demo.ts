@@ -211,7 +211,6 @@ const POP_EXAMPLES = {
     id: 1,
     ability: 'eyepop.localize-objects:latest',
   }]},
-
 }
 const logger = pino({ level: "debug", name: "eyepop-example" });
 
@@ -220,6 +219,10 @@ const { positionals, values } = parseArgs({
     localPath: {
       type: "string",
       short: "l"
+    },
+    assetUuid: {
+      type: "string",
+      short: "a"
     },
     url: {
       type: "string",
@@ -276,6 +279,7 @@ function printHelpAndExit(message?: string, exitCode: number = -1) {
     }
     console.info("EyePop example, usage: " +
         "\n\t-l or --localPath=[path] to run inference on a local image file" +
+        "\n\t-a or --assetUuid=[uuid] to run inference on a asset by its Uuid" +
         "\n\t-u --url=[url] to run inference on a remote image url" +
         "\n\t-p --pop=[pop] to run one of the example pos, one of "+Object.keys(POP_EXAMPLES)+
         "\n\t-m --modelUuid=[model uuid] to run inference using a specific model uuid" +
@@ -402,15 +406,24 @@ function list_of_boxes(arg: string) {
   }
 
   let example_input;
-  let image;
+  let image = null;
   if (parameters.url) {
     image = await loadImage(parameters.url);
     example_input = {url: parameters.url};
   } else if (parameters.localPath) {
     image = await loadImage(parameters.localPath);
     example_input = {path: parameters.localPath};
+  } else if (parameters.assetUuid) {
+    const dataEndpoint = await EyePop.dataEndpoint().connect();
+    try {
+      const imageBlob = await dataEndpoint.downloadAsset(parameters.assetUuid);
+      image = await loadImage(Buffer.from(await imageBlob.arrayBuffer()));
+    } finally {
+      await dataEndpoint.disconnect();
+    }
+    example_input = {assetUuid: parameters.assetUuid};
   } else {
-    printHelpAndExit("required: --localPath or --url");
+    printHelpAndExit("required: --localPath or --url or --assetUuid");
     process.exit(-1);
   }
 
@@ -480,7 +493,7 @@ function list_of_boxes(arg: string) {
       open(`file://${temp_file}`);
     }
   } catch (e) {
-    console.error(e);
+    logger.error(e);
   } finally {
     await endpoint.disconnect();
   }
