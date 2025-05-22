@@ -200,62 +200,11 @@ const POP_EXAMPLES = {
     }
   }]},
 
-  // "image-contents": { components: [{
-  //   type: PopComponentType.INFERENCE,
-  //   id: 1,
-  //   ability: 'eyepop.image-contents:latest',
-  // }]},
-
-  "image-contents": { components: [
-    {
-      // type: PopComponentType.INFERENCE,
-      // id: 1,
-      // // ability: 'eyepop.image-contents:latest',
-      // ability: 'eyepop.localize-objects:latest',
-      // params: {
-      //   prompts: [
-      //     {
-      //       prompt: "person"
-      //     }
-      //   ]
-      // },
-      type: PopComponentType.INFERENCE,
-      // id: 1,
-      // ability: 'eyepop.localize-objects:latest',
-      ability: 'eyepop.image-contents-t4:latest',
-      params: {
-        prompts: [
-          {
-            // prompt: "person"
-            prompt: "Analyze the image provided and determine the categories of: What color is their shirt?. Report the values of the categories as classLabels. If you are unable to provide a category with a value then set it's classLabel to null"
-          }
-        ]
-      },
-
-      // forward: {
-      //   operator: {
-      //     type: ForwardOperatorType.CROP,
-      //     // crop: {
-      //     //   maxItems: 1
-      //     // }
-      //   },
-      //   targets: [
-      //     {
-      //       type: PopComponentType.INFERENCE,
-      //       ability: "eyepop.image-contents-t4:latest",
-      //       params: {
-      //         prompts: [
-      //           {
-      //             prompt: "Analyze the image provided and determine the categories of: shirt color,Hair color. Report the values of the categories as classLabels. If you are unable to provide a category with a value then set it's classLabel to null"
-      //           }
-      //         ]
-      //       }
-      //     }
-      //   ]
-      // } 
-
-    }
-  ]},
+  "image-contents": { components: [{
+    type: PopComponentType.INFERENCE,
+    id: 1,
+    ability: 'eyepop.image-contents:latest',
+  }]},
 
   "localize-objects": { components: [{
     type: PopComponentType.INFERENCE,
