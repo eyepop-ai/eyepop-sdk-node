@@ -222,7 +222,8 @@ const POP_EXAMPLES = {
       type: PopComponentType.INFERENCE,
       // id: 1,
       // ability: 'eyepop.localize-objects:latest',
-      ability: 'eyepop.image-contents-t4:latest',
+      ability: 'eyepop.image-contents:latest',
+      // ability: 'eyepop.image-captions:latest',
       params: {
         prompts: [
           {
