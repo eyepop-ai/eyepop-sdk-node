@@ -222,21 +222,21 @@ const POP_EXAMPLES = {
       type: PopComponentType.INFERENCE,
       // id: 1,
       // ability: 'ci-eyepop.localize-objects:latest',
-      // ability: 'ci-eyepop.image-contents:latest',
+      ability: 'eyepop.image-contents:latest',
       // ability: 'ci-eyepop.image-captions:latest',
-      ability: 'eyepop.text-contents:latest',
-      // params: {
-      //   prompts: [
-      //     {
-      //       // prompt: "person"
-      //       // prompt: "Analyze the image provided and determine the categories of: What color is their shirt?. Report the values of the categories as classLabels. If you are unable to provide a category with a value then set it's classLabel to null"
-      //       prompt: "Describe with a paragraph what is shown in the image."
-      //     },
-      //     // {
-      //     //   prompt: "hat"
-      //     // }
-      //   ]
-      // },
+      // ability: 'eyepop.text-contents:latest',
+      params: {
+        prompts: [
+          {
+            // prompt: "person"
+            prompt: "Analyze the image provided and determine the categories of: What color is their shirt?. Report the values of the categories as classLabels. If you are unable to provide a category with a value then set it's classLabel to null"
+            // prompt: "Describe with a paragraph what is shown in the image."
+          },
+          // {
+          //   prompt: "hat"
+          // }
+        ]
+      },
 
       // forward: {
       //   operator: {
