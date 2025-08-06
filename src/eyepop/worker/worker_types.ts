@@ -156,6 +156,7 @@ export interface InferenceComponent extends BaseComponent {
     ability?: string
     categoryName?: string
     confidenceThreshold?: number
+    topK?: number
     targetFps?: string
     params?: {[index: string]: any}
 }
