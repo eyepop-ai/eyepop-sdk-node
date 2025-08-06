@@ -236,6 +236,16 @@ const { positionals, values } = parseArgs({
       type: "string",
       short: "m"
     },
+    abilityUuid: {
+      type: "string",
+      short: "a"
+    },
+    model: {
+      type: "string",
+    },
+    ability: {
+      type: "string",
+    },
     sam1: {
       type: "string",
       short: "1"
@@ -264,6 +274,14 @@ const { positionals, values } = parseArgs({
       type: "string",
       multiple: true
     },
+    topK: {
+      type: "string",
+      default: ""
+    },
+    confidenceThreshold: {
+      type: "string",
+      default: ""
+    },
     help: {
       type: "boolean",
       short: "h",
@@ -283,11 +301,16 @@ function printHelpAndExit(message?: string, exitCode: number = -1) {
         "\n\t-u --url=[url] to run inference on a remote image url" +
         "\n\t-p --pop=[pop] to run one of the example pos, one of "+Object.keys(POP_EXAMPLES)+
         "\n\t-m --modelUuid=[model uuid] to run inference using a specific model uuid" +
+        "\n\t--model=[model] to run inference using a specific model alias" +
+        "\n\t-a --abilityUuid=[ability uuid] to run inference using a specific ability uuid" +
+        "\n\t--ability=[ability] to run inference using a specific ability alias" +
         "\n\t-1 --sam1 to compose a model given by --model with segmentation using Efficient SAM" +
         "\n\t-2 --sam2 to compose a model given by --model with segmentation using SAM2" +
         "\n\t--points list of POIs as coordinates like (x1, y1), (x2, y2) in the original image coordinate system" +
         "\n\t--boxes list of POIs as boxes like (left1, top1, right1, bottom1), (left1, top1, right1, bottom1) in the original image coordinate system" +
         "\n\t--prompt text prompt to pass as parameter" +
+        "\n\t--top-k for --model-uuid and -model-alias apply this top-k filter" +
+        "\n\t--confidence-threshold for --model-uuid and -model-alias apply this confidence threshold filter" +
         "\n\t-v --visualize to visualize the result" +
         "\n\t-o --output to print the result to stdout" +
         "\n\t-h --help to print this help message")
@@ -330,12 +353,19 @@ function list_of_boxes(arg: string) {
   }
   let pop;
 
-  if (parameters.modelUuid) {
+  const topK = (parameters.topK.length? parseInt(parameters.topK): undefined)
+  const confidenceThreshold = (parameters.confidenceThreshold.length? parseFloat(parameters.confidenceThreshold): undefined)
+  const ability = parameters.ability? parameters.ability: (parameters.model? parameters.model: undefined)
+  const abilityUuid = parameters.abilityUuid? parameters.abilityUuid: (parameters.modelUuid? parameters.modelUuid: undefined)
+
+  if (ability || abilityUuid) {
     if (parameters.sam1) {
-      pop = {
-        components: [{
+      pop = {components: [{
           type: PopComponentType.INFERENCE,
-          modelUuid: parameters.modelUuid,
+          ability: ability,
+          abilityUuid: abilityUuid,
+          topK: topK,
+          confidenceThreshold: confidenceThreshold,
           forward: {
             operator: {
               type: ForwardOperatorType.CROP,
@@ -355,17 +385,19 @@ function list_of_boxes(arg: string) {
               }
             }]
           }
-        }]
-      };
+        }]}
     } else if (parameters.sam2) {
-      pop = {
+      pop = { components: [{
         type: PopComponentType.INFERENCE,
         model: 'eyepop.sam2.encoder.tiny:latest',
         hidden: true,
         forward: {
           targets: [{
             type: PopComponentType.INFERENCE,
-            modelUuid: parameters.modelUuid,
+            ability: ability,
+            abilityUuid: abilityUuid,
+            topK: topK,
+            confidenceThreshold: confidenceThreshold,
             forward: {
               operator: {
                 type: ForwardOperatorType.CROP,
@@ -387,12 +419,15 @@ function list_of_boxes(arg: string) {
             }
           }]
         }
-      }
+      }]}
     } else {
-      pop = {
+      pop = { components: [{
         type: PopComponentType.INFERENCE,
-        modelUuid: parameters.modelUuid
-      }
+        ability: ability,
+        abilityUuid: abilityUuid,
+        topK: topK,
+        confidenceThreshold: confidenceThreshold,
+      }]}
     }
   } else if (parameters.pop) {
     if (POP_EXAMPLES.hasOwnProperty(parameters.pop)) {
@@ -402,9 +437,9 @@ function list_of_boxes(arg: string) {
       printHelpAndExit(`unknown pop ${parameters.pop}`);
     }
   } else {
-    printHelpAndExit("required: --modelUuid or --pop");
+    printHelpAndExit("required: --modelUuid --abilityUuid or --model or --ability or --pop");
   }
-
+  console.log(pop)
   let example_input;
   let image = null;
   if (parameters.url) {
