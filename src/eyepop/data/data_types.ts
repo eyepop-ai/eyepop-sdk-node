@@ -295,7 +295,7 @@ export interface CreateWorkflowConfig {
     dataset_uuid?: string
     dataset_version?: number
     model_uuid?: string
-    config?: Map<string, any>
+    config?: Record<string, any>
 }
 
 export interface CreateWorkflow {
