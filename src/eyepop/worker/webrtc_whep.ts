@@ -6,7 +6,7 @@ import { HttpClient } from '../options'
 export class WebrtcWhep extends WebrtcBase implements LiveMedia {
     private _stream: MediaStream | null
     constructor(ingressId: string, getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger) {
-        super(getSession, client, ingressId, 'liveIngress/whep', requestLogger)
+        super(getSession, client, ingressId, 'liveIngress/whep', false, requestLogger)
         this._stream = null
     }
     public override async close(): Promise<void> {

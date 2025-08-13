@@ -1,6 +1,13 @@
 import { LocalAuth, SessionAuth } from '../options'
 import { EndpointState, Session } from '../types'
-import { AbstractJob, LoadFromAssetUuidJob, LoadFromJob, LoadLiveIngressJob, UploadJob } from './jobs'
+import {
+    AbstractJob,
+    LoadFromAssetUuidJob,
+    LoadFromJob,
+    LoadLiveIngressJob,
+    LoadLocalMediaStreamJob,
+    UploadJob
+} from './jobs'
 import { WebrtcWhip } from './webrtc_whip'
 import { WebrtcWhep } from './webrtc_whep'
 import { resolvePath } from '../shims/local_file'
@@ -20,7 +27,7 @@ import {
     UrlSource,
     WorkerSession,
     Pop,
-    ComponentParams, AssetUuidSource,
+    ComponentParams, AssetUuidSource, LocalMediaStreamSource,
 } from '../worker/worker_types'
 import { Asset } from 'EyePop/data/data_types'
 
@@ -305,6 +312,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
                 return this.session()
             },
             this._client,
+            false,
             this._requestLogger,
         )
         return whip.start()
@@ -338,6 +346,8 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             return this.loadLiveIngress(source as LiveSource, params)
         } else if ((source as AssetUuidSource).assetUuid !== undefined) {
             return this.loadFromAssetUuid(source as AssetUuidSource, params)
+        } else if ((source as LocalMediaStreamSource).localMediaStream !== undefined) {
+            return this.loadLocalMediaStream(source as LocalMediaStreamSource, params)
         } else {
             return Promise.reject('unknown source type')
         }
@@ -578,7 +588,38 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
                 },
             )
         } catch (e) {
-            // we'll have to reset our queue counter in case the job canot be started
+            // we'll have to reset our queue counter in case the job cannot be started
+            this._limit.release()
+            throw e
+        }
+    }
+
+    private async loadLocalMediaStream(source: LocalMediaStreamSource, params: ComponentParams[] | undefined): Promise<ResultStream> {
+        if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
+            throw new Error('endpoint not connected, use connect()')
+        }
+        await this._limit.acquire()
+        try {
+            this.updateState()
+            const job = new LoadLocalMediaStreamJob(
+                source.localMediaStream,
+                params,
+                async () => {
+                    return this.session()
+                },
+                this._client,
+                this._requestLogger,
+            )
+            return job.start(
+                () => {
+                    this.jobDone(job)
+                },
+                (statusCode: number) => {
+                    this.jobStatus(job, statusCode)
+                },
+            )
+        } catch (e) {
+            // we'll have to reset our queue counter in case the job cannot be started
             this._limit.release()
             throw e
         }

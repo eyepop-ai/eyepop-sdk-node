@@ -6,8 +6,8 @@ import { HttpClient } from '../options'
 
 export class WebrtcWhip extends WebrtcBase implements LiveMedia {
     private _stream: MediaStream | null
-    constructor(stream: MediaStream, getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger) {
-        super(getSession, client, uuidv4().toString(), 'liveIngress/whip', requestLogger)
+    constructor(stream: MediaStream, getSession: () => Promise<WorkerSession>, client: HttpClient, is_pipeline_direct: boolean, requestLogger: Logger) {
+        super(getSession, client, uuidv4().toString(), 'liveIngress/whip', is_pipeline_direct, requestLogger)
         this._stream = stream
     }
     public async start(): Promise<WebrtcWhip> {

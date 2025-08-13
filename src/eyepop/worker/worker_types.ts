@@ -46,6 +46,10 @@ export interface LiveSource {
     readonly ingressId: string
 }
 
+export interface LocalMediaStreamSource {
+    readonly localMediaStream: MediaStream
+}
+
 export interface UrlSource {
     readonly url: string
 }
@@ -54,7 +58,7 @@ export interface AssetUuidSource {
     readonly assetUuid: string
 }
 
-export type Source = FileSource | StreamSource | PathSource | LiveSource | UrlSource | AssetUuidSource
+export type Source = FileSource | StreamSource | PathSource | LiveSource | UrlSource | AssetUuidSource | LocalMediaStreamSource
 
 export interface ResultStream extends AsyncIterable<Prediction> {
     cancel(): void
