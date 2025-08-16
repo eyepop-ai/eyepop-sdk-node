@@ -1,4 +1,4 @@
-import { EyePop } from '@eyepop.ai/eyepop'
+import { EndpointState, EyePop, PopComponentType } from '@eyepop.ai/eyepop'
 import { Render2d } from '@eyepop.ai/eyepop-render-2d'
 
 console.log('Hello EyePop Demo')
@@ -14,9 +14,6 @@ let resultSpan = undefined
 let localVideo = undefined
 let localResultOverlay = undefined
 let localOverlayContext = undefined
-let remoteVideo = undefined
-let remoteResultOverlay = undefined
-let remoteOverlayContext = undefined
 
 let liveIngress = undefined
 let liveEgress = undefined
@@ -32,10 +29,6 @@ async function setup() {
     localVideo = document.getElementById('local-video')
     localResultOverlay = document.getElementById('local-result-overlay')
     localOverlayContext = localResultOverlay.getContext('2d')
-
-    remoteVideo = document.getElementById('remote-video')
-    remoteResultOverlay = document.getElementById('remote-result-overlay')
-    remoteOverlayContext = remoteResultOverlay.getContext('2d')
 
     connectButton.addEventListener('click', connect)
     startButton.addEventListener('click', startLocalStream)
@@ -78,35 +71,29 @@ async function connect(event) {
         const session = await (await fetch('eyepop-session.json')).json()
         endpoint = await EyePop.workerEndpoint({
             auth: { session: session },
-        })
-            .onStateChanged((from, to) => {
-                console.log('Endpoint state transition from ' + from + ' to ' + to)
-            })
-            .onIngressEvent(async ingressEvent => {
-                console.log(ingressEvent)
-                if (ingressEvent.event == 'stream-ready') {
-                    await startRemoteStream(ingressEvent.ingressId)
-                    startLiveInference(ingressEvent.ingressId)
-                } else {
-                    if (liveEgress && liveEgress.ingressId() == ingressEvent.ingressId) {
-                        remoteVideo.pause()
-                        remoteVideo.srcObject = null
-                        remoteOverlayContext.clearRect(0, 0, remoteResultOverlay.width, remoteResultOverlay.height)
-                        liveEgress = null
-                    }
+        }).onIngressEvent(async ingressEvent => {
+            console.log(ingressEvent)
+            if (ingressEvent.event == 'stream-ready') {
+                startLiveInference(ingressEvent.ingressId)
+            } else {
+                if (liveEgress && liveEgress.ingressId() == ingressEvent.ingressId) {
+                    liveEgress = null
                 }
-            })
-            .connect()
+            }
+        })
+        await endpoint.connect()
+            // Compose your Pop here
+        await endpoint.changePop({
+            components: [{
+                type: PopComponentType.INFERENCE,
+                model: 'eyepop.person:latest',
+            }]
+        })
     }
     popNameElement.innerHTML = endpoint.popName()
     startButton.disabled = false
 }
 
-async function startRemoteStream(ingressId) {
-    liveEgress = await endpoint.liveEgress(ingressId)
-    remoteVideo.srcObject = await liveEgress.stream()
-    remoteVideo.play()
-}
 async function startLocalStream(event) {
     const startTime = performance.now()
     timingSpan.innerHTML = '__ms'
@@ -136,7 +123,6 @@ async function startLocalStream(event) {
 
 function startLiveInference(ingressId) {
     endpoint.process({ ingressId: ingressId }).then(async results => {
-        const remoteRender = Render2d.renderer(remoteOverlayContext, [Render2d.renderFace(), Render2d.renderHand()])
         const localRender = Render2d.renderer(localOverlayContext, [
             Render2d.renderBox('$..objects[?(@.classLabel=="face")]'),
             Render2d.renderTrail(1.0, '$..keyPoints[?(@.category=="3d-body-points")].points[?(@.classLabel.includes("nose"))]'),
@@ -149,13 +135,6 @@ function startLiveInference(ingressId) {
                 localResultOverlay.height = result.source_height
                 localOverlayContext.clearRect(0, 0, localResultOverlay.width, localResultOverlay.height)
                 localRender.draw(result)
-            }
-
-            if (remoteVideo.srcObject) {
-                remoteResultOverlay.width = result.source_width
-                remoteResultOverlay.height = result.source_height
-                remoteOverlayContext.clearRect(0, 0, remoteResultOverlay.width, remoteResultOverlay.height)
-                remoteRender.draw(result)
             }
         }
     })
