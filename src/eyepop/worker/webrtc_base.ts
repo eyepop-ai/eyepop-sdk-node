@@ -14,6 +14,7 @@ export abstract class WebrtcBase {
     protected readonly _client: HttpClient
     protected readonly _requestLogger: Logger
     protected readonly _urlPath: string
+    protected readonly _is_pipeline_direct: boolean
 
     private readonly _ingressId: string
 
@@ -24,12 +25,13 @@ export abstract class WebrtcBase {
     protected _queuedCandidates: RTCIceCandidate[]
     protected _offerData: OfferData | null
 
-    protected constructor(getSession: () => Promise<WorkerSession>, client: HttpClient, ingressId: string, urlBasePath: string, requestLogger: Logger) {
+    protected constructor(getSession: () => Promise<WorkerSession>, client: HttpClient, ingressId: string, urlBasePath: string, is_pipeline_direct: boolean, requestLogger: Logger) {
         this._getSession = getSession
         this._client = client
         this._requestLogger = requestLogger
         this._ingressId = ingressId
         this._urlPath = `${urlBasePath}/${this._ingressId}`
+        this._is_pipeline_direct = is_pipeline_direct
         this._pc = null
         this._eTag = ''
         this._location = null
@@ -51,10 +53,16 @@ export abstract class WebrtcBase {
 
     protected gresUrl(session: WorkerSession, location: string | null = null): URL {
         let urlPath
-        if (location) {
-            urlPath = path.join(this._urlPath, location)
+        if (this._is_pipeline_direct) {
+            if (!session.pipelineId) {
+                throw new Error('cannot connect with is_pipeline_direct=true but !session.pipelineId')
+            }
+            urlPath = path.join('pipelines', session.pipelineId, this._urlPath)
         } else {
             urlPath = this._urlPath
+        }
+        if (location) {
+            urlPath = path.join(urlPath, location)
         }
         let baseUrl
         if (session.baseUrl?.endsWith('/')) {
@@ -87,7 +95,7 @@ export abstract class WebrtcBase {
             method: 'POST',
             body: offer.sdp,
         })
-        if (response.status != 201) {
+        if (response.status >= 300) {
             return Promise.reject(`unknown status code for POST '${ingressUrl}': ${response.status} (${response.statusText})`)
         }
         this._eTag = response.headers.get('ETag') ?? ''
@@ -118,7 +126,7 @@ export abstract class WebrtcBase {
             method: 'PATCH',
             body: WebrtcBase.generateSdpFragment(this._offerData, candidates),
         })
-        if (response.status != 204) {
+        if (response.status >= 300) {
             return Promise.reject(`unknown status code for PATCH '${ingressUrl}': ${response.status} (${response.statusText})`)
         }
         return this
@@ -139,7 +147,11 @@ export abstract class WebrtcBase {
         const servers =
             links !== null
                 ? links.split(', ').map(link => {
-                      const m = link.match(/^<(.+?)>; rel="ice-server"(; username="(.*?)"; credential="(.*?)"; credential-type="password")?/i)
+                      // backward compatible to MEDIAMTX using <...>
+                      let m = link.match(/^<(.+?)>; rel="ice-server"(; username="(.*?)"; credential="(.*?)"; credential-type="password")?/i);
+                      if (!m) {
+                        m = link.match(/^(.+?); rel="ice-server"(; username="(.*?)"; credential="(.*?)"; credential-type="password")?/i);
+                      }
                       if (!m) {
                           return null
                       }

@@ -43,21 +43,21 @@ async function connect(event) {
     if (!endpoint) {
         const queryString = window.location.search
         const urlParams = new URLSearchParams(queryString)
-        const popId = urlParams.get('popId')
         const eyepopUrl = urlParams.get('eyepopUrl') || undefined
 
         endpoint = await EyePop.workerEndpoint({
             auth: { oAuth2: true },
-            popId: popId,
             eyepopUrl: eyepopUrl,
+        }).onStateChanged((from, to) => {
+            console.log('Endpoint state transition from ' + from + ' to ' + to)
         })
-            .onStateChanged((from, to) => {
-                console.log('Endpoint state transition from ' + from + ' to ' + to)
-            })
-            .onIngressEvent(ingressEvent => {
-                console.log(ingressEvent)
-            })
-            .connect()
+        await endpoint.connect()
+        await endpoint.changePop({
+            components: [{
+                type: PopComponentType.INFERENCE,
+                model: 'eyepop.person:latest',
+            }]
+        })
     }
     fileChooser.disabled = false
     popNameElement.innerHTML = endpoint.popName()
@@ -147,7 +147,7 @@ async function upload(event) {
                 Render2d.renderMask(),
                 Render2d.renderContour(),
                 Render2d.renderKeypoints(),
-                // Render2d.renderBox()
+                Render2d.renderBox()
             ])
             renderer.draw(result)
             initForRoi()

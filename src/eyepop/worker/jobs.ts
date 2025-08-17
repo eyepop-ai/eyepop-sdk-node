@@ -3,6 +3,7 @@ import {Stream, StreamEvent, readableStreamFromString} from '../streaming'
 import {Logger} from 'pino'
 import { ComponentParams, ResultStream, VideoMode, WorkerSession } from '../worker/worker_types'
 import { HttpClient } from '../options'
+import {WebrtcWhip} from "EyePop/worker/webrtc_whip";
 
 export class AbstractJob implements ResultStream {
     protected _getSession: () => Promise<WorkerSession>
@@ -358,6 +359,62 @@ export class LoadLiveIngressJob extends AbstractJob {
         const body = {
             sourceType: 'LIVE_INGRESS',
             liveIngressId: this._ingressId,
+            params: this._params,
+        }
+        const headers = {
+            ...session.authenticationHeaders(),
+            Accept: 'application/jsonl',
+            'Content-Type': 'application/json',
+        }
+        const patchUrl: string = `${session.baseUrl.replace(/\/+$/, '')}/pipelines/${session.pipelineId}/source?mode=preempt&processing=sync`
+        return await this._client.fetch(patchUrl, {
+            headers: headers,
+            method: 'PATCH',
+            body: JSON.stringify(body),
+            signal: this._controller.signal,
+            // @ts-ignore
+            eyepop: { responseStreaming: true }
+        })
+    }
+}
+
+export class LoadMediaStreamJob extends AbstractJob {
+    private readonly _mediaStream: MediaStream
+
+    constructor(mediaStream: MediaStream, params: ComponentParams[] | undefined, getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger) {
+        super(params, getSession, client, requestLogger)
+        this._mediaStream = mediaStream
+    }
+
+    get [Symbol.toStringTag](): string {
+        return 'loadLiveIngressJob'
+    }
+
+    protected override async startJob(): Promise<Response> {
+        const session = await this._getSession()
+        if (!session.baseUrl) {
+            return Promise.reject('session.baseUrl must not ne null')
+        }
+
+        const whip = new WebrtcWhip(
+            this._mediaStream,
+            async () => {
+                return session
+            },
+            this._client,
+            true,
+            this._requestLogger,
+        )
+
+        whip.start().then(value => {
+            this._requestLogger.debug("direct whip for ingressId=%s successful", whip.ingressId())
+        }).catch(reason => {
+            this._controller.abort(reason)
+        })
+
+        const body = {
+            sourceType: 'WHIP',
+            whipIngressId: whip.ingressId(),
             params: this._params,
         }
         const headers = {

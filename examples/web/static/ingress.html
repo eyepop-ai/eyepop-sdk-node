@@ -37,7 +37,6 @@
                         </select>
                         <button disabled class="m-2 form-control" id="start-stream">Start</button>
                         <button disabled class="m-2 form-control" id="stop-stream">Stop</button>
-                         <a href="#" class="m-2 link-primary link-body-emphasis" style="min-width: 200px" id="share-link" target="_blank">share camera request!</a>
                     </div>
                 </div>
             </div>
@@ -48,8 +47,8 @@
             <div class="row">
                 <div class="d-flex">
                     <div class="preview-wrapper">
-                        <video class="remote-video" id="remote-video" type="application/x-mpegURL"  muted autoplay playsinline controls></video>
-                        <canvas class="result-overlay" id="remote-result-overlay"></canvas>
+                        <video class="remote-video" id="local-video" type="application/x-mpegURL"  muted autoplay playsinline controls></video>
+                        <canvas class="result-overlay" id="local-result-overlay"></canvas>
                     </div>
                 </div>
             </div>

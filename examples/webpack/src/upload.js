@@ -1,4 +1,4 @@
-import { EyePop } from '@eyepop.ai/eyepop'
+import { EyePop, PopComponentType } from '@eyepop.ai/eyepop'
 import { Render2d } from '@eyepop.ai/eyepop-render-2d'
 
 let endpoint = undefined
@@ -21,6 +21,13 @@ async function setup() {
     })
     await endpoint.connect()
     popNameElement.innerHTML = endpoint.popName()
+    // Compose your Pop here
+    await endpoint.changePop({
+        components: [{
+            type: PopComponentType.INFERENCE,
+            model: 'eyepop.person:latest',
+        }]
+    })
     uploadButton.disabled = false
     uploadButton.addEventListener('change', upload)
 
