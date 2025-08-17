@@ -8,20 +8,9 @@ export interface WorkerSession extends Session {
     authenticationHeaders() : any
 }
 
-export interface LiveMedia {
-    ingressId(): string
-    stream(): Promise<MediaStream>
-    close(): Promise<void>
-}
-
 export enum VideoMode {
     STREAM = 'stream',
     BUFFER = 'buffer'
-}
-
-export interface IngressEvent {
-    readonly ingressId: string
-    readonly event: 'stream-ready' | 'stream-not-ready'
 }
 
 export interface FileSource {
@@ -42,12 +31,8 @@ export interface PathSource {
     readonly videoMode?: VideoMode | undefined
 }
 
-export interface LiveSource {
-    readonly ingressId: string
-}
-
-export interface LocalMediaStreamSource {
-    readonly localMediaStream: MediaStream
+export interface MediaStreamSource {
+    readonly mediaStream: MediaStream
 }
 
 export interface UrlSource {
@@ -58,7 +43,7 @@ export interface AssetUuidSource {
     readonly assetUuid: string
 }
 
-export type Source = FileSource | StreamSource | PathSource | LiveSource | UrlSource | AssetUuidSource | LocalMediaStreamSource
+export type Source = FileSource | StreamSource | PathSource | UrlSource | AssetUuidSource | MediaStreamSource
 
 export interface ResultStream extends AsyncIterable<Prediction> {
     cancel(): void

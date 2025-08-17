@@ -1,10 +1,10 @@
 import { v4 as uuidv4 } from 'uuid'
 import { Logger } from 'pino'
 import { WebrtcBase } from './webrtc_base'
-import { LiveMedia, WorkerSession } from '../worker/worker_types'
+import { WorkerSession } from '../worker/worker_types'
 import { HttpClient } from '../options'
 
-export class WebrtcWhip extends WebrtcBase implements LiveMedia {
+export class WebrtcWhip extends WebrtcBase {
     private _stream: MediaStream | null
     constructor(stream: MediaStream, getSession: () => Promise<WorkerSession>, client: HttpClient, is_pipeline_direct: boolean, requestLogger: Logger) {
         super(getSession, client, uuidv4().toString(), 'liveIngress/whip', is_pipeline_direct, requestLogger)

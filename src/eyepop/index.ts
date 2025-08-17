@@ -11,7 +11,20 @@ import { DataSession } from './data/data_types'
 export { WorkerEndpoint } from './worker/worker_endpoint'
 export { DataEndpoint } from './data/data_endpoint'
 
-export { Session, EndpointState, StreamTime, Prediction, PredictedClass, PredictedObject, PredictedMesh, PredictedKeyPoint, PredictedKeyPoints, Contour, Point2d, Point3d } from './types'
+export {
+    Session,
+    EndpointState,
+    StreamTime,
+    Prediction,
+    PredictedClass,
+    PredictedObject,
+    PredictedMesh,
+    PredictedKeyPoint,
+    PredictedKeyPoints,
+    Contour,
+    Point2d,
+    Point3d
+} from './types'
 
 export {
     ChangeType,
@@ -54,8 +67,7 @@ export {
 export {
     WorkerSession,
     FileSource,
-    LiveSource,
-    LiveMedia,
+    MediaStreamSource,
     Source,
     ModelPrecisionType,
     ModelFormat,
@@ -66,7 +78,6 @@ export {
     SourcesEntry,
     StreamSource,
     ResultStream,
-    IngressEvent,
     VideoMode,
     ComponentParams
 } from './worker/worker_types'

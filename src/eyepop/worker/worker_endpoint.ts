@@ -4,20 +4,14 @@ import {
     AbstractJob,
     LoadFromAssetUuidJob,
     LoadFromJob,
-    LoadLiveIngressJob,
-    LoadLocalMediaStreamJob,
+    LoadMediaStreamJob,
     UploadJob
 } from './jobs'
-import { WebrtcWhip } from './webrtc_whip'
-import { WebrtcWhep } from './webrtc_whep'
 import { resolvePath } from '../shims/local_file'
 import { Endpoint } from '../endpoint'
 import { TransientPopId, WorkerOptions } from '../worker/worker_options'
 import {
     FileSource,
-    IngressEvent,
-    LiveMedia,
-    LiveSource,
     ModelInstanceDef,
     PathSource,
     ResultStream,
@@ -27,9 +21,10 @@ import {
     UrlSource,
     WorkerSession,
     Pop,
-    ComponentParams, AssetUuidSource, LocalMediaStreamSource,
+    ComponentParams,
+    AssetUuidSource,
+    MediaStreamSource,
 } from '../worker/worker_types'
-import { Asset } from 'EyePop/data/data_types'
 
 interface PopConfig {
     base_url: string
@@ -51,10 +46,6 @@ interface Pipeline {
     postTransform: string | null
 }
 
-interface WsAuthToken {
-    token: string
-}
-
 export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
     private _baseUrl: string | null
     private _pipelineId: string | null
@@ -64,9 +55,6 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
 
     private _pipeline: Pipeline | null
 
-    private _ingressEventHandler: null | ((event: IngressEvent) => void)
-    private _ingressEventWs: WebSocket | null
-
     constructor(options: WorkerOptions) {
         super(options)
         this.setStatusRetryHandlers(new Map<number, Function>([[404, (statusCode: number) => this.statusHandler404(statusCode)]]))
@@ -74,8 +62,6 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         this._pipelineId = null
         this._popName = null
         this._pipeline = null
-        this._ingressEventHandler = null
-        this._ingressEventWs = null
 
         this._sandboxId = null
         const sessionAuth: SessionAuth = options.auth as SessionAuth
@@ -104,7 +90,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             })
             if (response?.status != 204) {
                 const message = await response?.text()
-                this._logger.info(`stoppping pipeline failed, status ${response?.status}: ${message}`)
+                this._logger.info(`stopping pipeline failed, status ${response?.status}: ${message}`)
             }
         }
         if (this._sandboxId && this._baseUrl) {
@@ -292,47 +278,6 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         return this.options().popId || null
     }
 
-    public onIngressEvent(handler: (event: IngressEvent) => void): WorkerEndpoint {
-        this._ingressEventHandler = handler
-        this.startIngressWs()
-            .then(() => {})
-            .catch(reason => {
-                this._logger.warn('unexpected error starting the ingress event handler: %s', reason)
-            })
-        return this
-    }
-
-    public async liveIngress(stream: MediaStream): Promise<LiveMedia> {
-        if (!this._baseUrl || !this._client) {
-            return Promise.reject('endpoint not connected, use connect()')
-        }
-        const whip = new WebrtcWhip(
-            stream,
-            async () => {
-                return this.session()
-            },
-            this._client,
-            false,
-            this._requestLogger,
-        )
-        return whip.start()
-    }
-
-    public async liveEgress(ingressId: string): Promise<LiveMedia> {
-        if (!this._baseUrl || !this._client) {
-            return Promise.reject('endpoint not connected, use connect()')
-        }
-        const whep = new WebrtcWhep(
-            ingressId,
-            async () => {
-                return this.session()
-            },
-            this._client,
-            this._requestLogger,
-        )
-        return whep.start()
-    }
-
     public async process(source: Source, params?: ComponentParams[]): Promise<ResultStream> {
         if ((source as FileSource).file !== undefined) {
             return this.uploadFile(source as FileSource, params)
@@ -342,49 +287,12 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             return this.uploadPath(source as PathSource, params)
         } else if ((source as UrlSource).url !== undefined) {
             return this.loadFrom(source as UrlSource, params)
-        } else if ((source as LiveSource).ingressId !== undefined) {
-            return this.loadLiveIngress(source as LiveSource, params)
         } else if ((source as AssetUuidSource).assetUuid !== undefined) {
             return this.loadFromAssetUuid(source as AssetUuidSource, params)
-        } else if ((source as LocalMediaStreamSource).localMediaStream !== undefined) {
-            return this.loadLocalMediaStream(source as LocalMediaStreamSource, params)
+        } else if ((source as MediaStreamSource).mediaStream !== undefined) {
+            return this.loadMediaStream(source as MediaStreamSource, params)
         } else {
             return Promise.reject('unknown source type')
-        }
-    }
-
-    private async startIngressWs(): Promise<void> {
-        const client = this._client
-        if (this._ingressEventWs || !this._baseUrl || !client) {
-            return
-        }
-        try {
-            const session = await this.session()
-            let response = await this.fetchWithRetry(async () => {
-                const headers = {
-                    ...this._authenticationHeaders(session),
-                }
-                const getTokenUrl = `${session.baseUrl}/liveIngress/events/token`
-                return client.fetch(getTokenUrl, { headers: headers })
-            })
-            if (response.status != 200) {
-                const message = await response.text()
-                return Promise.reject(`Unexpected status ${response.status}: ${message}`)
-            }
-            const wsAuthToken = (await response.json()) as WsAuthToken
-            const wsUrl = this._baseUrl.startsWith('https://')
-                ? `${this._baseUrl.replace('https://', 'wss://')}/liveIngress/events/${wsAuthToken.token}`
-                : `${this._baseUrl.replace('http://', 'ws://')}/liveIngress/events/${wsAuthToken.token}`
-
-            this._ingressEventWs = new WebSocket(wsUrl)
-            this._ingressEventWs.addEventListener('message', (event: MessageEvent) => {
-                const ingressEvent = JSON.parse(event.data) as IngressEvent
-                if (this._ingressEventHandler) {
-                    this._ingressEventHandler(ingressEvent)
-                }
-            })
-        } finally {
-            this.updateState()
         }
     }
 
@@ -563,46 +471,15 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         }
     }
 
-    private async loadLiveIngress(source: LiveSource, params: ComponentParams[] | undefined): Promise<ResultStream> {
+    private async loadMediaStream(source: MediaStreamSource, params: ComponentParams[] | undefined): Promise<ResultStream> {
         if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
             throw new Error('endpoint not connected, use connect()')
         }
         await this._limit.acquire()
         try {
             this.updateState()
-            const job = new LoadLiveIngressJob(
-                source.ingressId,
-                params,
-                async () => {
-                    return this.session()
-                },
-                this._client,
-                this._requestLogger,
-            )
-            return job.start(
-                () => {
-                    this.jobDone(job)
-                },
-                (statusCode: number) => {
-                    this.jobStatus(job, statusCode)
-                },
-            )
-        } catch (e) {
-            // we'll have to reset our queue counter in case the job cannot be started
-            this._limit.release()
-            throw e
-        }
-    }
-
-    private async loadLocalMediaStream(source: LocalMediaStreamSource, params: ComponentParams[] | undefined): Promise<ResultStream> {
-        if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
-            throw new Error('endpoint not connected, use connect()')
-        }
-        await this._limit.acquire()
-        try {
-            this.updateState()
-            const job = new LoadLocalMediaStreamJob(
-                source.localMediaStream,
+            const job = new LoadMediaStreamJob(
+                source.mediaStream,
                 params,
                 async () => {
                     return this.session()
@@ -764,10 +641,6 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
                     return Promise.reject(`Unexpected status ${response.status}: ${message}`)
                 }
             }
-        }
-
-        if (!this._ingressEventWs && this._ingressEventHandler) {
-            await this.startIngressWs()
         }
 
         this.updateState()

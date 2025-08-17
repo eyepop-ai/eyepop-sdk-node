@@ -1,4 +1,4 @@
-import { EndpointState, EyePop, PopComponentType } from '@eyepop.ai/eyepop'
+import { EyePop, PopComponentType } from '@eyepop.ai/eyepop'
 import { Render2d } from '@eyepop.ai/eyepop-render-2d'
 
 console.log('Hello EyePop Demo')
@@ -11,12 +11,11 @@ let stopButton = undefined
 let timingSpan = undefined
 let resultSpan = undefined
 
+let resultStream = undefined
+
 let localVideo = undefined
 let localResultOverlay = undefined
 let localOverlayContext = undefined
-
-let liveIngress = undefined
-let liveEgress = undefined
 
 async function setup() {
     popNameElement = document.getElementById('pop-name')
@@ -34,7 +33,6 @@ async function setup() {
     startButton.addEventListener('click', startLocalStream)
     stopButton.addEventListener('click', stopStream)
 
-    document.getElementById('share-link').href = document.location.href.replace('ingress.html', 'ingress-only.html')
     connectButton.disabled = false
     await populateDevices()
 }
@@ -71,18 +69,9 @@ async function connect(event) {
         const session = await (await fetch('eyepop-session.json')).json()
         endpoint = await EyePop.workerEndpoint({
             auth: { session: session },
-        }).onIngressEvent(async ingressEvent => {
-            console.log(ingressEvent)
-            if (ingressEvent.event == 'stream-ready') {
-                startLiveInference(ingressEvent.ingressId)
-            } else {
-                if (liveEgress && liveEgress.ingressId() == ingressEvent.ingressId) {
-                    liveEgress = null
-                }
-            }
         })
         await endpoint.connect()
-            // Compose your Pop here
+        // Compose your Pop here
         await endpoint.changePop({
             components: [{
                 type: PopComponentType.INFERENCE,
@@ -92,6 +81,23 @@ async function connect(event) {
     }
     popNameElement.innerHTML = endpoint.popName()
     startButton.disabled = false
+}
+
+async function renderFromResultStream(results) {
+    const localRender = Render2d.renderer(localOverlayContext, [
+        Render2d.renderBox('$..objects[?(@.classLabel=="face")]'),
+        Render2d.renderTrail(1.0, '$..keyPoints[?(@.category=="3d-body-points")].points[?(@.classLabel.includes("nose"))]'),
+    ])
+    for await (let result of results) {
+        resultSpan.textContent = JSON.stringify(result, ' ', 2)
+
+        if (localVideo.srcObject) {
+            localResultOverlay.width = result.source_width
+            localResultOverlay.height = result.source_height
+            localOverlayContext.clearRect(0, 0, localResultOverlay.width, localResultOverlay.height)
+            localRender.draw(result)
+        }
+    }
 }
 
 async function startLocalStream(event) {
@@ -116,27 +122,19 @@ async function startLocalStream(event) {
     }
     localVideo.srcObject = stream
     localVideo.play()
-    liveIngress = await endpoint.liveIngress(stream)
     timingSpan.innerHTML = Math.floor(performance.now() - startTime) + 'ms'
     stopButton.disabled = false
-}
-
-function startLiveInference(ingressId) {
-    endpoint.process({ ingressId: ingressId }).then(async results => {
-        const localRender = Render2d.renderer(localOverlayContext, [
-            Render2d.renderBox('$..objects[?(@.classLabel=="face")]'),
-            Render2d.renderTrail(1.0, '$..keyPoints[?(@.category=="3d-body-points")].points[?(@.classLabel.includes("nose"))]'),
-        ])
-        for await (let result of results) {
-            resultSpan.textContent = JSON.stringify(result, ' ', 2)
-
-            if (localVideo.srcObject) {
-                localResultOverlay.width = result.source_width
-                localResultOverlay.height = result.source_height
-                localOverlayContext.clearRect(0, 0, localResultOverlay.width, localResultOverlay.height)
-                localRender.draw(result)
-            }
-        }
+    /*
+        Starting live processing from local MediaStream instance,
+        stop processing by calling resultStream.cancel().
+     */
+    resultStream = await endpoint.process({ mediaStream: stream })
+    /*
+        Asynchronous result processing, in ths demo, render as overlay
+        over local video and print JSON results in text box underneath.
+     */
+    renderFromResultStream(resultStream).finally(() => {
+        console.log("result stream finished")
     })
 }
 
@@ -145,9 +143,14 @@ async function stopStream(event) {
     localVideo.pause()
     localVideo.srcObject = null
     localOverlayContext.clearRect(0, 0, localResultOverlay.width, localResultOverlay.height)
-    await liveIngress.close()
-    liveIngress = null
     startButton.disabled = false
+    /*
+        Stop processing of live stream if currently running.
+     */
+    if (resultStream) {
+        resultStream.cancel()
+        resultStream = null
+    }
 }
 
 document.addEventListener('DOMContentLoaded', async event => {

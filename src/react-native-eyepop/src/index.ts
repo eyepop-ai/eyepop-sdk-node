@@ -19,7 +19,7 @@ import {
   WorkerOptions,
 } from '@eyepop.ai/eyepop';
 import { resolvePathRN } from './rn_local_file';
-import { createHttpClientRN } from './rn_http_client'
+import { createHttpClientRN } from './rn_http_client';
 
 export namespace EyePop {
   export function workerEndpoint(opts?: WorkerOptions): WorkerEndpoint {

@@ -95,7 +95,7 @@ export abstract class WebrtcBase {
             method: 'POST',
             body: offer.sdp,
         })
-        if (response.status != 201) {
+        if (response.status >= 300) {
             return Promise.reject(`unknown status code for POST '${ingressUrl}': ${response.status} (${response.statusText})`)
         }
         this._eTag = response.headers.get('ETag') ?? ''
@@ -126,7 +126,7 @@ export abstract class WebrtcBase {
             method: 'PATCH',
             body: WebrtcBase.generateSdpFragment(this._offerData, candidates),
         })
-        if (response.status != 204) {
+        if (response.status >= 300) {
             return Promise.reject(`unknown status code for PATCH '${ingressUrl}': ${response.status} (${response.statusText})`)
         }
         return this

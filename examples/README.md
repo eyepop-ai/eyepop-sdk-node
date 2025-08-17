@@ -26,7 +26,11 @@ npm install
 npm run dev
 ```
 
-open http://localhost:8000/
+open http://localhost:8000/upload.html
+
+or
+
+open http://localhost:8000/ingress.html
 
 ## Plain JS in browser
 
@@ -35,6 +39,12 @@ in project root
 ```shell
 python3 -m http.server
 ```
+
+open http://localhost:8000/examples/web/static/upload.html
+
+or
+
+open http://localhost:8000/examples/web/static/ingress.html
 
 In another terminal
 

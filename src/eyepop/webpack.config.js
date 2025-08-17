@@ -7,9 +7,7 @@ module.exports = {
         path: path.resolve(__dirname, 'dist'),
         filename: 'eyepop.min.js',
         library: {
-            name: 'EyePop',
             type: 'umd',
-            export: ['default'],
         },
     },
     plugins: [new NodePolyfillPlugin()],

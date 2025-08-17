@@ -378,7 +378,7 @@ export class LoadLiveIngressJob extends AbstractJob {
     }
 }
 
-export class LoadLocalMediaStreamJob extends AbstractJob {
+export class LoadMediaStreamJob extends AbstractJob {
     private readonly _mediaStream: MediaStream
 
     constructor(mediaStream: MediaStream, params: ComponentParams[] | undefined, getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger) {
