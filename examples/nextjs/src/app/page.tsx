@@ -16,7 +16,6 @@ export default function Home() {
 
     const endpointRef = useRef<WorkerEndpoint | null>(null)
     // EyePop.ai state
-    const [context, setContext] = useState<CanvasRenderingContext2D | null>(null)
     const [isUploadEnabled, setIsUploadEnabled] = useState<boolean>(false)
 
     // EyePop.ai setup function - generates session dynamically like webpack example
@@ -52,14 +51,6 @@ export default function Home() {
 
             setIsUploadEnabled(true)
             console.log('Setup complete! Upload enabled.')
-
-            // Set up canvas context
-            if (canvasRef.current) {
-                const ctx = canvasRef.current.getContext('2d')
-                if (ctx) {
-                    setContext(ctx)
-                }
-            }
         } catch (error) {
             console.error('Setup failed:', error)
             const errorMessage = error instanceof Error ? error.message : String(error)
@@ -106,13 +97,14 @@ export default function Home() {
         const context = canvas?.getContext('2d')
         console.log('Context:', context)
         if (!context || !canvas) return
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const renderer = Render2d.renderer(context as any)
         const startTime = performance.now()
         context.clearRect(0, 0, canvas.width, canvas.height)
         console.log('Processing file...')
         endpointRef.current?.process({ file: file }).then(async results => {
             console.log('Results:', results)
-            for await (let result of results) {
+            for await (const result of results) {
                 console.log('Result:', result)
                 setJsonResults(JSON.stringify(result, null, 2))
                 canvas.width = result.source_width
