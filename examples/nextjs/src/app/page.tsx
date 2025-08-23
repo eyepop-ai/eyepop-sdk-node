@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { EyePop, WorkerEndpoint } from '@eyepop.ai/eyepop'
+import { EyePop, PopComponent, PopComponentType, WorkerEndpoint } from '@eyepop.ai/eyepop'
 import { Render2d } from '@eyepop.ai/eyepop-render-2d'
 
 export default function Home() {
@@ -22,14 +22,13 @@ export default function Home() {
     const setup = async () => {
         try {
             const secretKey = process.env.NEXT_PUBLIC_EYEPOP_SECRET_KEY
-            const popId = process.env.NEXT_PUBLIC_EYEPOP_POP_ID
-            if (!secretKey || !popId) {
-                throw new Error('EYEPOP_SECRET_KEY and EYEPOP_POP_ID environment variables are required')
+            const modelUuid = process.env.NEXT_PUBLIC_EYEPOP_MODEL_UUID
+            if (!secretKey) {
+                throw new Error('EYEPOP_SECRET_KEY environment variables are required')
             }
             endpointRef.current = EyePop.workerEndpoint({
-              popId,
-              auth: { secretKey: secretKey, }
-          })
+                auth: { secretKey: secretKey },
+            })
             await endpointRef.current.connect()
             const session = await endpointRef.current.session()
 
@@ -38,9 +37,28 @@ export default function Home() {
             }
 
             console.log('Session:', session)
-            
+
             endpointRef.current.onStateChanged((from: string, to: string) => {
                 console.log('Endpoint state transition from ' + from + ' to ' + to)
+            })
+
+            let popComponent: PopComponent
+            if (modelUuid) {
+                popComponent = {
+                    type: PopComponentType.INFERENCE,
+                    modelUuid,
+                }
+            } else {
+                console.log('Model UUID not found. It will be set to the default model.')
+                popComponent = {
+                    type: PopComponentType.INFERENCE,
+                    model: 'eyepop.person:latest',
+                }
+            }
+
+            // Compose your Pop here
+            await endpointRef.current.changePop({
+                components: [popComponent],
             })
 
             const popNameValue = endpointRef.current.popName()
@@ -155,9 +173,7 @@ export default function Home() {
             {/* IMAGE PREVIEW AND TEXT AREA: Half and Half */}
             <div className="container-fluid mt-4">
                 <div className="row">
-                    <div className="col-md-6 d-flex">
-                        Preview image:
-                    </div>
+                    <div className="col-md-6 d-flex">Preview image:</div>
                     <div className="col-md-6 d-flex">
                         EyePop.ai Results:{' '}
                         <h3
