@@ -4,7 +4,6 @@ export interface WorkerSession extends Session {
     readonly popId: string
     readonly baseUrl: string | undefined
     readonly pipelineId: string | undefined
-    readonly sandboxId: string | undefined
     authenticationHeaders() : any
 }
 
@@ -49,41 +48,6 @@ export interface ResultStream extends AsyncIterable<Prediction> {
     cancel(): void
 }
 
-// Deprecated: Model loading types
-
-export type SourcesEntry = {
-    readonly authority: string
-    readonly manifest: string
-}
-
-export enum ModelFormat {
-    TensorFlowLite = 'TensorFlowLite',
-    TensorFlowGraphDef = 'TensorFlowGraphDef',
-    ONNX = 'ONNX',
-    TorchScript = 'TorchScript',
-    TorchScriptCpu = 'TorchScriptCpu',
-    TorchScriptCuda = 'TorchScriptCuda',
-    PyTorch = 'PyTorch',
-    ModelLess = 'ModelLess'
-}
-
-export enum ModelPrecisionType {
-    float32 = 'float32',
-    float16 = 'float16',
-    int32 = 'int32',
-    int8 = 'int8',
-    uint8 = 'uint8',
-}
-
-export interface ModelInstanceDef {
-    id?: string
-    model_folder_url?: string
-    model_id?: string
-    dataset?: string
-    version?: string
-    format?: ModelFormat
-    type?: ModelPrecisionType
-}
 
 // Pop definition types
 

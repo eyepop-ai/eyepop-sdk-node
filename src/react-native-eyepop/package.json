@@ -1,6 +1,6 @@
 {
   "name": "@eyepop.ai/react-native-eyepop",
-  "version": "1.18.1",
+  "version": "2.0.0",
   "description": "The official Typescript library for EyePop.ai's inference API for React Native",
   "source": "./src/index.ts",
   "main": "./lib/commonjs/index.js",
@@ -67,8 +67,8 @@
   },
   "dependencies": {
       "@azure/core-asynciterator-polyfill": "^1.0.2",
-      "@eyepop.ai/eyepop": "1.18.1",
-      "@eyepop.ai/eyepop-render-2d": "1.18.1",
+      "@eyepop.ai/eyepop": "2.0.0",
+      "@eyepop.ai/eyepop-render-2d": "2.0.0",
       "@types/react-native-canvas": "^0.1.14",
       "buffer": "^6.0.3",
       "react": "^18.3.1",

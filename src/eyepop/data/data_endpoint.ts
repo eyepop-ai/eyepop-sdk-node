@@ -19,6 +19,7 @@ import {
     ExportedBy,
     Model,
     ModelCreate,
+    ModelFormat,
     ModelTrainingProgress,
     ModelUpdate,
     OnChangeEvent,
@@ -30,7 +31,6 @@ import {
     ListWorkFlowItem
 } from './data_types'
 import { Prediction } from '@eyepop.ai/eyepop'
-import { ModelFormat } from '../worker/worker_types'
 
 interface DataConfig {
     base_url: string
