@@ -1,4 +1,4 @@
-import { LocalAuth, SessionAuth } from '../options'
+import { LocalAuth } from '../options'
 import { EndpointState, Session } from '../types'
 import {
     AbstractJob,
@@ -12,11 +12,9 @@ import { Endpoint } from '../endpoint'
 import { TransientPopId, WorkerOptions } from '../worker/worker_options'
 import {
     FileSource,
-    ModelInstanceDef,
     PathSource,
     ResultStream,
     Source,
-    SourcesEntry,
     StreamSource,
     UrlSource,
     WorkerSession,
@@ -41,15 +39,11 @@ interface Pipeline {
     startTime: string
     state: string
     pop?: Pop
-    inferPipeline: string | null
-    modelRefs: ModelRef[] | null
-    postTransform: string | null
 }
 
 export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
     private _baseUrl: string | null
     private _pipelineId: string | null
-    private _sandboxId: string | null
 
     private _popName: string | null
 
@@ -62,16 +56,6 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         this._pipelineId = null
         this._popName = null
         this._pipeline = null
-
-        this._sandboxId = null
-        const sessionAuth: SessionAuth = options.auth as SessionAuth
-        if (sessionAuth !== undefined && sessionAuth.session !== undefined) {
-            const workerSession = sessionAuth.session as WorkerSession
-            if (workerSession.sandboxId) {
-                this._sandboxId = workerSession.sandboxId
-                this.options().isSandbox = true
-            }
-        }
     }
 
     private options(): WorkerOptions {
@@ -92,21 +76,6 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
                 const message = await response?.text()
                 this._logger.info(`stopping pipeline failed, status ${response?.status}: ${message}`)
             }
-        }
-        if (this._sandboxId && this._baseUrl) {
-            const sandboxUrl = `${this._baseUrl}/sandboxes/${this._sandboxId}`
-            const headers = {
-                Authorization: await this.authorizationHeader(),
-            }
-            let response = await this._client?.fetch(sandboxUrl, {
-                method: 'DELETE',
-                headers: headers,
-            })
-            if (response?.status != 204) {
-                const message = await response?.text()
-                this._logger.info(`disconnecting sandbox failed, status ${response?.status}: ${message}`)
-            }
-            this._sandboxId = null
         }
         return super.disconnect(wait)
     }
@@ -131,7 +100,6 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             popId: this.options().popId as string,
             baseUrl: this._baseUrl as string,
             pipelineId: this._pipelineId as string,
-            sandboxId: this._sandboxId ?? undefined,
             authenticationHeaders: () => this._authenticationHeaders(session),
         }
     }
@@ -178,100 +146,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
     }
 
     private _authenticationHeaders(session: Session): any {
-        return (this._options.auth as LocalAuth).isLocal !== undefined ? {} : { Authorization: `Bearer ${session.accessToken}` }
-    }
-
-    /**
-     * @deprecated use pop() instead
-     */
-    public popComp(): string | null {
-        if (this._pipeline) {
-            return this._pipeline.inferPipeline ?? null
-        } else {
-            return null
-        }
-    }
-
-    /**
-     * @deprecated use changePop() instead
-     */
-    public async changePopComp(popComp: string, modelRefs: ModelRef[] = []): Promise<void> {
-        const client = this._client
-        const baseUrl = this._baseUrl
-        if (!baseUrl || !client) {
-            return Promise.reject('endpoint not connected, use connect()')
-        }
-
-        const body = {
-            pipeline: popComp,
-            modelRefs: modelRefs,
-        }
-        let response = await this.fetchWithRetry(async () => {
-            const session = await this.session()
-            let headers = {
-                ...this._authenticationHeaders(session),
-                'Content-Type': 'application/json',
-            }
-            const patch_url = `${session.baseUrl}/pipelines/${session.pipelineId}/inferencePipeline`
-            return client.fetch(patch_url, {
-                method: 'PATCH',
-                body: JSON.stringify(body),
-                headers: headers,
-            })
-        })
-        if (response.status != 204) {
-            const message = await response.text()
-            return Promise.reject(`Unexpected status ${response.status}: ${message}`)
-        }
-        if (this._pipeline) {
-            this._pipeline.inferPipeline = popComp
-            this._pipeline.modelRefs = modelRefs
-        }
-    }
-
-    /**
-     * @deprecated use pop() instead
-     */
-    public postTransform(): string | null {
-        if (this._pipeline) {
-            return this._pipeline.postTransform
-        } else {
-            return null
-        }
-    }
-
-    /**
-     * @deprecated use changePop() instead
-     */
-    public async changePostTransform(postTransform: string | null): Promise<void> {
-        const client = this._client
-        const baseUrl = this._baseUrl
-        if (!baseUrl || !client) {
-            return Promise.reject('endpoint not connected, use connect()')
-        }
-        const body = {
-            transform: postTransform,
-        }
-        let response = await this.fetchWithRetry(async () => {
-            const session = await this.session()
-            let headers = {
-                ...this._authenticationHeaders(session),
-                'Content-Type': 'application/json',
-            }
-            const patch_url = `${session.baseUrl}/pipelines/${session.pipelineId}/postTransform`
-            return client.fetch(patch_url, {
-                method: 'PATCH',
-                body: JSON.stringify(body),
-                headers: headers,
-            })
-        })
-        if (response.status != 204) {
-            const message = await response.text()
-            return Promise.reject(`Unexpected status ${response.status}: ${message}`)
-        }
-        if (this._pipeline) {
-            this._pipeline.postTransform = postTransform
-        }
+        return (this._options.auth as LocalAuth).isLocal !== undefined ? {} : {Authorization: `Bearer ${session.accessToken}`}
     }
 
     public popId(): string | null {
@@ -440,7 +315,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         }
     }
 
-        private async loadFromAssetUuid(source: AssetUuidSource, params: ComponentParams[] | undefined): Promise<ResultStream> {
+    private async loadFromAssetUuid(source: AssetUuidSource, params: ComponentParams[] | undefined): Promise<ResultStream> {
         if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
             throw new Error('endpoint not connected, use connect()')
         }
@@ -529,7 +404,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             Authorization: await this.authorizationHeader(),
         }
         this.updateState(EndpointState.FetchConfig)
-        let response = await this._client.fetch(config_url, { headers: headers })
+        let response = await this._client.fetch(config_url, {headers: headers})
         if (response.status == 401) {
             this._requestLogger.debug('GET %s: 401, about to retry with fresh access token', config_url)
             // one retry, the token might have just expired
@@ -576,28 +451,6 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
 
         if (this._baseUrl) {
             this._baseUrl = this._baseUrl.replace(/\/+$/, '')
-            // create a sandbox if needed
-            if (this.options().isSandbox && this._sandboxId === null) {
-                const headers = {
-                    Authorization: await this.authorizationHeader(),
-                }
-                const createSandboxUrl = `${this._baseUrl}/sandboxes`
-                const response = await this._client.fetch(createSandboxUrl, {
-                    method: 'POST',
-                    headers: headers,
-                })
-
-                if (!response.ok) {
-                    const message = await response.text()
-                    return Promise.reject(`Unexpected status ${response.status}: ${message}`)
-                }
-
-                const responseJson = await response.json()
-
-                if (responseJson) {
-                    this._sandboxId = responseJson
-                }
-            }
             if (this.options().popId == TransientPopId.Transient) {
                 this._pipelineId = await this.startTransientPipeline()
                 this._popName = this.options().popId || null
@@ -625,7 +478,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             this._pipeline = (await response.json()) as Pipeline
 
             if (this.options().stopJobs) {
-                const body = { sourceType: 'NONE' }
+                const body = {sourceType: 'NONE'}
                 const headers = {
                     Authorization: await this.authorizationHeader(),
                     "Content-Type": "application/json"
@@ -650,7 +503,6 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
     private async startTransientPipeline(): Promise<string> {
         const client = this._client
         const baseUrl = this._baseUrl
-        const sandboxId = this._sandboxId
 
         if (client == null || baseUrl == null) {
             return Promise.reject('endpoint not initialized')
@@ -675,12 +527,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             videoOutput: 'no_output',
         }
 
-        let post_url: string
-        if (sandboxId) {
-            post_url = `${baseUrl.replace(/\/+$/, '')}/pipelines?sandboxId=${sandboxId}`
-        } else {
-            post_url = `${baseUrl.replace(/\/+$/, '')}/pipelines`
-        }
+        const post_url = `${baseUrl.replace(/\/+$/, '')}/pipelines`
 
         let response = await this.fetchWithRetry(async () => {
             let headers = {
@@ -699,153 +546,5 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         }
         const result = await response.json()
         return result['id']
-    }
-
-    public async manifest(): Promise<SourcesEntry[]> {
-        this._logger.warn('getManifest for development use only')
-        const client = this._client
-        const baseUrl = this._baseUrl
-        if (!baseUrl || !client) {
-            return Promise.reject('endpoint not connected, use connect()')
-        }
-        let get_path: string
-        if (this._sandboxId === null) {
-            get_path = `${baseUrl}/models/sources`
-        } else {
-            get_path = `${baseUrl}/models/sources?sandboxId=${this._sandboxId}`
-        }
-        let response = await this.fetchWithRetry(async () => {
-            const session = await this.session()
-            let headers = {
-                ...this._authenticationHeaders(session),
-                'Content-Type': 'application/json',
-            }
-            return client.fetch(get_path, { headers: headers })
-        })
-        if (!response.ok) {
-            const message = await response.text()
-            return Promise.reject(`Unexpected status ${response.status}: ${message}`)
-        }
-        return (await response.json()) as SourcesEntry[]
-    }
-
-    public async models(): Promise<ModelInstanceDef[]> {
-        this._logger.warn('listModels for development use only')
-        const client = this._client
-        const baseUrl = this._baseUrl
-        if (!baseUrl || !client) {
-            return Promise.reject('endpoint not connected, use connect()')
-        }
-        let get_path: string
-        if (this._sandboxId === null) {
-            get_path = `${baseUrl}/models/instances`
-        } else {
-            get_path = `${baseUrl}/models/instances?sandboxId=${this._sandboxId}`
-        }
-        let response = await this.fetchWithRetry(async () => {
-            const session = await this.session()
-            let headers = {
-                ...this._authenticationHeaders(session),
-                'Content-Type': 'application/json',
-            }
-            return client.fetch(get_path, { headers: headers })
-        })
-        if (!response.ok) {
-            const message = await response.text()
-            return Promise.reject(`Unexpected status ${response.status}: ${message}`)
-        }
-        const result = (await response.json()) as ModelInstanceDef[]
-        return result
-    }
-
-    public async changeManifest(manifests: SourcesEntry[]): Promise<void> {
-        this._logger.warn('setManifest for development use only')
-        const client = this._client
-        const baseUrl = this._baseUrl
-        if (!baseUrl || !client) {
-            return Promise.reject('endpoint not connected, use connect()')
-        }
-        let put_url: string
-        if (this._sandboxId === null) {
-            put_url = `${baseUrl}/models/sources`
-        } else {
-            put_url = `${baseUrl}/models/sources?sandboxId=${this._sandboxId}`
-        }
-        let response = await this.fetchWithRetry(async () => {
-            const session = await this.session()
-            let headers = {
-                ...this._authenticationHeaders(session),
-                'Content-Type': 'application/json',
-            }
-            return client.fetch(put_url, {
-                method: 'PUT',
-                body: JSON.stringify(manifests),
-                headers: headers,
-            })
-        })
-        if (!response.ok) {
-            const message = await response.text()
-            return Promise.reject(`Unexpected status ${response.status}: ${message}`)
-        }
-    }
-
-    public async loadModel(model: ModelInstanceDef): Promise<ModelInstanceDef> {
-        this._logger.warn('loadModel for development use only')
-        const client = this._client
-        const baseUrl = this._baseUrl
-        if (!baseUrl || !client) {
-            return Promise.reject('endpoint not connected, use connect()')
-        }
-        let post_url: string
-        if (this._sandboxId === null) {
-            post_url = `${baseUrl}/models/instances`
-        } else {
-            post_url = `${baseUrl}/models/instances?sandboxId=${this._sandboxId}`
-        }
-        let response = await this.fetchWithRetry(async () => {
-            const session = await this.session()
-            let headers = {
-                ...this._authenticationHeaders(session),
-                'Content-Type': 'application/json',
-            }
-            return client.fetch(post_url, {
-                method: 'POST',
-                body: JSON.stringify(model),
-                headers: headers,
-            })
-        })
-
-        if (!response.ok) {
-            const message = await response.text()
-            return Promise.reject(`Unexpected status ${response.status}: ${message}`)
-        }
-        return (await response.json()) as ModelInstanceDef
-    }
-
-    public async unloadModel(modelId: string): Promise<void> {
-        this._logger.warn('purgeModel for development use only')
-        const client = this._client
-        const baseUrl = this._baseUrl
-        if (!baseUrl || !client) {
-            return Promise.reject('endpoint not connected, use connect()')
-        }
-        let delete_url: string
-        if (this._sandboxId === null) {
-            delete_url = `${baseUrl}/models/instances/${modelId}`
-        } else {
-            delete_url = `${baseUrl}/models/instances/${modelId}?sandboxId=${this._sandboxId}`
-        }
-        let response = await this.fetchWithRetry(async () => {
-            const session = await this.session()
-            let headers = {
-                ...this._authenticationHeaders(session),
-                'Content-Type': 'application/json',
-            }
-            return client.fetch(delete_url, { method: 'DELETE', headers: headers })
-        })
-        if (!response.ok) {
-            const message = await response.text()
-            return Promise.reject(`Unexpected status ${response.status}: ${message}`)
-        }
     }
 }

@@ -1,5 +1,4 @@
 import { Prediction, Session } from '../types'
-import { ModelFormat } from '../worker/worker_types'
 
 export interface DataSession extends Session {
     readonly accountId: string
@@ -330,4 +329,23 @@ export enum WorkflowPhase {
     succeeded = "Succeeded",
     failed = "Failed",
     error = "Error",
+}
+
+export enum ModelFormat {
+    TensorFlowLite = 'TensorFlowLite',
+    TensorFlowGraphDef = 'TensorFlowGraphDef',
+    ONNX = 'ONNX',
+    TorchScript = 'TorchScript',
+    TorchScriptCpu = 'TorchScriptCpu',
+    TorchScriptCuda = 'TorchScriptCuda',
+    PyTorch = 'PyTorch',
+    ModelLess = 'ModelLess'
+}
+
+export enum ModelPrecisionType {
+    float32 = 'float32',
+    float16 = 'float16',
+    int32 = 'int32',
+    int8 = 'int8',
+    uint8 = 'uint8',
 }

@@ -37,7 +37,6 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
                 popId: workerOptions.popId,
                 baseUrl: undefined,
                 pipelineId: undefined,
-                sandboxId: undefined,
                 authenticationHeaders: () => {
                     return { Authorization: `Bearer ${accessToken}` }
                 }
