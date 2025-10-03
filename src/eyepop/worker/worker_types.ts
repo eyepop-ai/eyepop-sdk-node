@@ -119,6 +119,7 @@ export interface TracingComponent extends BaseComponent {
     maxAgeSeconds?: number
     iouThreshold?: number
     simThreshold?: number
+    agnostic?: boolean
 }
 
 export enum ContourType {
