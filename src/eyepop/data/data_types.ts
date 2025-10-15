@@ -45,6 +45,7 @@ export interface Dataset {
     modifiable_version?: number
     versions: DatasetVersion[]
     parent?: DatasetParent
+    searchable: boolean
 }
 
 export interface DatasetCreate {
@@ -62,6 +63,7 @@ export interface DatasetUpdate {
     tags?: string[]
     auto_annotates?: string[]
     auto_annotate_params?: AutoAnnotateParams
+    searchable?: boolean
 }
 
 export interface DatasetHeroAssetUpdate {
