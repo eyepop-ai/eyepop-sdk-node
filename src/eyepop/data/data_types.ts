@@ -45,6 +45,7 @@ export interface Dataset {
     modifiable_version?: number
     versions: DatasetVersion[]
     parent?: DatasetParent
+    searchable: boolean
 }
 
 export interface DatasetCreate {
@@ -53,6 +54,7 @@ export interface DatasetCreate {
     tags?: string[]
     auto_annotates?: string[]
     auto_annotate_params?: AutoAnnotateParams
+    searchable?: boolean
 }
 
 export interface DatasetUpdate {
@@ -61,6 +63,7 @@ export interface DatasetUpdate {
     tags?: string[]
     auto_annotates?: string[]
     auto_annotate_params?: AutoAnnotateParams
+    searchable?: boolean
 }
 
 export interface DatasetHeroAssetUpdate {
@@ -100,13 +103,13 @@ export interface AutoAnnotatePrompt {
 
 export enum AutoAnnotateTask {
     object_detection = 'object_detection',
-    image_classification = 'image_classification'
+    image_classification = 'image_classification',
 }
 
 export interface AutoAnnotateParams {
     /**
-    * @deprecated use prompts instead
-    */
+     * @deprecated use prompts instead
+     */
     candidate_labels?: string[]
     prompts?: AutoAnnotatePrompt[]
     task?: AutoAnnotateTask
@@ -155,7 +158,7 @@ export enum ModelType {
 
 export enum ModelTask {
     object_detection = 'object_detection',
-    image_classification = 'image_classification'
+    image_classification = 'image_classification',
 }
 
 export enum ModelStatus {
@@ -323,12 +326,12 @@ export interface ListWorkFlowItem {
 }
 
 export enum WorkflowPhase {
-    unknown = "Unknown",
-    pending = "Pending",
-    running = "Running",
-    succeeded = "Succeeded",
-    failed = "Failed",
-    error = "Error",
+    unknown = 'Unknown',
+    pending = 'Pending',
+    running = 'Running',
+    succeeded = 'Succeeded',
+    failed = 'Failed',
+    error = 'Error',
 }
 
 export enum ModelFormat {
@@ -339,7 +342,7 @@ export enum ModelFormat {
     TorchScriptCpu = 'TorchScriptCpu',
     TorchScriptCuda = 'TorchScriptCuda',
     PyTorch = 'PyTorch',
-    ModelLess = 'ModelLess'
+    ModelLess = 'ModelLess',
 }
 
 export enum ModelPrecisionType {
