@@ -1,7 +1,14 @@
 import { Prediction } from '../types'
 import {Stream, StreamEvent, readableStreamFromString} from '../streaming'
 import {Logger} from 'pino'
-import { ComponentParams, ResultStream, VideoMode, WorkerSession } from '../worker/worker_types'
+import {
+    ComponentParams,
+    DEFAULT_PREDICTION_VERSION,
+    PredictionVersion,
+    ResultStream,
+    VideoMode,
+    WorkerSession
+} from '../worker/worker_types'
 import { HttpClient } from '../options'
 import {WebrtcWhip} from "EyePop/worker/webrtc_whip";
 
@@ -17,6 +24,8 @@ export class AbstractJob implements ResultStream {
 
     protected _requestLogger: Logger;
 
+    protected _version: PredictionVersion;
+
     [Symbol.asyncIterator](): AsyncIterator<Prediction> {
         if (!this._responseStream) {
             throw Error('logical bug')
@@ -26,11 +35,17 @@ export class AbstractJob implements ResultStream {
         })
     }
 
-    protected constructor(params: ComponentParams[] | undefined, getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger) {
+    protected constructor(
+        params: ComponentParams[] | undefined,
+        getSession: () => Promise<WorkerSession>,
+        client: HttpClient, requestLogger: Logger,
+        version: PredictionVersion = DEFAULT_PREDICTION_VERSION
+    ) {
         this._getSession = getSession
         this._params = params ?? null
         this._client = client
         this._requestLogger = requestLogger
+        this._version = version
     }
 
     protected async startJob(): Promise<Response> {
@@ -140,7 +155,8 @@ export class UploadJob extends AbstractJob {
             }
             let request
             const videoModeQuery = this._videoMode ? `&videoMode=${this._videoMode}` : ''
-            const postUrl: string = `${session.baseUrl.replace(/\/+$/, '')}/pipelines/${session.pipelineId}/source?mode=queue&processing=async&sourceId=${event.source_id}${videoModeQuery}`
+            const versionQuery = this._version ? `&version=${this._version}` : ''
+            const postUrl: string = `${session.baseUrl.replace(/\/+$/, '')}/pipelines/${session.pipelineId}/source?mode=queue&processing=async&sourceId=${event.source_id}${videoModeQuery}${versionQuery}`
             if (this._params) {
                 const params = JSON.stringify(this._params)
                 const paramBlob = new Blob([params], { type: 'application/json' })
@@ -216,7 +232,8 @@ export class UploadJob extends AbstractJob {
             })
         } else {
             const videoModeQuery = this._videoMode ? `&videoMode=${this._videoMode}` : ''
-            const postUrl: string = `${session.baseUrl.replace(/\/+$/, '')}/pipelines/${session.pipelineId}/source?mode=queue&processing=sync${videoModeQuery}`
+            const versionQuery = this._version ? `&version=${this._version}` : ''
+            const postUrl: string = `${session.baseUrl.replace(/\/+$/, '')}/pipelines/${session.pipelineId}/source?mode=queue&processing=sync${videoModeQuery}${versionQuery}`
             if (this._params) {
                 const params = JSON.stringify(this._params)
                 const paramBlob = new Blob([params], { type: 'application/json' })
@@ -282,6 +299,7 @@ export class LoadFromJob extends AbstractJob {
             sourceType: 'URL',
             url: this._location,
             params: this._params,
+            version: this._version,
         }
         const headers = {
             ...session.authenticationHeaders(),
@@ -321,6 +339,7 @@ export class LoadFromAssetUuidJob extends AbstractJob {
             sourceType: 'ASSET_UUID',
             assetUuid: this._assetUuid,
             params: this._params,
+            version: this._version,
         }
         const headers = {
             ...session.authenticationHeaders(),
@@ -360,6 +379,7 @@ export class LoadLiveIngressJob extends AbstractJob {
             sourceType: 'LIVE_INGRESS',
             liveIngressId: this._ingressId,
             params: this._params,
+            version: this._version,
         }
         const headers = {
             ...session.authenticationHeaders(),
@@ -416,6 +436,7 @@ export class LoadMediaStreamJob extends AbstractJob {
             sourceType: 'WHIP',
             whipIngressId: whip.ingressId(),
             params: this._params,
+            version: this._version,
         }
         const headers = {
             ...session.authenticationHeaders(),

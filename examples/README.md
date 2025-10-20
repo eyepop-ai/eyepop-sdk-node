@@ -5,17 +5,16 @@
 In project root:
 
 ```shell
-export EYEPOP_POP_ID=<your pop id>
-```
-
-```shell
 export EYEPOP_SECRET_KEY=<your api key>
 ```
 
 ## In Node
 
 ```shell
-npx tsx examples/node/upload_image.ts examples/example.jpg
+npx tsx examples/node/pop_demo.ts \
+  --pop person \
+  --output \
+  --localPath examples/example.jpg
 ```
 
 ## With Webpack

@@ -77,7 +77,9 @@ export {
     StreamSource,
     ResultStream,
     VideoMode,
-    ComponentParams
+    ComponentParams,
+    PredictionVersion,
+    DEFAULT_PREDICTION_VERSION
 } from './worker/worker_types'
 
 export { Options, Authentication, SessionAuth, SecretKeyAuth, OAuth2Auth, Auth0Options, HttpClient, PlatformSupport, LocalAuth } from './options'

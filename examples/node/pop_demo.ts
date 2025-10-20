@@ -18,6 +18,7 @@ import { pino } from "pino";
 
 import { parseArgs } from 'node:util';
 import process from "process";
+import {BaseComponent, TrackingComponent} from "EyePop/worker/worker_types";
 
 const POP_EXAMPLES = {
   "person": { components: [{
@@ -282,6 +283,26 @@ const { positionals, values } = parseArgs({
       type: "string",
       default: ""
     },
+    tracking: {
+      type: "boolean",
+      default: false
+    },
+    trackingReidModel: {
+      type: "string"
+    },
+    trackingAgnostic: {
+      type: "boolean",
+      default: false
+    },
+    trackingMaxAge: {
+      type: "string",
+    },
+    trackingIoUThreshold: {
+      type: "string",
+    },
+    trackingSimThreshold: {
+      type: "string",
+    },
     help: {
       type: "boolean",
       short: "h",
@@ -311,6 +332,12 @@ function printHelpAndExit(message?: string, exitCode: number = -1) {
         "\n\t--prompt text prompt to pass as parameter" +
         "\n\t--top-k for --model-uuid and -model-alias apply this top-k filter" +
         "\n\t--confidence-threshold for --model-uuid and -model-alias apply this confidence threshold filter" +
+        "\n\t--tracking to track objects in videos" +
+        "\n\t--trackingReidModel=[uuid] Use re-id model uuid for tracking" +
+        "\n\t--trackingAgnostic Track objects class-agnostic" +
+        "\n\t--trackingMaxAge=[secs] Max age in seconds for unmatched tracks" +
+        "\n\t--trackingIoUThreshold=[threshold 0...1] IoU threshold to match tracks" +
+        "\n\t--trackingSimThreshold=[threshold 0...1] Similarity threshold to match tracks by re-id" +
         "\n\t-v --visualize to visualize the result" +
         "\n\t-o --output to print the result to stdout" +
         "\n\t-h --help to print this help message")
@@ -353,11 +380,29 @@ function list_of_boxes(arg: string) {
   }
   let pop;
 
-  const topK = (parameters.topK.length? parseInt(parameters.topK): undefined)
-  const confidenceThreshold = (parameters.confidenceThreshold.length? parseFloat(parameters.confidenceThreshold): undefined)
+  const topK = (parameters.topK && parameters.topK.length? parseInt(parameters.topK): undefined)
+  const confidenceThreshold = (parameters.confidenceThreshold && parameters.confidenceThreshold.length? parseFloat(parameters.confidenceThreshold): undefined)
   const ability = parameters.ability? parameters.ability: (parameters.model? parameters.model: undefined)
   const abilityUuid = parameters.abilityUuid? parameters.abilityUuid: (parameters.modelUuid? parameters.modelUuid: undefined)
-
+  let trackingComponent: TrackingComponent | undefined = undefined
+  if (parameters.tracking) {
+    trackingComponent = {
+        type: PopComponentType.TRACKING,
+        agnostic: parameters.trackingAgnostic? parameters.trackingAgnostic: false,
+    }
+    if (parameters.trackingMaxAge !== undefined) {
+        trackingComponent.maxAgeSeconds = parseFloat(parameters.trackingMaxAge)
+    }
+    if (parameters.trackingReidModel !== undefined) {
+        trackingComponent.reidModel = parameters.trackingReidModel
+    }
+    if (parameters.trackingIoUThreshold !== undefined) {
+        trackingComponent.iouThreshold = parseFloat(parameters.trackingIoUThreshold)
+    }
+    if (parameters.trackingSimThreshold !== undefined) {
+        trackingComponent.simThreshold = parseFloat(parameters.trackingSimThreshold)
+    }
+  }
   if (ability || abilityUuid) {
     if (parameters.sam1) {
       pop = {components: [{
@@ -428,6 +473,14 @@ function list_of_boxes(arg: string) {
         topK: topK,
         confidenceThreshold: confidenceThreshold,
       }]}
+      if (trackingComponent) {
+          (pop.components[0] as BaseComponent).forward = {
+            operator: {
+              type: ForwardOperatorType.CROP,
+            },
+            targets: [trackingComponent]
+        }
+      }
     }
   } else if (parameters.pop) {
     if (POP_EXAMPLES.hasOwnProperty(parameters.pop)) {
@@ -439,22 +492,28 @@ function list_of_boxes(arg: string) {
   } else {
     printHelpAndExit("required: --modelUuid --abilityUuid or --model or --ability or --pop");
   }
-  console.log(pop)
+  console.log(JSON.stringify(pop, undefined, 2))
   let example_input;
   let image = null;
   if (parameters.url) {
-    image = await loadImage(parameters.url);
+    if (parameters.visualize) {
+        image = await loadImage(parameters.url);
+    }
     example_input = {url: parameters.url};
   } else if (parameters.localPath) {
-    image = await loadImage(parameters.localPath);
+    if (parameters.visualize) {
+      image = await loadImage(parameters.localPath);
+    }
     example_input = {path: parameters.localPath};
   } else if (parameters.assetUuid) {
-    const dataEndpoint = await EyePop.dataEndpoint().connect();
-    try {
-      const imageBlob = await dataEndpoint.downloadAsset(parameters.assetUuid);
-      image = await loadImage(Buffer.from(await imageBlob.arrayBuffer()));
-    } finally {
-      await dataEndpoint.disconnect();
+    if (parameters.visualize) {
+        const dataEndpoint = await EyePop.dataEndpoint().connect();
+        try {
+            const imageBlob = await dataEndpoint.downloadAsset(parameters.assetUuid);
+            image = await loadImage(Buffer.from(await imageBlob.arrayBuffer()));
+        } finally {
+            await dataEndpoint.disconnect();
+        }
     }
     example_input = {assetUuid: parameters.assetUuid};
   } else {
@@ -490,8 +549,8 @@ function list_of_boxes(arg: string) {
     }]
   }
 
-  const canvas = createCanvas(image.width, image.height);
-  const context = canvas.getContext("2d");
+  const canvas = image? createCanvas(image.width, image.height): undefined;
+  const context = canvas? canvas.getContext("2d"): undefined;
 
   const endpoint = await EyePop.workerEndpoint({
     logger: logger,
@@ -507,17 +566,19 @@ function list_of_boxes(arg: string) {
       if (parameters.output) {
         console.info(JSON.stringify(result, undefined, 2));
       }
-      canvas.width = result.source_width;
-      canvas.height = result.source_height;
-      context.drawImage(image, 0, 0);
-      Render2d.renderer(context, [
-        Render2d.renderPose(),
-        Render2d.renderText(),
-        Render2d.renderContour(),
-        Render2d.renderBox()
-      ]).draw(result);
+      if (parameters.visualize && canvas && context && image) {
+        canvas.width = result.source_width;
+        canvas.height = result.source_height;
+        context.drawImage(image, 0, 0);
+        Render2d.renderer(context, [
+            Render2d.renderPose(),
+            Render2d.renderText(),
+            Render2d.renderContour(),
+            Render2d.renderBox()
+        ]).draw(result);
+      }
     }
-    if (parameters.visualize) {
+    if (parameters.visualize && canvas) {
       const tmp_dir = mkdtempSync(join(tmpdir(), "ep-demo-"));
       const temp_file = join(tmp_dir, "out.png");
       logger.info(`creating temp file: %s`, temp_file);

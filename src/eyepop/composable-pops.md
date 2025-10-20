@@ -40,7 +40,7 @@ Supported **component types**:
 
 -   **`forward`**
 -   **`inference`**
--   **`tracing`**
+-   **`tracking`**
 -   **`contour_finder`**
 -   **`component_finder`**
 
@@ -179,9 +179,9 @@ Supported attributes to control forwarding:
 -   `operator.crop.boxPadding` expand the bounding by this factor
 -   `operator.crop.orientationTargetAngle` rotate the box to this target angle in degrees
 
-### Component Type: tracing
+### Component Type: tracking
 
-The `tracing` component performs object tracing for video media. It i.e. attempts to re-identify detected objects in subsequent frames by its trajectory and similarity. Traced objects have the same `traceId` in the meta data of subsequent frames. Example:
+The `tracking` component performs object tracging for video media. It i.e. attempts to re-identify detected objects in subsequent frames by its trajectory and similarity. Tracked objects have the same `trackId` in the meta data of subsequent frames. Example:
 
 ```json
 {
@@ -198,7 +198,7 @@ The `tracing` component performs object tracing for video media. It i.e. attempt
                 },
                 "targets": [
                     {
-                        "type": "tracing",
+                        "type": "tracking",
                         "reidModelUuid": "066ae8d0204774aa8000b3622e509d40"
                     }
                 ]
@@ -208,9 +208,9 @@ The `tracing` component performs object tracing for video media. It i.e. attempt
 }
 ```
 
-Supported attributes to control tracing:
+Supported attributes to control tracking:
 
--   `reidModelUuid` optional REid model to calculate similarity. If omitted, tracing only used trajectory.&#x20;
+-   `reidModelUuid` optional REid model to calculate similarity. If omitted, tracking only used trajectory.&#x20;
 -   `maxAgeSeconds` maximum time to keep traces without being matched to an object. This does not limit the temporal length of traces in general, just how long the tracer keeps them if unmatched.
 -   `simThreshold` the minimum similarity for objects to be matched to an active trace.
 -   `iouThreshold` the minimum iuo factor for an object in a frame to be be matched to the projected position of an active trace in this frame if not matched by similarity yet.

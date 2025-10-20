@@ -1,5 +1,12 @@
 import { Prediction, Session } from '../types'
 
+export enum PredictionVersion {
+    V1 = 1,
+    V2 = 2
+}
+
+export const DEFAULT_PREDICTION_VERSION: PredictionVersion = PredictionVersion.V2
+
 export interface WorkerSession extends Session {
     readonly popId: string
     readonly baseUrl: string | undefined
@@ -54,7 +61,10 @@ export interface ResultStream extends AsyncIterable<Prediction> {
 export enum PopComponentType {
     FORWARD = 'forward',
     INFERENCE = 'inference',
+    // backward compatibility, for serialized pops < 3.0.0
     TRACING = 'tracing',
+    // since 3.0.0
+    TRACKING = 'tracking',
     CONTOUR_FINDER = 'contour_finder',
     COMPONENT_FINDER = 'component_finder',
 }
@@ -113,7 +123,7 @@ export interface InferenceComponent extends BaseComponent {
     targetFps?: string
     params?: {[index: string]: any}
 }
-export interface TracingComponent extends BaseComponent {
+export interface TrackingComponent extends BaseComponent {
     reidModelUuid?: string
     reidModel?: string
     maxAgeSeconds?: number
@@ -144,7 +154,7 @@ export interface ComponentFinderComponent extends BaseComponent {
     componentClassLabel?: string
 }
 
-export type PopComponent = ForwardComponent | InferenceComponent | TracingComponent | ContourFinderComponent | ComponentFinderComponent
+export type PopComponent = ForwardComponent | InferenceComponent | TrackingComponent | ContourFinderComponent | ComponentFinderComponent
 
 export interface Pop {
     components: PopComponent[]
