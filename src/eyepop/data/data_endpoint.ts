@@ -629,13 +629,22 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
 
     private async dispatchChangeEvent(change_event: ChangeEvent): Promise<void> {
         switch (change_event.change_type) {
+            // account event types
             case ChangeType.dataset_added:
             case ChangeType.dataset_modified:
             case ChangeType.dataset_removed:
             case ChangeType.dataset_version_modified:
+            case ChangeType.workflow_started:
+            case ChangeType.workflow_succeeded:
+            case ChangeType.workflow_failed:
+            case ChangeType.workflow_task_started:
+            case ChangeType.workflow_task_succeeded:
+            case ChangeType.workflow_task_failed:
+                 this._logger.debug('dispatchChangeEvent account_event_handlers=%s', this._account_event_handlers)
                 for (let handler of this._account_event_handlers) {
                     await handler(change_event)
                 }
+            // dataset event types
             case ChangeType.asset_added:
             case ChangeType.asset_removed:
             case ChangeType.asset_status_modified:
