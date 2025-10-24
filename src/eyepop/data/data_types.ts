@@ -280,7 +280,14 @@ export enum ChangeType {
     model_status_modified = 'model_status_modified',
     model_progress = 'model_progress',
     events_lost = 'events_lost',
+    workflow_started = 'workflow_started',
+    workflow_succeeded = 'workflow_succeeded',
+    workflow_failed = 'workflow_failed',
+    workflow_task_started = 'workflow_task_started',
+    workflow_task_succeeded = 'workflow_task_succeeded',
+    workflow_task_failed = 'workflow_task_failed',
 }
+
 
 export interface ChangeEvent {
     change_type: ChangeType
@@ -289,6 +296,8 @@ export interface ChangeEvent {
     dataset_version?: number
     asset_uuid?: string
     mdl_uuid?: string
+    message?: string
+    workflow_task_name?: string
 }
 
 export type OnChangeEvent = (event: ChangeEvent) => Promise<void>
