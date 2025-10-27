@@ -123,7 +123,7 @@ export namespace EyePop {
         if (opts.isLocalMode === undefined) {
             opts.isLocalMode = stringToBooleanSafe(readEnv('EYEPOP_LOCAL_MODE'))
         }
-        _fill_default_options(opts, opts.isLocalMode ? 'http://127.0.0.1:8080/standalone' : undefined)
+        _fill_default_options(opts, opts.isLocalMode ? 'http://127.0.0.1:8080' : undefined)
         if (opts.auth === undefined) {
             if (opts.isLocalMode) {
                 opts.auth = { isLocal: true } as LocalAuth
