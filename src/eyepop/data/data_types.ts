@@ -159,6 +159,7 @@ export enum ModelType {
 export enum ModelTask {
     object_detection = 'object_detection',
     image_classification = 'image_classification',
+    keypoint_detection = 'keypoint_detection'
 }
 
 export enum ModelStatus {
