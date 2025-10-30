@@ -129,6 +129,7 @@ export interface Annotation {
 
 export enum TranscodeMode {
     original = 'original',
+    video_original_size = 'video_original_size',
     image_original_size = 'image_original_size',
     image_fit_1024 = 'image_fit_1024',
     image_fit_640 = 'image_fit_640',
@@ -143,13 +144,17 @@ export interface Asset {
     external_id?: string
     mime_type: string
     file_size_bytes: number
+    original_image_width?: number
+    original_image_height?: number
+    original_duration?: number
+    original_frames?: number
     status: AssetStatus
     created_at: Date
     updated_at: Date
-    annotations: Annotation[]
     partition?: string
     review_priority?: number
     model_relevance?: number
+    annotations: Annotation[]
 }
 
 export enum ModelType {
