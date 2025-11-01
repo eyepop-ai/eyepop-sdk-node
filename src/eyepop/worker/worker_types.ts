@@ -123,6 +123,13 @@ export interface InferenceComponent extends BaseComponent {
     targetFps?: string
     params?: {[index: string]: any}
 }
+
+export enum MotionModel {
+    RANDOM_WALK = "random_walk",
+    CONSTANT_VELOCITY = "constant_velocity",
+    CONSTANT_ACCELERATION = "constant_acceleration",
+}
+
 export interface TrackingComponent extends BaseComponent {
     reidModelUuid?: string
     reidModel?: string
@@ -130,6 +137,17 @@ export interface TrackingComponent extends BaseComponent {
     iouThreshold?: number
     simThreshold?: number
     agnostic?: boolean
+    processNoisePosition?: number
+    processNoiseVelocity?: number
+    processNoiseAcceleration?: number
+    processNoiseScale?: number
+    processNoiseAspectRatio?: number
+    measurementNoiseCx?: number
+    measurementNoiseCy?: number
+    measurementNoiseArea?: number
+    measurementNoiseAspectRatio?: number
+    motionModel?: MotionModel
+    downweightLowConfidenceDetections?: boolean
 }
 
 export enum ContourType {
