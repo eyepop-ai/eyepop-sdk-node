@@ -18,7 +18,7 @@ import { pino } from "pino";
 
 import { parseArgs } from 'node:util';
 import process from "process";
-import {BaseComponent, TrackingComponent} from "EyePop/worker/worker_types";
+import { BaseComponent, MotionModel, TrackingComponent } from 'EyePop/worker/worker_types'
 
 const POP_EXAMPLES = {
   "person": { components: [{
@@ -303,6 +303,9 @@ const { positionals, values } = parseArgs({
     trackingSimThreshold: {
       type: "string",
     },
+    trackingMotionModel: {
+      type: "string",
+    },
     help: {
       type: "boolean",
       short: "h",
@@ -338,6 +341,7 @@ function printHelpAndExit(message?: string, exitCode: number = -1) {
         "\n\t--trackingMaxAge=[secs] Max age in seconds for unmatched tracks" +
         "\n\t--trackingIoUThreshold=[threshold 0...1] IoU threshold to match tracks" +
         "\n\t--trackingSimThreshold=[threshold 0...1] Similarity threshold to match tracks by re-id" +
+        "\n\t--trackingMotionModel=[random_walk|constant_velocity|constant_acceleration] specify which motion model to use in tracking" +
         "\n\t-v --visualize to visualize the result" +
         "\n\t-o --output to print the result to stdout" +
         "\n\t-h --help to print this help message")
@@ -401,6 +405,9 @@ function list_of_boxes(arg: string) {
     }
     if (parameters.trackingSimThreshold !== undefined) {
         trackingComponent.simThreshold = parseFloat(parameters.trackingSimThreshold)
+    }
+    if (parameters.trackingMotionModel !== undefined) {
+        trackingComponent.motionModel = MotionModel[parameters.trackingMotionModel as keyof typeof MotionModel]
     }
   }
   if (ability || abilityUuid) {
