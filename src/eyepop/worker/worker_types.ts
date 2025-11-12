@@ -120,6 +120,7 @@ export interface InferenceComponent extends BaseComponent {
     categoryName?: string
     confidenceThreshold?: number
     topK?: number
+    topKClasses?: number
     targetFps?: string
     params?: {[index: string]: any}
 }
