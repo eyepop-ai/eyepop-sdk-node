@@ -24,6 +24,7 @@ export interface StreamTime {
     offset?: number
 }
 export interface Prediction extends StreamTime {
+    captured_at?: number
     source_width: number
     source_height: number
     source_id?: string
