@@ -149,6 +149,12 @@ export interface TrackingComponent extends BaseComponent {
     measurementNoiseAspectRatio?: number
     motionModel?: MotionModel
     downweightLowConfidenceDetections?: boolean
+    classBeta?: number
+    classGamma?: number
+    classHysteresis?: boolean
+    classHysteresisHighThreshold?: number
+    classHysteresisLowThreshold?: number
+    classHysteresisMinHoldFrames?: number
 }
 
 export enum ContourType {
