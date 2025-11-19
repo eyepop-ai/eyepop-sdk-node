@@ -155,7 +155,7 @@ export interface TrackingComponent extends BaseComponent {
     classHysteresisHighThreshold?: number
     classHysteresisLowThreshold?: number
     classHysteresisMinHoldFrames?: number
-    includeClasses?: string[]
+    classHysteresisAllowedClasses?: string[]
 }
 
 export enum ContourType {
