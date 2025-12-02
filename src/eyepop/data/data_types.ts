@@ -124,7 +124,7 @@ export interface Annotation {
     auto_annotate?: string
     auto_annotate_params?: AutoAnnotateParams
     uncertainty_score?: number
-    annotation: Prediction
+    predictions: Prediction[]
 }
 
 export enum TranscodeMode {

@@ -19,13 +19,47 @@ export interface Box {
 }
 
 export interface StreamTime {
-    timestamp?: number
-    seconds?: number
-    offset?: number
+    /**
+     * Temporal offset of prediction from start of the media (video or audio) in nano seconds.
+     */
+    timestamp?: number;
+    /**
+     * Convenience, same vale as 'timestamp' just in seconds.
+     */
+    seconds?: number;
+    /**
+     * Temporal length of the chunk that was the source for this prediction in nano seconds.
+     */
+    duration?: number;
+    /**
+     * Real time when the media was captured as epoch timestamp in nano seconds.
+     *
+     * Only provided if source provides this timestamp e.g. as timestamp/x-ntp in RTSP.
+     */
+    captured_at?: number;
+    /**
+     * A media specific offset.
+     *
+     * For video frames, this is the frame number of prediction.
+     * For audio samples, this is the offset of the first sample for this prediction.
+     */
+    offset?: number;
+    /**
+     * Offset length of the chunk used for this prediction.
+     *
+     * It has the same format as offset.
+     */
+    offset_duration?: number;
 }
+
 export interface Prediction extends StreamTime {
-    captured_at?: number
+    /**
+     * The width of the source coordinate system for all prediction coordinates.
+     */
     source_width: number
+    /**
+     * The height of the source coordinate system for all prediction coordinates.
+     */
     source_height: number
     source_id?: string
     objects?: Array<PredictedObject>
