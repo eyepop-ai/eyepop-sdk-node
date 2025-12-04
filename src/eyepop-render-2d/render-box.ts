@@ -14,7 +14,7 @@ export type RenderBoxOptions = {
     showNestedClasses?: boolean // Whether to show nested classes, such as "person" + "necklace"
     showText?: boolean // Whether to show text labels
     showConfidence?: boolean // Whether to show confidence, such as "0.95"
-    showTraceId?: boolean // Whether to show trace ID, such as "132"
+    showTrackId?: boolean // Whether to show trace ID, such as "132"
     boxType?: BoxType // The style of the box bounds
 } & RenderTarget
 
@@ -26,17 +26,17 @@ export class RenderBox implements Render {
     private showClass: boolean
     private showNestedClasses: boolean
     private showConfidence: boolean
-    private showTraceId: boolean
+    private showTrackId: boolean
     private boxType?: BoxType
 
     constructor(options: Partial<RenderBoxOptions> = {}) {
-        const { showClass = true, showConfidence = false, showTraceId = false, showNestedClasses = false, target = '$..objects.*', boxType = BoxType.Rich } = options
+        const { showClass = true, showConfidence = false, showTrackId = false, showNestedClasses = false, target = '$..objects.*', boxType = BoxType.Rich } = options
 
         this.target = target
         this.showClass = showClass
         this.showNestedClasses = showNestedClasses
         this.showConfidence = showConfidence
-        this.showTraceId = showTraceId
+        this.showTrackId = showTrackId
         this.boxType = boxType
     }
 
@@ -155,8 +155,8 @@ export class RenderBox implements Render {
             }
         }
 
-        if (this.showTraceId && element.traceId) {
-            label = 'ID: ' + element.traceId
+        if (this.showTrackId && element.trackId) {
+            label = 'ID: ' + element.trackId
             label = RenderBox.toTitleCase(label)
             yOffset += this.drawLabel(label, context, element, yScale, xScale, yOffset, xOffset, style, boundingBoxWidth, padding, false, fontSize)
         }
@@ -232,8 +232,8 @@ export class RenderBox implements Render {
             }
         }
 
-        if (this.showTraceId && element.traceId) {
-            label = 'ID: ' + element.traceId
+        if (this.showTrackId && element.trackId) {
+            label = 'ID: ' + element.trackId
             label = RenderBox.toTitleCase(label)
             yOffset += this.drawLabel(label, context, element, yScale, xScale, yOffset, xOffset, style, boundingBoxWidth, padding, false, fontSize)
         }
@@ -340,8 +340,8 @@ export class RenderBox implements Render {
             }
         }
 
-        if (this.showTraceId && element.traceId) {
-            label = 'ID: ' + element.traceId
+        if (this.showTrackId && element.trackId) {
+            label = 'ID: ' + element.trackId
             label = RenderBox.toTitleCase(label)
             yOffset += this.drawLabel(label, context, element, yScale, xScale, yOffset, xOffset, style, boundingBoxWidth, padding, false, fontSize)
         }
@@ -501,8 +501,8 @@ export class RenderBox implements Render {
             }
         }
 
-        if (this.showTraceId && element.traceId) {
-            const label = `ID: ${element.traceId}`
+        if (this.showTrackId && element.trackId) {
+            const label = `ID: ${element.trackId}`
             const formattedLabel = `${RenderBox.toTitleCase(label)}`
             if (formattedLabel.length > largestLabel.length) {
                 largestLabel = formattedLabel

@@ -29,7 +29,7 @@ export class RenderTrail implements Render {
     private lastTrim: number
 
     constructor(options: Partial<RenderTrailOptions> = {}) {
-        const { target = '$..objects[?(@.traceId)]', trailLengthSeconds = 1, traceDetails } = options
+        const { target = '$..objects[?(@.trackId)]', trailLengthSeconds = 1, traceDetails } = options
         this.target = target
 
         this.trailLengthNanos = trailLengthSeconds * 1000 * 1000 * 1000
@@ -44,7 +44,7 @@ export class RenderTrail implements Render {
     }
 
     public draw(element: PredictedObject, xOffset: number, yOffset: number, xScale: number, yScale: number, streamTime: StreamTime): void {
-        if (!element.traceId || streamTime.timestamp === undefined) {
+        if (!element.trackId || streamTime.timestamp === undefined) {
             return
         }
         const context = this.context
@@ -85,9 +85,9 @@ export class RenderTrail implements Render {
         const head: TraceEntry = {
             points: points,
             timestamp: streamTime.timestamp,
-            next: this.traces.get(element.traceId) ?? null,
+            next: this.traces.get(element.trackId) ?? null,
         }
-        this.traces.set(element.traceId, head)
+        this.traces.set(element.trackId, head)
 
         const radius = (element.width * xScale) / 40
         let n = 0
@@ -103,11 +103,11 @@ export class RenderTrail implements Render {
         }
 
         if (streamTime.timestamp - this.lastTrim > TRIM_INTERVAL) {
-            this.traces.forEach((traceEntry: TraceEntry, traceId: number) => {
+            this.traces.forEach((traceEntry: TraceEntry, trackId: number) => {
                 // @ts-ignore
                 const age = streamTime.timestamp - traceEntry.timestamp
                 if (age > this.trailLengthNanos) {
-                    this.traces.delete(traceId)
+                    this.traces.delete(trackId)
                 }
             })
         }
