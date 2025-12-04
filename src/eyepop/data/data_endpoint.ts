@@ -28,7 +28,7 @@ import {
     UserReview,
     ArtifactType, CreateWorkflow, Workflow,
     WorkflowPhase,
-    ListWorkFlowItem
+    ListWorkFlowItem, DownloadResponse, AssetUrlType
 } from './data_types'
 import { Prediction } from '@eyepop.ai/eyepop'
 
@@ -449,10 +449,23 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         })
     }
 
-    async downloadAsset(asset_uuid: string, dataset_uuid?: string, dataset_version?: number, transcode_mode: TranscodeMode = TranscodeMode.original): Promise<Blob> {
+    async downloadAsset(
+        asset_uuid: string,
+        dataset_uuid?: string,
+        dataset_version?: number,
+        transcode_mode: TranscodeMode = TranscodeMode.original,
+        start_timestamp?: number,
+        end_timestamp?: number,
+        url_type?: AssetUrlType
+    ): Promise<Blob | DownloadResponse> {
         const versionQuery = dataset_version ? `&dataset_version=${dataset_version}` : ''
         const datasetQuery = dataset_uuid ? `&dataset_uuid=${dataset_uuid}` : ''
-        return this.request(`/assets/${asset_uuid}/download?${datasetQuery}${versionQuery}&transcode_mode=${transcode_mode}`, {
+        const startTimestampQuery = start_timestamp ? `&start_timestamp=${start_timestamp}`: ''
+        const endTimestampQuery = end_timestamp ? `&end_timestamp=${end_timestamp}`: ''
+        const urlTypeQuery = url_type ? `&url_type=${url_type}`: ''
+
+        return this.request(
+            `/assets/${asset_uuid}/download?transcode_mode=${transcode_mode}${datasetQuery}${versionQuery}${startTimestampQuery}${endTimestampQuery}${urlTypeQuery}`, {
             method: 'GET',
         })
     }

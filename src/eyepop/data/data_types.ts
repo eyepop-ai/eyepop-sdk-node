@@ -367,3 +367,14 @@ export enum ModelPrecisionType {
     int8 = 'int8',
     uint8 = 'uint8',
 }
+
+export enum  AssetUrlType {
+    gcs = 'gcs',
+    s3 = 's3',
+    https_signed = 'https_signed'
+}
+
+export interface DownloadResponse {
+    url: string
+    url_type: AssetUrlType
+}

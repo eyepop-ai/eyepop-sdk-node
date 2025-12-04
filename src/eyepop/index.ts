@@ -63,7 +63,9 @@ export {
     DatasetParent,
     CreateWorkflowConfig,
     CreateWorkflow,
-    Workflow
+    Workflow,
+    DownloadResponse,
+    AssetUrlType
 } from './data/data_types'
 
 export {
