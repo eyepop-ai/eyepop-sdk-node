@@ -95,7 +95,7 @@ export interface Mask {
 }
 
 export interface PredictedObject extends PredictedClass {
-    traceId: number | undefined
+    trackId: number | undefined
     x: number
     y: number
     width: number
