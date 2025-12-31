@@ -65,7 +65,11 @@ export {
     CreateWorkflow,
     Workflow,
     DownloadResponse,
-    AssetUrlType
+    AssetUrlType,
+    AutoAnnotateStatus,
+    DatasetAutoAnnotate,
+    DatasetAutoAnnotateCreate,
+    DatasetAutoAnnotateUpdate
 } from './data/data_types'
 
 export {

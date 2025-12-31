@@ -70,6 +70,44 @@ export interface DatasetHeroAssetUpdate {
     uuid: string
 }
 
+export enum AutoAnnotateStatus {
+    error = "error",
+    requested = "requested",
+    in_progress = "in_progress",
+    completed = "completed"
+}
+
+export interface DatasetAutoAnnotateCreate {
+    auto_annotate: string
+    auto_annotate_params?: Map<string, any>
+    source_model_uuid?: string
+    status?: AutoAnnotateStatus
+    status_message?: string
+    source?: string
+    metrics?: Map<string, any>
+}
+
+
+export interface DatasetAutoAnnotateUpdate {
+    status?: AutoAnnotateStatus
+    status_message?: string
+    metrics?: Map<string, any>
+}
+
+export interface DatasetAutoAnnotate {
+    created_at?: Date
+    updated_at?: Date
+    dataset_uuid: string
+    dataset_version: number
+    source_model_uuid?: string
+    auto_annotate?: string
+    auto_annotate_params?: Map<string, any>
+    status?: AutoAnnotateStatus
+    status_message?: string
+    source?: string
+    metrics?: Map<string, any>
+}
+
 export interface AssetImport {
     url: string
     ground_truth?: Prediction
@@ -120,9 +158,8 @@ export interface Annotation {
     type: AnnotationType
     user_review: UserReview
     approved_threshold?: number
-    source_model_uuid?: string
     auto_annotate?: string
-    auto_annotate_params?: AutoAnnotateParams
+    source?: string
     uncertainty_score?: number
     predictions: Prediction[]
 }
@@ -378,3 +415,4 @@ export interface DownloadResponse {
     url: string
     url_type: AssetUrlType
 }
+

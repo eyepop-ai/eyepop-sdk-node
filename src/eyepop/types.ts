@@ -69,17 +69,17 @@ export interface Prediction extends StreamTime {
     keyPoints?: Array<PredictedKeyPoints>
 }
 export interface PredictedClass {
-    id: number
+    id?: number
     confidence: number
     classLabel: string
-    category: string
+    category?: string
 }
 
 export interface PredictedText {
-    id: number
+    id?: number
     confidence: number
     text: string
-    category: string
+    category?: string
 }
 
 export interface Contour {
@@ -100,7 +100,7 @@ export interface PredictedObject extends PredictedClass {
     y: number
     width: number
     height: number
-    orientation: number
+    orientation?: number
     outline: Array<Point2d> | undefined
     contours: Array<Contour> | undefined
     mask: Mask | undefined
