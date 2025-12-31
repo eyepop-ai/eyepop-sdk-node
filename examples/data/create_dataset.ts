@@ -1,4 +1,4 @@
-import { Asset, AssetStatus, ChangeType, EndpointState, EyePop, Prediction } from '@eyepop.ai/eyepop'
+import { EndpointState, EyePop, Prediction, UserReview } from '@eyepop.ai/eyepop'
 
 import { pino } from 'pino'
 import process from 'process'
@@ -29,7 +29,15 @@ const example_image_path = process.argv[2]
                 tags: [],
                 auto_annotates: ['ep_coco'],
             })
+            const source = 'example_source_1'
             try {
+                await endpoint.createDatasetAutoAnnotate(
+                    {
+                        auto_annotate: 'ep_evaluate',
+                        source: source,
+                    },
+                    dataset.uuid,
+                )
                 const modifiable_version = dataset.versions.find(v => v.modifiable)?.version
                 const mime_type = mime.lookup(example_image_path) || undefined
                 for (let i = 0; i < 1; i++) {
@@ -41,22 +49,14 @@ const example_image_path = process.argv[2]
                         source_height: 1.0,
                         objects: [],
                     }
-                    await endpoint.updateAssetGroundTruth(asset.uuid, undefined, undefined, prediction)
+                    const auto_prediction: Prediction = {
+                        source_width: 1.0,
+                        source_height: 1.0,
+                        classes: [{ classLabel: 'auto_class', confidence: 1.0 }],
+                    }
+                    await endpoint.addAssetAnnotation(asset.uuid, undefined, undefined, [prediction], undefined, undefined, UserReview.approved)
+                    await endpoint.addAssetAnnotation(asset.uuid, undefined, undefined, [auto_prediction], 'ep_evaluate', source)
                     logger.info('updated asset ground_truth annotations %s', JSON.stringify(asset))
-                    // let asset_accepted = new Promise<Asset>(async (resolve, reject) => {
-                    //     endpoint.addDatasetEventHandler(dataset.uuid, async (event) => {
-                    //         if (event.change_type == ChangeType.asset_status_modified && asset !== undefined && asset.uuid == event.asset_uuid) {
-                    //             asset = await endpoint.getAsset(asset.uuid)
-                    //             if (asset.status == AssetStatus.accepted) {
-                    //                 resolve(asset)
-                    //             } else if (asset.status == AssetStatus.rejected || asset.status == AssetStatus.upload_failed || asset.status == AssetStatus.transform_failed) {
-                    //                 reject(asset.status)
-                    //             }
-                    //         }
-                    //     })
-                    // })
-                    // asset = await asset_accepted
-                    // logger.info("accepted asset %s", JSON.stringify(asset))
                 }
                 logger.info('created dataset %s', JSON.stringify(dataset))
                 let ds = await endpoint.getDataset(dataset.uuid)
@@ -67,6 +67,8 @@ const example_image_path = process.argv[2]
                 logger.info('v1: %s', JSON.stringify(ds))
                 ds = await endpoint.getDataset(dataset.uuid, true, undefined, true)
                 logger.info('modifiable: %s', JSON.stringify(ds))
+                const auto_annotates = await endpoint.listDatasetAutoAnnotates(dataset.uuid)
+                logger.info('auto_annotates: %s', JSON.stringify(auto_annotates))
                 try {
                     await endpoint.getDataset(dataset.uuid, true, 2)
                 } catch (e) {

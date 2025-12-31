@@ -26,9 +26,16 @@ import {
     QcAiHubExportParams,
     TranscodeMode,
     UserReview,
-    ArtifactType, CreateWorkflow, Workflow,
+    ArtifactType,
+    CreateWorkflow,
+    Workflow,
     WorkflowPhase,
-    ListWorkFlowItem, DownloadResponse, AssetUrlType
+    ListWorkFlowItem,
+    DownloadResponse,
+    AssetUrlType,
+    DatasetAutoAnnotateCreate,
+    DatasetAutoAnnotateUpdate,
+    DatasetAutoAnnotate,
 } from './data_types'
 import { Prediction } from '@eyepop.ai/eyepop'
 
@@ -350,6 +357,31 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         })
     }
 
+    async createDatasetAutoAnnotate(create: DatasetAutoAnnotateCreate, dataset_uuid: string, dataset_version?: number): Promise<void> {
+        const versionQuery = dataset_version ? `dataset_version=${dataset_version}&` : ''
+        return this.request(`/datasets/${dataset_uuid}/auto_annotates?${versionQuery}`, {
+            method: 'POST',
+            body: JSON.stringify(create),
+        })
+    }
+
+    async updateDatasetAutoAnnotate(update: DatasetAutoAnnotateUpdate, dataset_uuid: string, auto_annotate: string, source: string, dataset_version?: number): Promise<void> {
+        const versionQuery = dataset_version ? `dataset_version=${dataset_version}&` : ''
+        return this.request(`/datasets/${dataset_uuid}/auto_annotates?auto_annotate=${auto_annotate}&source=${encodeURIComponent(source)}&${versionQuery}`, {
+            method: 'PATCH',
+            body: JSON.stringify(update),
+        })
+    }
+
+    async listDatasetAutoAnnotates(dataset_uuid: string, auto_annotate?: string, source?: string, dataset_version?: number): Promise<DatasetAutoAnnotate[]> {
+        const versionQuery = dataset_version ? `dataset_version=${dataset_version}&` : ''
+        const autoAnnotateQuery = auto_annotate ? `auto_annotate=${auto_annotate}&` : ''
+        const sourceQuery = source ? `source=${source}&` : ''
+        return this.request(`/datasets/${dataset_uuid}/auto_annotates?${versionQuery}&${autoAnnotateQuery}&${sourceQuery}`, {
+            method: 'GET',
+        })
+    }
+
     // Asset methods
     async uploadAsset(dataset_uuid: string, dataset_version: number | undefined, blob: Blob, external_id: string | undefined = undefined): Promise<Asset> {
         const versionQuery = dataset_version ? `&dataset_version=${dataset_version}` : ''
@@ -449,6 +481,48 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         })
     }
 
+    async addAssetAnnotation(
+        asset_uuid: string,
+        dataset_uuid?: string,
+        dataset_version?: number,
+        predictions?: Prediction[],
+        auto_annotate?: string,
+        source?: string,
+        user_review?: UserReview,
+        approved_threshold?: number,
+    ): Promise<void> {
+        const datasetQuery = dataset_uuid ? `dataset_uuid=${dataset_uuid}&` : ''
+        const versionQuery = dataset_version ? `&dataset_version=${dataset_version}&` : ''
+        const autoAnnotateQuery = auto_annotate ? `&auto_annotate=${auto_annotate}&` : ''
+        const sourceQuery = source ? `&source=${encodeURIComponent(source)}&` : ''
+        const userReviewQuery = user_review ? `&user_review=${user_review}&` : ''
+        const approvedThresholdQuery = typeof approved_threshold !== 'undefined' ? `&approved_threshold=${approved_threshold}&` : ''
+        return this.request(`/assets/${asset_uuid}/annotations?${datasetQuery}${versionQuery}${autoAnnotateQuery}${sourceQuery}${userReviewQuery}${approvedThresholdQuery}`, {
+            method: 'POST',
+            body: JSON.stringify(predictions),
+        })
+    }
+
+    async updateAssetAnnotationApproval(
+        asset_uuid: string,
+        dataset_uuid?: string,
+        dataset_version?: number,
+        auto_annotate?: string,
+        source?: string,
+        user_review?: UserReview,
+        approved_threshold?: number,
+    ): Promise<void> {
+        const datasetQuery = dataset_uuid ? `dataset_uuid=${dataset_uuid}&` : ''
+        const versionQuery = dataset_version ? `&dataset_version=${dataset_version}&` : ''
+        const autoAnnotateQuery = auto_annotate ? `&auto_annotate=${auto_annotate}&` : ''
+        const sourceQuery = source ? `&source=${encodeURIComponent(source)}&` : ''
+        const userReviewQuery = user_review ? `&user_review=${user_review}&` : ''
+        const approvedThresholdQuery = approved_threshold ? `&approved_threshold=${approved_threshold}&` : ''
+        return this.request(`/assets/${asset_uuid}/annotations?${datasetQuery}${versionQuery}${autoAnnotateQuery}${sourceQuery}${userReviewQuery}${approvedThresholdQuery}`, {
+            method: 'PATCH',
+        })
+    }
+
     async downloadAsset(
         asset_uuid: string,
         dataset_uuid?: string,
@@ -456,16 +530,15 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         transcode_mode: TranscodeMode = TranscodeMode.original,
         start_timestamp?: number,
         end_timestamp?: number,
-        url_type?: AssetUrlType
+        url_type?: AssetUrlType,
     ): Promise<Blob | DownloadResponse> {
         const versionQuery = dataset_version ? `&dataset_version=${dataset_version}` : ''
         const datasetQuery = dataset_uuid ? `&dataset_uuid=${dataset_uuid}` : ''
-        const startTimestampQuery = start_timestamp ? `&start_timestamp=${start_timestamp}`: ''
-        const endTimestampQuery = end_timestamp ? `&end_timestamp=${end_timestamp}`: ''
-        const urlTypeQuery = url_type ? `&url_type=${url_type}`: ''
+        const startTimestampQuery = start_timestamp ? `&start_timestamp=${start_timestamp}` : ''
+        const endTimestampQuery = end_timestamp ? `&end_timestamp=${end_timestamp}` : ''
+        const urlTypeQuery = url_type ? `&url_type=${url_type}` : ''
 
-        return this.request(
-            `/assets/${asset_uuid}/download?transcode_mode=${transcode_mode}${datasetQuery}${versionQuery}${startTimestampQuery}${endTimestampQuery}${urlTypeQuery}`, {
+        return this.request(`/assets/${asset_uuid}/download?transcode_mode=${transcode_mode}${datasetQuery}${versionQuery}${startTimestampQuery}${endTimestampQuery}${urlTypeQuery}`, {
             method: 'GET',
         })
     }
@@ -625,19 +698,19 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
 
     public async getWorkflow(workflow_id: string, account_uuid: string): Promise<ListWorkFlowItem> {
         return this.request(`/workflows/${workflow_id}?account_uuid=${account_uuid}`, {
-            method: 'GET'
-        });
+            method: 'GET',
+        })
     }
-    
+
     public async listWorkflows(account_uuid: string, dataset_uuids?: string[], model_uuids?: string[], phases?: WorkflowPhase[]): Promise<ListWorkFlowItem[]> {
-        const datasetQuery = dataset_uuids?.map(uuid => `dataset_uuid=${uuid}`).join('&') || '';
-        const modelQuery = model_uuids?.map(uuid => `model_uuid=${uuid}`).join('&') || '';
-        const phaseQuery = phases?.map(p => `phase=${p}`).join('&') || '';
-        const queryParams = [datasetQuery, modelQuery, phaseQuery].filter(q => q).join('&');
-        
+        const datasetQuery = dataset_uuids?.map(uuid => `dataset_uuid=${uuid}`).join('&') || ''
+        const modelQuery = model_uuids?.map(uuid => `model_uuid=${uuid}`).join('&') || ''
+        const phaseQuery = phases?.map(p => `phase=${p}`).join('&') || ''
+        const queryParams = [datasetQuery, modelQuery, phaseQuery].filter(q => q).join('&')
+
         return this.request(`/workflows?account_uuid=${account_uuid}${queryParams ? `&${queryParams}` : ''}`, {
-            method: 'GET'
-        });
+            method: 'GET',
+        })
     }
 
     private async dispatchChangeEvent(change_event: ChangeEvent): Promise<void> {
@@ -653,7 +726,7 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
             case ChangeType.workflow_task_started:
             case ChangeType.workflow_task_succeeded:
             case ChangeType.workflow_task_failed:
-                 this._logger.debug('dispatchChangeEvent account_event_handlers=%s', this._account_event_handlers)
+                this._logger.debug('dispatchChangeEvent account_event_handlers=%s', this._account_event_handlers)
                 for (let handler of this._account_event_handlers) {
                     await handler(change_event)
                 }
