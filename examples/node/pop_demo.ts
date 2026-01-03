@@ -516,7 +516,7 @@ function list_of_boxes(arg: string) {
     if (parameters.visualize) {
         const dataEndpoint = await EyePop.dataEndpoint().connect();
         try {
-            const imageBlob = await dataEndpoint.downloadAsset(parameters.assetUuid);
+            const imageBlob = await dataEndpoint.downloadAsset(parameters.assetUuid) as Blob;
             image = await loadImage(Buffer.from(await imageBlob.arrayBuffer()));
         } finally {
             await dataEndpoint.disconnect();

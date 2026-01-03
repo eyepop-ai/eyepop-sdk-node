@@ -35,10 +35,10 @@ describe('EyePopSdk endpoint module auth and connect', () => {
             })
         })
 
-        const dataConfigRoute = server.get(`/data/config`).mockImplementationOnce(ctx => {
+        const dataConfigRoute = server.get(`/configs`).mockImplementationOnce(ctx => {
             ctx.status = 200
             ctx.response.headers['content-type'] = 'application/json'
-            ctx.body = JSON.stringify({ base_url: `${server.getURL()}data/` })
+            ctx.body = JSON.stringify({ dataset_api_url: `${server.getURL()}data/` })
         })
 
         const endpoint = EyePop.dataEndpoint({
@@ -71,10 +71,10 @@ describe('EyePopSdk endpoint module auth and connect', () => {
             })
         })
 
-        const dataConfigRoute = server.get(`/data/config`).mockImplementation(ctx => {
+        const dataConfigRoute = server.get(`/configs`).mockImplementation(ctx => {
             ctx.status = 200
             ctx.response.headers['content-type'] = 'application/json'
-            ctx.body = JSON.stringify({ base_url: `${server.getURL()}data/` })
+            ctx.body = JSON.stringify({ dataset_api_url: `${server.getURL()}data/` })
         })
 
         const endpoint = EyePop.dataEndpoint({
@@ -123,10 +123,10 @@ describe('EyePopSdk endpoint module auth and connect', () => {
                 })
             })
 
-        const dataConfigRoute = server.get(`/data/config`).mockImplementation(ctx => {
+        const dataConfigRoute = server.get(`/configs`).mockImplementation(ctx => {
             ctx.status = 200
             ctx.response.headers['content-type'] = 'application/json'
-            ctx.body = JSON.stringify({ base_url: `${server.getURL()}data/` })
+            ctx.body = JSON.stringify({ dataset_api_url: `${server.getURL()}data/` })
         })
         const endpoint = EyePop.dataEndpoint({
             eyepopUrl: server.getURL().toString(),
@@ -164,14 +164,14 @@ describe('EyePopSdk endpoint module auth and connect', () => {
         })
 
         const dataConfigRoute = server
-            .get(`/data/config`)
+            .get(`/configs`)
             .mockImplementationOnce(ctx => {
                 ctx.status = 401
             })
             .mockImplementation(ctx => {
                 ctx.status = 200
                 ctx.response.headers['content-type'] = 'application/json'
-                ctx.body = JSON.stringify({ base_url: `${server.getURL()}data/` })
+                ctx.body = JSON.stringify({ dataset_api_url: `${server.getURL()}data/` })
             })
 
         const endpoint = EyePop.dataEndpoint({
@@ -202,10 +202,10 @@ describe('EyePopSdk endpoint module auth and connect', () => {
             })
         })
 
-        const dataConfigRoute = server.get(`/data/config`).mockImplementation(ctx => {
+        const dataConfigRoute = server.get(`/configs`).mockImplementation(ctx => {
             ctx.status = 200
             ctx.response.headers['content-type'] = 'application/json'
-            ctx.body = JSON.stringify({ base_url: `${server.getURL()}data/` })
+            ctx.body = JSON.stringify({ dataset_api_url: `${server.getURL()}data/` })
         })
 
         const endpoint1 = EyePop.dataEndpoint({

@@ -69,7 +69,15 @@ export {
     AutoAnnotateStatus,
     DatasetAutoAnnotate,
     DatasetAutoAnnotateCreate,
-    DatasetAutoAnnotateUpdate
+    DatasetAutoAnnotateUpdate,
+    InferRuntimeConfig,
+    TransformInto,
+    InferRequest,
+    EvaluateRequest,
+    EvaluationStatus,
+    EvaluateRunInfo,
+    EvaluateResponse,
+    InferRunInfo,
 } from './data/data_types'
 
 export {

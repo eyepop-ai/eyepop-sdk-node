@@ -1,8 +1,25 @@
 import { Prediction, Session } from '../types'
 
+export enum DataApiType {
+    dataset = 'dataset',
+    vlm = 'vlm'
+}
+
 export interface DataSession extends Session {
     readonly accountId: string
-    readonly baseUrl: string | undefined
+    readonly datasetApiUrl: string | undefined
+    readonly vlmApiUrl: string | undefined
+}
+
+export function getBaseUrl(session: DataSession, dataApiType: DataApiType): string {
+    switch (dataApiType) {
+        case DataApiType.dataset:
+            return session.datasetApiUrl ?? ''
+        case DataApiType.vlm:
+            return session.vlmApiUrl ?? ''
+        default:
+            throw new Error(`unsupported type ${dataApiType}`)
+    }
 }
 
 export interface DatasetVersionAssetStats {
@@ -416,3 +433,68 @@ export interface DownloadResponse {
     url_type: AssetUrlType
 }
 
+/** Experimental VLM API */
+
+export interface InferRuntimeConfig {
+    max_new_tokens?: number
+    image_size?: number
+    fps?: number
+    max_frames?: number
+    min_frames?: number
+    max_aspect_ratio?: number
+    context_length?: number
+}
+
+export interface TransformInto {
+    classes?: string[]
+}
+
+export interface InferRequest {
+    worker_release?: string
+    text_prompt?: string
+    config: InferRuntimeConfig
+    refresh?: boolean
+    transform_into?: TransformInto
+}
+
+export interface EvaluateRequest {
+    infer: InferRequest
+    dataset_uuid: string
+    video_chunk_length_ns?: number
+    video_chunk_overlap?: number
+}
+
+export enum EvaluationStatus {
+    success = "success",
+    failed = "failed"
+}
+
+export interface EvaluateRunInfo {
+    num_images: number
+    num_ground_truth_images: number
+    num_videos: number
+    num_ground_truth_videos: number
+    total_tokens: number
+    visual_tokens: number
+    text_tokens: number
+    output_tokens: number
+    }
+
+export interface EvaluateResponse {
+    dataset_uuid: string
+    dataset_version: number
+    status: EvaluationStatus
+    status_message?: string
+    metrics?: Map<string, any>
+    run_info: EvaluateRunInfo
+}
+
+export interface InferRunInfo {
+    fps?: number
+    image_size?: number
+    total_tokens?: number
+    visual_tokens?: number
+    text_tokens?: number
+    output_tokens?: number
+    aspect_ratio?: number
+}
