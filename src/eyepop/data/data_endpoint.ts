@@ -6,17 +6,29 @@ import urljoin from 'url-join'
 import { DataOptions } from './data_options'
 import {
     Annotation,
+    ArtifactType,
     Asset,
     AssetImport,
+    AssetUrlType,
     AutoAnnotateParams,
     ChangeEvent,
     ChangeType,
+    CreateWorkflow,
+    DataApiType,
     DataSession,
     Dataset,
+    DatasetAutoAnnotate,
+    DatasetAutoAnnotateCreate,
+    DatasetAutoAnnotateUpdate,
     DatasetCreate,
     DatasetHeroAssetUpdate,
     DatasetUpdate,
+    DownloadResponse,
+    EvaluateRequest,
     ExportedBy,
+    getBaseUrl,
+    InferRequest,
+    ListWorkFlowItem,
     Model,
     ModelCreate,
     ModelFormat,
@@ -26,28 +38,23 @@ import {
     QcAiHubExportParams,
     TranscodeMode,
     UserReview,
-    ArtifactType,
-    CreateWorkflow,
     Workflow,
     WorkflowPhase,
-    ListWorkFlowItem,
-    DownloadResponse,
-    AssetUrlType,
-    DatasetAutoAnnotateCreate,
-    DatasetAutoAnnotateUpdate,
-    DatasetAutoAnnotate,
 } from './data_types'
 import { Prediction } from '@eyepop.ai/eyepop'
+import { EvaluateDatasetJob, InferAssetJob } from 'EyePop/data/jobs'
 
 interface DataConfig {
-    base_url: string
+    dataset_api_url: string
+    vlm_api_url: string
 }
 
 const WS_INITIAL_RECONNECT_DELAY = 1000
 const WS_MAX_RECONNECT_DELAY = 60000
 
 export class DataEndpoint extends Endpoint<DataEndpoint> {
-    private _baseUrl: string | null
+    private datasetApiUrl: string | null
+    private vlmApiUrl: string | null
     private _accountId: string | null
 
     private _ws: WebSocket | null
@@ -58,7 +65,8 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
 
     constructor(options: DataOptions) {
         super(options)
-        this._baseUrl = null
+        this.datasetApiUrl = null
+        this.vlmApiUrl = null
         this._ws = null
         this._ws_current_reconnect_delay = null
         this._accountId = options.accountId || null
@@ -80,12 +88,14 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
             accessToken: session.accessToken,
             validUntil: session.validUntil,
             accountId: this.options().accountId as string,
-            baseUrl: this._baseUrl as string,
+            datasetApiUrl: this.datasetApiUrl as string,
+            vlmApiUrl: this.vlmApiUrl as string,
         }
     }
 
     public override async disconnect(wait: boolean = true): Promise<void> {
-        this._baseUrl = null
+        this.datasetApiUrl = null
+        this.vlmApiUrl = null
         if (this._ws) {
             try {
                 this._ws.close()
@@ -101,7 +111,9 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         if (!this._client) {
             return Promise.reject('endpoint not initialized')
         }
-        const config_url = `${this.eyepopUrl()}/data/config?account_uuid=${this._accountId}`
+        this._logger.warn('AAA', this.vlmApiUrl)
+        const accountUuidQuery = this._accountId ? `?account_uuid=${this._accountId}` : ''
+        const config_url = `${this.eyepopUrl()}/configs${accountUuidQuery}`
         let headers = {
             Authorization: await this.authorizationHeader(),
         }
@@ -123,11 +135,14 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         if (response.status != 200) {
             this.updateState(EndpointState.Error)
             const message = await response.text()
-            return Promise.reject(`Unexpected status ${response.status}: ${message}`)
+            return Promise.reject(`Unexpected status ${response.status} for ${config_url}: ${message}`)
         }
         let config = (await response.json()) as DataConfig
-        const baseUrl = new URL(config.base_url, this.eyepopUrl())
-        this._baseUrl = baseUrl.toString()
+
+        const datasetApiUrl = new URL(config.dataset_api_url, this.eyepopUrl())
+        this.datasetApiUrl = datasetApiUrl.toString()
+        const vlmApiUrl = new URL(config.vlm_api_url, this.eyepopUrl())
+        this.vlmApiUrl = vlmApiUrl.toString()
 
         if (this.options().disableWs) {
             this._logger.info('disabled ws connection')
@@ -137,7 +152,7 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
 
         if (this.options().useCookie) {
             const client = this._client
-            const url = urljoin(this._baseUrl, 'security', 'check?set_cookie=true')
+            const url = urljoin(this.datasetApiUrl, 'security', 'check?set_cookie=true')
             const headers = {
                 Authorization: await this.authorizationHeader(),
             }
@@ -160,7 +175,7 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
             this._ws.close()
             this._ws = null
         }
-        const baseUrl = this._baseUrl?.replace('https://', 'wss://').replace('http://', 'ws://')
+        const baseUrl = this.datasetApiUrl?.replace('https://', 'wss://').replace('http://', 'ws://')
         if (!baseUrl) {
             return
         }
@@ -225,17 +240,16 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         return this._options as DataOptions
     }
 
-    private async request(path: string, options: RequestInit = {}, disableAuth: boolean = false) {
+    private async request(path: string, options: RequestInit = {}, disableAuth: boolean = false, dataApiType: DataApiType = DataApiType.dataset) {
         const client = this._client
-        const baseUrl = this._baseUrl
-        if (!baseUrl || !client) {
+        if (!client) {
             return Promise.reject('endpoint not connected')
         }
-
         let response = await this.fetchWithRetry(async () => {
             const session = await this.session()
+
+            const baseUrl = getBaseUrl(session, dataApiType)
             const headers = {
-                'Content-Type': 'application/json',
                 ...(disableAuth ? {} : { Authorization: `Bearer ${session.accessToken}` }),
                 ...(options.headers || {}),
             }
@@ -249,10 +263,9 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
                 method: options.method || 'GET',
                 body: options.body,
             }
+            this._requestLogger.debug('Request - ' + ri.method + ' ' + path + ' BODY: ' + (ri.body ? ri.body : ''))
 
-            this._requestLogger.debug('Request - ' + ri.method + path + ' BODY: ' + (ri.body ? ri.body : ''))
-
-            return await client.fetch(urljoin(session.baseUrl ?? '', path), ri)
+            return await client.fetch(urljoin(baseUrl ?? '', path), ri)
         })
 
         if (response.status === 204) {
@@ -288,6 +301,7 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         return this.request(`/datasets?account_uuid=${this._accountId}`, {
             method: 'POST',
             body: JSON.stringify(data),
+            headers: { 'Content-Type': 'application/json' },
         })
     }
 
@@ -303,6 +317,7 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         return this.request(`/datasets/${dataset_uuid}?start_auto_annotate=${start_auto_annotate}`, {
             method: 'PATCH',
             body: JSON.stringify(data),
+            headers: { 'Content-Type': 'application/json' },
         })
     }
 
@@ -310,6 +325,7 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         return this.request(`/datasets/${dataset_uuid}/hero_asset`, {
             method: 'PATCH',
             body: JSON.stringify(update),
+            headers: { 'Content-Type': 'application/json' },
         })
     }
 
@@ -362,6 +378,7 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         return this.request(`/datasets/${dataset_uuid}/auto_annotates?${versionQuery}`, {
             method: 'POST',
             body: JSON.stringify(create),
+            headers: { 'Content-Type': 'application/json' },
         })
     }
 
@@ -370,6 +387,7 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         return this.request(`/datasets/${dataset_uuid}/auto_annotates?auto_annotate=${auto_annotate}&source=${encodeURIComponent(source)}&${versionQuery}`, {
             method: 'PATCH',
             body: JSON.stringify(update),
+            headers: { 'Content-Type': 'application/json' },
         })
     }
 
@@ -459,6 +477,7 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         return this.request(`/assets/${asset_uuid}/ground_truth?${datasetQuery}${versionQuery}`, {
             method: 'PATCH',
             body: JSON.stringify(predictions),
+            headers: { 'Content-Type': 'application/json' },
         })
     }
 
@@ -500,6 +519,7 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         return this.request(`/assets/${asset_uuid}/annotations?${datasetQuery}${versionQuery}${autoAnnotateQuery}${sourceQuery}${userReviewQuery}${approvedThresholdQuery}`, {
             method: 'POST',
             body: JSON.stringify(predictions),
+            headers: { 'Content-Type': 'application/json' },
         })
     }
 
@@ -547,6 +567,7 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         return this.request(`/assets/${asset_uuid}/preview_auto_annotate?auto_annotate=${auto_annotate}`, {
             method: 'POST',
             body: auto_annotate_params ? JSON.stringify(auto_annotate_params) : null,
+            headers: auto_annotate_params? { 'Content-Type': 'application/json' } : {},
         })
     }
 
@@ -567,6 +588,7 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         return this.request(`/models?dataset_uuid=${dataset_uuid}&dataset_version=${dataset_version}&start_training=${start_training}`, {
             method: 'POST',
             body: JSON.stringify(data),
+            headers: { 'Content-Type': 'application/json' },
         })
     }
 
@@ -586,6 +608,7 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         return this.request(`/models/${model_uuid}`, {
             method: 'PATCH',
             body: JSON.stringify(data),
+            headers: { 'Content-Type': 'application/json' },
         })
     }
 
@@ -614,6 +637,7 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         await this.request(`/models/${model_uuid}/exports/qc_ai_hub`, {
             method: 'POST',
             body: JSON.stringify(params),
+            headers: { 'Content-Type': 'application/json' },
         })
     }
 
@@ -693,6 +717,7 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         return this.request(`/workflows?account_uuid=${account_uuid}&template_name=${template_name}`, {
             method: 'POST',
             body: JSON.stringify(workflow),
+            headers: { 'Content-Type': 'application/json' },
         })
     }
 
@@ -711,6 +736,79 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         return this.request(`/workflows?account_uuid=${account_uuid}${queryParams ? `&${queryParams}` : ''}`, {
             method: 'GET',
         })
+    }
+
+    public async inferAsset(
+        asset_uuid: string,
+        infer_request: InferRequest,
+        dataset_uuid?: string,
+        dataset_version?: number,
+        transcode_mode?: TranscodeMode,
+        start_timestamp?: number,
+        end_timestamp?: number,
+    ): Promise<InferAssetJob> {
+        const datasetQuery = dataset_uuid ? `dataset_uuid=${dataset_uuid}&` : ''
+        const versionQuery = dataset_version ? `dataset_version=${dataset_version}&` : ''
+        const transcodeModeQuery = transcode_mode ? `transcode_mode=${transcode_mode}&` : ''
+        const startTimestampQuery = start_timestamp ? `start_timestamp=${start_timestamp}&` : ''
+        const endTimestampQuery = end_timestamp ? `end_timestamp=${end_timestamp}&` : ''
+
+        const assetUrl = `ai.eyepop://data/assets/${asset_uuid}?${transcodeModeQuery}${datasetQuery}${versionQuery}${startTimestampQuery}${endTimestampQuery}`
+
+        if (!this.vlmApiUrl || !this._client || !this._limit) {
+            throw new Error('endpoint not connected, use connect()')
+        }
+        await this._limit.acquire()
+        try {
+            this.updateState()
+            const job = new InferAssetJob(
+                assetUrl,
+                infer_request,
+                async (path, options) => {
+                    return await this.request(path, options, false, DataApiType.vlm)
+                },
+                this._requestLogger,
+            )
+            return job.start(() => {
+                this.jobDone(job)
+            })
+        } catch (e) {
+            // we'll have to reset our queue counter in case the job cannot be started
+            this._limit.release()
+            throw e
+        }
+    }
+
+    public async evaluateDataset(
+        evaluate_request: EvaluateRequest,
+        worker_release?: string
+    ): Promise<EvaluateDatasetJob> {
+        if (!this.vlmApiUrl || !this._client || !this._limit) {
+            throw new Error('endpoint not connected, use connect()')
+        }
+        await this._limit.acquire()
+        try {
+            this.updateState()
+            const job = new EvaluateDatasetJob(
+                evaluate_request,
+                worker_release ?? null,
+                async (path, options) => {
+                    return await this.request(path, options, false, DataApiType.vlm)
+                },
+                this._requestLogger,
+            )
+            return job.start(() => {
+                this.jobDone(job)
+            })
+        } catch (e) {
+            // we'll have to reset our queue counter in case the job cannot be started
+            this._limit.release()
+            throw e
+        }
+    }
+
+    private jobDone(job: object) {
+        this._limit?.release()
     }
 
     private async dispatchChangeEvent(change_event: ChangeEvent): Promise<void> {
