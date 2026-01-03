@@ -1,7 +1,6 @@
 import 'react-native-polyfill-globals/auto';
 import { PathSource, StreamSource } from '@eyepop.ai/eyepop';
 import { Logger } from 'pino';
-import { ReadableStream } from 'web-streams-polyfill/ponyfill/es6';
 
 import { FileSystem } from 'react-native-file-access';
 
