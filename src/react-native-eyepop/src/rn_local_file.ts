@@ -13,7 +13,7 @@ export async function resolvePathRN(
   let pos = 0;
   const size = (await FileSystem.stat(source.path)).size;
   let eof = false;
-  const stream = new ReadableStream({
+  const stream = new ReadableStream<Uint8Array>({
     async pull(controller: any) {
       if (eof) {
         return;
