@@ -89,7 +89,7 @@ export class Semaphore {
                 this.promiseResolverQueue.splice(index, 1)
             } else {
                 // This shouldn't happen, not much we can do at this point
-                console.warn(`Semaphore.waitFor couldn't find its promise resolver in the queue`)
+                console.warn(`[EyePop] Semaphore.waitFor couldn't find its promise resolver in the queue`)
             }
 
             // false because the wait was unsuccessful.
@@ -134,7 +134,7 @@ export class Semaphore {
         this.permits += 1
 
         if (this.permits > 1 && this.promiseResolverQueue.length > 0) {
-            console.warn('Semaphore.permits should never be > 0 when there is someone waiting.')
+            console.warn('[EyePop] Semaphore.permits should never be > 0 when there is someone waiting.')
         } else if (this.permits === 1 && this.promiseResolverQueue.length > 0) {
             // If there is someone else waiting, immediately consume the permit that was released
             // at the beginning of this function and let the waiting function resume.

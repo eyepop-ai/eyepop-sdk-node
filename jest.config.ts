@@ -10,10 +10,14 @@ const config: JestConfigWithTsJest = {
                 useESM: true,
             },
         ],
+        '^.+\\.js$': 'babel-jest',
     },
     extensionsToTreatAsEsm: ['.ts'],
     moduleNameMapper: {
         '^(\\.{1,2}/.*)\\.js$': '$1',
     },
+    transformIgnorePatterns: [
+        'node_modules/(?!(url-join))',
+    ],
 }
 export default config

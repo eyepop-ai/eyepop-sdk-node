@@ -10,7 +10,7 @@ import {
     WorkerSession
 } from '../worker/worker_types'
 import { HttpClient } from '../options'
-import {WebrtcWhip} from "EyePop/worker/webrtc_whip";
+import { WebrtcWhip } from './webrtc_whip'
 
 export class AbstractJob implements ResultStream {
     protected _getSession: () => Promise<WorkerSession>
@@ -58,8 +58,6 @@ export class AbstractJob implements ResultStream {
         }
         return Promise.resolve()
     }
-
-    static n: number = 0
 
     public start(done: () => void, status: (statusCode: number) => void): AbstractJob {
         this._responseStream = new Promise<ReadableStream<Uint8Array>>(async (resolve, reject) => {
@@ -151,7 +149,7 @@ export class UploadJob extends AbstractJob {
             }
             const session = await this._getSession()
             if (!session.baseUrl) {
-                return Promise.reject('session.baseUrl must not ne null')
+                return Promise.reject('session.baseUrl must not be null')
             }
             let request
             const videoModeQuery = this._videoMode ? `&videoMode=${this._videoMode}` : ''
@@ -174,7 +172,6 @@ export class UploadJob extends AbstractJob {
                     method: 'POST',
                     body: formData,
                     signal: this._controller.signal,
-                    // @ts-ignore
                     duplex: 'half',
                     eyepop: { responseStreaming: true }
                 })
@@ -192,7 +189,6 @@ export class UploadJob extends AbstractJob {
                     method: 'POST',
                     body: this._uploadStream,
                     signal: this._controller.signal,
-                    // @ts-ignore
                     duplex: 'half',
                     eyepop: { responseStreaming: true }
                 })
@@ -226,7 +222,6 @@ export class UploadJob extends AbstractJob {
                 headers: headers,
                 method: 'POST',
                 signal: this._controller.signal,
-                // @ts-ignore
                 duplex: 'half',
                 eyepop: { responseStreaming: true }
             })
@@ -251,7 +246,6 @@ export class UploadJob extends AbstractJob {
                     method: 'POST',
                     body: formData,
                     signal: this._controller.signal,
-                    // @ts-ignore
                     duplex: 'half',
                     eyepop: { responseStreaming: true }
                 })
@@ -269,7 +263,6 @@ export class UploadJob extends AbstractJob {
                     method: 'POST',
                     body: this._uploadStream,
                     signal: this._controller.signal,
-                    // @ts-ignore
                     duplex: 'half',
                 })
             }
@@ -293,7 +286,7 @@ export class LoadFromJob extends AbstractJob {
     protected override async startJob(): Promise<Response> {
         const session = await this._getSession()
         if (!session.baseUrl) {
-            return Promise.reject('session.baseUrl must not ne null')
+            return Promise.reject('session.baseUrl must not be null')
         }
         const body = {
             sourceType: 'URL',
@@ -312,7 +305,6 @@ export class LoadFromJob extends AbstractJob {
             method: 'PATCH',
             body: JSON.stringify(body),
             signal: this._controller.signal,
-            // @ts-ignore
             eyepop: { responseStreaming: true },
         })
     }
@@ -333,7 +325,7 @@ export class LoadFromAssetUuidJob extends AbstractJob {
     protected override async startJob(): Promise<Response> {
         const session = await this._getSession()
         if (!session.baseUrl) {
-            return Promise.reject('session.baseUrl must not ne null')
+            return Promise.reject('session.baseUrl must not be null')
         }
         const body = {
             sourceType: 'ASSET_UUID',
@@ -352,7 +344,6 @@ export class LoadFromAssetUuidJob extends AbstractJob {
             method: 'PATCH',
             body: JSON.stringify(body),
             signal: this._controller.signal,
-            // @ts-ignore
             eyepop: { responseStreaming: true },
         })
     }
@@ -373,7 +364,7 @@ export class LoadLiveIngressJob extends AbstractJob {
     protected override async startJob(): Promise<Response> {
         const session = await this._getSession()
         if (!session.baseUrl) {
-            return Promise.reject('session.baseUrl must not ne null')
+            return Promise.reject('session.baseUrl must not be null')
         }
         const body = {
             sourceType: 'LIVE_INGRESS',
@@ -392,7 +383,6 @@ export class LoadLiveIngressJob extends AbstractJob {
             method: 'PATCH',
             body: JSON.stringify(body),
             signal: this._controller.signal,
-            // @ts-ignore
             eyepop: { responseStreaming: true }
         })
     }
@@ -407,13 +397,13 @@ export class LoadMediaStreamJob extends AbstractJob {
     }
 
     get [Symbol.toStringTag](): string {
-        return 'loadLiveIngressJob'
+        return 'loadMediaStreamJob'
     }
 
     protected override async startJob(): Promise<Response> {
         const session = await this._getSession()
         if (!session.baseUrl) {
-            return Promise.reject('session.baseUrl must not ne null')
+            return Promise.reject('session.baseUrl must not be null')
         }
 
         const whip = new WebrtcWhip(
@@ -449,7 +439,6 @@ export class LoadMediaStreamJob extends AbstractJob {
             method: 'PATCH',
             body: JSON.stringify(body),
             signal: this._controller.signal,
-            // @ts-ignore
             eyepop: { responseStreaming: true }
         })
     }
