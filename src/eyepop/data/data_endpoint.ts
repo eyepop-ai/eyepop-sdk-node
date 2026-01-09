@@ -42,7 +42,7 @@ import {
     WorkflowPhase,
 } from './data_types'
 import { Prediction } from '@eyepop.ai/eyepop'
-import { EvaluateDatasetJob, InferAssetJob } from 'EyePop/data/jobs'
+import { EvaluateDatasetJob, InferAssetJob } from './jobs'
 
 interface DataConfig {
     dataset_api_url: string
