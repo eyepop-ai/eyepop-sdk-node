@@ -44,7 +44,6 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
 
         public async fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
             init ||= {}
-            // @ts-ignore
             init.dispatcher = this._agent
             const logLine = logLineFromRequest(input, init);
             this._logger.debug(`Node fetch() BEFORE ${logLine}`)

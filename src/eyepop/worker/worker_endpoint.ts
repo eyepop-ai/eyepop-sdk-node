@@ -233,7 +233,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
                 },
             )
         } catch (e) {
-            // we'll have to reset our queue counter in case the job canot be started
+            // we'll have to reset our queue counter in case the job cannot be started
             this._limit.release()
             throw e
         }
@@ -273,7 +273,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
                 },
             )
         } catch (e) {
-            // we'll have to reset our queue counter in case the job canot be started
+            // we'll have to reset our queue counter in case the job cannot be started
             this._limit.release()
             throw e
         }
@@ -309,7 +309,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
                 },
             )
         } catch (e) {
-            // we'll have to reset our queue counter in case the job canot be started
+            // we'll have to reset our queue counter in case the job cannot be started
             this._limit.release()
             throw e
         }
@@ -340,7 +340,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
                 },
             )
         } catch (e) {
-            // we'll have to reset our queue counter in case the job canot be started
+            // we'll have to reset our queue counter in case the job cannot be started
             this._limit.release()
             throw e
         }

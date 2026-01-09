@@ -111,7 +111,6 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         if (!this._client) {
             return Promise.reject('endpoint not initialized')
         }
-        this._logger.warn('AAA', this.vlmApiUrl)
         const accountUuidQuery = this._accountId ? `?account_uuid=${this._accountId}` : ''
         const config_url = `${this.eyepopUrl()}/configs${accountUuidQuery}`
         let headers = {
@@ -828,6 +827,9 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
                 for (let handler of this._account_event_handlers) {
                     await handler(change_event)
                 }
+                // Intentional fall-through: Account events also trigger dataset-specific handlers
+                // if the event has a dataset_uuid, allowing both account-level and dataset-level
+                // listeners to be notified of the same event.
             // dataset event types
             case ChangeType.asset_added:
             case ChangeType.asset_removed:

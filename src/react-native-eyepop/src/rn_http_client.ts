@@ -38,7 +38,6 @@ export async function createHttpClientRN(logger: Logger): Promise<HttpClient> {
         streamBody = input.body;
       } else if (init?.body instanceof ReadableStream) {
         streamBody = init.body;
-        // @ts-ignore
       } else if (init?.eyepop?.responseStreaming) {
         const requestBody = input instanceof Request ? input.body : init?.body;
         if (requestBody !== undefined) {
@@ -102,7 +101,6 @@ export async function createHttpClientRN(logger: Logger): Promise<HttpClient> {
         this.logger.debug(`AFTER ${method} ${url} -> ${response.status}`);
         return response;
       }
-      // @ts-ignore
       init.reactNative = { textStreaming: true };
       const logLine = logLineFromRequest(input, init);
       this.logger.debug(`ReactNative fetch() BEFORE ${logLine}`);

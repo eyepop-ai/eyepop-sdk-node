@@ -115,8 +115,8 @@ const stringToBooleanSafe = (str?: string): boolean => {
     if (typeof str == 'undefined') {
         return false
     }
-    const loweCaseStr = str.toLowerCase()
-    return loweCaseStr == 'true' || loweCaseStr == 'yes'
+    const lowerCaseStr = str.toLowerCase()
+    return lowerCaseStr == 'true' || lowerCaseStr == 'yes'
 }
 
 export namespace EyePop {
