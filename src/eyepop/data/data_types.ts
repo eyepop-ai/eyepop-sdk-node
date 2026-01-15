@@ -213,6 +213,8 @@ export interface Asset {
 
 export enum ModelType {
     epdet_b1 = 'epdet_b1',
+    imported = 'imported',
+    vlm_ability = 'vlm_ability'
 }
 
 export enum ModelTask {
@@ -457,9 +459,16 @@ export interface InferRequest {
     transform_into?: TransformInto
 }
 
+export interface EvaluateFilter {
+    partitions?: string[]
+    ground_truth_classes?: string[]
+}
+
 export interface EvaluateRequest {
-    infer: InferRequest
+    ability_uuid?: string
+    infer?: InferRequest
     dataset_uuid: string
+    filter?: EvaluateFilter
     video_chunk_length_ns?: number
     video_chunk_overlap?: number
 }
@@ -478,13 +487,14 @@ export interface EvaluateRunInfo {
     visual_tokens: number
     text_tokens: number
     output_tokens: number
-    }
+}
 
 export interface EvaluateResponse {
     dataset_uuid: string
     dataset_version: number
     status: EvaluationStatus
     status_message?: string
+    source: string
     metrics?: Map<string, any>
     run_info: EvaluateRunInfo
 }

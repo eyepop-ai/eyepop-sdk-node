@@ -73,6 +73,7 @@ export {
     InferRuntimeConfig,
     TransformInto,
     InferRequest,
+    EvaluateFilter,
     EvaluateRequest,
     EvaluationStatus,
     EvaluateRunInfo,

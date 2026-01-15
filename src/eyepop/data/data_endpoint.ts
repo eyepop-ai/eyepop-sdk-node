@@ -111,7 +111,6 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         if (!this._client) {
             return Promise.reject('endpoint not initialized')
         }
-        this._logger.warn('AAA', this.vlmApiUrl)
         const accountUuidQuery = this._accountId ? `?account_uuid=${this._accountId}` : ''
         const config_url = `${this.eyepopUrl()}/configs${accountUuidQuery}`
         let headers = {
@@ -437,7 +436,12 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         })
     }
 
-    async listAssets(dataset_uuid: string, dataset_version?: number, include_annotations: boolean = false, top_k?: number): Promise<Asset[]> {
+    async listAssets(
+        dataset_uuid: string,
+        dataset_version?: number,
+        include_annotations: boolean = false,
+        top_k?: number
+    ): Promise<Asset[]> {
         const versionQuery = dataset_version ? `&dataset_version=${dataset_version}` : ''
         const annotationsQuery = include_annotations ? '&include_annotations=true' : ''
         const topKQuery = top_k ? `&top_k=${top_k}` : ''
