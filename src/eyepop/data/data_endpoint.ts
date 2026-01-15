@@ -37,7 +37,8 @@ import {
     OnChangeEvent,
     QcAiHubExportParams,
     TranscodeMode,
-    UserReview,
+    UserReview, VlmAbility, VlmAbilityCreate, VlmAbilityGroup, VlmAbilityGroupCreate, VlmAbilityGroupUpdate,
+    VlmAbilityUpdate,
     Workflow,
     WorkflowPhase,
 } from './data_types'
@@ -852,4 +853,85 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
                 break
         }
     }
+
+    // Vlm Ability Management
+
+    async listVlmAbilityGroups(): Promise<VlmAbilityGroup[]> {
+        return this.request(`/vlm_ability_groups?account_uuid=${this._accountId}`, {
+            method: 'GET',
+        })
+    }
+
+    async createVlmAbilityGroup(create: VlmAbilityGroupCreate): Promise<VlmAbilityGroup> {
+        return this.request(`/vlm_ability_groups?account_uuid=${this._accountId}`, {
+            method: 'POST',
+            body: JSON.stringify(create),
+            headers: { 'Content-Type': 'application/json' },
+        })
+    }
+
+    async getVlmAbilityGroup(vlm_ability_group_uuid: string): Promise<VlmAbilityGroup> {
+        return this.request(`/vlm_ability_groups/${vlm_ability_group_uuid}`, {
+            method: 'GET',
+        })
+    }
+
+    async deleteVlmAbilityGroup(vlm_ability_group_uuid: string): Promise<void> {
+        return this.request(`/vlm_ability_groups/${vlm_ability_group_uuid}`, {
+            method: 'DELETE',
+        })
+    }
+
+    async updateVlmAbilityGroup(vlm_ability_group_uuid: string, update: VlmAbilityGroupUpdate): Promise<VlmAbilityGroup> {
+        return this.request(`/vlm_ability_groups/${vlm_ability_group_uuid}`, {
+            method: 'PATCH',
+            body: JSON.stringify(update),
+            headers: { 'Content-Type': 'application/json' },
+        })
+    }
+
+    async listVlmAbilities(): Promise<VlmAbility[]> {
+        return this.request(`/vlm_abilities?account_uuid=${this._accountId}`, {
+            method: 'GET',
+        })
+    }
+
+    async createVlmAbility(create: VlmAbilityCreate, vlm_ability_group_uuid?: string): Promise<VlmAbility> {
+        const groupQuery = vlm_ability_group_uuid ? `&vlm_ability_group_uuid=${vlm_ability_group_uuid}` : ''
+        return this.request(`/vlm_abilities?account_uuid=${this._accountId}${groupQuery}`, {
+            method: 'POST',
+            body: JSON.stringify(create),
+            headers: { 'Content-Type': 'application/json' },
+        })
+    }
+
+    async getVlmAbility(vlm_ability_uuid: string): Promise<VlmAbility> {
+        return this.request(`/vlm_abilities/${vlm_ability_uuid}`, {
+            method: 'GET',
+        })
+    }
+
+    async deleteVlmAbility(vlm_ability_uuid: string): Promise<void> {
+        return this.request(`/vlm_abilities/${vlm_ability_uuid}`, {
+            method: 'DELETE',
+        })
+    }
+
+    async updateVlmAbility(vlm_ability_uuid: string, update: VlmAbilityUpdate): Promise<VlmAbility> {
+        return this.request(`/vlm_abilities/${vlm_ability_uuid}`, {
+            method: 'PATCH',
+            body: JSON.stringify(update),
+            headers: { 'Content-Type': 'application/json' },
+        })
+    }
+
+    async publishVlmAbility(vlm_ability_uuid: string, alias_name?: string, tag_name?: string): Promise<VlmAbility> {
+        const aliasQuery = vlm_ability_group_uuid ? `&vlm_ability_group_uuid=${vlm_ability_group_uuid}` : ''
+        return this.request(`/vlm_abilities/${vlm_ability_uuid}/publish`, {
+            method: 'PATCH',
+            body: JSON.stringify(update),
+            headers: { 'Content-Type': 'application/json' },
+        })
+    }
+
 }

@@ -79,6 +79,14 @@ export {
     EvaluateRunInfo,
     EvaluateResponse,
     InferRunInfo,
+    VlmAbilityStatus,
+    AbilityAliasEntry,
+    VlmAbilityCreate,
+    VlmAbilityUpdate,
+    VlmAbility,
+    VlmAbilityGroupCreate,
+    VlmAbilityGroupUpdate,
+    VlmAbilityGroup,
 } from './data/data_types'
 
 export {

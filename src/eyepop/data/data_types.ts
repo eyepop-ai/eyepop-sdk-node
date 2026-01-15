@@ -508,3 +508,75 @@ export interface InferRunInfo {
     output_tokens?: number
     aspect_ratio?: number
 }
+
+export enum VlmAbilityStatus {
+    draft = "draft",
+    published = "published",
+}
+
+export interface AbilityAliasEntry {
+    alias: string
+    tag: string
+}
+
+export interface VlmAbilityCreate {
+    name: string
+    description: string
+    worker_release: string
+    text_prompt: string
+    transform_into: TransformInto
+    config: InferRuntimeConfig
+    is_public: boolean
+}
+
+export interface  VlmAbilityUpdate {
+    name?: string
+    description?: string
+    worker_release?: string
+    text_prompt?: string
+    transform_into?: TransformInto
+    config?: InferRuntimeConfig
+    is_public?: boolean
+}
+
+export interface VlmAbility {
+    uuid: string
+    created_at?: Date
+    updated_at?: Date
+    account_uuid: string
+    status: VlmAbilityStatus
+    is_public: boolean
+    name: string
+    description: string
+    vlm_ability_group_uuid?: string
+    worker_release: string
+    text_prompt: string
+    transform_into: TransformInto
+    config: InferRuntimeConfig
+    alias_entries?: AbilityAliasEntry[]
+}
+
+export interface VlmAbilityGroupCreate {
+    name: string
+    description: string
+    default_alias_name?: string
+    default_dataset_uuid?: string
+}
+
+export interface VlmAbilityGroupUpdate {
+    name: string
+    description: string
+    default_alias_name?: string
+    default_dataset_uuid?: string
+}
+
+export interface VlmAbilityGroup {
+    uuid: string
+    created_at?: Date
+    updated_at?: Date
+    account_uuid: string
+    name: string
+    description: string
+    default_alias_name?: string
+    default_dataset_uuid?: string
+}
