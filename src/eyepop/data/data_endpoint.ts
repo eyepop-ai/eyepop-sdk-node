@@ -926,16 +926,22 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
     }
 
     async publishVlmAbility(vlm_ability_uuid: string, alias_name?: string, tag_name?: string): Promise<VlmAbility> {
-        const alias_name_query = alias_name ? `alias_name=${alias_name}&` : ''
-        const tag_name_query = tag_name ? `tag_name=${tag_name}&` : ''
+        const alias_name_query = alias_name ? `alias_name=${encodeURIComponent(alias_name)}&` : ''
+        const tag_name_query = tag_name ? `tag_name=${encodeURIComponent(tag_name)}&` : ''
         return this.request(`/vlm_abilities/${vlm_ability_uuid}/publish?${alias_name_query}${tag_name_query}`, {
             method: 'POST',
         })
     }
 
     async addVlmAbilityAlias(vlm_ability_uuid: string, alias_name: string, tag_name?: string): Promise<VlmAbility> {
-        return this.request(`/vlm_abilities/${vlm_ability_uuid}/alias/${alias_name}/tag/${tag_name ? tag_name : ''}`, {
+        return this.request(`/vlm_abilities/${vlm_ability_uuid}/alias/${encodeURIComponent(alias_name)}/tag/${tag_name ? encodeURIComponent(tag_name) : ''}`, {
             method: 'POST',
+        })
+    }
+
+    async removeVlmAbilityAlias(vlm_ability_uuid: string, alias_name: string, tag_name: string): Promise<VlmAbility> {
+        return this.request(`/vlm_abilities/${vlm_ability_uuid}/alias/${encodeURIComponent(alias_name)}/tag/${encodeURIComponent(tag_name)}`, {
+            method: 'DELETE',
         })
     }
 }
