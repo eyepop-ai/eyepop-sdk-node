@@ -1,4 +1,4 @@
-import { LocalAuth, OAuth2Auth, Options, SecretKeyAuth, SessionAuth } from './options'
+import {ApiKeyAuth, LocalAuth, OAuth2Auth, Options, SessionAuth} from './options'
 
 import { WorkerEndpoint } from './worker/worker_endpoint'
 import { DataEndpoint } from './data/data_endpoint'
@@ -105,7 +105,7 @@ export {
     DEFAULT_PREDICTION_VERSION
 } from './worker/worker_types'
 
-export { Options, Authentication, SessionAuth, SecretKeyAuth, OAuth2Auth, Auth0Options, HttpClient, PlatformSupport, LocalAuth } from './options'
+export { Options, Authentication, SessionAuth, ApiKeyAuth, OAuth2Auth, Auth0Options, HttpClient, PlatformSupport, LocalAuth } from './options'
 
 export { DataOptions } from './data/data_options'
 
@@ -129,13 +129,12 @@ const stringToBooleanSafe = (str?: string): boolean => {
 }
 
 export namespace EyePop {
-    const envSecretKey = readEnv('EYEPOP_SECRET_KEY')
+    const envApiKey = readEnv('EYEPOP_API_KEY')
 
-    const defaultAuth: SecretKeyAuth | undefined = envSecretKey
-        ? {
-              secretKey: envSecretKey,
-          }
-        : undefined
+    const defaultAuth: ApiKeyAuth | undefined =
+        envApiKey ? {
+            apiKey: envApiKey
+        } : undefined
 
     /**
      * @deprecated use workerEndpoint() instead
@@ -146,12 +145,15 @@ export namespace EyePop {
         if (opts.isLocalMode === undefined) {
             opts.isLocalMode = stringToBooleanSafe(readEnv('EYEPOP_LOCAL_MODE'))
         }
-        _fill_default_options(opts, opts.isLocalMode ? 'http://127.0.0.1:8080' : undefined)
+        if (opts.isLocalMode) {
+            opts.eyepopUrl = 'http://127.0.0.1:8080'
+        }
+        _fill_default_options(opts)
         if (opts.auth === undefined) {
             if (opts.isLocalMode) {
                 opts.auth = { isLocal: true } as LocalAuth
             } else {
-                throw new Error('auth option or EYEPOP_SECRET_KEY environment variable is required')
+                throw new Error('auth option or EYEPOP_API_KEY environment variable is required')
             }
         }
         if (opts.popId === undefined) {
@@ -196,23 +198,28 @@ export namespace EyePop {
         return new DataEndpoint(opts)
     }
 
-    function _fill_default_options(opts: Options, default_eyepop_url: string = 'https://api.eyepop.ai') {
-        if (opts.auth === undefined) {
+    function _fill_default_options(opts: Options) {
+        if (!opts.auth) {
             opts.auth = defaultAuth
         }
 
-        if (opts.eyepopUrl === undefined) {
-            opts.eyepopUrl = readEnv('EYEPOP_URL') || default_eyepop_url
+        if (!opts.eyepopUrl && opts.auth && (opts.auth as SessionAuth).session && (opts.auth as SessionAuth).session.eyepopUrl) {
+            // Pre-authenticated browser session may overwrite eyepopUrl
+            opts.eyepopUrl = (opts.auth as SessionAuth).session.eyepopUrl
         }
 
-        if (opts.jobQueueLength === undefined) {
-            opts.jobQueueLength = 1024
+        if (!opts.eyepopUrl) {
+            opts.eyepopUrl = readEnv('EYEPOP_URL')
         }
 
-        if (opts.auth !== undefined) {
+        if (!opts.eyepopUrl) {
+            opts.eyepopUrl = 'https://compute.eyepop.ai'
+        }
+
+        if (opts.auth) {
             if ((opts.auth as OAuth2Auth).oAuth2 !== undefined) {
                 if (typeof (opts.auth as OAuth2Auth).oAuth2 === 'boolean') {
-                    if (opts.eyepopUrl.startsWith('https://web-api.staging.eyepop.xyz')) {
+                    if (opts.eyepopUrl && opts.eyepopUrl.match(/https:(.*).staging.eyepop.xyz/i)) {
                         opts.auth = {
                             oAuth2: {
                                 domain: 'dev-eyepop.us.auth0.com',
@@ -233,11 +240,9 @@ export namespace EyePop {
                     }
                 }
             }
-            if ((opts.auth as SessionAuth).session !== undefined) {
-                if ((opts.auth as SessionAuth).session.eyepopUrl) {
-                    opts.eyepopUrl = (opts.auth as SessionAuth).session.eyepopUrl
-                }
-            }
+        }
+        if (!opts.jobQueueLength) {
+            opts.jobQueueLength = 128
         }
     }
 }

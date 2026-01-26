@@ -30,16 +30,37 @@ interface PopConfig {
     name: string
 }
 
-interface ModelRef {
-    id: string
-    folderUrl: string
-}
 interface Pipeline {
     id: string
     startTime: string
     state: string
     pop?: Pop
 }
+
+export enum PipelineStatus {
+    UNKNOWN = "unknown",
+    PENDING = "pending",
+    PIPELINE_CREATING = "pipeline_creating",
+    RUNNING = "running",
+    STOPPED = "stopped",
+    FAILED = "failed",
+    ERROR = "error",
+}
+
+interface ComputeSession {
+    session_uuid: string
+    session_endpoint: string
+    pipeline_uuid: string
+    session_status: PipelineStatus
+    session_message: string
+    session_name: string
+    user_uuid: string
+    created_at: string
+    uptime: number
+    pipeline_ttl?: number | undefined
+    session_active: boolean
+}
+
 
 export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
     private _baseUrl: string | null
@@ -391,15 +412,22 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
     }
 
     protected override async reconnect(): Promise<WorkerEndpoint> {
+        if (this.options().popId == TransientPopId.Transient) {
+            await this.startComputeSession()
+            this._pipelineId = await this.startTransientPipeline()
+        } else {
+            await this.startWebApiSessionWithPopId()
+        }
+        this.updateState()
+        return Promise.resolve(this)
+    }
+
+    private async startWebApiSessionWithPopId(): Promise<void> {
         if (!this._client) {
             return Promise.reject('endpoint not initialized')
         }
         let config_url
-        if (this.options().popId == TransientPopId.Transient) {
-            config_url = `${this.eyepopUrl()}/workers/config`
-        } else {
-            config_url = `${this.eyepopUrl()}/pops/${this.options().popId}/config?auto_start=false`
-        }
+        config_url = `${this.eyepopWebApiUrl()}/pops/${this.options().popId}/config?auto_start=false`
         const headers = {
             Authorization: await this.authorizationHeader(),
         }
@@ -429,7 +457,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         }
         let config = (await response.json()) as PopConfig
         if (!config.base_url && this.options().autoStart) {
-            const auto_start_config_url = `${this.eyepopUrl()}/pops/${this.options().popId}/config?auto_start=true`
+            const auto_start_config_url = `${this.eyepopWebApiUrl()}/pops/${this.options().popId}/config?auto_start=true`
             this._requestLogger.debug('pop was not running, trying to autostart with: %s', auto_start_config_url)
             // one retry the pop might just have stopped
             const headers = {
@@ -451,13 +479,8 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
 
         if (this._baseUrl) {
             this._baseUrl = this._baseUrl.replace(/\/+$/, '')
-            if (this.options().popId == TransientPopId.Transient) {
-                this._pipelineId = await this.startTransientPipeline()
-                this._popName = this.options().popId || null
-            } else {
-                this._pipelineId = config.pipeline_id
-                this._popName = config.name
-            }
+            this._pipelineId = config.pipeline_id
+            this._popName = config.name
             if (!this._pipelineId || !this._baseUrl) {
                 return Promise.reject(`Pop not started`)
             }
@@ -495,9 +518,74 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
                 }
             }
         }
+    }
+    private async startComputeSession(): Promise<void> {
+        if (!this._client) {
+            return Promise.reject('endpoint not initialized')
+        }
+        const sessionsUrl = `${this.eyepopUrl()}/v1/sessions`
+        this._requestLogger.debug('fetching sessions from: %s', sessionsUrl)
+        const headers = {
+            Authorization: await this.authorizationHeader(),
+        }
+        let response = await this._client.fetch(sessionsUrl, {
+            headers: headers,
+        })
+        let sessions: ComputeSession[]
 
-        this.updateState()
-        return Promise.resolve(this)
+        if (response.status == 404) {
+            sessions = []
+        } else if (response.status != 200) {
+            this.updateState(EndpointState.Error)
+            const message = await response.text()
+            return Promise.reject(`Unexpected status ${response.status}  fetching compute sessions: ${message}`)
+        } else {
+            sessions = await response.json() as ComputeSession[]
+        }
+        let session: ComputeSession | null = null
+        if (sessions.length > 0) {
+            this._logger.debug(`User has ${sessions.length} sessions, inspecting for active session`)
+            for (let s of sessions) {
+                if (s.session_active) {
+                    session = s
+                    this._logger.debug(`Use active session ${s.session_uuid} with pipeline ${s.pipeline_uuid}`)
+                    break
+                }
+            }
+        }
+        if (!session) {
+            this._requestLogger.debug('creating a new session at: %s', sessionsUrl)
+            response = await this._client.fetch(sessionsUrl, {
+                headers: headers,
+                method: 'POST'
+            })
+            if (response.status != 200) {
+                this.updateState(EndpointState.Error)
+                const message = await response.text()
+                return Promise.reject(`Unexpected status ${response.status} creating a compute session: ${message}`)
+            } else {
+                sessions = (await response.json()) as ComputeSession[]
+            }
+            if (sessions.length == 0) {
+                return Promise.reject('Unexpected, no compute session after attempt to create one')
+            }
+            session = sessions[0]
+        }
+        this._baseUrl = session.session_endpoint
+        if (session.pipeline_uuid) {
+            this._pipeline = {
+                id: session.pipeline_uuid,
+                startTime: session.created_at,
+                state: session.session_status,
+                pop: {
+                    components: []
+                }
+            }
+            this._pipelineId = session.pipeline_uuid
+        } else {
+            this._pipelineId = null
+            this._pipeline = null
+        }
     }
 
     private async startTransientPipeline(): Promise<string> {

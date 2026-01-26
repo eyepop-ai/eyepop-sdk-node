@@ -19,13 +19,13 @@ describe('EyePopSdk endpoint module auth and connect', () => {
     beforeEach(() => server.reset())
 
     const test_account_id = uuidv4()
-    const test_secret_key = uuidv4()
+    const test_api_key = uuidv4()
     const test_access_token = uuidv4()
     const short_token_valid_time = 1
     const long_token_valid_time = 1000 * 1000
 
     test('EyePopSdk connect', async () => {
-        const authenticationRoute = server.post('/authentication/token').mockImplementationOnce(ctx => {
+        const authenticationRoute = server.post('/v1/auth/authenticate').mockImplementationOnce(ctx => {
             ctx.status = 200
             ctx.response.headers['content-type'] = 'application/json'
             ctx.body = JSON.stringify({
@@ -44,7 +44,7 @@ describe('EyePopSdk endpoint module auth and connect', () => {
         const endpoint = EyePop.dataEndpoint({
             eyepopUrl: server.getURL().toString(),
             accountId: test_account_id,
-            auth: { secretKey: test_secret_key },
+            auth: { apiKey: test_api_key },
             disableWs: true,
         })
         expect(endpoint).toBeDefined()
@@ -61,7 +61,7 @@ describe('EyePopSdk endpoint module auth and connect', () => {
         const test_access_token = uuidv4()
         const long_token_valid_time = 1000 * 1000
 
-        const authenticationRoute = server.post('/authentication/token').mockImplementation(ctx => {
+        const authenticationRoute = server.post('/v1/auth/authenticate').mockImplementation(ctx => {
             ctx.status = 200
             ctx.response.headers['content-type'] = 'application/json'
             ctx.body = JSON.stringify({
@@ -80,7 +80,7 @@ describe('EyePopSdk endpoint module auth and connect', () => {
         const endpoint = EyePop.dataEndpoint({
             eyepopUrl: server.getURL().toString(),
             accountId: test_account_id,
-            auth: { secretKey: test_secret_key },
+            auth: { apiKey: test_api_key },
             disableWs: true,
         })
         expect(endpoint).toBeDefined()
@@ -103,7 +103,7 @@ describe('EyePopSdk endpoint module auth and connect', () => {
 
     test('EyePopSdk re-auth on expired token', async () => {
         const authenticationRoute = server
-            .post('/authentication/token')
+            .post('/v1/auth/authenticate')
             .mockImplementationOnce(ctx => {
                 ctx.status = 200
                 ctx.response.headers['content-type'] = 'application/json'
@@ -131,7 +131,7 @@ describe('EyePopSdk endpoint module auth and connect', () => {
         const endpoint = EyePop.dataEndpoint({
             eyepopUrl: server.getURL().toString(),
             accountId: test_account_id,
-            auth: { secretKey: test_secret_key },
+            auth: { apiKey: test_api_key },
             disableWs: true,
         })
         expect(endpoint).toBeDefined()
@@ -153,7 +153,7 @@ describe('EyePopSdk endpoint module auth and connect', () => {
     })
 
     test('EyePopSdk re-auth on 401', async () => {
-        const authenticationRoute = server.post('/authentication/token').mockImplementation(ctx => {
+        const authenticationRoute = server.post('/v1/auth/authenticate').mockImplementation(ctx => {
             ctx.status = 200
             ctx.response.headers['content-type'] = 'application/json'
             ctx.body = JSON.stringify({
@@ -177,7 +177,7 @@ describe('EyePopSdk endpoint module auth and connect', () => {
         const endpoint = EyePop.dataEndpoint({
             eyepopUrl: server.getURL().toString(),
             accountId: test_account_id,
-            auth: { secretKey: test_secret_key },
+            auth: { apiKey: test_api_key },
             disableWs: true,
         })
         expect(endpoint).toBeDefined()
@@ -192,7 +192,7 @@ describe('EyePopSdk endpoint module auth and connect', () => {
     })
 
     test('EyePopSdk auth with session', async () => {
-        const authenticationRoute = server.post('/authentication/token').mockImplementation(ctx => {
+        const authenticationRoute = server.post('/v1/auth/authenticate').mockImplementation(ctx => {
             ctx.status = 200
             ctx.response.headers['content-type'] = 'application/json'
             ctx.body = JSON.stringify({
@@ -211,7 +211,7 @@ describe('EyePopSdk endpoint module auth and connect', () => {
         const endpoint1 = EyePop.dataEndpoint({
             eyepopUrl: server.getURL().toString(),
             accountId: test_account_id,
-            auth: { secretKey: test_secret_key },
+            auth: { apiKey: test_api_key },
             disableWs: true,
         })
         expect(endpoint1).toBeDefined()

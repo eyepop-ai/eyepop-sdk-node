@@ -9,12 +9,12 @@ export interface Auth0Options {
     scope: string
 }
 
-export interface SecretKeyAuth {
+export interface ApiKeyAuth {
     /**
-     * Authentication secret for server side execution.
-     * Defaults to process.env['EYEPOP_SECRET_KEY'].
+     * Authentication api key for server side execution.
+     * Defaults to process.env['EYEPOP_API_KEY'].
      */
-    secretKey: string
+    apiKey: string
 }
 
 export interface SessionAuth {
@@ -38,7 +38,7 @@ export interface LocalAuth {
     isLocal: true
 }
 
-export type Authentication = undefined | SecretKeyAuth | SessionAuth | OAuth2Auth | LocalAuth
+export type Authentication = undefined | ApiKeyAuth | SessionAuth | OAuth2Auth | LocalAuth
 
 export interface HttpClient {
     fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response>
@@ -59,7 +59,7 @@ export interface Options {
      *
      * Defaults to process.env['EYEPOP_URL'].
      */
-    eyepopUrl?: string
+    eyepopUrl?: string | undefined
 
     jobQueueLength?: number
 
