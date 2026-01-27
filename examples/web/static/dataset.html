@@ -47,7 +47,7 @@
     
     <script>
         const auth = apiKey ? {
-            secretKey: apiKey
+            apiKey: apiKey
         } : { oAuth2: true };
         const queryString = window.location.search;
         const urlParams = new URLSearchParams(queryString);

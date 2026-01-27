@@ -59,7 +59,7 @@ export interface Options {
      *
      * Defaults to process.env['EYEPOP_URL'].
      */
-    eyepopUrl?: string | undefined
+    eyepopUrl?: string
 
     jobQueueLength?: number
 

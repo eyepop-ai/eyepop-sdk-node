@@ -39,11 +39,11 @@ be provided as:
 
 ### Configuration via Environment (Server Side)
 
-While you can provide a secret_key keyword argument, we recommend using dotenv to add EYEPOP_SECRET_KEY="My API Key"
+While you can provide a api_key keyword argument, we recommend using dotenv to add EYEPOP_API_KEY="My API Key"
 to your .env file so that your API Key is not stored in source control. By default, the SDK will read the following environment variables:
 
 -   `EYEPOP_POP_ID`: The Pop Id to use as an endpoint. You can copy and paste this string from your EyePop Dashboard in the Pop -> Settings section.
--   `EYEPOP_SECRET_KEY`: Your Secret Api Key. You can create Api Keys in the profile section of your EyePop dashboard.
+-   `EYEPOP_API_KEY`: Your Api Key. You can create Api Keys in the profile section of your EyePop dashboard.
 -   `EYEPOP_URL`: (Optional) URL of the EyePop API service, if you want to use any other endpoint than production `http://api.eyepop.ai`
 
 ### Authentication with Api Key
@@ -57,7 +57,7 @@ import { EyePop } from '@eyepop.ai/eyepop'
         // This is the default and can be omitted
         popId: process.env['EYEPOP_POP_ID'],
         // This is the default and can be omitted
-        auth: { secretKey: process.env['EYEPOP_SECRET_KEY'] },
+        auth: { apiKey: process.env['EYEPOP_API_KEY'] },
     })
     await endpoint.connect()
     // do work ....
@@ -166,7 +166,7 @@ const example_image_path = 'examples/example.jpg'
 ```
 
 1. `EyePop.workerEndpoint()` returns a local endpoint object, that will authenticate with the Api Key found in
-   EYEPOP_SECRET_KEY and load the worker configuration for the Pop identified by EYEPOP_POP_ID.
+   EYEPOP_API_KEY and load the worker configuration for the Pop identified by EYEPOP_POP_ID.
 2. Call `endpoint.connect()` before any job is submitted and `endpoint.disconnect()` to release all resources.
 3. `endpoint.process({path:'examples/example.jpg'})` initiates the upload to the local file to the worker service.
    The image will be queued and processed immediately when the worker becomes available.

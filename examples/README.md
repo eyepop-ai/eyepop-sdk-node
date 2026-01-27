@@ -5,7 +5,7 @@
 In project root:
 
 ```shell
-export EYEPOP_SECRET_KEY=<your api key>
+export EYEPOP_API_KEY=<your api key>
 ```
 
 ## In Node
