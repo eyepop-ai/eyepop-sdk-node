@@ -10,7 +10,7 @@ import {
     WorkerSession
 } from '../worker/worker_types'
 import { HttpClient } from '../options'
-import {WebrtcWhip} from "EyePop/worker/webrtc_whip";
+import {WebrtcWhip} from "./webrtc_whip";
 
 export class AbstractJob implements ResultStream {
     protected _getSession: () => Promise<WorkerSession>
@@ -426,9 +426,9 @@ export class LoadMediaStreamJob extends AbstractJob {
             this._requestLogger,
         )
 
-        whip.start().then(value => {
+        whip.start().then(_ => {
             this._requestLogger.debug("direct whip for ingressId=%s successful", whip.ingressId())
-        }).catch(reason => {
+        }).catch((reason: any) => {
             this._controller.abort(reason)
         })
 

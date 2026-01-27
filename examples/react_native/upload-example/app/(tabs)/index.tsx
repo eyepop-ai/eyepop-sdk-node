@@ -10,7 +10,7 @@ import { ThemedText } from '@/components/ThemedText'
 import { ThemedView } from '@/components/ThemedView'
 import * as ImagePicker from 'expo-image-picker'
 import Queue from 'queue-fifo'
-import { Prediction, WorkerEndpoint } from '@eyepop.ai/eyepop'
+import {PopComponentType, Prediction, WorkerEndpoint} from '@eyepop.ai/eyepop'
 import { EyePop } from '@eyepop.ai/react-native-eyepop'
 import EyepopRender2d from '@eyepop.ai/eyepop-render-2d'
 
@@ -44,13 +44,23 @@ export default function homeScreen() {
     /** Initialize an EyePop Endpoint and keeping it alive while this component lives */
     useEffect(() => {
         const endpoint = EyePop.workerEndpoint({
-            auth: { secretKey: process.env.EXPO_PUBLIC_EYEPOP_API_KEY || '' },
-            popId: process.env.EXPO_PUBLIC_EYEPOP_POP_UUID,
+            auth: { apiKey: process.env.EXPO_PUBLIC_EYEPOP_API_KEY || '' },
             eyepopUrl: process.env.EXPO_PUBLIC_EYEPOP_URL || undefined,
         })
         setSpinner('Connecting to EyePop...')
         endpoint.connect().then(value => {
-            setWorkerEndpoint(value)
+            value.changePop({ components: [{
+                type: PopComponentType.INFERENCE,
+                model: 'eyepop.person:latest',
+                categoryName: 'person'
+            }]}).then(_ => {
+                setWorkerEndpoint(value)
+            }).catch(reason => {
+              console.error(reason)
+              Alert.alert(`got error ${reason}`)
+            }).finally(() => {
+                setSpinner(false)
+            })
         }).catch(reason => {
             console.error(reason)
             Alert.alert(`got error ${reason}`)

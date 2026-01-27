@@ -80,7 +80,7 @@
         //const apiKey = "AAE_w6lCcrCa27chNAbZO-WdZ0FBQUFBQmwyUFk5bmtLZnJBQ2RFVWVDbzU1MnkwTUMzYXhQWjA4a0ZEczFKWWdONjdRS0NGWUZ5aF90aXVQZ3FrcWdkZWwwUEx6Q0luM0F3b3ItMjdqRmhUQkxyTWVvSndFLWRCUENjZGNlanZhbGhRTDdtV289"
         const apiKey = 'AAGcsWj8N2PlKQl9c9ydz3QFZ0FBQUFBQm1mZDB5eDUwalNlYi12NWotd3hsVGJiMW1sVXF1dE9aOU9oSGVBOWtBQXoxZmNjUE5Nb1YzY3RROUdzbVUwUkZtcDhZcG5vSWROTzR1TU8ybGhZckx6RTgzYVZwMjZEREZjalZubnpYaUNMWVdBODg9';
         const auth = apiKey ? {
-            secretKey: apiKey
+            apiKey: apiKey
         } : { oAuth2: true };
 
         const account_uuid = "49326f2e085a46c39ba73f91c52e436c";
@@ -110,7 +110,7 @@
             endpoint = await EyePop.dataEndpoint({
                 auth: auth,
                 accountId: account_uuid,
-                eyepopUrl: 'https://staging-api.eyepop.ai',
+                eyepopUrl: 'https://compute.staging.eyepop.xyz',
                 eyepopDataUrl: 'https://data.api.eyepop.xyz'
             }).connect();
 

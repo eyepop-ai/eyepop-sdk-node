@@ -30,16 +30,42 @@ interface PopConfig {
     name: string
 }
 
-interface ModelRef {
-    id: string
-    folderUrl: string
-}
 interface Pipeline {
     id: string
     startTime: string
     state: string
     pop?: Pop
 }
+
+export enum SessionStatus {
+    UNKNOWN = "unknown",
+    PENDING = "pending",
+    RUNNING = "running",
+    STOPPED = "stopped",
+    FAILED = "failed",
+    ERROR = "error",
+
+    PIPELINE_CREATING = "pipeline_creating",
+    PIPELINE_OK = "pipeline_ok",
+    PIPELINE_CHECKING = "pipeline_checking",
+    PIPELINE_ERROR = "pipeline_error",
+}
+
+interface ComputeSession {
+    session_uuid: string
+    session_endpoint: string
+    pipeline_uuid: string
+    session_status: SessionStatus
+    session_message: string
+    session_name: string
+    user_uuid: string
+    created_at: string
+    uptime: number
+    pipeline_ttl?: number | undefined
+    session_active: boolean
+}
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
     private _baseUrl: string | null
@@ -80,7 +106,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         return super.disconnect(wait)
     }
 
-    protected statusHandler404(statusCode: number): void {
+    protected statusHandler404(_: number): void {
         this._pipelineId = null
         this._baseUrl = null
     }
@@ -138,10 +164,17 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         })
         if (response.status != 204) {
             const message = await response.text()
-            return Promise.reject(`Unexpected status ${response.status}: ${message}`)
+            throw new Error(`Unexpected status ${response.status}: ${message}`)
         }
         if (this._pipeline) {
             this._pipeline.pop = pop
+        } else {
+            this._pipeline = {
+                id: this._pipelineId || 'unknown',
+                state: "idle",
+                startTime: new Date().toString(),
+                pop: pop
+            }
         }
     }
 
@@ -377,12 +410,12 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         }
     }
 
-    private jobDone(job: AbstractJob) {
+    private jobDone(_: AbstractJob) {
         this._limit?.release()
         this.updateState()
     }
 
-    private jobStatus(job: AbstractJob, statusCode: number) {
+    private jobStatus(_: AbstractJob, statusCode: number) {
         if (statusCode == 404) {
             this.statusHandler404(statusCode)
         } else if (statusCode == 401) {
@@ -391,15 +424,21 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
     }
 
     protected override async reconnect(): Promise<WorkerEndpoint> {
-        if (!this._client) {
-            return Promise.reject('endpoint not initialized')
-        }
-        let config_url
         if (this.options().popId == TransientPopId.Transient) {
-            config_url = `${this.eyepopUrl()}/workers/config`
+            await this.startComputeSession()
+            this._pipelineId = await this.startTransientPipeline()
         } else {
-            config_url = `${this.eyepopUrl()}/pops/${this.options().popId}/config?auto_start=false`
+            await this.startWebApiSessionWithPopId()
         }
+        this.updateState()
+        return Promise.resolve(this)
+    }
+
+    private async startWebApiSessionWithPopId(): Promise<void> {
+        if (!this._client) {
+            throw new Error('endpoint not initialized')
+        }
+        const config_url = `${this.eyepopWebApiUrl()}/pops/${this.options().popId}/config?auto_start=false`
         const headers = {
             Authorization: await this.authorizationHeader(),
         }
@@ -425,11 +464,11 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             } else {
                 this.updateState(EndpointState.Error, message)
             }
-            return Promise.reject(`Unexpected status ${response.status}: ${message}`)
+            throw new Error(`Unexpected status ${response.status}: ${message}`)
         }
         let config = (await response.json()) as PopConfig
         if (!config.base_url && this.options().autoStart) {
-            const auto_start_config_url = `${this.eyepopUrl()}/pops/${this.options().popId}/config?auto_start=true`
+            const auto_start_config_url = `${this.eyepopWebApiUrl()}/pops/${this.options().popId}/config?auto_start=true`
             this._requestLogger.debug('pop was not running, trying to autostart with: %s', auto_start_config_url)
             // one retry the pop might just have stopped
             const headers = {
@@ -441,7 +480,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             if (response.status != 200) {
                 this.updateState(EndpointState.Error)
                 const message = await response.text()
-                return Promise.reject(`Unexpected status ${response.status}: ${message}`)
+                throw new Error(`Unexpected status ${response.status}: ${message}`)
             }
             config = (await response.json()) as PopConfig
         }
@@ -451,17 +490,11 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
 
         if (this._baseUrl) {
             this._baseUrl = this._baseUrl.replace(/\/+$/, '')
-            if (this.options().popId == TransientPopId.Transient) {
-                this._pipelineId = await this.startTransientPipeline()
-                this._popName = this.options().popId || null
-            } else {
-                this._pipelineId = config.pipeline_id
-                this._popName = config.name
-            }
+            this._pipelineId = config.pipeline_id
+            this._popName = config.name
             if (!this._pipelineId || !this._baseUrl) {
-                return Promise.reject(`Pop not started`)
+                throw new Error('Pop not started')
             }
-            this._baseUrl = this._baseUrl.replace(/\/+$/, '')
 
             const get_url = `${this._baseUrl}/pipelines/${this._pipelineId}`
             const headers = {
@@ -473,7 +506,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             })
             if (response.status > 200) {
                 const message = await response.text()
-                return Promise.reject(`Unexpected status ${response.status}: ${message}`)
+                throw new Error(`Unexpected status ${response.status}: ${message}`)
             }
             this._pipeline = (await response.json()) as Pipeline
 
@@ -491,13 +524,102 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
                 })
                 if (response.status >= 300) {
                     const message = await response.text()
-                    return Promise.reject(`Unexpected status ${response.status}: ${message}`)
+                    throw new Error(`Unexpected status ${response.status}: ${message}`)
                 }
             }
         }
+    }
 
-        this.updateState()
-        return Promise.resolve(this)
+    private static SESSION_DEAD = new Set<SessionStatus>([
+        SessionStatus.ERROR,
+        SessionStatus.FAILED,
+        SessionStatus.STOPPED,
+        SessionStatus.PIPELINE_ERROR,
+        SessionStatus.UNKNOWN
+    ])
+
+    private static WAIT_FOR_IS_READY: number = 60 * 1000
+    private static CHECK_FOR_IS_READY_INTERVAL: number = 250
+
+    private async startComputeSession(): Promise<void> {
+        if (!this._client) {
+            throw new Error('endpoint not initialized')
+        }
+        let session: ComputeSession | null = null
+        const sessionsUrl = `${this.eyepopUrl()}/v1/sessions`
+        this._requestLogger.debug('fetching sessions from: %s', sessionsUrl)
+        const headers = {
+            Authorization: await this.authorizationHeader(),
+        }
+        let response = await this._client.fetch(sessionsUrl, {
+            headers: headers,
+        })
+        let sessions: ComputeSession[]
+
+        if (response.status == 404) {
+            sessions = []
+        } else if (response.status != 200) {
+            this.updateState(EndpointState.Error)
+            const message = await response.text()
+            throw new Error(`Unexpected status ${response.status} fetching compute sessions: ${message}`)
+        } else {
+            const response_content = await response.json()
+            sessions = response_content as ComputeSession[]
+        }
+        if (sessions.length > 0) {
+            this._logger.debug(`User has ${sessions.length} sessions, inspecting for active session`)
+            for (let s of sessions) {
+                if (!WorkerEndpoint.SESSION_DEAD.has(s.session_status)) {
+                    session = s
+                    this._logger.debug(`Use active session ${s.session_uuid} with pipeline ${s.pipeline_uuid}`)
+                    break
+                }
+            }
+        }
+        if (!session) {
+            this._requestLogger.debug('creating a new session at: %s', sessionsUrl)
+            response = await this._client.fetch(sessionsUrl, {
+                headers: headers,
+                method: 'POST'
+            })
+            if (response.status != 200) {
+                this.updateState(EndpointState.Error)
+                const message = await response.text()
+                throw new Error(`Unexpected status ${response.status} creating a compute session: ${message}`)
+            } else {
+                sessions = (await response.json()) as ComputeSession[]
+            }
+            if (sessions.length == 0) {
+                throw new Error('Unexpected, no compute session after attempt to create one')
+            }
+            session = sessions[0] || null
+        }
+        if (!session) {
+            throw new Error("unexpected undefined session")
+        }
+        let isReady: boolean = false
+        const deadline: number = Date.now() + WorkerEndpoint.WAIT_FOR_IS_READY
+        while (!isReady) {
+            const health_url = `${session.session_endpoint}/health`
+            response = await this._client.fetch(health_url, {
+                headers: headers,
+            })
+            if (response.status < 300) {
+                isReady = true
+            } else if (Date.now() > deadline) {
+                throw new Error(`Created session ${session.session_uuid} did not become healthy after ${WorkerEndpoint.WAIT_FOR_IS_READY / 1000} seconds`)
+            } else {
+                this._logger.debug(`session ${session.session_uuid} health check status ${response.status}, wait and poll for update`)
+                await sleep(WorkerEndpoint.CHECK_FOR_IS_READY_INTERVAL)
+            }
+        }
+        this._baseUrl = session.session_endpoint
+        this._pipeline = null
+        if (session.pipeline_uuid) {
+            this._pipelineId = session.pipeline_uuid
+        } else {
+            this._pipelineId = null
+        }
     }
 
     private async startTransientPipeline(): Promise<string> {
@@ -505,7 +627,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         const baseUrl = this._baseUrl
 
         if (client == null || baseUrl == null) {
-            return Promise.reject('endpoint not initialized')
+            throw new Error('endpoint not initialized')
         }
 
         let pop: Pop
@@ -542,7 +664,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         })
         if (response.status != 200) {
             const message = await response.text()
-            return Promise.reject(`Unexpected status ${response.status}: ${message}`)
+            throw new Error(`Unexpected status ${response.status}: ${message}`)
         }
         const result = await response.json()
         return result['id']

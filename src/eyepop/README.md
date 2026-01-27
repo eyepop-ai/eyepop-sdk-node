@@ -39,11 +39,10 @@ be provided as:
 
 ### Configuration via Environment (Server Side)
 
-While you can provide a secret_key keyword argument, we recommend using dotenv to add EYEPOP_SECRET_KEY="My API Key"
+While you can provide a api_key keyword argument, we recommend using dotenv to add EYEPOP_API_KEY="My API Key"
 to your .env file so that your API Key is not stored in source control. By default, the SDK will read the following environment variables:
 
--   `EYEPOP_POP_ID`: The Pop Id to use as an endpoint. You can copy and paste this string from your EyePop Dashboard in the Pop -> Settings section.
--   `EYEPOP_SECRET_KEY`: Your Secret Api Key. You can create Api Keys in the profile section of your EyePop dashboard.
+-   `EYEPOP_API_KEY`: Your Api Key. You can create Api Keys in the profile section of your EyePop dashboard.
 -   `EYEPOP_URL`: (Optional) URL of the EyePop API service, if you want to use any other endpoint than production `http://api.eyepop.ai`
 
 ### Authentication with Api Key
@@ -55,9 +54,7 @@ import { EyePop } from '@eyepop.ai/eyepop'
 ;async () => {
     const endpoint = EyePop.workerEndpoint({
         // This is the default and can be omitted
-        popId: process.env['EYEPOP_POP_ID'],
-        // This is the default and can be omitted
-        auth: { secretKey: process.env['EYEPOP_SECRET_KEY'] },
+        auth: { apiKey: process.env['EYEPOP_API_KEY'] },
     })
     await endpoint.connect()
     // do work ....
@@ -117,7 +114,12 @@ import { EyePop } from '@eyepop.ai/eyepop'
     <body>
         <script>
             document.addEventListener('DOMContentLoaded', async event => {
-                let endpoint = await EyePop.workerEndpoint({ auth: { oAuth2: true }, popId: '< Pop Id>' }).connect()
+                let endpoint = await EyePop.workerEndpoint({ auth: { oAuth2: true } }).connect()
+                await endpoint.changePop({ components: [{
+                    type: PopComponentType.INFERENCE,
+                    model: 'eyepop.person:latest',
+                    categoryName: 'person'
+                }]})
                 // do work ....
                 await endpoint.disconnect()
             })
@@ -136,9 +138,8 @@ let endpoint = await EyePop.workerEndpoint({
             audience: 'https://dev-app.eyepop.ai',
             domain: 'dev-eyepop.us.auth0.com',
             clientId: 'jktx3YO2UnbkNPvr05PQWf26t1kNTJyg',
-        },
-    },
-    popId: '< Pop Id>',
+        }
+    }
 }).connect()
 // ...
 ```
@@ -155,6 +156,11 @@ const example_image_path = 'examples/example.jpg'
 ;(async () => {
     const endpoint = await EyePop.workerEndpoint().connect()
     try {
+        await endpoint.changePop({ components: [{
+          type: PopComponentType.INFERENCE,
+          model: 'eyepop.person:latest',
+          categoryName: 'person'
+        }]})
         let results = await endpoint.process({ path: example_image_path })
         for await (let result of results) {
             console.log(result)
@@ -166,9 +172,11 @@ const example_image_path = 'examples/example.jpg'
 ```
 
 1. `EyePop.workerEndpoint()` returns a local endpoint object, that will authenticate with the Api Key found in
-   EYEPOP_SECRET_KEY and load the worker configuration for the Pop identified by EYEPOP_POP_ID.
+   EYEPOP_API_KEY.
 2. Call `endpoint.connect()` before any job is submitted and `endpoint.disconnect()` to release all resources.
-3. `endpoint.process({path:'examples/example.jpg'})` initiates the upload to the local file to the worker service.
+3. Call `endpoint.changePop(...)` to define the Pop and its components to be executed by the endpoint, in this example
+   to use the ability `eyepop.person` to find all instances of persons in images and videos.
+4.`endpoint.process({path:'examples/example.jpg'})` initiates the upload to the local file to the worker service.
    The image will be queued and processed immediately when the worker becomes available.
    The result of endpoint.upload() implements `AsyncIterable<Prediction>` which can be iterated with 'for await' as
    shown in the example above. Predictions will become available when the submitted file becomes processed by the worker
@@ -176,7 +184,7 @@ const example_image_path = 'examples/example.jpg'
    e.g. 'video/mp4' or image container format e.g. 'image/gif', the client will receive one prediction per image frame
    until the entire file has been processed.
 
-4. Alternatively to `path` process() also accepts a readable stream with a mandatory mime-type:
+5. Alternatively to `path` process() also accepts a readable stream with a mandatory mime-type:
 
 ```typescript
 // ...

@@ -43,7 +43,7 @@ import {
     WorkflowPhase,
 } from './data_types'
 import { Prediction } from '@eyepop.ai/eyepop'
-import { EvaluateDatasetJob, InferAssetJob } from 'EyePop/data/jobs'
+import { EvaluateDatasetJob, InferAssetJob } from './jobs'
 
 interface DataConfig {
     dataset_api_url: string
@@ -113,7 +113,7 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
             return Promise.reject('endpoint not initialized')
         }
         const accountUuidQuery = this._accountId ? `?account_uuid=${this._accountId}` : ''
-        const config_url = `${this.eyepopUrl()}/configs${accountUuidQuery}`
+        const config_url = `${this.eyepopUrl()}/v1/configs${accountUuidQuery}`
         let headers = {
             Authorization: await this.authorizationHeader(),
         }
@@ -769,7 +769,7 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
             const job = new InferAssetJob(
                 assetUrl,
                 infer_request,
-                async (path, options) => {
+                async (path: string, options: any) => {
                     return await this.request(path, options, false, DataApiType.vlm)
                 },
                 this._requestLogger,
@@ -797,7 +797,7 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
             const job = new EvaluateDatasetJob(
                 evaluate_request,
                 worker_release ?? null,
-                async (path, options) => {
+                async (path: string, options: any) => {
                     return await this.request(path, options, false, DataApiType.vlm)
                 },
                 this._requestLogger,
@@ -812,7 +812,7 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         }
     }
 
-    private jobDone(job: object) {
+    private jobDone(_job: object) {
         this._limit?.release()
     }
 
@@ -833,6 +833,7 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
                 for (let handler of this._account_event_handlers) {
                     await handler(change_event)
                 }
+                break
             // dataset event types
             case ChangeType.asset_added:
             case ChangeType.asset_removed:

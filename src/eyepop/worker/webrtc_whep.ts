@@ -82,7 +82,7 @@ export class WebrtcWhep extends WebrtcBase {
         return new Promise(async (resolve, reject) => {
             pc.ontrack = evt => {
                 this._requestLogger.debug(`new track: ${evt.track.kind}`)
-                this._stream = evt.streams[0]
+                this._stream = evt.streams[0] || null
                 resolve(this)
             }
             pc.oniceconnectionstatechange = () => {

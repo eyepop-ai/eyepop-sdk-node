@@ -41,7 +41,7 @@
     </div>
 
     <script>
-        const auth = apiKey ? { secretKey: apiKey } : { oAuth2: true };
+        const auth = apiKey ? { apiKey: apiKey } : { oAuth2: true };
         const urlParams = new URLSearchParams(window.location.search);
         const image_url = urlParams.get('image_url') ||
             'https://cdn.mos.cms.futurecdn.net/BifufTaqNT6mAyUuGWqADd-1200-80.jpg.webp'

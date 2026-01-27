@@ -40,8 +40,7 @@ Use the `EyePop` namespace from `react-native-eyepop` with the identical Api as 
 import { EyePop } from 'react-native-eyepop';
 
 const endpoint = EyePop.workerEndpoint({
-    auth: { secretKey: process.env.EXPO_PUBLIC_EYEPOP_API_KEY || '' },
-    popId: process.env.EXPO_PUBLIC_EYEPOP_POP_UUID,
+    auth: { apiKey: process.env.EXPO_PUBLIC_EYEPOP_API_KEY || '' },
     eyepopUrl: process.env.EXPO_PUBLIC_EYEPOP_URL || undefined,
 })
 

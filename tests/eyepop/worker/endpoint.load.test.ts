@@ -8,7 +8,7 @@ function prepMockServer(server: MockServer, test_pop_id: string, test_pipeline_i
     const test_access_token = uuidv4()
     const token_valid_time = 1000 * 1000
 
-    const authenticationRoute = server.post('/authentication/token').mockImplementation(ctx => {
+    const authenticationRoute = server.post('/v1/auth/authenticate').mockImplementation(ctx => {
         ctx.status = 200
         ctx.response.headers['content-type'] = 'application/json'
         ctx.body = JSON.stringify({
@@ -38,7 +38,7 @@ function prepMockServer(server: MockServer, test_pop_id: string, test_pipeline_i
 describe('EyePopSdk endpoint module loadFrom', () => {
     const server = new MockServer()
 
-    const test_secret_key = uuidv4()
+    const test_api_key = uuidv4()
 
     beforeAll(() => server.start())
     afterAll(() => server.stop())
@@ -67,7 +67,7 @@ describe('EyePopSdk endpoint module loadFrom', () => {
 
         const endpoint = EyePop.workerEndpoint({
             eyepopUrl: server.getURL().toString(),
-            auth: { secretKey: test_secret_key },
+            auth: { apiKey: test_api_key },
             popId: test_pop_id,
             stopJobs: false,
         })

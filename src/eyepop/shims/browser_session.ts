@@ -1,5 +1,5 @@
 import { Session } from '../types'
-import { Auth0Options, LocalAuth, OAuth2Auth, Options } from '../options'
+import { Auth0Options, Options } from '../options'
 import { createAuth0Client } from '@auth0/auth0-spa-js'
 import { Auth0ClientOptions } from '@auth0/auth0-spa-js/src/global'
 import { WorkerOptions, WorkerSession } from '../index'
@@ -52,7 +52,7 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
         return session
     }
 } else {
-    authenticateBrowserSession = (auth0: Auth0Options, options: Options) => {
+    authenticateBrowserSession = (_auth0: Auth0Options, _options: Options) => {
         return Promise.reject('auth0 login not supported server-side')
     }
 }
