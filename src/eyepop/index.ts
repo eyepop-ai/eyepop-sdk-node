@@ -183,7 +183,7 @@ export namespace EyePop {
     export function dataEndpoint(opts: DataOptions = {}): DataEndpoint {
         _fill_default_options(opts)
         if (opts.auth === undefined) {
-            throw new Error('auth option or EYEPOP_SECRET_KEY environment variable is required')
+            throw new Error('auth option or EYEPOP_API_KEY environment variable is required')
         }
         if (opts.accountId === undefined) {
             opts.accountId = readEnv('EYEPOP_ACCOUNT_ID')

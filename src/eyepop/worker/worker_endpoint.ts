@@ -164,7 +164,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         })
         if (response.status != 204) {
             const message = await response.text()
-            return Promise.reject(`Unexpected status ${response.status}: ${message}`)
+            throw new Error(`Unexpected status ${response.status}: ${message}`)
         }
         if (this._pipeline) {
             this._pipeline.pop = pop
@@ -436,10 +436,9 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
 
     private async startWebApiSessionWithPopId(): Promise<void> {
         if (!this._client) {
-            return Promise.reject('endpoint not initialized')
+            throw new Error('endpoint not initialized')
         }
-        let config_url
-        config_url = `${this.eyepopWebApiUrl()}/pops/${this.options().popId}/config?auto_start=false`
+        const config_url = `${this.eyepopWebApiUrl()}/pops/${this.options().popId}/config?auto_start=false`
         const headers = {
             Authorization: await this.authorizationHeader(),
         }
@@ -465,7 +464,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             } else {
                 this.updateState(EndpointState.Error, message)
             }
-            return Promise.reject(`Unexpected status ${response.status}: ${message}`)
+            throw new Error(`Unexpected status ${response.status}: ${message}`)
         }
         let config = (await response.json()) as PopConfig
         if (!config.base_url && this.options().autoStart) {
@@ -481,7 +480,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             if (response.status != 200) {
                 this.updateState(EndpointState.Error)
                 const message = await response.text()
-                return Promise.reject(`Unexpected status ${response.status}: ${message}`)
+                throw new Error(`Unexpected status ${response.status}: ${message}`)
             }
             config = (await response.json()) as PopConfig
         }
@@ -494,9 +493,8 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             this._pipelineId = config.pipeline_id
             this._popName = config.name
             if (!this._pipelineId || !this._baseUrl) {
-                return Promise.reject(`Pop not started`)
+                throw new Error('Pop not started')
             }
-            this._baseUrl = this._baseUrl.replace(/\/+$/, '')
 
             const get_url = `${this._baseUrl}/pipelines/${this._pipelineId}`
             const headers = {
@@ -508,7 +506,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             })
             if (response.status > 200) {
                 const message = await response.text()
-                return Promise.reject(`Unexpected status ${response.status}: ${message}`)
+                throw new Error(`Unexpected status ${response.status}: ${message}`)
             }
             this._pipeline = (await response.json()) as Pipeline
 
@@ -526,17 +524,11 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
                 })
                 if (response.status >= 300) {
                     const message = await response.text()
-                    return Promise.reject(`Unexpected status ${response.status}: ${message}`)
+                    throw new Error(`Unexpected status ${response.status}: ${message}`)
                 }
             }
         }
     }
-
-    private static SESSION_READY = new Set<SessionStatus>([
-        SessionStatus.RUNNING,
-        SessionStatus.PIPELINE_CHECKING,
-        SessionStatus.PIPELINE_OK
-    ])
 
     private static SESSION_DEAD = new Set<SessionStatus>([
         SessionStatus.ERROR,
@@ -551,7 +543,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
 
     private async startComputeSession(): Promise<void> {
         if (!this._client) {
-            return Promise.reject('endpoint not initialized')
+            throw new Error('endpoint not initialized')
         }
         let session: ComputeSession | null = null
         const sessionsUrl = `${this.eyepopUrl()}/v1/sessions`
@@ -569,7 +561,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         } else if (response.status != 200) {
             this.updateState(EndpointState.Error)
             const message = await response.text()
-            return Promise.reject(`Unexpected status ${response.status} fetching compute sessions: ${message}`)
+            throw new Error(`Unexpected status ${response.status} fetching compute sessions: ${message}`)
         } else {
             const response_content = await response.json()
             sessions = response_content as ComputeSession[]
@@ -593,12 +585,12 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             if (response.status != 200) {
                 this.updateState(EndpointState.Error)
                 const message = await response.text()
-                return Promise.reject(`Unexpected status ${response.status} creating a compute session: ${message}`)
+                throw new Error(`Unexpected status ${response.status} creating a compute session: ${message}`)
             } else {
                 sessions = (await response.json()) as ComputeSession[]
             }
             if (sessions.length == 0) {
-                return Promise.reject('Unexpected, no compute session after attempt to create one')
+                throw new Error('Unexpected, no compute session after attempt to create one')
             }
             session = sessions[0]
         }
@@ -612,7 +604,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             if (response.status < 300) {
                 isReady = true
             } else if (Date.now() > deadline) {
-                return Promise.reject(`Created session ${session.session_uuid} did not become healthy after ${WorkerEndpoint.WAIT_FOR_IS_READY / 1000} seconds`)
+                throw new Error(`Created session ${session.session_uuid} did not become healthy after ${WorkerEndpoint.WAIT_FOR_IS_READY / 1000} seconds`)
             } else {
                 this._logger.debug(`session ${session.session_uuid} health check status ${response.status}, wait and poll for update`)
                 await sleep(WorkerEndpoint.CHECK_FOR_IS_READY_INTERVAL)
@@ -632,7 +624,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         const baseUrl = this._baseUrl
 
         if (client == null || baseUrl == null) {
-            return Promise.reject('endpoint not initialized')
+            throw new Error('endpoint not initialized')
         }
 
         let pop: Pop
@@ -669,7 +661,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         })
         if (response.status != 200) {
             const message = await response.text()
-            return Promise.reject(`Unexpected status ${response.status}: ${message}`)
+            throw new Error(`Unexpected status ${response.status}: ${message}`)
         }
         const result = await response.json()
         return result['id']
