@@ -21,13 +21,13 @@ export default function Home() {
     // EyePop.ai setup function - generates session dynamically like webpack example
     const setup = async () => {
         try {
-            const secretKey = process.env.NEXT_PUBLIC_EYEPOP_SECRET_KEY
+            const apiKey = process.env.NEXT_PUBLIC_EYEPOP_API_KEY
             const modelUuid = process.env.NEXT_PUBLIC_EYEPOP_MODEL_UUID
-            if (!secretKey) {
-                throw new Error('EYEPOP_SECRET_KEY environment variables are required')
+            if (!apiKey) {
+                throw new Error('EYEPOP_API_KEY environment variable is required')
             }
             endpointRef.current = EyePop.workerEndpoint({
-                auth: { secretKey: secretKey },
+                auth: { apiKey: apiKey },
             })
             await endpointRef.current.connect()
             const session = await endpointRef.current.session()
@@ -77,7 +77,7 @@ export default function Home() {
                     {
                         error: 'Setup failed',
                         details: errorMessage,
-                        note: 'Please check your EYEPOP_SECRET_KEY environment variable',
+                        note: 'Please check your EYEPOP_API_KEY environment variable',
                     },
                     null,
                     2,
