@@ -48,5 +48,5 @@ open http://localhost:8000/examples/web/static/ingress.html
 In another terminal
 
 ```shell
-open http://127.0.0.1:8000/examples/web/static/upload.html?popId=$EYEPOP_POP_ID&eyepopUrl=(echo $EYEPOP_URL | jq -sRr @uri)
+open http://127.0.0.1:8000/examples/web/static/upload.html?eyepopUrl=(echo $EYEPOP_URL | jq -sRr @uri)
 ```

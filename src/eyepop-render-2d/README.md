@@ -86,23 +86,24 @@ const example_image_path = 'examples/example.jpg'
         <canvas id="my-canvas"></canvas>
         <!-- ... -->
         <script>
-            async
-            uploadFile(event)
-            {
+            async uploadFile(event) {
                 const fileChooser = document.getElementById('my-file-chooser');
                 const context = document.getElementById('my-canvas').getContext("2d");
                 const renderer = Render2d.renderer(context);
 
-                const endpoint = await EyePop.workerEndpoint({auth: {oAuth2: true}, popId: '< Pop Id>'}).connect();
-                endpoint.process({file: fileChooser.files[0]}).then(async (results) => {
+                const endpoint = await EyePop.workerEndpoint({auth: {oAuth2: true}}).connect();
+                await endpoint.changePop({ components: [{
+                    type: PopComponentType.INFERENCE,
+                    model: 'eyepop.person:latest',
+                    categoryName: 'person'
+                }]})
+                await endpoint.process({file: fileChooser.files[0]}).then(async (results) => {
                     for await (let result of results) {
                         renderer.draw(result);
                     }
                 });
                 await endpoint.disconnect();
-            }
-            )
-            ;
+            });
         </script>
     </body>
 </html>

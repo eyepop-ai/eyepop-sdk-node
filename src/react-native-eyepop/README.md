@@ -41,7 +41,6 @@ import { EyePop } from 'react-native-eyepop';
 
 const endpoint = EyePop.workerEndpoint({
     auth: { apiKey: process.env.EXPO_PUBLIC_EYEPOP_API_KEY || '' },
-    popId: process.env.EXPO_PUBLIC_EYEPOP_POP_UUID,
     eyepopUrl: process.env.EXPO_PUBLIC_EYEPOP_URL || undefined,
 })
 

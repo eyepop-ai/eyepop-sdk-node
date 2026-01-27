@@ -6,7 +6,7 @@ export enum TransientPopId {
 
 export interface WorkerOptions extends Options {
     /**
-     * Defaults to process.env['EYEPOP_POP_ID'].
+     * TODO: deprecated, defaults to process.env['EYEPOP_POP_ID'].
      */
     popId?: string | TransientPopId | undefined
     autoStart?: boolean
