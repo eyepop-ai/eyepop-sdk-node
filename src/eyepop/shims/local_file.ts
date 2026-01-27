@@ -6,7 +6,7 @@ import { Logger } from 'pino'
 export let resolvePath: (source: PathSource, logger: Logger) => Promise<StreamSource>
 
 if ('document' in globalThis && 'implementation' in globalThis.document) {
-    resolvePath = async (source: PathSource, logger: Logger) => {
+    resolvePath = async (_source: PathSource, _logger: Logger) => {
         throw new DOMException('resolving a path to a file is not supported in browser')
     }
 } else {
@@ -39,7 +39,7 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
             },
         })
     }
-    resolvePath = async (source: PathSource, logger: Logger) => {
+    resolvePath = async (source: PathSource, _: Logger) => {
         const mime = require('mime-types')
         const filehandle = require('node:fs/promises')
         const fd = await filehandle.open(source.path, 'r')

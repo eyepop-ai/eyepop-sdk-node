@@ -156,7 +156,7 @@ export abstract class WebrtcBase {
                           return null
                       }
                       const iceServer: RTCIceServer = {
-                          urls: [m[1]],
+                          urls: [m[1]] as string[],
                           username: WebrtcWhip.unquoteCredential(m[3]),
                           credential: WebrtcWhip.unquoteCredential(m[4]),
                           // credentialType: m[3]? "password" : undefined
@@ -174,9 +174,9 @@ export abstract class WebrtcBase {
 
         for (let i = 0; i < sections.length; i++) {
             const section = sections[i]
-            if (section.startsWith('video')) {
+            if (section && section.startsWith('video')) {
                 sections[i] = WebrtcWhip.setVideoBitrate(WebrtcWhip.setCodec(section, videoCodec), videoBitrate)
-            } else if (section.startsWith('audio')) {
+            } else if (section && section.startsWith('audio')) {
                 sections[i] = WebrtcWhip.setAudioBitrate(WebrtcWhip.setCodec(section, audioCodec), audioBitrate, audioVoice)
             }
         }
@@ -223,7 +223,11 @@ export abstract class WebrtcBase {
         let lines = section.split('\r\n')
 
         for (let i = 0; i < lines.length; i++) {
-            if (lines[i].startsWith('c=')) {
+            const line = lines[i]
+            if (!line) {
+                continue
+            }
+            if (line.startsWith('c=')) {
                 lines = [...lines.slice(0, i + 1), 'b=TIAS:' + (bitrate * 1024).toString(), ...lines.slice(i + 1)]
                 break
             }
@@ -234,11 +238,15 @@ export abstract class WebrtcBase {
 
     private static setAudioBitrate(section: string, bitrate: number | undefined, voice: boolean) {
         let opusPayloadFormat = ''
-        let lines = section.split('\r\n')
+        let lines: string[] = section.split('\r\n')
 
         for (let i = 0; i < lines.length; i++) {
-            if (lines[i].startsWith('a=rtpmap:') && lines[i].toLowerCase().includes('opus/')) {
-                opusPayloadFormat = lines[i].slice('a=rtpmap:'.length).split(' ')[0]
+            const line = lines[i]
+            if (!line) {
+                continue
+            }
+            if (line.startsWith('a=rtpmap:') && line.toLowerCase().includes('opus/')) {
+                opusPayloadFormat = line.slice('a=rtpmap:'.length).split(' ')[0] || ''
                 break
             }
         }
@@ -248,7 +256,11 @@ export abstract class WebrtcBase {
         }
 
         for (let i = 0; i < lines.length; i++) {
-            if (lines[i].startsWith('a=fmtp:' + opusPayloadFormat + ' ')) {
+            const line = lines[i]
+            if (!line) {
+                continue
+            }
+            if (line.startsWith('a=fmtp:' + opusPayloadFormat + ' ')) {
                 if (voice) {
                     lines[i] = 'a=fmtp:' + opusPayloadFormat + ' minptime=10;useinbandfec=1;maxaveragebitrate=' + ((bitrate ?? 0) * 1024).toString()
                 } else {

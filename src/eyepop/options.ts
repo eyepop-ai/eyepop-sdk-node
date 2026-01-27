@@ -1,6 +1,6 @@
 import { Logger } from 'pino'
 import { Session } from './types'
-import { PathSource, StreamSource } from 'EyePop/worker/worker_types'
+import { PathSource, StreamSource } from './worker/worker_types'
 
 export interface Auth0Options {
     domain: string
@@ -59,7 +59,7 @@ export interface Options {
      *
      * Defaults to process.env['EYEPOP_URL'].
      */
-    eyepopUrl?: string
+    eyepopUrl?: string | undefined
 
     jobQueueLength?: number
 

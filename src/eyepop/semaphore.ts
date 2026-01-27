@@ -71,7 +71,7 @@ export class Semaphore {
 
         // We save the resolver function in the current scope so that we can resolve the promise
         // to false if the time expires.
-        let resolver: (v: boolean) => void = b => void 0
+        let resolver: (v: boolean) => void = _ => void 0
         const promise = new Promise<boolean>(r => {
             resolver = r
         })

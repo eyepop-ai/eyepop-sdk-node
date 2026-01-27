@@ -106,7 +106,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         return super.disconnect(wait)
     }
 
-    protected statusHandler404(statusCode: number): void {
+    protected statusHandler404(_: number): void {
         this._pipelineId = null
         this._baseUrl = null
     }
@@ -410,12 +410,12 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         }
     }
 
-    private jobDone(job: AbstractJob) {
+    private jobDone(_: AbstractJob) {
         this._limit?.release()
         this.updateState()
     }
 
-    private jobStatus(job: AbstractJob, statusCode: number) {
+    private jobStatus(_: AbstractJob, statusCode: number) {
         if (statusCode == 404) {
             this.statusHandler404(statusCode)
         } else if (statusCode == 401) {
@@ -592,7 +592,10 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             if (sessions.length == 0) {
                 throw new Error('Unexpected, no compute session after attempt to create one')
             }
-            session = sessions[0]
+            session = sessions[0] || null
+        }
+        if (!session) {
+            throw new Error("unexpected undefined session")
         }
         let isReady: boolean = false
         const deadline: number = Date.now() + WorkerEndpoint.WAIT_FOR_IS_READY

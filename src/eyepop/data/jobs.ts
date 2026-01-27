@@ -1,7 +1,7 @@
-import { ResultStream } from 'EyePop/worker/worker_types'
+import { ResultStream } from '../worker/worker_types'
 import { Logger } from 'pino'
-import { Prediction } from 'EyePop/types'
-import { EvaluateRequest, EvaluateResponse, InferRequest, InferRunInfo } from 'EyePop/data/data_types'
+import { Prediction } from '../types'
+import { EvaluateRequest, EvaluateResponse, InferRequest, InferRunInfo } from './data_types'
 
 type VlmFetch = (path: string, options: RequestInit) => Promise<any>
 

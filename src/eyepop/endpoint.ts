@@ -165,7 +165,7 @@ export class Endpoint<T extends Endpoint<T>> {
         }
     }
 
-    protected statusHandler401(statusCode: number): void {
+    protected statusHandler401(_statusCode: number): void {
         this._token = null
         this._expire_token_time = null
     }
