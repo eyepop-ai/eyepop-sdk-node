@@ -37,21 +37,25 @@ interface Pipeline {
     pop?: Pop
 }
 
-export enum PipelineStatus {
+export enum SessionStatus {
     UNKNOWN = "unknown",
     PENDING = "pending",
-    PIPELINE_CREATING = "pipeline_creating",
     RUNNING = "running",
     STOPPED = "stopped",
     FAILED = "failed",
     ERROR = "error",
+
+    PIPELINE_CREATING = "pipeline_creating",
+    PIPELINE_OK = "pipeline_ok",
+    PIPELINE_CHECKING = "pipeline_checking",
+    PIPELINE_ERROR = "pipeline_error",
 }
 
 interface ComputeSession {
     session_uuid: string
     session_endpoint: string
     pipeline_uuid: string
-    session_status: PipelineStatus
+    session_status: SessionStatus
     session_message: string
     session_name: string
     user_uuid: string
@@ -61,6 +65,7 @@ interface ComputeSession {
     session_active: boolean
 }
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
     private _baseUrl: string | null
@@ -163,6 +168,13 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         }
         if (this._pipeline) {
             this._pipeline.pop = pop
+        } else {
+            this._pipeline = {
+                id: this._pipelineId || 'unknown',
+                state: "idle",
+                startTime: new Date().toString(),
+                pop: pop
+            }
         }
     }
 
@@ -519,10 +531,29 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             }
         }
     }
+
+    private static SESSION_READY = new Set<SessionStatus>([
+        SessionStatus.RUNNING,
+        SessionStatus.PIPELINE_CHECKING,
+        SessionStatus.PIPELINE_OK
+    ])
+
+    private static SESSION_DEAD = new Set<SessionStatus>([
+        SessionStatus.ERROR,
+        SessionStatus.FAILED,
+        SessionStatus.STOPPED,
+        SessionStatus.PIPELINE_ERROR,
+        SessionStatus.UNKNOWN
+    ])
+
+    private static WAIT_FOR_IS_READY: number = 60 * 1000
+    private static CHECK_FOR_IS_READY_INTERVAL: number = 250
+
     private async startComputeSession(): Promise<void> {
         if (!this._client) {
             return Promise.reject('endpoint not initialized')
         }
+        let session: ComputeSession | null = null
         const sessionsUrl = `${this.eyepopUrl()}/v1/sessions`
         this._requestLogger.debug('fetching sessions from: %s', sessionsUrl)
         const headers = {
@@ -538,15 +569,15 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         } else if (response.status != 200) {
             this.updateState(EndpointState.Error)
             const message = await response.text()
-            return Promise.reject(`Unexpected status ${response.status}  fetching compute sessions: ${message}`)
+            return Promise.reject(`Unexpected status ${response.status} fetching compute sessions: ${message}`)
         } else {
-            sessions = await response.json() as ComputeSession[]
+            const response_content = await response.json()
+            sessions = response_content as ComputeSession[]
         }
-        let session: ComputeSession | null = null
         if (sessions.length > 0) {
             this._logger.debug(`User has ${sessions.length} sessions, inspecting for active session`)
             for (let s of sessions) {
-                if (s.session_active) {
+                if (!WorkerEndpoint.SESSION_DEAD.has(s.session_status)) {
                     session = s
                     this._logger.debug(`Use active session ${s.session_uuid} with pipeline ${s.pipeline_uuid}`)
                     break
@@ -571,20 +602,28 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             }
             session = sessions[0]
         }
-        this._baseUrl = session.session_endpoint
-        if (session.pipeline_uuid) {
-            this._pipeline = {
-                id: session.pipeline_uuid,
-                startTime: session.created_at,
-                state: session.session_status,
-                pop: {
-                    components: []
-                }
+        let isReady: boolean = false
+        const deadline: number = Date.now() + WorkerEndpoint.WAIT_FOR_IS_READY
+        while (!isReady) {
+            const health_url = `${session.session_endpoint}/health`
+            response = await this._client.fetch(health_url, {
+                headers: headers,
+            })
+            if (response.status < 300) {
+                isReady = true
+            } else if (Date.now() > deadline) {
+                return Promise.reject(`Created session ${session.session_uuid} did not become healthy after ${WorkerEndpoint.WAIT_FOR_IS_READY / 1000} seconds`)
+            } else {
+                this._logger.debug(`session ${session.session_uuid} health check status ${response.status}, wait and poll for update`)
+                await sleep(WorkerEndpoint.CHECK_FOR_IS_READY_INTERVAL)
             }
+        }
+        this._baseUrl = session.session_endpoint
+        this._pipeline = null
+        if (session.pipeline_uuid) {
             this._pipelineId = session.pipeline_uuid
         } else {
             this._pipelineId = null
-            this._pipeline = null
         }
     }
 

@@ -113,7 +113,7 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
             return Promise.reject('endpoint not initialized')
         }
         const accountUuidQuery = this._accountId ? `?account_uuid=${this._accountId}` : ''
-        const config_url = `${this.eyepopUrl()}/configs${accountUuidQuery}`
+        const config_url = `${this.eyepopUrl()}/v1/configs${accountUuidQuery}`
         let headers = {
             Authorization: await this.authorizationHeader(),
         }

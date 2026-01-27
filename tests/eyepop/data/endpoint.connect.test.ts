@@ -35,7 +35,7 @@ describe('EyePopSdk endpoint module auth and connect', () => {
             })
         })
 
-        const dataConfigRoute = server.get(`/configs`).mockImplementationOnce(ctx => {
+        const dataConfigRoute = server.get(`/v1/configs`).mockImplementationOnce(ctx => {
             ctx.status = 200
             ctx.response.headers['content-type'] = 'application/json'
             ctx.body = JSON.stringify({ dataset_api_url: `${server.getURL()}data/` })
@@ -71,7 +71,7 @@ describe('EyePopSdk endpoint module auth and connect', () => {
             })
         })
 
-        const dataConfigRoute = server.get(`/configs`).mockImplementation(ctx => {
+        const dataConfigRoute = server.get(`/v1/configs`).mockImplementation(ctx => {
             ctx.status = 200
             ctx.response.headers['content-type'] = 'application/json'
             ctx.body = JSON.stringify({ dataset_api_url: `${server.getURL()}data/` })
@@ -123,7 +123,7 @@ describe('EyePopSdk endpoint module auth and connect', () => {
                 })
             })
 
-        const dataConfigRoute = server.get(`/configs`).mockImplementation(ctx => {
+        const dataConfigRoute = server.get(`/v1/configs`).mockImplementation(ctx => {
             ctx.status = 200
             ctx.response.headers['content-type'] = 'application/json'
             ctx.body = JSON.stringify({ dataset_api_url: `${server.getURL()}data/` })
@@ -164,7 +164,7 @@ describe('EyePopSdk endpoint module auth and connect', () => {
         })
 
         const dataConfigRoute = server
-            .get(`/configs`)
+            .get(`/v1/configs`)
             .mockImplementationOnce(ctx => {
                 ctx.status = 401
             })
@@ -202,7 +202,7 @@ describe('EyePopSdk endpoint module auth and connect', () => {
             })
         })
 
-        const dataConfigRoute = server.get(`/configs`).mockImplementation(ctx => {
+        const dataConfigRoute = server.get(`/v1/configs`).mockImplementation(ctx => {
             ctx.status = 200
             ctx.response.headers['content-type'] = 'application/json'
             ctx.body = JSON.stringify({ dataset_api_url: `${server.getURL()}data/` })
