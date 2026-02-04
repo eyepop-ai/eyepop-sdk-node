@@ -116,6 +116,7 @@ export interface DatasetAutoAnnotate {
     updated_at?: Date
     dataset_uuid: string
     dataset_version: number
+    source_ability_uuid?: string
     source_model_uuid?: string
     auto_annotate?: string
     auto_annotate_params?: Map<string, any>
@@ -177,6 +178,7 @@ export interface Annotation {
     approved_threshold?: number
     auto_annotate?: string
     source?: string
+    source_ability_uuid?: string
     uncertainty_score?: number
     predictions: Prediction[]
 }

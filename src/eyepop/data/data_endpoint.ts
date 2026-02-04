@@ -945,4 +945,24 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
             method: 'DELETE',
         })
     }
+
+    async listVlmAbilityEvaluations(vlm_ability_uuid: string): Promise<DatasetAutoAnnotate[]> {
+        return this.request(`/vlm_abilities/${vlm_ability_uuid}/evaluations`, {
+            method: 'GET',
+        })
+    }
+
+    async getVlmAbilityEvaluation(vlm_ability_uuid: string, source: string): Promise<DatasetAutoAnnotate> {
+        return this.request(`/vlm_abilities/${vlm_ability_uuid}/evaluations/${source}`, {
+            method: 'GET',
+        })
+    }
+
+    async startVlmAbilityEvaluation(vlm_ability_uuid: string, evaluate_request: EvaluateRequest): Promise<DatasetAutoAnnotate> {
+        return this.request(`/vlm_abilities/${vlm_ability_uuid}/evaluations`, {
+            method: 'POST',
+            body: JSON.stringify(evaluate_request),
+            headers: { 'Content-Type': 'application/json' },
+        })
+    }
 }
