@@ -1,4 +1,4 @@
-import { EyePop, PopComponentType } from '@eyepop.ai/eyepop'
+import { EyePop, PopComponentType, ForwardOperatorType, ContourType } from '@eyepop.ai/eyepop'
 import { Render2d } from '@eyepop.ai/eyepop-render-2d'
 
 let endpoint = undefined
@@ -11,6 +11,9 @@ const resultOverlay = document.getElementById('result-overlay')
 const timingSpan = document.getElementById('timing')
 const resultSpan = document.getElementById('txt_json')
 
+const promptInput = document.getElementById('prompt-input')
+
+
 async function setup() {
     const session = await (await fetch('eyepop-session.json')).json()
     endpoint = EyePop.workerEndpoint({
@@ -22,12 +25,25 @@ async function setup() {
     await endpoint.connect()
     popNameElement.innerHTML = endpoint.popName()
     // Compose your Pop here
-    await endpoint.changePop({
-        components: [{
-            type: PopComponentType.INFERENCE,
-            model: 'eyepop.person:latest',
-        }]
-    })
+    await endpoint.changePop({ components: [{
+        type: PopComponentType.INFERENCE,
+        model: 'eyepop.sam3:latest',
+        id: 1,
+            params: {
+                prompt: "person",
+                label: "A person"
+            },
+        forward: {
+          operator: {
+            type: ForwardOperatorType.FULL,
+          },
+          targets: [{
+            type: PopComponentType.CONTOUR_FINDER,
+            contourType: ContourType.POLYGON,
+            areaThreshold: 0.005
+          }]
+        }
+      }]})
     uploadButton.disabled = false
     uploadButton.addEventListener('change', upload)
 
@@ -50,7 +66,15 @@ async function upload(event) {
     timingSpan.innerHTML = '__ms'
     resultSpan.innerHTML = "<span class='text-muted'>processing</a>"
     context.clearRect(0, 0, resultOverlay.width, resultOverlay.height)
-    endpoint.process({ file: file }).then(async results => {
+    endpoint.process({
+        file: file,
+    }, [{
+        componentId: 1,
+        values: {
+            prompt: promptInput.value,
+            label: promptInput.value,
+        }
+    }]).then(async results => {
         for await (let result of results) {
             resultSpan.textContent = JSON.stringify(result, ' ', 2)
             resultOverlay.width = result.source_width

@@ -1,4 +1,4 @@
-import { EyePop, PopComponentType } from '@eyepop.ai/eyepop'
+import { EyePop, PopComponentType, ForwardOperatorType, ContourType } from '@eyepop.ai/eyepop'
 import { Render2d } from '@eyepop.ai/eyepop-render-2d'
 
 console.log('Hello EyePop Demo')
@@ -10,6 +10,9 @@ let startButton = undefined
 let stopButton = undefined
 let timingSpan = undefined
 let resultSpan = undefined
+
+let popChoice = undefined
+let promptInput = undefined
 
 let resultStream = undefined
 
@@ -24,6 +27,9 @@ async function setup() {
     stopButton = document.getElementById('stop-stream')
     timingSpan = document.getElementById('timing')
     resultSpan = document.getElementById('txt_json')
+
+    popChoice = document.getElementById('pop-choice')
+    promptInput = document.getElementById('prompt-input')
 
     localVideo = document.getElementById('local-video')
     localResultOverlay = document.getElementById('local-result-overlay')
@@ -71,13 +77,78 @@ async function connect(event) {
             auth: { session: session },
         })
         await endpoint.connect()
+        const popType = popChoice.value
+        let pop
+        switch (popType) {
+            case 'person':
+                pop = { components: [{
+                    type: PopComponentType.INFERENCE,
+                    model: 'eyepop.person:latest',
+                    categoryName: 'person',
+                    forward: {
+                      operator: {
+                        type: ForwardOperatorType.CROP,
+                        crop: {
+                          maxItems: 128
+                        }
+                      },
+                      targets: [{
+                          type: PopComponentType.TRACKING,
+                          forward: {
+                              operator: {
+                                  type: ForwardOperatorType.CROP,
+                                  crop: {
+                                      maxItems: 128
+                                  }
+                              },
+                              targets: [{
+                                  type: PopComponentType.INFERENCE,
+                                  model: 'eyepop.person.2d-body-points:latest',
+                                  categoryName: '2d-body-points',
+                                  confidenceThreshold: 0.25
+                              }]
+                          }
+                      }]
+                    }
+                  }]}
+                break;
+            case 'smolvlm2-500':
+                pop = { components: [{
+                    type: PopComponentType.INFERENCE,
+                    model: 'eyepop.vlm.smolv2.500m:latest',
+                    params: {
+                        prompt: promptInput.value,
+                    },
+                    id: 1
+                  }]}
+                break;
+            case 'sam3':
+                pop = { components: [{
+                    type: PopComponentType.INFERENCE,
+                    model: 'eyepop.sam3:latest',
+                    params: {
+                        prompt: promptInput.value,
+                        label: promptInput.value
+                    },
+                    id: 1,
+                    forward: {
+                      operator: {
+                        type: ForwardOperatorType.FULL,
+                      },
+                      targets: [{
+                        type: PopComponentType.CONTOUR_FINDER,
+                        contourType: ContourType.POLYGON,
+                        areaThreshold: 0.005
+                      }]
+                    }
+                  }]}
+                break;
+            default:
+                console.error("unsupported pop type", popType);
+        }
         // Compose your Pop here
-        await endpoint.changePop({
-            components: [{
-                type: PopComponentType.INFERENCE,
-                model: 'eyepop.person:latest',
-            }]
-        })
+        await endpoint.changePop(pop)
+        console.log('changed pop to', pop)
     }
     popNameElement.innerHTML = endpoint.popName()
     startButton.disabled = false
@@ -85,8 +156,9 @@ async function connect(event) {
 
 async function renderFromResultStream(results) {
     const localRender = Render2d.renderer(localOverlayContext, [
-        Render2d.renderBox('$..objects[?(@.classLabel=="face")]'),
-        Render2d.renderTrail(1.0, '$..keyPoints[?(@.category=="3d-body-points")].points[?(@.classLabel.includes("nose"))]'),
+        Render2d.renderBox({showTrackId:true}),
+        Render2d.renderPose(),
+        Render2d.renderContour()
     ])
     for await (let result of results) {
         resultSpan.textContent = JSON.stringify(result, ' ', 2)

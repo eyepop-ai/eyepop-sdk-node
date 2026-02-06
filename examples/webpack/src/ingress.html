@@ -24,6 +24,22 @@
         <!-- FORM UPLOAD ELEMENT: Centered, Full Width Row -->
         <div class="container-fluid mt-4">
             <div class="row justify-content-center">
+                <div id="pop-choice-row" class="col-12">
+                    <div class="d-grid d-md-flex mt-2">
+                        <select class="m-2 form-select align-middle" style="width:auto;display:inline-block;" id="pop-choice">
+                            <option value="person">Person</option>
+                            <option value="smolvlm2-500">SmolVLM2 500m</option>
+                            <option value="sam3">SAM3</option>
+                        </select>
+                         <div class="form-control">
+                            <label for="prompt-input" class="form-label">Prompt:</label>
+                             <input type="text" class="form-control" id="prompt-input" placeholder="">
+                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row justify-content-center">
                 <div id="drop-area" class="col-12">
                     <div class="d-grid d-md-flex">
                         <button disabled class="form-control" id="connect">Connect</button>
