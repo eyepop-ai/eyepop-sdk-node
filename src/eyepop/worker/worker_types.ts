@@ -122,6 +122,8 @@ export interface InferenceComponent extends BaseComponent {
     topK?: number
     topKClasses?: number
     targetFps?: string
+    videoChunkLengthSeconds?: number
+    videoChunkOverlap?: number
     params?: {[index: string]: any}
 }
 
