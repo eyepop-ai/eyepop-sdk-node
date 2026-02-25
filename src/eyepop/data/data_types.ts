@@ -195,6 +195,23 @@ export enum TranscodeMode {
     image_cover_224 = 'image_cover_224',
 }
 
+export interface RectangleArea {
+    x: number
+    y: number
+    width: number
+    height: number
+}
+
+export interface TimeSpan {
+    start_timestamp?: number
+    end_timestamp?: number
+}
+
+export interface Roi {
+    name: string
+    area?: RectangleArea
+    time_span?: TimeSpan
+}
 export interface Asset {
     uuid: string
     external_id?: string
@@ -211,6 +228,7 @@ export interface Asset {
     review_priority?: number
     model_relevance?: number
     annotations: Annotation[]
+    rois: Roi[]
 }
 
 export enum ModelType {

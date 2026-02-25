@@ -35,7 +35,7 @@ import {
     ModelTrainingProgress,
     ModelUpdate,
     OnChangeEvent,
-    QcAiHubExportParams,
+    QcAiHubExportParams, Roi,
     TranscodeMode,
     UserReview, VlmAbility, VlmAbilityCreate, VlmAbilityGroup, VlmAbilityGroupCreate, VlmAbilityGroupUpdate,
     VlmAbilityUpdate,
@@ -573,6 +573,24 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
             method: 'POST',
             body: auto_annotate_params ? JSON.stringify(auto_annotate_params) : null,
             headers: auto_annotate_params? { 'Content-Type': 'application/json' } : {},
+        })
+    }
+
+    async addAssetRoi(asset_uuid: string, roi: Roi, dataset_uuid?: string, dataset_version?: number, predictions?: Prediction[]): Promise<void> {
+        const versionQuery = dataset_version ? `&dataset_version=${dataset_version}` : ''
+        const datasetQuery = dataset_uuid ? `&dataset_uuid=${dataset_uuid}` : ''
+        return this.request(`/assets/${asset_uuid}/rois?${datasetQuery}${versionQuery}`, {
+            method: 'POST',
+            body: JSON.stringify(roi),
+            headers: { 'Content-Type': 'application/json' },
+        })
+    }
+
+    async deleteAssetRoi(asset_uuid: string, name: string, dataset_uuid?: string, dataset_version?: number): Promise<void> {
+        const versionQuery = dataset_version ? `&dataset_version=${dataset_version}` : ''
+        const datasetQuery = dataset_uuid ? `&dataset_uuid=${dataset_uuid}` : ''
+        return this.request(`/assets/${asset_uuid}/rois/${encodeURIComponent(name)}?${datasetQuery}${versionQuery}`, {
+            method: 'DELETE',
         })
     }
 
