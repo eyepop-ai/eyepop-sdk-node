@@ -1,4 +1,4 @@
-import { Prediction, Session } from '../types'
+import { Point2d, Prediction, Session } from '../types'
 
 export enum DataApiType {
     dataset = 'dataset',
@@ -195,12 +195,27 @@ export enum TranscodeMode {
     image_cover_224 = 'image_cover_224',
 }
 
-export interface RectangleArea {
+export enum AreaType {
+    RECTANGLE = "rectangle",
+    CONTOUR = "contour"
+}
+
+export interface BaseArea {
+    type: AreaType
+}
+
+export interface RectangleArea extends BaseArea {
     x: number
     y: number
     width: number
     height: number
 }
+
+export interface ContourArea extends BaseArea {
+    points: Point2d[]
+}
+
+export type Area = RectangleArea | ContourArea
 
 export interface TimeSpan {
     start_timestamp?: number
@@ -209,7 +224,7 @@ export interface TimeSpan {
 
 export interface Roi {
     name: string
-    area?: RectangleArea
+    area?: Area
     time_span?: TimeSpan
 }
 export interface Asset {
