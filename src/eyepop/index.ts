@@ -87,6 +87,12 @@ export {
     VlmAbilityGroupCreate,
     VlmAbilityGroupUpdate,
     VlmAbilityGroup,
+    AreaType,
+    BaseArea,
+    RectangleArea,
+    ContourArea,
+    TimeSpan,
+    Roi
 } from './data/data_types'
 
 export {
