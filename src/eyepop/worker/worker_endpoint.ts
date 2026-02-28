@@ -578,7 +578,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         }
         if (!session) {
             this._requestLogger.debug('creating a new session at: %s', sessionsUrl)
-            response = await this._client.fetch(sessionsUrl, {
+            response = await this._client.fetch(`${sessionsUrl}?wait=true`, {
                 headers: headers,
                 method: 'POST'
             })
