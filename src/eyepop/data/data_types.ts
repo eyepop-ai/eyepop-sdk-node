@@ -146,6 +146,7 @@ export enum AnnotationType {
     ground_truth = 'ground_truth',
     prediction = 'prediction',
     auto = 'auto',
+    ep_evaluate = 'ep_evaluate',
 }
 
 export enum UserReview {
