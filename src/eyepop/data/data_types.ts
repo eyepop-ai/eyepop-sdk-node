@@ -5,6 +5,8 @@ export enum DataApiType {
     vlm = 'vlm'
 }
 
+export type AutoAnnotate = string
+
 export interface DataSession extends Session {
     readonly accountId: string
     readonly datasetApiUrl: string | undefined
@@ -150,6 +152,20 @@ export enum UserReview {
     approved = 'approved',
     rejected = 'rejected',
     unknown = 'unknown',
+}
+
+export enum AssetInclusionMode {
+    all_assets = 'all_assets',
+    annotated_only = 'annotated_only',
+    manual_annotated_only = 'manual_annotated_only',
+    auto_annotated_only = 'auto_annotated_only',
+}
+
+export enum AnnotationInclusionMode {
+    all = 'all',
+    user_reviewed = 'user_reviewed',
+    user_approved = 'user_approved',
+    ground_truth = 'ground_truth',
 }
 
 export interface AutoAnnotatePrompt {

@@ -6,10 +6,13 @@ import urljoin from 'url-join'
 import { DataOptions } from './data_options'
 import {
     Annotation,
+    AnnotationInclusionMode,
     ArtifactType,
     Asset,
     AssetImport,
+    AssetInclusionMode,
     AssetUrlType,
+    AutoAnnotate,
     AutoAnnotateParams,
     ChangeEvent,
     ChangeType,
@@ -441,12 +444,24 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         dataset_uuid: string,
         dataset_version?: number,
         include_annotations: boolean = false,
-        top_k?: number
+        top_k?: number,
+        inclusion_mode?: AssetInclusionMode,
+        annotation_inclusion_mode?: AnnotationInclusionMode,
+        include_partitions?: string[],
+        include_auto_annotates?: AutoAnnotate[],
+        include_sources?: string[],
     ): Promise<Asset[]> {
-        const versionQuery = dataset_version ? `&dataset_version=${dataset_version}` : ''
-        const annotationsQuery = include_annotations ? '&include_annotations=true' : ''
-        const topKQuery = top_k ? `&top_k=${top_k}` : ''
-        return this.request(`/assets?dataset_uuid=${dataset_uuid}${versionQuery}${annotationsQuery}${topKQuery}`, {
+        const params = new URLSearchParams()
+        params.set('dataset_uuid', dataset_uuid)
+        if (dataset_version != null) params.set('dataset_version', String(dataset_version))
+        if (include_annotations) params.set('include_annotations', 'true')
+        if (inclusion_mode != null) params.set('inclusion_mode', inclusion_mode)
+        if (annotation_inclusion_mode != null) params.set('annotation_inclusion_mode', annotation_inclusion_mode)
+        for (const p of include_partitions ?? []) params.append('include_partition', p)
+        for (const a of include_auto_annotates ?? []) params.append('include_auto_annotate', a)
+        for (const s of include_sources ?? []) params.append('include_source', s)
+        if (top_k != null) params.set('top_k', String(top_k))
+        return this.request(`/assets?${params.toString()}`, {
             method: 'GET',
         })
     }
