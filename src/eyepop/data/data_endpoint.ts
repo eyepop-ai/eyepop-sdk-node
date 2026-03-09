@@ -14,6 +14,7 @@ import {
     AssetUrlType,
     AutoAnnotate,
     AutoAnnotateParams,
+    AutoPromptConfig,
     ChangeEvent,
     ChangeType,
     CreateWorkflow,
@@ -38,9 +39,15 @@ import {
     ModelTrainingProgress,
     ModelUpdate,
     OnChangeEvent,
-    QcAiHubExportParams, Roi,
+    QcAiHubExportParams,
+    Roi,
     TranscodeMode,
-    UserReview, VlmAbility, VlmAbilityCreate, VlmAbilityGroup, VlmAbilityGroupCreate, VlmAbilityGroupUpdate,
+    UserReview,
+    VlmAbility,
+    VlmAbilityCreate,
+    VlmAbilityGroup,
+    VlmAbilityGroupCreate,
+    VlmAbilityGroupUpdate,
     VlmAbilityUpdate,
     Workflow,
     WorkflowPhase,
@@ -55,6 +62,13 @@ interface DataConfig {
 
 const WS_INITIAL_RECONNECT_DELAY = 1000
 const WS_MAX_RECONNECT_DELAY = 60000
+
+function omit_nulls(_: any, value: any) {
+    if (value === null) {
+        return undefined
+    }
+    return value
+}
 
 export class DataEndpoint extends Endpoint<DataEndpoint> {
     private datasetApiUrl: string | null
@@ -587,7 +601,7 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         return this.request(`/assets/${asset_uuid}/preview_auto_annotate?auto_annotate=${auto_annotate}`, {
             method: 'POST',
             body: auto_annotate_params ? JSON.stringify(auto_annotate_params) : null,
-            headers: auto_annotate_params? { 'Content-Type': 'application/json' } : {},
+            headers: auto_annotate_params ? { 'Content-Type': 'application/json' } : {},
         })
     }
 
@@ -817,10 +831,7 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         }
     }
 
-    public async evaluateDataset(
-        evaluate_request: EvaluateRequest,
-        worker_release?: string
-    ): Promise<EvaluateDatasetJob> {
+    public async evaluateDataset(evaluate_request: EvaluateRequest, worker_release?: string): Promise<EvaluateDatasetJob> {
         if (!this.vlmApiUrl || !this._client || !this._limit) {
             throw new Error('endpoint not connected, use connect()')
         }
@@ -899,7 +910,7 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
     async createVlmAbilityGroup(create: VlmAbilityGroupCreate): Promise<VlmAbilityGroup> {
         return this.request(`/vlm_ability_groups?account_uuid=${this._accountId}`, {
             method: 'POST',
-            body: JSON.stringify(create),
+            body: JSON.stringify(create, omit_nulls),
             headers: { 'Content-Type': 'application/json' },
         })
     }
@@ -934,7 +945,7 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         const groupQuery = vlm_ability_group_uuid ? `&vlm_ability_group_uuid=${vlm_ability_group_uuid}` : ''
         return this.request(`/vlm_abilities?account_uuid=${this._accountId}${groupQuery}`, {
             method: 'POST',
-            body: JSON.stringify(create),
+            body: JSON.stringify(create, omit_nulls),
             headers: { 'Content-Type': 'application/json' },
         })
     }
@@ -955,6 +966,14 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         return this.request(`/vlm_abilities/${vlm_ability_uuid}`, {
             method: 'PATCH',
             body: JSON.stringify(update),
+            headers: { 'Content-Type': 'application/json' },
+        })
+    }
+
+    async refineVlmAbility(vlm_ability_uuid: string, auto_prompt: AutoPromptConfig): Promise<VlmAbility> {
+        return this.request(`/vlm_abilities/${vlm_ability_uuid}/refine`, {
+            method: 'POST',
+            body: JSON.stringify(auto_prompt, omit_nulls),
             headers: { 'Content-Type': 'application/json' },
         })
     }

@@ -496,6 +496,7 @@ export interface InferRuntimeConfig {
     min_frames?: number
     max_aspect_ratio?: number
     context_length?: number
+    roi?: Area
 }
 
 export interface TransformInto {
@@ -515,13 +516,16 @@ export interface EvaluateFilter {
     ground_truth_classes?: string[]
 }
 
-export interface EvaluateRequest {
-    ability_uuid?: string
-    infer?: InferRequest
+export interface EvaluateConfig {
     dataset_uuid: string
     filter?: EvaluateFilter
     video_chunk_length_ns?: number
     video_chunk_overlap?: number
+}
+
+export interface EvaluateRequest extends EvaluateConfig {
+    ability_uuid?: string
+    infer?: InferRequest
 }
 
 export enum EvaluationStatus {
@@ -560,7 +564,15 @@ export interface InferRunInfo {
     aspect_ratio?: number
 }
 
+export interface AutoPromptConfig {
+    num_samples: number
+    task_description?: string
+    infer: InferRequest
+    evaluate: EvaluateConfig
+}
+
 export enum VlmAbilityStatus {
+    in_progress = "in_progress",
     draft = "draft",
     published = "published",
 }
@@ -578,9 +590,11 @@ export interface VlmAbilityCreate {
     transform_into: TransformInto
     config: InferRuntimeConfig
     is_public: boolean
+    video_chunk_length_ns?: number
+    video_chunk_overlap?: number
 }
 
-export interface  VlmAbilityUpdate {
+export interface VlmAbilityUpdate {
     name?: string
     description?: string
     worker_release?: string
@@ -588,6 +602,8 @@ export interface  VlmAbilityUpdate {
     transform_into?: TransformInto
     config?: InferRuntimeConfig
     is_public?: boolean
+    video_chunk_length_ns?: number
+    video_chunk_overlap?: number
 }
 
 export interface VlmAbility {
@@ -604,12 +620,16 @@ export interface VlmAbility {
     text_prompt: string
     transform_into: TransformInto
     config: InferRuntimeConfig
+    video_chunk_length_ns?: number
+    video_chunk_overlap?: number
     alias_entries?: AbilityAliasEntry[]
+    auto_prompt?: AutoPromptConfig
 }
 
 export interface VlmAbilityGroupCreate {
     name: string
     description: string
+    auto_prompt?: AutoPromptConfig
     default_alias_name?: string
     default_dataset_uuid?: string
 }
@@ -631,3 +651,4 @@ export interface VlmAbilityGroup {
     default_alias_name?: string
     default_dataset_uuid?: string
 }
+
