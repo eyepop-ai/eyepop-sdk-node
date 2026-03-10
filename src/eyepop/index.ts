@@ -89,6 +89,7 @@ export {
     VlmAbilityGroupCreate,
     VlmAbilityGroupUpdate,
     VlmAbilityGroup,
+    AliasResolution,
     AreaType,
     BaseArea,
     RectangleArea,

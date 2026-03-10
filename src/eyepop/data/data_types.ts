@@ -652,3 +652,7 @@ export interface VlmAbilityGroup {
     default_dataset_uuid?: string
 }
 
+export interface AliasResolution {
+    alias: string
+    model_uuid: string | null
+}
