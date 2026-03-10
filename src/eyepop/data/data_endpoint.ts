@@ -978,6 +978,24 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         })
     }
 
+    async cloneVlmAbility(vlm_ability_uuid: string, account_uuid?: string, name?: string, default_alias_name?: string): Promise<VlmAbility> {
+        const params = new URLSearchParams()
+        if (account_uuid) {
+            params.set('account_uuid', account_uuid)
+        } else if (this._accountId) {
+            params.set('account_uuid', this._accountId)
+        }
+        if (name) {
+            params.set('name', name)
+        }
+        if (default_alias_name) {
+            params.set('default_alias_name', default_alias_name)
+        }
+        return this.request(`/vlm_abilities/${vlm_ability_uuid}/clone?${params.toString()}`, {
+            method: 'POST'
+        })
+    }
+
     async publishVlmAbility(vlm_ability_uuid: string, alias_name?: string, tag_name?: string): Promise<VlmAbility> {
         const alias_name_query = alias_name ? `alias_name=${encodeURIComponent(alias_name)}&` : ''
         const tag_name_query = tag_name ? `tag_name=${encodeURIComponent(tag_name)}&` : ''
