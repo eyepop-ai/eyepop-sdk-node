@@ -49,6 +49,7 @@ import {
     VlmAbilityGroupCreate,
     VlmAbilityGroupUpdate,
     VlmAbilityUpdate,
+    AliasResolution,
     Workflow,
     WorkflowPhase,
 } from './data_types'
@@ -1033,6 +1034,16 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
             method: 'POST',
             body: JSON.stringify(evaluate_request),
             headers: { 'Content-Type': 'application/json' },
+        })
+    }
+
+    async resolveAliases(aliases: string[]): Promise<AliasResolution> {
+        const params = new URLSearchParams()
+        aliases.forEach(alias => {
+            params.append('alias', alias)
+        })
+        return this.request(`/exports/aliases?${params.toString()}`, {
+            method: 'GET',
         })
     }
 }
