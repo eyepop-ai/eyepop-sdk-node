@@ -1037,7 +1037,7 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         })
     }
 
-    async resolveAliases(aliases: string[]): Promise<AliasResolution> {
+    async resolveAliases(aliases: string[]): Promise<AliasResolution[]> {
         const params = new URLSearchParams()
         aliases.forEach(alias => {
             params.append('alias', alias)
