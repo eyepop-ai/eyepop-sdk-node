@@ -48,7 +48,7 @@ const example_image_path = 'examples/example.jpg'
 
     const endpoint = await EyePop.endpoint().connect()
     try {
-        let results = await endpoint.process({ path: example_image_path })
+        let results = await endpoint.process({ source: { path: example_image_path } })
         for await (let result of results) {
             renderer.draw(result)
         }
@@ -97,7 +97,7 @@ const example_image_path = 'examples/example.jpg'
                     model: 'eyepop.person:latest',
                     categoryName: 'person'
                 }]})
-                await endpoint.process({file: fileChooser.files[0]}).then(async (results) => {
+                await endpoint.process({ source: {file: fileChooser.files[0]} }).then(async (results) => {
                     for await (let result of results) {
                         renderer.draw(result);
                     }

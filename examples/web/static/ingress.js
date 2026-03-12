@@ -153,7 +153,7 @@ async function startLocalStream(event) {
         Starting live processing from local MediaStream instance,
         stop processing by calling resultStream.cancel().
      */
-    resultStream = await endpoint.process({ mediaStream: stream })
+    resultStream = await endpoint.process({ source: { mediaStream: stream } })
     /*
         Asynchronous result processing, in ths demo, render as overlay
         over local video and print JSON results in text box underneath.

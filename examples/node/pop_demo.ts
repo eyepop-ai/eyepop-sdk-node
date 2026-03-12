@@ -568,7 +568,7 @@ function list_of_boxes(arg: string) {
     .connect();
   try {
     await endpoint.changePop(pop);
-    let results = await endpoint.process(example_input, sourceParams);
+    let results = await endpoint.process({source: example_input, componentParams: sourceParams});
     for await (let result of results) {
       if (parameters.output) {
         console.info(JSON.stringify(result, undefined, 2));

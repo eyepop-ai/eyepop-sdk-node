@@ -161,7 +161,7 @@ const example_image_path = 'examples/example.jpg'
           model: 'eyepop.person:latest',
           categoryName: 'person'
         }]})
-        let results = await endpoint.process({ path: example_image_path })
+        let results = await endpoint.process({ source: { path: example_image_path } })
         for await (let result of results) {
             console.log(result)
         }
@@ -176,7 +176,7 @@ const example_image_path = 'examples/example.jpg'
 2. Call `endpoint.connect()` before any job is submitted and `endpoint.disconnect()` to release all resources.
 3. Call `endpoint.changePop(...)` to define the Pop and its components to be executed by the endpoint, in this example
    to use the ability `eyepop.person` to find all instances of persons in images and videos.
-4.`endpoint.process({path:'examples/example.jpg'})` initiates the upload to the local file to the worker service.
+4.`endpoint.process({ source: {path:'examples/example.jpg'} })` initiates the upload to the local file to the worker service.
    The image will be queued and processed immediately when the worker becomes available.
    The result of endpoint.upload() implements `AsyncIterable<Prediction>` which can be iterated with 'for await' as
    shown in the example above. Predictions will become available when the submitted file becomes processed by the worker
@@ -189,7 +189,7 @@ const example_image_path = 'examples/example.jpg'
 ```typescript
 // ...
 let stream = fs.createReadStream(example_image_path)
-endpoint.upload({ stream: readableStream, mimeType: 'image/jpeg' })
+endpoint.upload({ source: { stream: readableStream, mimeType: 'image/jpeg' } })
 // ...
 ```
 
@@ -217,7 +217,7 @@ const example_image_path = 'examples/example.jpg'
     const endpoint = await EyePop.workerEndpoint().connect()
     try {
         for (let i = 0; i < 100; i++) {
-            endpoint.process({ path: example_image_path }).then(async results => {
+            endpoint.process({ source: { path: example_image_path } }).then(async results => {
                 for await (let result of results) {
                     console.log(`result for #${i}`, result)
                 }
@@ -248,7 +248,7 @@ const example_image_url = 'https://farm2.staticflickr.com/1080/1301049949_532835
 ;(async () => {
     const endpoint = await EyePop.workerEndpoint().connect()
     try {
-        let results = await endpoint.process({ url: example_image_url })
+        let results = await endpoint.process({ source: { url: example_image_url } })
         for await (let result of results) {
             console.log(result)
         }
@@ -271,7 +271,7 @@ const example_video_url = 'https://demo-eyepop-videos.s3.amazonaws.com/test1_vlo
 ;(async () => {
     const endpoint = await EyePop.workerEndpoint().connect()
     try {
-        let results = await endpoint.process({ url: example_video_url })
+        let results = await endpoint.process({ source: { url: example_video_url } })
         for await (let result of results) {
             console.log(result)
         }
@@ -294,7 +294,7 @@ const example_video_url = 'https://demo-eyepop-videos.s3.amazonaws.com/test1_vlo
 ;(async () => {
     const endpoint = EyePop.workerEndpoint().connect()
     try {
-        let results = await endpoint.process({ url: example_video_url })
+        let results = await endpoint.process({ source: { url: example_video_url } })
         for await (let result of results) {
             console.log(result)
             if (result['seconds'] >= 10.0) {

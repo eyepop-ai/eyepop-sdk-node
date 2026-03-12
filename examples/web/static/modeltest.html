@@ -79,8 +79,10 @@
         function postChangePopComp(endpoint) {
             console.log("Pop component changed");
             endpoint.process({
+            source: {
                 url: image_url
-            }).then(async (results) => {
+            }
+        }).then(async (results) => {
 
                 resultsBuffer = {objects: []};
 

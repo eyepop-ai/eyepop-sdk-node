@@ -49,7 +49,9 @@
         const liveIngress = await endpoint.liveIngress(streamRef.current)
 
         let results = await endpoint.process({
-            ingressId: liveIngress.ingressId(),
+            source: {
+                ingressId: liveIngress.ingressId(),
+            }
         })
 
         for await (let result of results) {

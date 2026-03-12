@@ -110,6 +110,7 @@ export {
     ResultStream,
     VideoMode,
     ComponentParams,
+    ProcessParams,
     PredictionVersion,
     DEFAULT_PREDICTION_VERSION
 } from './worker/worker_types'

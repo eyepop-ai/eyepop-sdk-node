@@ -11,11 +11,13 @@ import {
 } from '../worker/worker_types'
 import { HttpClient } from '../options'
 import {WebrtcWhip} from "./webrtc_whip";
+import { Area } from 'EyePop/data/data_types'
 
 export class AbstractJob implements ResultStream {
     protected _getSession: () => Promise<WorkerSession>
 
     protected _params: ComponentParams[] | null
+    protected _roi: Area | null
 
     protected _responseStream: Promise<ReadableStream<Uint8Array>> | null = null
     protected _controller: AbortController = new AbortController()
@@ -37,12 +39,14 @@ export class AbstractJob implements ResultStream {
 
     protected constructor(
         params: ComponentParams[] | undefined,
+        roi: Area | undefined,
         getSession: () => Promise<WorkerSession>,
         client: HttpClient, requestLogger: Logger,
         version: PredictionVersion = DEFAULT_PREDICTION_VERSION
     ) {
         this._getSession = getSession
         this._params = params ?? null
+        this._roi = roi ?? null
         this._client = client
         this._requestLogger = requestLogger
         this._version = version
@@ -135,8 +139,18 @@ export class UploadJob extends AbstractJob {
         return 'uploadJob'
     }
 
-    constructor(stream: ReadableStream<Uint8Array> | Blob | BufferSource, mimeType: string, size: number | undefined, videoMode: VideoMode | undefined, params: ComponentParams[] | undefined, getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger) {
-        super(params, getSession, client, requestLogger)
+    constructor(
+        stream: ReadableStream<Uint8Array> | Blob | BufferSource,
+        mimeType: string,
+        size: number | undefined,
+        videoMode: VideoMode | undefined,
+        params: ComponentParams[] | undefined,
+        roi: Area | undefined,
+        getSession: () => Promise<WorkerSession>,
+        client: HttpClient,
+        requestLogger: Logger,
+    ) {
+        super(params, roi, getSession, client, requestLogger)
         this._uploadStream = stream
         this._mimeType = mimeType
         this._size = size
@@ -157,12 +171,17 @@ export class UploadJob extends AbstractJob {
             const videoModeQuery = this._videoMode ? `&videoMode=${this._videoMode}` : ''
             const versionQuery = this._version ? `&version=${this._version}` : ''
             const postUrl: string = `${session.baseUrl.replace(/\/+$/, '')}/pipelines/${session.pipelineId}/source?mode=queue&processing=async&sourceId=${event.source_id}${videoModeQuery}${versionQuery}`
-            if (this._params) {
-                const params = JSON.stringify(this._params)
-                const paramBlob = new Blob([params], { type: 'application/json' })
+            if (this._params || this._roi) {
                 const formData = new FormData()
-                const fileBlob = await new Response(this._uploadStream).blob();
-                formData.append('params', paramBlob)
+                if (this._params) {
+                    const blob = new Blob([JSON.stringify(this._params)], { type: 'application/json' })
+                    formData.append('params', blob)
+                }
+                if (this._roi) {
+                    const blob = new Blob([JSON.stringify(this._roi)], { type: 'application/json' })
+                    formData.append('roi', blob)
+                }
+                const fileBlob = await new Response(this._uploadStream).blob()
                 formData.append('file', fileBlob)
                 const headers = {
                     ...session.authenticationHeaders(),
@@ -176,7 +195,7 @@ export class UploadJob extends AbstractJob {
                     signal: this._controller.signal,
                     // @ts-ignore
                     duplex: 'half',
-                    eyepop: { responseStreaming: true }
+                    eyepop: { responseStreaming: true },
                 })
             } else {
                 const headers = {
@@ -194,7 +213,7 @@ export class UploadJob extends AbstractJob {
                     signal: this._controller.signal,
                     // @ts-ignore
                     duplex: 'half',
-                    eyepop: { responseStreaming: true }
+                    eyepop: { responseStreaming: true },
                 })
             }
             request
@@ -220,7 +239,7 @@ export class UploadJob extends AbstractJob {
             const prepareUrl: string = `${session.baseUrl.replace(/\/+$/, '')}/pipelines/${session.pipelineId}/prepareSource?timeout=10s`
             const headers = {
                 ...session.authenticationHeaders(),
-                Accept: 'application/jsonl'
+                Accept: 'application/jsonl',
             }
             response = await this._client.fetch(prepareUrl, {
                 headers: headers,
@@ -228,18 +247,23 @@ export class UploadJob extends AbstractJob {
                 signal: this._controller.signal,
                 // @ts-ignore
                 duplex: 'half',
-                eyepop: { responseStreaming: true }
+                eyepop: { responseStreaming: true },
             })
         } else {
             const videoModeQuery = this._videoMode ? `&videoMode=${this._videoMode}` : ''
             const versionQuery = this._version ? `&version=${this._version}` : ''
             const postUrl: string = `${session.baseUrl.replace(/\/+$/, '')}/pipelines/${session.pipelineId}/source?mode=queue&processing=sync${videoModeQuery}${versionQuery}`
-            if (this._params) {
-                const params = JSON.stringify(this._params)
-                const paramBlob = new Blob([params], { type: 'application/json' })
+            if (this._params || this._roi) {
                 const formData = new FormData()
-                const fileBlob = await new Response(this._uploadStream).blob();
-                formData.append('params', paramBlob)
+                if (this._params) {
+                    const blob = new Blob([JSON.stringify(this._params)], { type: 'application/json' })
+                    formData.append('params', blob)
+                }
+                if (this._roi) {
+                    const blob = new Blob([JSON.stringify(this._roi)], { type: 'application/json' })
+                    formData.append('roi', blob)
+                }
+                const fileBlob = await new Response(this._uploadStream).blob()
                 formData.append('file', fileBlob)
                 const headers = {
                     ...session.authenticationHeaders(),
@@ -253,7 +277,7 @@ export class UploadJob extends AbstractJob {
                     signal: this._controller.signal,
                     // @ts-ignore
                     duplex: 'half',
-                    eyepop: { responseStreaming: true }
+                    eyepop: { responseStreaming: true },
                 })
             } else {
                 const headers = {
@@ -281,8 +305,15 @@ export class UploadJob extends AbstractJob {
 export class LoadFromJob extends AbstractJob {
     private readonly _location: string
 
-    constructor(location: string, params: ComponentParams[] | undefined, getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger) {
-        super(params, getSession, client, requestLogger)
+    constructor(
+        location: string,
+        params: ComponentParams[] | undefined,
+        roi: Area | undefined,
+        getSession: () => Promise<WorkerSession>,
+        client: HttpClient,
+        requestLogger: Logger
+    ) {
+        super(params, roi, getSession, client, requestLogger)
         this._location = location
     }
 
@@ -299,6 +330,7 @@ export class LoadFromJob extends AbstractJob {
             sourceType: 'URL',
             url: this._location,
             params: this._params,
+            roi: this._roi,
             version: this._version,
         }
         const headers = {
@@ -321,8 +353,15 @@ export class LoadFromJob extends AbstractJob {
 export class LoadFromAssetUuidJob extends AbstractJob {
     private readonly _assetUuid: string
 
-    constructor(assetUuid: string, params: ComponentParams[] | undefined, getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger) {
-        super(params, getSession, client, requestLogger)
+    constructor(
+        assetUuid: string,
+        params: ComponentParams[] | undefined,
+        roi: Area | undefined,
+        getSession: () => Promise<WorkerSession>,
+        client: HttpClient,
+        requestLogger: Logger
+    ) {
+        super(params, roi, getSession, client, requestLogger)
         this._assetUuid = assetUuid
     }
 
@@ -339,6 +378,7 @@ export class LoadFromAssetUuidJob extends AbstractJob {
             sourceType: 'ASSET_UUID',
             assetUuid: this._assetUuid,
             params: this._params,
+            roi: this._roi,
             version: this._version,
         }
         const headers = {
@@ -361,8 +401,15 @@ export class LoadFromAssetUuidJob extends AbstractJob {
 export class LoadLiveIngressJob extends AbstractJob {
     private readonly _ingressId: string
 
-    constructor(ingressId: string, params: ComponentParams[] | undefined, getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger) {
-        super(params, getSession, client, requestLogger)
+    constructor(
+        ingressId: string,
+        params: ComponentParams[] | undefined,
+        roi: Area | undefined,
+        getSession: () => Promise<WorkerSession>,
+        client: HttpClient,
+        requestLogger: Logger
+    ) {
+        super(params, roi, getSession, client, requestLogger)
         this._ingressId = ingressId
     }
 
@@ -379,6 +426,7 @@ export class LoadLiveIngressJob extends AbstractJob {
             sourceType: 'LIVE_INGRESS',
             liveIngressId: this._ingressId,
             params: this._params,
+            roi: this._roi,
             version: this._version,
         }
         const headers = {
@@ -393,7 +441,7 @@ export class LoadLiveIngressJob extends AbstractJob {
             body: JSON.stringify(body),
             signal: this._controller.signal,
             // @ts-ignore
-            eyepop: { responseStreaming: true }
+            eyepop: { responseStreaming: true },
         })
     }
 }
@@ -401,8 +449,15 @@ export class LoadLiveIngressJob extends AbstractJob {
 export class LoadMediaStreamJob extends AbstractJob {
     private readonly _mediaStream: MediaStream
 
-    constructor(mediaStream: MediaStream, params: ComponentParams[] | undefined, getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger) {
-        super(params, getSession, client, requestLogger)
+    constructor(
+        mediaStream: MediaStream,
+        params: ComponentParams[] | undefined,
+        roi: Area | undefined,
+        getSession: () => Promise<WorkerSession>,
+        client: HttpClient,
+        requestLogger: Logger
+    ) {
+        super(params, roi, getSession, client, requestLogger)
         this._mediaStream = mediaStream
     }
 
@@ -426,16 +481,19 @@ export class LoadMediaStreamJob extends AbstractJob {
             this._requestLogger,
         )
 
-        whip.start().then(_ => {
-            this._requestLogger.debug("direct whip for ingressId=%s successful", whip.ingressId())
-        }).catch((reason: any) => {
-            this._controller.abort(reason)
-        })
+        whip.start()
+            .then(_ => {
+                this._requestLogger.debug('direct whip for ingressId=%s successful', whip.ingressId())
+            })
+            .catch((reason: any) => {
+                this._controller.abort(reason)
+            })
 
         const body = {
             sourceType: 'WHIP',
             whipIngressId: whip.ingressId(),
             params: this._params,
+            roi: this._roi,
             version: this._version,
         }
         const headers = {
@@ -450,7 +508,7 @@ export class LoadMediaStreamJob extends AbstractJob {
             body: JSON.stringify(body),
             signal: this._controller.signal,
             // @ts-ignore
-            eyepop: { responseStreaming: true }
+            eyepop: { responseStreaming: true },
         })
     }
 }

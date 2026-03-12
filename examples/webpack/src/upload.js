@@ -50,7 +50,7 @@ async function upload(event) {
     timingSpan.innerHTML = '__ms'
     resultSpan.innerHTML = "<span class='text-muted'>processing</a>"
     context.clearRect(0, 0, resultOverlay.width, resultOverlay.height)
-    endpoint.process({ file: file }).then(async results => {
+    endpoint.process({ source: { file: file } }).then(async results => {
         for await (let result of results) {
             resultSpan.textContent = JSON.stringify(result, ' ', 2)
             resultOverlay.width = result.source_width
