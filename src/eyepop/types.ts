@@ -68,6 +68,7 @@ export interface Prediction extends StreamTime {
     meshs?: Array<PredictedMesh>
     keyPoints?: Array<PredictedKeyPoints>
 }
+
 export interface PredictedClass {
     id?: number
     confidence: number
@@ -135,4 +136,9 @@ export interface PredictedKeyPoints {
 
 export interface PredictedKeyPoint extends Point3d, PredictedClass {
     visible: boolean | undefined
+}
+
+export interface PredictedMotion {
+    begin_timestamp: number
+    finished_timestamp: number | undefined
 }
