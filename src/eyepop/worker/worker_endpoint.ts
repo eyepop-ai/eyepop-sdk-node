@@ -4,7 +4,22 @@ import { AbstractJob, LoadFromAssetUuidJob, LoadFromJob, LoadMediaStreamJob, Upl
 import { resolvePath } from '../shims/local_file'
 import { Endpoint } from '../endpoint'
 import { TransientPopId, WorkerOptions } from '../worker/worker_options'
-import { AssetUuidSource, ComponentParams, FileSource, MediaStreamSource, PathSource, Pop, ProcessParams, ResultStream, Source, StreamSource, UrlSource, WorkerSession } from '../worker/worker_types'
+import {
+    AssetUuidSource,
+    ComponentParams,
+    FileSource,
+    MediaStreamSource,
+    MotionDetectConfig,
+    PathSource,
+    Pop,
+    ProcessParams,
+    ProcessRequest,
+    ResultStream,
+    Source,
+    StreamSource,
+    UrlSource,
+    WorkerSession,
+} from '../worker/worker_types'
 import { Area } from 'EyePop/data/data_types'
 
 interface PopConfig {
@@ -183,12 +198,13 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
      *
      * @param source
      * @param componentParams
+     * @param motionDetect
      * @param roi
      */
-    public async process({ source, componentParams, roi }: ProcessParams): Promise<ResultStream>
+    public async process({ source, componentParams, motionDetect, roi }: ProcessRequest): Promise<ResultStream>
 
     public async process(param1: any, param2?: any): Promise<ResultStream> {
-        if ((param1 as ProcessParams).source !== undefined) {
+        if ((param1 as ProcessRequest).source !== undefined) {
             return await this.processV2(param1)
         } else {
             return await this.processV1(param1, param2)
@@ -197,41 +213,41 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
 
     private async processV1(source: Source, params?: ComponentParams[]): Promise<ResultStream> {
         if ((source as FileSource).file !== undefined) {
-            return this.uploadFile(source as FileSource, params, undefined)
+            return this.uploadFile(source as FileSource, {componentParams: params})
         } else if ((source as StreamSource).stream !== undefined) {
-            return this.uploadStream(source as StreamSource, params, undefined)
+            return this.uploadStream(source as StreamSource, { componentParams: params })
         } else if ((source as PathSource).path !== undefined) {
-            return this.uploadPath(source as PathSource, params, undefined)
+            return this.uploadPath(source as PathSource, { componentParams: params })
         } else if ((source as UrlSource).url !== undefined) {
-            return this.loadFrom(source as UrlSource, params, undefined)
+            return this.loadFrom(source as UrlSource, { componentParams: params })
         } else if ((source as AssetUuidSource).assetUuid !== undefined) {
-            return this.loadFromAssetUuid(source as AssetUuidSource, params, undefined)
+            return this.loadFromAssetUuid(source as AssetUuidSource, { componentParams: params })
         } else if ((source as MediaStreamSource).mediaStream !== undefined) {
-            return this.loadMediaStream(source as MediaStreamSource, params, undefined)
+            return this.loadMediaStream(source as MediaStreamSource, { componentParams: params })
         } else {
             return Promise.reject('unknown source type')
         }
     }
 
-    private async processV2({ source, componentParams, roi }: ProcessParams): Promise<ResultStream> {
-        if ((source as FileSource).file !== undefined) {
-            return this.uploadFile(source as FileSource, componentParams, roi)
-        } else if ((source as StreamSource).stream !== undefined) {
-            return this.uploadStream(source as StreamSource, componentParams, roi)
-        } else if ((source as PathSource).path !== undefined) {
-            return this.uploadPath(source as PathSource, componentParams, roi)
-        } else if ((source as UrlSource).url !== undefined) {
-            return this.loadFrom(source as UrlSource, componentParams, roi)
-        } else if ((source as AssetUuidSource).assetUuid !== undefined) {
-            return this.loadFromAssetUuid(source as AssetUuidSource, componentParams, roi)
-        } else if ((source as MediaStreamSource).mediaStream !== undefined) {
-            return this.loadMediaStream(source as MediaStreamSource, componentParams, roi)
+    private async processV2(request: ProcessRequest): Promise<ResultStream> {
+        if ((request.source as FileSource).file !== undefined) {
+            return this.uploadFile(request.source as FileSource, request)
+        } else if ((request.source as StreamSource).stream !== undefined) {
+            return this.uploadStream(request.source as StreamSource, request)
+        } else if ((request.source as PathSource).path !== undefined) {
+            return this.uploadPath(request.source as PathSource, request)
+        } else if ((request.source as UrlSource).url !== undefined) {
+            return this.loadFrom(request.source as UrlSource, request)
+        } else if ((request.source as AssetUuidSource).assetUuid !== undefined) {
+            return this.loadFromAssetUuid(request.source as AssetUuidSource, request)
+        } else if ((request.source as MediaStreamSource).mediaStream !== undefined) {
+            return this.loadMediaStream(request.source as MediaStreamSource, request)
         } else {
             return Promise.reject('unknown source type')
         }
     }
 
-    private async uploadFile(source: FileSource, params: ComponentParams[] | undefined, roi: Area | undefined): Promise<ResultStream> {
+    private async uploadFile(source: FileSource, params: ProcessParams): Promise<ResultStream> {
         if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
             return Promise.reject('endpoint not connected, use connect()')
         }
@@ -244,7 +260,6 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
                 source.file.size,
                 source.videoMode,
                 params,
-                roi,
                 async () => {
                     return this.session()
                 },
@@ -266,7 +281,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         }
     }
 
-    private async uploadStream(source: StreamSource, params: ComponentParams[] | undefined, roi: Area | undefined): Promise<ResultStream> {
+    private async uploadStream(source: StreamSource, params: ProcessParams): Promise<ResultStream> {
         if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
             return Promise.reject('endpoint not connected, use connect()')
         }
@@ -279,7 +294,6 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
                 source.size,
                 source.videoMode,
                 params,
-                roi,
                 async () => {
                     return this.session()
                 },
@@ -301,7 +315,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         }
     }
 
-    private async uploadPath(source: PathSource, params: ComponentParams[] | undefined, roi: Area | undefined): Promise<ResultStream> {
+    private async uploadPath(source: PathSource, params: ProcessParams): Promise<ResultStream> {
         if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
             throw new Error('endpoint not connected, use connect()')
         }
@@ -320,7 +334,6 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
                 streamSource.size,
                 source.videoMode,
                 params,
-                roi,
                 async () => {
                     return this.session()
                 },
@@ -342,14 +355,13 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         }
     }
 
-    private async loadFrom(source: UrlSource, params: ComponentParams[] | undefined, roi: Area | undefined): Promise<ResultStream> {
+    private async loadFrom(source: UrlSource, params: ProcessParams): Promise<ResultStream> {
         if (source.url.startsWith('file://')) {
             return await this.uploadPath(
                 {
                     path: source.url.substring('file://'.length),
                 },
                 params,
-                roi
             )
         }
         if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
@@ -361,7 +373,6 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             const job = new LoadFromJob(
                 source.url,
                 params,
-                roi,
                 async () => {
                     return this.session()
                 },
@@ -383,7 +394,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         }
     }
 
-    private async loadFromAssetUuid(source: AssetUuidSource, params: ComponentParams[] | undefined, roi: Area | undefined): Promise<ResultStream> {
+    private async loadFromAssetUuid(source: AssetUuidSource, params: ProcessParams): Promise<ResultStream> {
         if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
             throw new Error('endpoint not connected, use connect()')
         }
@@ -393,7 +404,6 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             const job = new LoadFromAssetUuidJob(
                 source.assetUuid,
                 params,
-                roi,
                 async () => {
                     return this.session()
                 },
@@ -415,7 +425,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         }
     }
 
-    private async loadMediaStream(source: MediaStreamSource, params: ComponentParams[] | undefined, roi: Area | undefined): Promise<ResultStream> {
+    private async loadMediaStream(source: MediaStreamSource, params: ProcessParams): Promise<ResultStream> {
         if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
             throw new Error('endpoint not connected, use connect()')
         }
@@ -425,7 +435,6 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             const job = new LoadMediaStreamJob(
                 source.mediaStream,
                 params,
-                roi,
                 async () => {
                     return this.session()
                 },
@@ -597,6 +606,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             const response_content = await response.json()
             sessions = response_content as ComputeSession[]
         }
+        console.log(sessions)
         if (sessions.length > 0) {
             this._logger.debug(`User has ${sessions.length} sessions, inspecting for active session`)
             for (let s of sessions) {

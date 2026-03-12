@@ -21,6 +21,7 @@ export {
     PredictedMesh,
     PredictedKeyPoint,
     PredictedKeyPoints,
+    PredictedMotion,
     Contour,
     Point2d,
     Point3d
@@ -111,6 +112,8 @@ export {
     VideoMode,
     ComponentParams,
     ProcessParams,
+    ProcessRequest,
+    MotionDetectConfig,
     PredictionVersion,
     DEFAULT_PREDICTION_VERSION
 } from './worker/worker_types'

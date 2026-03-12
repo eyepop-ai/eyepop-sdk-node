@@ -1,11 +1,4 @@
-import {
-  ComponentParams,
-  ContourType,
-  EndpointState,
-  EyePop,
-  ForwardOperatorType,
-  PopComponentType,
-} from '@eyepop.ai/eyepop'
+import { Area, BaseComponent, ComponentParams, ContourType, EndpointState, EyePop, ForwardOperatorType, MotionDetectConfig, MotionModel, PopComponentType, TrackingComponent } from '@eyepop.ai/eyepop'
 import { Render2d } from "@eyepop.ai/eyepop-render-2d";
 
 import { createCanvas, loadImage } from "canvas";
@@ -18,7 +11,7 @@ import { pino } from "pino";
 
 import { parseArgs } from 'node:util';
 import process from "process";
-import { BaseComponent, MotionModel, TrackingComponent } from 'EyePop/worker/worker_types'
+import { AreaType } from 'EyePop/data/data_types'
 
 const POP_EXAMPLES = {
   "person": { components: [{
@@ -216,135 +209,147 @@ const POP_EXAMPLES = {
 const logger = pino({ level: "debug", name: "eyepop-example" });
 
 const { positionals, values } = parseArgs({
-  options: {
-    localPath: {
-      type: "string",
-      short: "l"
+    options: {
+        localPath: {
+            type: 'string',
+            short: 'l',
+        },
+        assetUuid: {
+            type: 'string',
+            short: 'a',
+        },
+        url: {
+            type: 'string',
+            short: 'u',
+        },
+        pop: {
+            type: 'string',
+            short: 'p',
+        },
+        modelUuid: {
+            type: 'string',
+            short: 'm',
+        },
+        abilityUuid: {
+            type: 'string',
+            short: 'a',
+        },
+        model: {
+            type: 'string',
+        },
+        ability: {
+            type: 'string',
+        },
+        sam1: {
+            type: 'string',
+            short: '1',
+        },
+        sam2: {
+            type: 'string',
+            short: '2',
+        },
+        visualize: {
+            type: 'boolean',
+            short: 'v',
+            default: false,
+        },
+        output: {
+            type: 'boolean',
+            short: 'o',
+            default: false,
+        },
+        points: {
+            type: 'string',
+        },
+        boxes: {
+            type: 'string',
+        },
+        prompt: {
+            type: 'string',
+            multiple: true,
+        },
+        topK: {
+            type: 'string',
+            default: '',
+        },
+        confidenceThreshold: {
+            type: 'string',
+            default: '',
+        },
+        motionDetect: {
+            type: 'boolean',
+            default: false,
+        },
+        tracking: {
+            type: 'boolean',
+            default: false,
+        },
+        trackingReidModel: {
+            type: 'string',
+        },
+        trackingAgnostic: {
+            type: 'boolean',
+            default: false,
+        },
+        trackingMaxAge: {
+            type: 'string',
+        },
+        trackingIoUThreshold: {
+            type: 'string',
+        },
+        trackingSimThreshold: {
+            type: 'string',
+        },
+        trackingMotionModel: {
+            type: 'string',
+        },
+        roi: {
+          type: 'string',
+        },
+        help: {
+            type: 'boolean',
+            short: 'h',
+            default: false,
+        },
     },
-    assetUuid: {
-      type: "string",
-      short: "a"
-    },
-    url: {
-      type: "string",
-      short: "u"
-    },
-    pop: {
-      type: "string",
-      short: "p"
-    },
-    modelUuid: {
-      type: "string",
-      short: "m"
-    },
-    abilityUuid: {
-      type: "string",
-      short: "a"
-    },
-    model: {
-      type: "string",
-    },
-    ability: {
-      type: "string",
-    },
-    sam1: {
-      type: "string",
-      short: "1"
-    },
-    sam2: {
-      type: "string",
-      short: "2"
-    },
-    visualize: {
-      type: "boolean",
-      short: "v",
-      default: false
-    },
-    output: {
-      type: "boolean",
-      short: "o",
-      default: false
-    },
-    points: {
-      type: "string",
-    },
-    boxes: {
-      type: "string",
-    },
-    prompt: {
-      type: "string",
-      multiple: true
-    },
-    topK: {
-      type: "string",
-      default: ""
-    },
-    confidenceThreshold: {
-      type: "string",
-      default: ""
-    },
-    tracking: {
-      type: "boolean",
-      default: false
-    },
-    trackingReidModel: {
-      type: "string"
-    },
-    trackingAgnostic: {
-      type: "boolean",
-      default: false
-    },
-    trackingMaxAge: {
-      type: "string",
-    },
-    trackingIoUThreshold: {
-      type: "string",
-    },
-    trackingSimThreshold: {
-      type: "string",
-    },
-    trackingMotionModel: {
-      type: "string",
-    },
-    help: {
-      type: "boolean",
-      short: "h",
-      default: false
-    }
-  },
-});
+})
 
 function printHelpAndExit(message?: string, exitCode: number = -1) {
     if (message) {
       console.error(message);
 
     }
-    console.info("EyePop example, usage: " +
-        "\n\t-l or --localPath=[path] to run inference on a local image file" +
-        "\n\t-a or --assetUuid=[uuid] to run inference on a asset by its Uuid" +
-        "\n\t-u --url=[url] to run inference on a remote image url" +
-        "\n\t-p --pop=[pop] to run one of the example pos, one of "+Object.keys(POP_EXAMPLES)+
-        "\n\t-m --modelUuid=[model uuid] to run inference using a specific model uuid" +
-        "\n\t--model=[model] to run inference using a specific model alias" +
-        "\n\t-a --abilityUuid=[ability uuid] to run inference using a specific ability uuid" +
-        "\n\t--ability=[ability] to run inference using a specific ability alias" +
-        "\n\t-1 --sam1 to compose a model given by --model with segmentation using Efficient SAM" +
-        "\n\t-2 --sam2 to compose a model given by --model with segmentation using SAM2" +
-        "\n\t--points list of POIs as coordinates like (x1, y1), (x2, y2) in the original image coordinate system" +
-        "\n\t--boxes list of POIs as boxes like (left1, top1, right1, bottom1), (left1, top1, right1, bottom1) in the original image coordinate system" +
-        "\n\t--prompt text prompt to pass as parameter" +
-        "\n\t--top-k for --model-uuid and -model-alias apply this top-k filter" +
-        "\n\t--confidence-threshold for --model-uuid and -model-alias apply this confidence threshold filter" +
-        "\n\t--tracking to track objects in videos" +
-        "\n\t--trackingReidModel=[uuid] Use re-id model uuid for tracking" +
-        "\n\t--trackingAgnostic Track objects class-agnostic" +
-        "\n\t--trackingMaxAge=[secs] Max age in seconds for unmatched tracks" +
-        "\n\t--trackingIoUThreshold=[threshold 0...1] IoU threshold to match tracks" +
-        "\n\t--trackingSimThreshold=[threshold 0...1] Similarity threshold to match tracks by re-id" +
-        "\n\t--trackingMotionModel=[random_walk|constant_velocity|constant_acceleration] specify which motion model to use in tracking" +
-        "\n\t-v --visualize to visualize the result" +
-        "\n\t-o --output to print the result to stdout" +
-        "\n\t-h --help to print this help message")
+    console.info(
+        'EyePop example, usage: ' +
+            '\n\t-l or --localPath=[path] to run inference on a local image file' +
+            '\n\t-a or --assetUuid=[uuid] to run inference on a asset by its Uuid' +
+            '\n\t-u --url=[url] to run inference on a remote image url' +
+            '\n\t-p --pop=[pop] to run one of the example pos, one of ' +
+            Object.keys(POP_EXAMPLES) +
+            '\n\t-m --modelUuid=[model uuid] to run inference using a specific model uuid' +
+            '\n\t--model=[model] to run inference using a specific model alias' +
+            '\n\t-a --abilityUuid=[ability uuid] to run inference using a specific ability uuid' +
+            '\n\t--ability=[ability] to run inference using a specific ability alias' +
+            '\n\t-1 --sam1 to compose a model given by --model with segmentation using Efficient SAM' +
+            '\n\t-2 --sam2 to compose a model given by --model with segmentation using SAM2' +
+            '\n\t--points list of POIs as coordinates like (x1, y1), (x2, y2) in the original image coordinate system' +
+            '\n\t--boxes list of POIs as boxes like (left1, top1, right1, bottom1), (left1, top1, right1, bottom1) in the original image coordinate system' +
+            '\n\t--prompt text prompt to pass as parameter' +
+            '\n\t--top-k for --model-uuid and -model-alias apply this top-k filter' +
+            '\n\t--confidence-threshold for --model-uuid and -model-alias apply this confidence threshold filter' +
+            '\n\t--motionDetect to activate motion detection' +
+            '\n\t--roi Rectangular ROI as (x, y, width, height)' +
+            '\n\t--tracking to track objects in videos' +
+            '\n\t--trackingReidModel=[uuid] Use re-id model uuid for tracking' +
+            '\n\t--trackingAgnostic Track objects class-agnostic' +
+            '\n\t--trackingMaxAge=[secs] Max age in seconds for unmatched tracks' +
+            '\n\t--trackingIoUThreshold=[threshold 0...1] IoU threshold to match tracks' +
+            '\n\t--trackingSimThreshold=[threshold 0...1] Similarity threshold to match tracks by re-id' +
+            '\n\t--trackingMotionModel=[random_walk|constant_velocity|constant_acceleration] specify which motion model to use in tracking' +
+            '\n\t-v --visualize to visualize the result' +
+            '\n\t-o --output to print the result to stdout' +
+            '\n\t-h --help to print this help message',
+    )
     process.exit(exitCode);
 }
 
@@ -376,6 +381,17 @@ function list_of_boxes(arg: string) {
     })
   }
   return boxes
+}
+
+function rectangle_roi_area(arg: string): Area {
+    const values = eval(arg.replace('(', '[').replace(')', ']'))
+    return {
+        type: AreaType.RECTANGLE,
+        x: values[0],
+        y: values[1],
+        width: values[2],
+        height: values[3]
+    }
 }
 
 (async (parameters=values) => {
@@ -568,7 +584,12 @@ function list_of_boxes(arg: string) {
     .connect();
   try {
     await endpoint.changePop(pop);
-    let results = await endpoint.process({source: example_input, componentParams: sourceParams});
+    const results = await endpoint.process({
+        source: example_input,
+        componentParams: sourceParams,
+        motionDetect: parameters.motionDetect ? { motionDetect: true } : undefined,
+        roi: parameters.roi ? rectangle_roi_area(parameters.roi) : undefined
+    })
     for await (let result of results) {
       if (parameters.output) {
         console.info(JSON.stringify(result, undefined, 2));

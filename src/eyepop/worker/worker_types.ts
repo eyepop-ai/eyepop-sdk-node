@@ -189,13 +189,26 @@ export interface Pop {
     postTransform?: string
 }
 
+export interface MotionDetectConfig {
+    motionDetect: boolean
+    motionSensitivity?: number
+    motionThreshold?: number
+    motionGap?: number
+    motionGridX?: number
+    motionGridY?: number
+}
+
 export interface ComponentParams {
     componentId: number
     values: { [index: string]: any }
 }
 
 export interface ProcessParams {
-    source: Source
     componentParams?: ComponentParams[] | undefined
+    motionDetect?: MotionDetectConfig | undefined
     roi?: Area | undefined
+}
+
+export interface ProcessRequest extends ProcessParams {
+    source: Source
 }

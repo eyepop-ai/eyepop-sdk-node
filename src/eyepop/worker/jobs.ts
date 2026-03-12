@@ -1,14 +1,7 @@
 import { Prediction } from '../types'
 import {Stream, StreamEvent, readableStreamFromString} from '../streaming'
 import {Logger} from 'pino'
-import {
-    ComponentParams,
-    DEFAULT_PREDICTION_VERSION,
-    PredictionVersion,
-    ResultStream,
-    VideoMode,
-    WorkerSession
-} from '../worker/worker_types'
+import { ComponentParams, DEFAULT_PREDICTION_VERSION, PredictionVersion, ProcessParams, ResultStream, VideoMode, WorkerSession } from '../worker/worker_types'
 import { HttpClient } from '../options'
 import {WebrtcWhip} from "./webrtc_whip";
 import { Area } from 'EyePop/data/data_types'
@@ -16,8 +9,7 @@ import { Area } from 'EyePop/data/data_types'
 export class AbstractJob implements ResultStream {
     protected _getSession: () => Promise<WorkerSession>
 
-    protected _params: ComponentParams[] | null
-    protected _roi: Area | null
+    protected _params: ProcessParams
 
     protected _responseStream: Promise<ReadableStream<Uint8Array>> | null = null
     protected _controller: AbortController = new AbortController()
@@ -38,15 +30,13 @@ export class AbstractJob implements ResultStream {
     }
 
     protected constructor(
-        params: ComponentParams[] | undefined,
-        roi: Area | undefined,
+        params: ProcessParams,
         getSession: () => Promise<WorkerSession>,
         client: HttpClient, requestLogger: Logger,
         version: PredictionVersion = DEFAULT_PREDICTION_VERSION
     ) {
         this._getSession = getSession
-        this._params = params ?? null
-        this._roi = roi ?? null
+        this._params = params
         this._client = client
         this._requestLogger = requestLogger
         this._version = version
@@ -88,7 +78,7 @@ export class AbstractJob implements ResultStream {
                                 reject(`response ${response.status}: ${response.statusText}`)
                                 break
                             }
-                        } else if (response.status != 200) {
+                        } else if (!response.ok) {
                             reject(`upload error ${response.status}: ${await response.text()}`)
                             break
                         } else if (response.body) {
@@ -144,13 +134,12 @@ export class UploadJob extends AbstractJob {
         mimeType: string,
         size: number | undefined,
         videoMode: VideoMode | undefined,
-        params: ComponentParams[] | undefined,
-        roi: Area | undefined,
+        params: ProcessParams,
         getSession: () => Promise<WorkerSession>,
         client: HttpClient,
         requestLogger: Logger,
     ) {
-        super(params, roi, getSession, client, requestLogger)
+        super(params, getSession, client, requestLogger)
         this._uploadStream = stream
         this._mimeType = mimeType
         this._size = size
@@ -168,17 +157,31 @@ export class UploadJob extends AbstractJob {
                 return Promise.reject('session.baseUrl must not ne null')
             }
             let request
-            const videoModeQuery = this._videoMode ? `&videoMode=${this._videoMode}` : ''
-            const versionQuery = this._version ? `&version=${this._version}` : ''
-            const postUrl: string = `${session.baseUrl.replace(/\/+$/, '')}/pipelines/${session.pipelineId}/source?mode=queue&processing=async&sourceId=${event.source_id}${videoModeQuery}${versionQuery}`
-            if (this._params || this._roi) {
+            const queryParams = new URLSearchParams({
+                mode: 'queue',
+                processing: 'async',
+                sourceId: event.source_id,
+            })
+            if (this._videoMode !== undefined) {
+                queryParams.set('videoMode', this._videoMode)
+            }
+            if (this._version !== undefined) {
+                queryParams.set('version', this._version.toString())
+            }
+            if (this._params.motionDetect) {
+                for (const [key, value] of Object.entries(this._params.motionDetect)) {
+                    queryParams.set(key, value)
+                }
+            }
+            const postUrl: string = `${session.baseUrl.replace(/\/+$/, '')}/pipelines/${session.pipelineId}/source?${queryParams.toString()}`
+            if (this._params.componentParams || this._params.roi) {
                 const formData = new FormData()
-                if (this._params) {
-                    const blob = new Blob([JSON.stringify(this._params)], { type: 'application/json' })
+                if (this._params.componentParams) {
+                    const blob = new Blob([JSON.stringify(this._params.componentParams)], { type: 'application/json' })
                     formData.append('params', blob)
                 }
-                if (this._roi) {
-                    const blob = new Blob([JSON.stringify(this._roi)], { type: 'application/json' })
+                if (this._params.roi) {
+                    const blob = new Blob([JSON.stringify(this._params.roi)], { type: 'application/json' })
                     formData.append('roi', blob)
                 }
                 const fileBlob = await new Response(this._uploadStream).blob()
@@ -250,17 +253,30 @@ export class UploadJob extends AbstractJob {
                 eyepop: { responseStreaming: true },
             })
         } else {
-            const videoModeQuery = this._videoMode ? `&videoMode=${this._videoMode}` : ''
-            const versionQuery = this._version ? `&version=${this._version}` : ''
-            const postUrl: string = `${session.baseUrl.replace(/\/+$/, '')}/pipelines/${session.pipelineId}/source?mode=queue&processing=sync${videoModeQuery}${versionQuery}`
-            if (this._params || this._roi) {
+            const queryParams = new URLSearchParams({
+                mode: 'queue',
+                processing: 'sync',
+            })
+            if (this._videoMode !== undefined) {
+                queryParams.set('videoMode', this._videoMode)
+            }
+            if (this._version !== undefined) {
+                queryParams.set('version', this._version.toString())
+            }
+            if (this._params.motionDetect) {
+                for (const [key, value] of Object.entries(this._params.motionDetect)) {
+                    queryParams.set(key, value)
+                }
+            }
+            const postUrl: string = `${session.baseUrl.replace(/\/+$/, '')}/pipelines/${session.pipelineId}/source?${queryParams.toString()}`
+            if (this._params.componentParams || this._params.roi) {
                 const formData = new FormData()
-                if (this._params) {
-                    const blob = new Blob([JSON.stringify(this._params)], { type: 'application/json' })
+                if (this._params.componentParams) {
+                    const blob = new Blob([JSON.stringify(this._params.componentParams)], { type: 'application/json' })
                     formData.append('params', blob)
                 }
-                if (this._roi) {
-                    const blob = new Blob([JSON.stringify(this._roi)], { type: 'application/json' })
+                if (this._params.roi) {
+                    const blob = new Blob([JSON.stringify(this._params.roi)], { type: 'application/json' })
                     formData.append('roi', blob)
                 }
                 const fileBlob = await new Response(this._uploadStream).blob()
@@ -307,13 +323,12 @@ export class LoadFromJob extends AbstractJob {
 
     constructor(
         location: string,
-        params: ComponentParams[] | undefined,
-        roi: Area | undefined,
+        params: ProcessParams,
         getSession: () => Promise<WorkerSession>,
         client: HttpClient,
         requestLogger: Logger
     ) {
-        super(params, roi, getSession, client, requestLogger)
+        super(params, getSession, client, requestLogger)
         this._location = location
     }
 
@@ -329,9 +344,12 @@ export class LoadFromJob extends AbstractJob {
         const body = {
             sourceType: 'URL',
             url: this._location,
-            params: this._params,
-            roi: this._roi,
+            params: this._params.componentParams,
+            roi: this._params.roi,
             version: this._version,
+        }
+        if (this._params.motionDetect) {
+            Object.assign(body, this._params.motionDetect)
         }
         const headers = {
             ...session.authenticationHeaders(),
@@ -355,13 +373,12 @@ export class LoadFromAssetUuidJob extends AbstractJob {
 
     constructor(
         assetUuid: string,
-        params: ComponentParams[] | undefined,
-        roi: Area | undefined,
+        params: ProcessParams,
         getSession: () => Promise<WorkerSession>,
         client: HttpClient,
         requestLogger: Logger
     ) {
-        super(params, roi, getSession, client, requestLogger)
+        super(params, getSession, client, requestLogger)
         this._assetUuid = assetUuid
     }
 
@@ -377,9 +394,12 @@ export class LoadFromAssetUuidJob extends AbstractJob {
         const body = {
             sourceType: 'ASSET_UUID',
             assetUuid: this._assetUuid,
-            params: this._params,
-            roi: this._roi,
+            params: this._params.componentParams,
+            roi: this._params.roi,
             version: this._version,
+        }
+        if (this._params.motionDetect) {
+            Object.assign(body, this._params.motionDetect)
         }
         const headers = {
             ...session.authenticationHeaders(),
@@ -398,66 +418,17 @@ export class LoadFromAssetUuidJob extends AbstractJob {
     }
 }
 
-export class LoadLiveIngressJob extends AbstractJob {
-    private readonly _ingressId: string
-
-    constructor(
-        ingressId: string,
-        params: ComponentParams[] | undefined,
-        roi: Area | undefined,
-        getSession: () => Promise<WorkerSession>,
-        client: HttpClient,
-        requestLogger: Logger
-    ) {
-        super(params, roi, getSession, client, requestLogger)
-        this._ingressId = ingressId
-    }
-
-    get [Symbol.toStringTag](): string {
-        return 'loadLiveIngressJob'
-    }
-
-    protected override async startJob(): Promise<Response> {
-        const session = await this._getSession()
-        if (!session.baseUrl) {
-            return Promise.reject('session.baseUrl must not ne null')
-        }
-        const body = {
-            sourceType: 'LIVE_INGRESS',
-            liveIngressId: this._ingressId,
-            params: this._params,
-            roi: this._roi,
-            version: this._version,
-        }
-        const headers = {
-            ...session.authenticationHeaders(),
-            Accept: 'application/jsonl',
-            'Content-Type': 'application/json',
-        }
-        const patchUrl: string = `${session.baseUrl.replace(/\/+$/, '')}/pipelines/${session.pipelineId}/source?mode=preempt&processing=sync`
-        return await this._client.fetch(patchUrl, {
-            headers: headers,
-            method: 'PATCH',
-            body: JSON.stringify(body),
-            signal: this._controller.signal,
-            // @ts-ignore
-            eyepop: { responseStreaming: true },
-        })
-    }
-}
-
 export class LoadMediaStreamJob extends AbstractJob {
     private readonly _mediaStream: MediaStream
 
     constructor(
         mediaStream: MediaStream,
-        params: ComponentParams[] | undefined,
-        roi: Area | undefined,
+        params: ProcessParams,
         getSession: () => Promise<WorkerSession>,
         client: HttpClient,
         requestLogger: Logger
     ) {
-        super(params, roi, getSession, client, requestLogger)
+        super(params, getSession, client, requestLogger)
         this._mediaStream = mediaStream
     }
 
@@ -492,9 +463,12 @@ export class LoadMediaStreamJob extends AbstractJob {
         const body = {
             sourceType: 'WHIP',
             whipIngressId: whip.ingressId(),
-            params: this._params,
-            roi: this._roi,
+            params: this._params.componentParams,
+            roi: this._params.roi,
             version: this._version,
+        }
+        if (this._params.motionDetect) {
+            Object.assign(body, this._params.motionDetect)
         }
         const headers = {
             ...session.authenticationHeaders(),
