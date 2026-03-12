@@ -27,7 +27,7 @@ const example_image_path = process.argv[2]
         })
         .connect()
     try {
-        let results = await endpoint.process({ path: example_image_path })
+        let results = await endpoint.process({source: { path: example_image_path }})
         for await (let result of results) {
             canvas.width = result.source_width
             canvas.height = result.source_height

@@ -94,7 +94,7 @@ describe('EyePopSdk endpoint reconnect', () => {
             await endpoint.connect()
             expect(authenticationRoute).toHaveBeenCalledTimes(1)
             expect(popConfigRoute).toHaveBeenCalledTimes(1)
-            let job = await endpoint.process({ url: location })
+            let job = await endpoint.process({ source: { url: location } })
             expect(job).toBeDefined()
             let count = 0
             for await (let prediction of job) {

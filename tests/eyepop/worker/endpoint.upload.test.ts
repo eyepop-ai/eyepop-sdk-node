@@ -76,7 +76,7 @@ describe('EyePopSdk endpoint module upload', () => {
             await endpoint.connect()
             expect(authenticationRoute).toHaveBeenCalledTimes(1)
             expect(popConfigRoute).toHaveBeenCalledTimes(1)
-            let job = await endpoint.process({ path: image_path })
+            let job = await endpoint.process({ source: { path: image_path } })
             expect(job).toBeDefined()
             let count = 0
             for await (let prediction of await job) {
@@ -108,7 +108,7 @@ describe('EyePopSdk endpoint module upload', () => {
             await endpoint.connect()
             expect(authenticationRoute).toHaveBeenCalledTimes(1)
             expect(popConfigRoute).toHaveBeenCalledTimes(1)
-            expect(endpoint.process({ path: image_path })).rejects.toBeDefined()
+            await expect(endpoint.process({ source: { path: image_path } })).rejects.toBeDefined()
         } finally {
             await endpoint.disconnect()
         }

@@ -139,7 +139,7 @@ async function upload(event) {
             ]
         }
     }
-    endpoint.process({ file: file }, (params = params)).then(async results => {
+    endpoint.process({ source: { file: file }, componentParams: params }).then(async results => {
         for await (let result of results) {
             resultSpan.textContent = JSON.stringify(result, ' ', 2)
             context.clearRect(0, 0, resultOverlay.width, resultOverlay.height)

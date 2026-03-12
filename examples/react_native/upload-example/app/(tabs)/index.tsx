@@ -91,19 +91,25 @@ export default function homeScreen() {
             Alert.alert('Asset picked but endpoint is not connected');
             return;
         }
-        endpoint.process({
-            path: sourceUri.substring('file://'.length),
-            mimeType: sourceMimeType,
-        }).then(results => {
-            processResults(results, sourceMimeType.startsWith("video/") || false).catch(reason => {
-                console.error(reason);
-            }).finally(() => {
-                setSpinner(false);
+        endpoint
+            .process({
+                source: {
+                    path: sourceUri.substring('file://'.length),
+                    mimeType: sourceMimeType,
+                },
+            }).then(results => {
+                processResults(results, sourceMimeType.startsWith('video/') || false)
+                    .catch(reason => {
+                        console.error(reason)
+                    })
+                    .finally(() => {
+                        setSpinner(false)
+                    })
             })
-        }).catch(reason => {
-            console.error(reason);
-            setSpinner(false);
-        })
+            .catch(reason => {
+                console.error(reason)
+                setSpinner(false)
+            })
     }, [imageSource, videoSource, workerEndpoint])
 
         /** Let the user pick a local image or video and submit to EyePop for processing */

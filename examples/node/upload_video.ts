@@ -8,8 +8,10 @@ async function upload_video(video_path: string, is_streaming: boolean, seconds: 
     const endpoint = await EyePop.workerEndpoint({ logger: logger }).connect()
     try {
         const results = await endpoint.process({
-            path: video_path,
-            videoMode: is_streaming? VideoMode.STREAM: undefined
+            source: {
+                path: video_path,
+                videoMode: is_streaming? VideoMode.STREAM: undefined
+            }
         })
         for await (let result of results) {
             // @ts-ignore

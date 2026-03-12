@@ -1,8 +1,9 @@
 import { Prediction, Session } from '../types'
+import { Area } from 'EyePop/data/data_types'
 
 export enum PredictionVersion {
     V1 = 1,
-    V2 = 2
+    V2 = 2,
 }
 
 export const DEFAULT_PREDICTION_VERSION: PredictionVersion = PredictionVersion.V2
@@ -11,24 +12,24 @@ export interface WorkerSession extends Session {
     readonly popId: string
     readonly baseUrl: string | undefined
     readonly pipelineId: string | undefined
-    authenticationHeaders() : any
+    authenticationHeaders(): any
 }
 
 export enum VideoMode {
     STREAM = 'stream',
-    BUFFER = 'buffer'
+    BUFFER = 'buffer',
 }
 
 export interface FileSource {
     readonly file: File
-    readonly videoMode?: VideoMode  | undefined
+    readonly videoMode?: VideoMode | undefined
 }
 
 export interface StreamSource {
     readonly stream: ReadableStream<Uint8Array> | Blob | BufferSource
     readonly mimeType: string
     readonly size?: number | undefined
-    readonly videoMode?: VideoMode  | undefined
+    readonly videoMode?: VideoMode | undefined
 }
 
 export interface PathSource {
@@ -54,7 +55,6 @@ export type Source = FileSource | StreamSource | PathSource | UrlSource | AssetU
 export interface ResultStream extends AsyncIterable<Prediction> {
     cancel(): void
 }
-
 
 // Pop definition types
 
@@ -124,13 +124,13 @@ export interface InferenceComponent extends BaseComponent {
     targetFps?: string
     videoChunkLengthSeconds?: number
     videoChunkOverlap?: number
-    params?: {[index: string]: any}
+    params?: { [index: string]: any }
 }
 
 export enum MotionModel {
-    RANDOM_WALK = "random_walk",
-    CONSTANT_VELOCITY = "constant_velocity",
-    CONSTANT_ACCELERATION = "constant_acceleration",
+    RANDOM_WALK = 'random_walk',
+    CONSTANT_VELOCITY = 'constant_velocity',
+    CONSTANT_ACCELERATION = 'constant_acceleration',
 }
 
 export interface TrackingComponent extends BaseComponent {
@@ -191,5 +191,11 @@ export interface Pop {
 
 export interface ComponentParams {
     componentId: number
-    values: {[index: string]: any}
+    values: { [index: string]: any }
+}
+
+export interface ProcessParams {
+    source: Source
+    componentParams?: ComponentParams[] | undefined
+    roi?: Area | undefined
 }

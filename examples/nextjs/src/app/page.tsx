@@ -120,7 +120,7 @@ export default function Home() {
         const startTime = performance.now()
         context.clearRect(0, 0, canvas.width, canvas.height)
         console.log('Processing file...')
-        endpointRef.current?.process({ file: file }).then(async results => {
+        endpointRef.current?.process({source: { file: file }}).then(async results => {
             console.log('Results:', results)
             for await (const result of results) {
                 console.log('Result:', result)

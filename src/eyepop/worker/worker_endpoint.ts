@@ -1,28 +1,11 @@
 import { LocalAuth } from '../options'
 import { EndpointState, Session } from '../types'
-import {
-    AbstractJob,
-    LoadFromAssetUuidJob,
-    LoadFromJob,
-    LoadMediaStreamJob,
-    UploadJob
-} from './jobs'
+import { AbstractJob, LoadFromAssetUuidJob, LoadFromJob, LoadMediaStreamJob, UploadJob } from './jobs'
 import { resolvePath } from '../shims/local_file'
 import { Endpoint } from '../endpoint'
 import { TransientPopId, WorkerOptions } from '../worker/worker_options'
-import {
-    FileSource,
-    PathSource,
-    ResultStream,
-    Source,
-    StreamSource,
-    UrlSource,
-    WorkerSession,
-    Pop,
-    ComponentParams,
-    AssetUuidSource,
-    MediaStreamSource,
-} from '../worker/worker_types'
+import { AssetUuidSource, ComponentParams, FileSource, MediaStreamSource, PathSource, Pop, ProcessParams, ResultStream, Source, StreamSource, UrlSource, WorkerSession } from '../worker/worker_types'
+import { Area } from 'EyePop/data/data_types'
 
 interface PopConfig {
     base_url: string
@@ -38,17 +21,17 @@ interface Pipeline {
 }
 
 export enum SessionStatus {
-    UNKNOWN = "unknown",
-    PENDING = "pending",
-    RUNNING = "running",
-    STOPPED = "stopped",
-    FAILED = "failed",
-    ERROR = "error",
+    UNKNOWN = 'unknown',
+    PENDING = 'pending',
+    RUNNING = 'running',
+    STOPPED = 'stopped',
+    FAILED = 'failed',
+    ERROR = 'error',
 
-    PIPELINE_CREATING = "pipeline_creating",
-    PIPELINE_OK = "pipeline_ok",
-    PIPELINE_CHECKING = "pipeline_checking",
-    PIPELINE_ERROR = "pipeline_error",
+    PIPELINE_CREATING = 'pipeline_creating',
+    PIPELINE_OK = 'pipeline_ok',
+    PIPELINE_CHECKING = 'pipeline_checking',
+    PIPELINE_ERROR = 'pipeline_error',
 }
 
 interface ComputeSession {
@@ -65,7 +48,7 @@ interface ComputeSession {
     session_active: boolean
 }
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
     private _baseUrl: string | null
@@ -171,40 +154,84 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         } else {
             this._pipeline = {
                 id: this._pipelineId || 'unknown',
-                state: "idle",
+                state: 'idle',
                 startTime: new Date().toString(),
-                pop: pop
+                pop: pop,
             }
         }
     }
 
     private _authenticationHeaders(session: Session): any {
-        return (this._options.auth as LocalAuth).isLocal !== undefined ? {} : {Authorization: `Bearer ${session.accessToken}`}
+        return (this._options.auth as LocalAuth).isLocal !== undefined ? {} : { Authorization: `Bearer ${session.accessToken}` }
     }
 
     public popId(): string | null {
         return this.options().popId || null
     }
 
-    public async process(source: Source, params?: ComponentParams[]): Promise<ResultStream> {
+    /**
+     * V1 call to process media as a source with optional component params
+     *
+     * @deprecated use V2 call process() with named parameters
+     * @param source
+     * @param params
+     */
+    public async process(source: Source, params?: ComponentParams[]): Promise<ResultStream>
+
+    /**
+     * V2 call to process media as a source with extensible named parameters
+     *
+     * @param source
+     * @param componentParams
+     * @param roi
+     */
+    public async process({ source, componentParams, roi }: ProcessParams): Promise<ResultStream>
+
+    public async process(param1: any, param2?: any): Promise<ResultStream> {
+        if ((param1 as ProcessParams).source !== undefined) {
+            return await this.processV2(param1)
+        } else {
+            return await this.processV1(param1, param2)
+        }
+    }
+
+    private async processV1(source: Source, params?: ComponentParams[]): Promise<ResultStream> {
         if ((source as FileSource).file !== undefined) {
-            return this.uploadFile(source as FileSource, params)
+            return this.uploadFile(source as FileSource, params, undefined)
         } else if ((source as StreamSource).stream !== undefined) {
-            return this.uploadStream(source as StreamSource, params)
+            return this.uploadStream(source as StreamSource, params, undefined)
         } else if ((source as PathSource).path !== undefined) {
-            return this.uploadPath(source as PathSource, params)
+            return this.uploadPath(source as PathSource, params, undefined)
         } else if ((source as UrlSource).url !== undefined) {
-            return this.loadFrom(source as UrlSource, params)
+            return this.loadFrom(source as UrlSource, params, undefined)
         } else if ((source as AssetUuidSource).assetUuid !== undefined) {
-            return this.loadFromAssetUuid(source as AssetUuidSource, params)
+            return this.loadFromAssetUuid(source as AssetUuidSource, params, undefined)
         } else if ((source as MediaStreamSource).mediaStream !== undefined) {
-            return this.loadMediaStream(source as MediaStreamSource, params)
+            return this.loadMediaStream(source as MediaStreamSource, params, undefined)
         } else {
             return Promise.reject('unknown source type')
         }
     }
 
-    private async uploadFile(source: FileSource, params: ComponentParams[] | undefined): Promise<ResultStream> {
+    private async processV2({ source, componentParams, roi }: ProcessParams): Promise<ResultStream> {
+        if ((source as FileSource).file !== undefined) {
+            return this.uploadFile(source as FileSource, componentParams, roi)
+        } else if ((source as StreamSource).stream !== undefined) {
+            return this.uploadStream(source as StreamSource, componentParams, roi)
+        } else if ((source as PathSource).path !== undefined) {
+            return this.uploadPath(source as PathSource, componentParams, roi)
+        } else if ((source as UrlSource).url !== undefined) {
+            return this.loadFrom(source as UrlSource, componentParams, roi)
+        } else if ((source as AssetUuidSource).assetUuid !== undefined) {
+            return this.loadFromAssetUuid(source as AssetUuidSource, componentParams, roi)
+        } else if ((source as MediaStreamSource).mediaStream !== undefined) {
+            return this.loadMediaStream(source as MediaStreamSource, componentParams, roi)
+        } else {
+            return Promise.reject('unknown source type')
+        }
+    }
+
+    private async uploadFile(source: FileSource, params: ComponentParams[] | undefined, roi: Area | undefined): Promise<ResultStream> {
         if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
             return Promise.reject('endpoint not connected, use connect()')
         }
@@ -217,6 +244,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
                 source.file.size,
                 source.videoMode,
                 params,
+                roi,
                 async () => {
                     return this.session()
                 },
@@ -238,7 +266,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         }
     }
 
-    private async uploadStream(source: StreamSource, params: ComponentParams[] | undefined): Promise<ResultStream> {
+    private async uploadStream(source: StreamSource, params: ComponentParams[] | undefined, roi: Area | undefined): Promise<ResultStream> {
         if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
             return Promise.reject('endpoint not connected, use connect()')
         }
@@ -251,6 +279,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
                 source.size,
                 source.videoMode,
                 params,
+                roi,
                 async () => {
                     return this.session()
                 },
@@ -272,7 +301,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         }
     }
 
-    private async uploadPath(source: PathSource, params: ComponentParams[] | undefined): Promise<ResultStream> {
+    private async uploadPath(source: PathSource, params: ComponentParams[] | undefined, roi: Area | undefined): Promise<ResultStream> {
         if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
             throw new Error('endpoint not connected, use connect()')
         }
@@ -291,6 +320,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
                 streamSource.size,
                 source.videoMode,
                 params,
+                roi,
                 async () => {
                     return this.session()
                 },
@@ -312,11 +342,15 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         }
     }
 
-    private async loadFrom(source: UrlSource, params: ComponentParams[] | undefined): Promise<ResultStream> {
+    private async loadFrom(source: UrlSource, params: ComponentParams[] | undefined, roi: Area | undefined): Promise<ResultStream> {
         if (source.url.startsWith('file://')) {
-            return await this.uploadPath({
-                path: source.url.substring('file://'.length)
-            }, params)
+            return await this.uploadPath(
+                {
+                    path: source.url.substring('file://'.length),
+                },
+                params,
+                roi
+            )
         }
         if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
             throw new Error('endpoint not connected, use connect()')
@@ -327,6 +361,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             const job = new LoadFromJob(
                 source.url,
                 params,
+                roi,
                 async () => {
                     return this.session()
                 },
@@ -348,7 +383,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         }
     }
 
-    private async loadFromAssetUuid(source: AssetUuidSource, params: ComponentParams[] | undefined): Promise<ResultStream> {
+    private async loadFromAssetUuid(source: AssetUuidSource, params: ComponentParams[] | undefined, roi: Area | undefined): Promise<ResultStream> {
         if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
             throw new Error('endpoint not connected, use connect()')
         }
@@ -358,6 +393,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             const job = new LoadFromAssetUuidJob(
                 source.assetUuid,
                 params,
+                roi,
                 async () => {
                     return this.session()
                 },
@@ -379,7 +415,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         }
     }
 
-    private async loadMediaStream(source: MediaStreamSource, params: ComponentParams[] | undefined): Promise<ResultStream> {
+    private async loadMediaStream(source: MediaStreamSource, params: ComponentParams[] | undefined, roi: Area | undefined): Promise<ResultStream> {
         if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
             throw new Error('endpoint not connected, use connect()')
         }
@@ -389,6 +425,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             const job = new LoadMediaStreamJob(
                 source.mediaStream,
                 params,
+                roi,
                 async () => {
                     return this.session()
                 },
@@ -443,7 +480,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             Authorization: await this.authorizationHeader(),
         }
         this.updateState(EndpointState.FetchConfig)
-        let response = await this._client.fetch(config_url, {headers: headers})
+        let response = await this._client.fetch(config_url, { headers: headers })
         if (response.status == 401) {
             this._requestLogger.debug('GET %s: 401, about to retry with fresh access token', config_url)
             // one retry, the token might have just expired
@@ -511,10 +548,10 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             this._pipeline = (await response.json()) as Pipeline
 
             if (this.options().stopJobs) {
-                const body = {sourceType: 'NONE'}
+                const body = { sourceType: 'NONE' }
                 const headers = {
                     Authorization: await this.authorizationHeader(),
-                    "Content-Type": "application/json"
+                    'Content-Type': 'application/json',
                 }
                 const stop_url = `${this._baseUrl}/pipelines/${this._pipeline.id}/source?mode=preempt&processing=sync`
                 let response = await this._client.fetch(stop_url, {
@@ -530,13 +567,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         }
     }
 
-    private static SESSION_DEAD = new Set<SessionStatus>([
-        SessionStatus.ERROR,
-        SessionStatus.FAILED,
-        SessionStatus.STOPPED,
-        SessionStatus.PIPELINE_ERROR,
-        SessionStatus.UNKNOWN
-    ])
+    private static SESSION_DEAD = new Set<SessionStatus>([SessionStatus.ERROR, SessionStatus.FAILED, SessionStatus.STOPPED, SessionStatus.PIPELINE_ERROR, SessionStatus.UNKNOWN])
 
     private static WAIT_FOR_IS_READY: number = 60 * 1000
     private static CHECK_FOR_IS_READY_INTERVAL: number = 250
@@ -580,7 +611,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             this._requestLogger.debug('creating a new session at: %s', sessionsUrl)
             response = await this._client.fetch(`${sessionsUrl}?wait=true`, {
                 headers: headers,
-                method: 'POST'
+                method: 'POST',
             })
             if (response.status != 200) {
                 this.updateState(EndpointState.Error)
@@ -595,7 +626,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             session = sessions[0] || null
         }
         if (!session) {
-            throw new Error("unexpected undefined session")
+            throw new Error('unexpected undefined session')
         }
         let isReady: boolean = false
         const deadline: number = Date.now() + WorkerEndpoint.WAIT_FOR_IS_READY
