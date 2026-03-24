@@ -207,6 +207,7 @@ export interface ProcessParams {
     componentParams?: ComponentParams[] | undefined
     motionDetect?: MotionDetectConfig | undefined
     roi?: Area | undefined
+    fps?: string | undefined
 }
 
 export interface ProcessRequest extends ProcessParams {

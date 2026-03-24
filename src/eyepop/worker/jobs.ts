@@ -184,6 +184,10 @@ export class UploadJob extends AbstractJob {
                     const blob = new Blob([JSON.stringify(this._params.roi)], { type: 'application/json' })
                     formData.append('roi', blob)
                 }
+                if (this._params.fps) {
+                    const blob = new Blob([JSON.stringify(this._params.fps)], { type: 'application/json' })
+                    formData.append('fps', blob)
+                }
                 const fileBlob = await new Response(this._uploadStream).blob()
                 formData.append('file', fileBlob)
                 const headers = {
@@ -279,6 +283,10 @@ export class UploadJob extends AbstractJob {
                     const blob = new Blob([JSON.stringify(this._params.roi)], { type: 'application/json' })
                     formData.append('roi', blob)
                 }
+                if (this._params.fps) {
+                    const blob = new Blob([JSON.stringify(this._params.fps)], { type: 'application/json' })
+                    formData.append('fps', blob)
+                }
                 const fileBlob = await new Response(this._uploadStream).blob()
                 formData.append('file', fileBlob)
                 const headers = {
@@ -346,6 +354,7 @@ export class LoadFromJob extends AbstractJob {
             url: this._location,
             params: this._params.componentParams,
             roi: this._params.roi,
+            fps: this._params.fps,
             version: this._version,
         }
         if (this._params.motionDetect) {
@@ -396,6 +405,7 @@ export class LoadFromAssetUuidJob extends AbstractJob {
             assetUuid: this._assetUuid,
             params: this._params.componentParams,
             roi: this._params.roi,
+            fps: this._params.fps,
             version: this._version,
         }
         if (this._params.motionDetect) {
@@ -465,6 +475,7 @@ export class LoadMediaStreamJob extends AbstractJob {
             whipIngressId: whip.ingressId(),
             params: this._params.componentParams,
             roi: this._params.roi,
+            fps: this._params.fps,
             version: this._version,
         }
         if (this._params.motionDetect) {

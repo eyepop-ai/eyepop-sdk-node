@@ -280,6 +280,9 @@ const { positionals, values } = parseArgs({
             type: 'boolean',
             default: false,
         },
+        fps: {
+            type: 'string',
+        },
         tracking: {
             type: 'boolean',
             default: false,
@@ -339,6 +342,7 @@ function printHelpAndExit(message?: string, exitCode: number = -1) {
             '\n\t--confidence-threshold for --model-uuid and -model-alias apply this confidence threshold filter' +
             '\n\t--motionDetect to activate motion detection' +
             '\n\t--roi Rectangular ROI as (x, y, width, height)' +
+            '\n\t--fps FPS throttle for video sources' +
             '\n\t--tracking to track objects in videos' +
             '\n\t--trackingReidModel=[uuid] Use re-id model uuid for tracking' +
             '\n\t--trackingAgnostic Track objects class-agnostic' +
@@ -588,7 +592,8 @@ function rectangle_roi_area(arg: string): Area {
         source: example_input,
         componentParams: sourceParams,
         motionDetect: parameters.motionDetect ? { motionDetect: true } : undefined,
-        roi: parameters.roi ? rectangle_roi_area(parameters.roi) : undefined
+        roi: parameters.roi ? rectangle_roi_area(parameters.roi) : undefined,
+        fps: parameters.fps ?? undefined
     })
     for await (let result of results) {
       if (parameters.output) {
