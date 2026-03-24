@@ -616,10 +616,10 @@ export interface VlmAbility {
     name: string
     description: string
     vlm_ability_group_uuid?: string
-    worker_release: string
-    text_prompt: string
-    transform_into: TransformInto
-    config: InferRuntimeConfig
+    worker_release?: string
+    text_prompt?: string
+    transform_into?: TransformInto
+    config?: InferRuntimeConfig
     video_chunk_length_ns?: number
     video_chunk_overlap?: number
     alias_entries?: AbilityAliasEntry[]
