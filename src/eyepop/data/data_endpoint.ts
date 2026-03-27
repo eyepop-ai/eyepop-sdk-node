@@ -15,6 +15,7 @@ import {
     AutoAnnotate,
     AutoAnnotateParams,
     AutoPromptConfig,
+    AutoTask,
     ChangeEvent,
     ChangeType,
     CreateWorkflow,
@@ -971,12 +972,22 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         })
     }
 
-    async refineVlmAbility(vlm_ability_uuid: string, auto_prompt: AutoPromptConfig): Promise<VlmAbility> {
-        return this.request(`/vlm_abilities/${vlm_ability_uuid}/refine`, {
-            method: 'POST',
-            body: JSON.stringify(auto_prompt, omit_nulls),
-            headers: { 'Content-Type': 'application/json' },
-        })
+    async refineVlmAbility(vlm_ability_uuid: string, auto_prompt: AutoPromptConfig | undefined, auto_task?: AutoTask | undefined): Promise<VlmAbility> {
+        if (auto_prompt !== undefined) {
+            return this.request(`/vlm_abilities/${vlm_ability_uuid}/refine`, {
+                method: 'POST',
+                body: JSON.stringify(auto_prompt, omit_nulls),
+                headers: {'Content-Type': 'application/json'},
+            })
+        } else if (auto_task !== undefined) {
+            return this.request(`/vlm_abilities/${vlm_ability_uuid}/refine_task`, {
+                method: 'POST',
+                body: JSON.stringify(auto_task, omit_nulls),
+                headers: {'Content-Type': 'application/json'},
+            })
+        } else {
+            return Promise.reject("refine vlm ability requires auto_prompt or auto_config parameter")
+        }
     }
 
     async cloneVlmAbility(vlm_ability_uuid: string, account_uuid?: string, name?: string, default_alias_name?: string): Promise<VlmAbility> {

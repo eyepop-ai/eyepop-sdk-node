@@ -96,7 +96,11 @@ export {
     RectangleArea,
     ContourArea,
     TimeSpan,
-    Roi
+    Roi,
+    TaskType,
+    BaseTask,
+    ClassificationTask,
+    AutoTask
 } from './data/data_types'
 
 export {

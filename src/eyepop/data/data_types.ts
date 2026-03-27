@@ -571,6 +571,23 @@ export interface AutoPromptConfig {
     evaluate: EvaluateConfig
 }
 
+export enum TaskType {
+    classification = "classification"
+}
+
+export interface BaseTask {
+    type: TaskType
+    task_description?: string
+}
+
+export interface ClassificationTask extends BaseTask {
+    classes: string[]
+    dataset_uuid: string
+    num_samples: number
+}
+
+export type AutoTask = ClassificationTask
+
 export enum VlmAbilityStatus {
     in_progress = "in_progress",
     draft = "draft",
@@ -624,12 +641,14 @@ export interface VlmAbility {
     video_chunk_overlap?: number
     alias_entries?: AbilityAliasEntry[]
     auto_prompt?: AutoPromptConfig
+    auto_task?: AutoTask
 }
 
 export interface VlmAbilityGroupCreate {
     name: string
     description: string
     auto_prompt?: AutoPromptConfig
+    auto_task?: AutoTask
     default_alias_name?: string
     default_dataset_uuid?: string
 }
