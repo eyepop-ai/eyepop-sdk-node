@@ -575,9 +575,15 @@ export enum TaskType {
     classification = "classification"
 }
 
+export enum TaskMode {
+    image = "image",
+    video = "video"
+}
+
 export interface BaseTask {
     type: TaskType
     task_description?: string
+    task_mode?: TaskMode
 }
 
 export interface ClassificationTask extends BaseTask {
