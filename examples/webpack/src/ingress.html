@@ -24,13 +24,40 @@
         <!-- FORM UPLOAD ELEMENT: Centered, Full Width Row -->
         <div class="container-fluid mt-4">
             <div class="row justify-content-center">
-                <div id="drop-area" class="col-12">
-                    <div class="d-grid d-md-flex">
-                        <button disabled class="form-control" id="connect">Connect</button>
-                        <select class="form-select align-middle" style="width:auto;display:inline-block;" id="video_device">
-                        </select>
-                        <button disabled class="form-control" id="start-stream">Start</button>
-                        <button disabled class="form-control" id="stop-stream">Stop</button>
+                <div class="d-grid d-md-flex">
+                    <button disabled class="m-3 form-control" id="connect">Connect</button>
+                    <select class="m-3 form-select align-middle" style="width:auto;display:inline-block;" id="video_device">
+                    </select>
+                    <button disabled class="m-3 form-control" id="start-stream">Start</button>
+                    <button disabled class="m-3 form-control" id="stop-stream">Stop</button>
+                </div>
+            </div>
+            <div class="row justify-content-center">
+                <div class="d-grid d-md-flex">
+                    <div class="form-check form-check-inline">
+                      <input checked class="form-check-input" type="radio" name="motion-detect-options" id="motion-detect-0" value="0">
+                      <label class="form-check-label" for="motion-detect-0">No motion detect</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                      <input class="form-check-input" type="radio" name="motion-detect-options" id="motion-detect-1" value="0.5">
+                      <label class="form-check-label" for="motion-detect-1">50%</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                      <input class="form-check-input" type="radio" name="motion-detect-options" id="motion-detect-2" value="0.75">
+                      <label class="form-check-label" for="motion-detect-2">75%</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                      <input class="form-check-input" type="radio" name="motion-detect-options" id="motion-detect-3" value="0.999">
+                      <label class="form-check-label" for="motion-detect-3">99.9%</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row justify-content-center">
+                <div class="d-grid d-md-flex">
+                    <div class="form-check form-switch m-3">
+                        <input class="form-check-input" type="checkbox" role="switch" id="roi-switch">
+                        <label class="form-check-label" for="roi-switch">ROI example (160, 0) 320x480</label>
                     </div>
                 </div>
             </div>

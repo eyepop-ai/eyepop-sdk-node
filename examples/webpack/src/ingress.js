@@ -1,4 +1,4 @@
-import { EyePop, PopComponentType } from '@eyepop.ai/eyepop'
+import { AreaType, EyePop, PopComponentType } from '@eyepop.ai/eyepop'
 import { Render2d } from '@eyepop.ai/eyepop-render-2d'
 
 console.log('Hello EyePop Demo')
@@ -8,6 +8,7 @@ let popNameElement = undefined
 let connectButton = undefined
 let startButton = undefined
 let stopButton = undefined
+let roiSwitch = undefined
 let timingSpan = undefined
 let resultSpan = undefined
 
@@ -22,6 +23,7 @@ async function setup() {
     connectButton = document.getElementById('connect')
     startButton = document.getElementById('start-stream')
     stopButton = document.getElementById('stop-stream')
+    roiSwitch = document.getElementById('roi-switch')
     timingSpan = document.getElementById('timing')
     resultSpan = document.getElementById('txt_json')
 
@@ -76,6 +78,7 @@ async function connect(event) {
             components: [{
                 type: PopComponentType.INFERENCE,
                 model: 'eyepop.person:latest',
+                confidenceThreshold: 0.8
             }]
         })
     }
@@ -118,17 +121,41 @@ async function startLocalStream(event) {
             audio: false,
         })
     } else {
-        stream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: videoId } })
+        stream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            //     {
+            //     width: { ideal: 4096 },
+            //     height: { ideal: 2160 },
+            // },
+        })
     }
     localVideo.srcObject = stream
     localVideo.play()
     timingSpan.innerHTML = Math.floor(performance.now() - startTime) + 'ms'
     stopButton.disabled = false
+
+    const checkedMotionRadio = document.querySelector('input[name="motion-detect-options"]:checked')
+    const motionSensitivity = parseFloat(checkedMotionRadio.value)
     /*
         Starting live processing from local MediaStream instance,
         stop processing by calling resultStream.cancel().
      */
-    resultStream = await endpoint.process({ source: { mediaStream: stream } })
+    resultStream = await endpoint.process({
+        source: {
+            mediaStream: stream
+        },
+        motionDetect: motionSensitivity > 0.0 ? {
+            motionDetect: true,
+            motionSensitivity: motionSensitivity
+        } : undefined,
+        roi: roiSwitch.checked ? {
+            type: AreaType.RECTANGLE,
+            x: 160,
+            y: 0,
+            width: 320,
+            height: 480
+        } : undefined,
+    })
     /*
         Asynchronous result processing, in ths demo, render as overlay
         over local video and print JSON results in text box underneath.

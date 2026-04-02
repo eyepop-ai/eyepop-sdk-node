@@ -98,6 +98,7 @@ export {
     TimeSpan,
     Roi,
     TaskType,
+    TaskMode,
     BaseTask,
     ClassificationTask,
     AutoTask
