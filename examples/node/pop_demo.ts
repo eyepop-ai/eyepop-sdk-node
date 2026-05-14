@@ -222,6 +222,10 @@ const { positionals, values } = parseArgs({
             type: 'string',
             short: 'u',
         },
+        session_uuid: {
+            type: 'string',
+            short: 's',
+        },
         pop: {
             type: 'string',
             short: 'p',
@@ -307,7 +311,7 @@ const { positionals, values } = parseArgs({
             type: 'string',
         },
         roi: {
-          type: 'string',
+            type: 'string',
         },
         help: {
             type: 'boolean',
@@ -327,6 +331,7 @@ function printHelpAndExit(message?: string, exitCode: number = -1) {
             '\n\t-l or --localPath=[path] to run inference on a local image file' +
             '\n\t-a or --assetUuid=[uuid] to run inference on a asset by its Uuid' +
             '\n\t-u --url=[url] to run inference on a remote image url' +
+            '\n\t-s --session-uuid=[SESSION UUID] to use a permanent session' +
             '\n\t-p --pop=[pop] to run one of the example pos, one of ' +
             Object.keys(POP_EXAMPLES) +
             '\n\t-m --modelUuid=[model uuid] to run inference using a specific model uuid' +
@@ -516,8 +521,8 @@ function rectangle_roi_area(arg: string): Area {
     } else {
       printHelpAndExit(`unknown pop ${parameters.pop}`);
     }
-  } else {
-    printHelpAndExit("required: --modelUuid --abilityUuid or --model or --ability or --pop");
+  } else if (!parameters.session_uuid) {
+    printHelpAndExit("required: --modelUuid --abilityUuid or --model or --ability or --pop pt --session-uuid");
   }
   console.log(JSON.stringify(pop, undefined, 2))
   let example_input;
@@ -581,13 +586,16 @@ function rectangle_roi_area(arg: string): Area {
 
   const endpoint = await EyePop.workerEndpoint({
     logger: logger,
+    sessionUuid: parameters.session_uuid
   })
     .onStateChanged((fromState: EndpointState, toState: EndpointState) => {
       logger.debug("Endpoint changed state %s -> %s", fromState, toState);
     })
     .connect();
   try {
-    await endpoint.changePop(pop);
+    if (pop) {
+        await endpoint.changePop(pop);
+    }
     const results = await endpoint.process({
         source: example_input,
         componentParams: sourceParams,
