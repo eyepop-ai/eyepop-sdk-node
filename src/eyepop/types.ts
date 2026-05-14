@@ -62,24 +62,36 @@ export interface Prediction extends StreamTime {
      */
     source_height: number
     source_id?: string
+    source_url?: string
+    source_type?: string
+    system_timestamp?: number
     objects?: Array<PredictedObject>
     classes?: Array<PredictedClass>
     texts?: Array<PredictedText>
     meshs?: Array<PredictedMesh>
     keyPoints?: Array<PredictedKeyPoints>
+    embeddings?: Array<PredictedEmbedding>
+    motions?: Array<PredictedMotion>
 }
 
 export interface PredictedClass {
     id?: number
-    confidence: number
+    confidence?: number
     classLabel: string
     category?: string
 }
 
 export interface PredictedText {
     id?: number
-    confidence: number
+    confidence?: number
     text: string
+    category?: string
+}
+
+export interface PredictedEmbedding {
+    x?: number
+    y?: number
+    embedding: Array<number>
     category?: string
 }
 
@@ -96,20 +108,20 @@ export interface Mask {
 }
 
 export interface PredictedObject extends PredictedClass {
-    trackId: number | undefined
+    trackId?: number
     x: number
     y: number
     width: number
     height: number
     orientation?: number
-    outline: Array<Point2d> | undefined
-    contours: Array<Contour> | undefined
-    mask: Mask | undefined
-    objects: Array<PredictedObject> | undefined
-    classes: Array<PredictedClass> | undefined
-    texts: Array<PredictedText> | undefined
-    meshs: Array<PredictedMesh> | undefined
-    keyPoints: Array<PredictedKeyPoints> | undefined
+    outline?: Array<Point2d>
+    contours?: Array<Contour>
+    mask?: Mask
+    objects?: Array<PredictedObject>
+    classes?: Array<PredictedClass>
+    texts?: Array<PredictedText>
+    meshs?: Array<PredictedMesh>
+    keyPoints?: Array<PredictedKeyPoints>
 }
 
 export interface Point2d {
@@ -118,24 +130,28 @@ export interface Point2d {
 }
 
 export interface PredictedMesh {
-    category: string
-    id: number
-    confidence: number
+    category?: string
+    id?: number
+    confidence?: number
     points: Array<Point3d>
 }
 
 export interface Point3d extends Point2d {
-    z: number | undefined
+    z?: number
 }
 
 export interface PredictedKeyPoints {
-    category: string
-    type: string
+    category?: string
+    type?: string
     points: Array<PredictedKeyPoint>
 }
 
-export interface PredictedKeyPoint extends Point3d, PredictedClass {
-    visible: boolean | undefined
+export interface PredictedKeyPoint extends Point3d {
+    id?: number
+    confidence?: number
+    classLabel?: string
+    category?: string
+    visible?: boolean
 }
 
 export interface PredictedMotion {
