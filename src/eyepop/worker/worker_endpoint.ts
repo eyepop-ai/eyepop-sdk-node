@@ -617,7 +617,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         this._pipeline = null
         if (session.pipeline_uuid) {
             this._pipelineId = session.pipeline_uuid
-        } if (session.pipelines) {
+        } else if (session.pipelines) {
             this._pipelineId = session.pipelines[0].pipeline_id
         } else {
             this._pipelineId = null
