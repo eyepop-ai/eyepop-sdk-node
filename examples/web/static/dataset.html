@@ -53,7 +53,6 @@
         const urlParams = new URLSearchParams(queryString);
         let account_uuid = urlParams.get('accountUUID') || defaultAccountUUID;
         let dataset_uuid = urlParams.get('datasetUUID') || null;
-        const eyepopUrl = urlParams.get('eyepopUrl') || undefined;
         var currDataset = null;
         var endpoint = null;
 
@@ -96,7 +95,6 @@
             endpoint = await EyePop.dataEndpoint({
                 auth: auth,
                 accountId: account_uuid,
-                eyepopUrl: 'https://web-api.staging.eyepop.xyz',
             }).connect();
 
             if (!dataset_uuid) {
@@ -483,7 +481,7 @@
 
             var datasetDiv = document.createElement('div');
             datasetDiv.innerHTML = "<span style='font-weight: bold; font-size: larger;'>" + dataset.name + "</span><br /> " + 
-                "<a href='https://staging.dashboard.eyepop.ai/wizardModel?step=autoLabel&accountUUID="+account_uuid+"&datasetUUID="+dataset.uuid+"' target='_blank'>" + dataset.uuid +"</a>";
+                dataset.uuid;
             listDatasetsResult.appendChild(datasetDiv);
             //add delete button to each dataset
             var deleteButton = document.createElement('button');

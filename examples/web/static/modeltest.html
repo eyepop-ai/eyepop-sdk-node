@@ -64,10 +64,8 @@
             }]
         }
 
-        EyePop.endpoint({
+        EyePop.workerEndpoint({
             auth: auth,
-            popId: "transient",
-            eyepopUrl: 'https://web-api.staging.eyepop.xyz',
         }).connect().then((endpoint) => postConnect(endpoint))
 
         function postConnect(endpoint) {

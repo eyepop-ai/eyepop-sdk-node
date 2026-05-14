@@ -8,6 +8,12 @@ In project root:
 export EYEPOP_API_KEY=<your api key>
 ```
 
+For a provisioned persistent worker session, also set:
+
+```shell
+export EYEPOP_SESSION_UUID=<your session uuid>
+```
+
 ## In Node
 
 ```shell
@@ -44,9 +50,3 @@ open http://localhost:8000/examples/web/static/upload.html
 or
 
 open http://localhost:8000/examples/web/static/ingress.html
-
-In another terminal
-
-```shell
-open http://127.0.0.1:8000/examples/web/static/upload.html?eyepopUrl=(echo $EYEPOP_URL | jq -sRr @uri)
-```

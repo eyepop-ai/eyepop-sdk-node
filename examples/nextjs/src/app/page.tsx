@@ -21,20 +21,18 @@ export default function Home() {
     // EyePop.ai setup function - generates session dynamically like webpack example
     const setup = async () => {
         try {
-            const apiKey = process.env.NEXT_PUBLIC_EYEPOP_API_KEY
             const modelUuid = process.env.NEXT_PUBLIC_EYEPOP_MODEL_UUID
-            if (!apiKey) {
-                throw new Error('EYEPOP_API_KEY environment variable is required')
+            const modelAlias = process.env.NEXT_PUBLIC_EYEPOP_MODEL_ALIAS || 'eyepop.person:latest'
+            const sessionResponse = await fetch('/api/eyepop-session')
+            if (!sessionResponse.ok) {
+                throw new Error('Unable to create EyePop session')
             }
+            const session = await sessionResponse.json()
+
             endpointRef.current = EyePop.workerEndpoint({
-                auth: { apiKey: apiKey },
+                auth: { session },
             })
             await endpointRef.current.connect()
-            const session = await endpointRef.current.session()
-
-            if (!session) {
-                throw new Error('Session not found')
-            }
 
             console.log('Session:', session)
 
@@ -49,10 +47,9 @@ export default function Home() {
                     modelUuid,
                 }
             } else {
-                console.log('Model UUID not found. It will be set to the default model.')
                 popComponent = {
                     type: PopComponentType.INFERENCE,
-                    model: 'eyepop.person:latest',
+                    model: modelAlias,
                 }
             }
 
@@ -77,7 +74,7 @@ export default function Home() {
                     {
                         error: 'Setup failed',
                         details: errorMessage,
-                        note: 'Please check your EYEPOP_API_KEY environment variable',
+                        note: 'Please check EYEPOP_API_KEY in the server environment',
                     },
                     null,
                     2,

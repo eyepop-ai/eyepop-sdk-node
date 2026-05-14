@@ -46,7 +46,7 @@ const example_image_path = 'examples/example.jpg'
 
     context.drawImage(image, 0, 0)
 
-    const endpoint = await EyePop.endpoint().connect()
+    const endpoint = await EyePop.workerEndpoint().connect()
     try {
         let results = await endpoint.process({ source: { path: example_image_path } })
         for await (let result of results) {
@@ -93,7 +93,7 @@ const example_image_path = 'examples/example.jpg'
 
                 const endpoint = await EyePop.workerEndpoint({auth: {oAuth2: true}}).connect();
                 await endpoint.changePop({ components: [{
-                    type: PopComponentType.INFERENCE,
+                    type: 'inference',
                     model: 'eyepop.person:latest',
                     categoryName: 'person'
                 }]})
@@ -116,7 +116,7 @@ Change this rendering behaviour by passing in rendering rule(s), e.g.:
 
 ```javascript
 // ...
-Render2d.renderer(context, [Render2.renderFace()]).draw(result)
+Render2d.renderer(context, [Render2d.renderFace()]).draw(result)
 // ...
 ```
 
@@ -129,11 +129,11 @@ Most prebuild render classes provide a reasonable defaults, as shown below.
 
 ```typescript
 Render2d.renderBox({
-    showClass = true,
-    showConfidence = false,
-    showTraceId = false,
-    showNestedClasses = false,
-    target = '$..objects.*',
+    showClass: true,
+    showConfidence: false,
+    showTraceId: false,
+    showNestedClasses: false,
+    target: '$..objects.*',
 })
 ```
 
@@ -157,8 +157,8 @@ Render2d.renderHand({
 
 ```typescript
 Render2d.renderFace({
-    showLabels = false,
-    target = '$..objects[?(@.classLabel=="face")]',
+    showLabels: false,
+    target: '$..objects[?(@.classLabel=="face")]',
 })
 ```
 

@@ -54,11 +54,6 @@ export interface PlatformSupport {
 export interface Options {
     auth?: Authentication | undefined
 
-    /**
-     * Override the default base URL for the API, e.g., "https://api.eyepop.ai/"
-     *
-     * Defaults to process.env['EYEPOP_URL'].
-     */
     eyepopUrl?: string | undefined
 
     jobQueueLength?: number

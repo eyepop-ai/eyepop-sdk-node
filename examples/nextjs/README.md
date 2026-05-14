@@ -1,43 +1,41 @@
 # EyePop Next.js Example
 
-This is a [Next.js](https://nextjs.org) project that demonstrates how to integrate with the EyePop SDK. It provides examples of uploading images and working with EyePop's AI-powered computer vision capabilities.
+This [Next.js](https://nextjs.org) example uploads images from the browser and renders EyePop inference results.
 
+The browser never receives an API key. The API key stays in the Next.js server environment, where `/api/eyepop-session` creates an EyePop session and returns session JSON to the client.
 
 ## Prerequisites
 
-- Node 18+
-- **EyePop API Key** - Authentication credential (required)
-- **EyePop Model UUID** - Specific AI model identifier (optional, defaults to 'eyepop.person:latest')
+- Node 22
+- EyePop API key for the server environment
+- Optional EyePop model alias or model UUID
 
 ## Getting Started
 
-First, install the dependencies:
+Install dependencies:
 
 ```bash
 npm install
 ```
 
-Then, set up your environment variables (see Environment Variables section below).
+Create `.env.local`:
 
-Finally, run the development server:
+```bash
+EYEPOP_API_KEY=your_api_key_here
+NEXT_PUBLIC_EYEPOP_MODEL_ALIAS=eyepop.person:latest
+```
+
+Or use a model UUID:
+
+```bash
+EYEPOP_API_KEY=your_api_key_here
+NEXT_PUBLIC_EYEPOP_MODEL_UUID=your_model_uuid_here
+```
+
+Run the development server:
 
 ```bash
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-## Environment Variables
-
-This project requires the following environment variables to be set:
-
-- `NEXT_PUBLIC_EYEPOP_API_KEY` - Your EyePop API key (required)
-- `NEXT_PUBLIC_EYEPOP_MODEL_UUID` - The EyePop Model UUID (optional, defaults to 'eyepop.person:latest')
- 
-
-Create a `.env.local` file in the root of this project and add these variables:
-
-```bash
-NEXT_PUBLIC_EYEPOP_MODEL_UUID=your_model_uuid_here
-NEXT_PUBLIC_EYEPOP_API_KEY=your_api_key_here
-```
