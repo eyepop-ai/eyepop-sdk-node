@@ -174,7 +174,13 @@ export namespace EyePop {
                 throw new Error('auth option or EYEPOP_API_KEY environment variable is required')
             }
         }
-        if (opts.popId === undefined) {
+
+        if (opts.sessionUuid === undefined) {
+            opts.sessionUuid = readEnv('EYEPOP_SESSION_UUID')
+        }
+
+        // TODO remove pop id support in 3.16
+        if (opts.popId === undefined && opts.sessionUuid === undefined) {
             opts.popId = readEnv('EYEPOP_POP_ID') || TransientPopId.Transient
         }
 

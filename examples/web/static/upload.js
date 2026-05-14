@@ -41,13 +41,8 @@ async function setup() {
 
 async function connect(event) {
     if (!endpoint) {
-        const queryString = window.location.search
-        const urlParams = new URLSearchParams(queryString)
-        const eyepopUrl = urlParams.get('eyepopUrl') || undefined
-
         endpoint = await EyePop.workerEndpoint({
             auth: { oAuth2: true },
-            eyepopUrl: eyepopUrl,
         }).onStateChanged((from, to) => {
             console.log('Endpoint state transition from ' + from + ' to ' + to)
         })
