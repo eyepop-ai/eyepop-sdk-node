@@ -8,7 +8,7 @@ The EyePop.ai Node SDK lets Node.js applications process images and videos with 
 npm install @eyepop.ai/eyepop
 ```
 
-The SDK is tested with Node 20 LTS and newer.
+The SDK supports Node.js 18 and newer (`package.json` sets `engines.node` to `>=18.0.0`).
 
 ## Configure
 
