@@ -13,6 +13,11 @@
     "bugs": {
         "url": "https://github.com/eyepop-ai/eyepop-sdk-node/issues"
     },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/eyepop-ai/eyepop-sdk-node.git",
+        "directory": "src/eyepop-render-2d"
+    },
     "homepage": "https://github.com/eyepop-ai/eyepop-sdk-node#readme",
     "main": "./dist/eyepop.render2d.index.js",
     "module": "./dist/eyepop.render2d.index.mjs",

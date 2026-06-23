@@ -11,7 +11,12 @@
     "author": "EyePop.ai",
     "license": "MIT",
     "bugs": {
-        "url": "https://git pullgithub.com/eyepop-ai/eyepop-sdk-node/issues"
+        "url": "https://github.com/eyepop-ai/eyepop-sdk-node/issues"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/eyepop-ai/eyepop-sdk-node.git",
+        "directory": "src/eyepop"
     },
     "homepage": "https://github.com/eyepop-ai/eyepop-sdk-node#readme",
     "main": "./dist/eyepop.index.js",

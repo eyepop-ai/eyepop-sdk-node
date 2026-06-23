@@ -54,7 +54,8 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/eyepop-ai/eyepop-sdk-node.git"
+    "url": "git+https://github.com/eyepop-ai/eyepop-sdk-node.git",
+    "directory": "src/react-native-eyepop"
   },
   "author": "EyePop.ai <info@eyepop.ai> (https://github.com/eyepop-ai)",
   "license": "MIT",
