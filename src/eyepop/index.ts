@@ -17,6 +17,8 @@ export {
     StreamTime,
     Prediction,
     PredictedClass,
+    PredictedText,
+    PredictedEmbedding,
     PredictedObject,
     PredictedMesh,
     PredictedKeyPoint,
