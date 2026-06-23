@@ -33,4 +33,15 @@ jobs:
           registry-url: https://registry.npmjs.org/
       - run: npm install
       - run: npm run build -ws
-      - run: npm publish -ws
+      - name: Publish workspaces (skip versions already on the registry)
+        run: |
+          for ws in $(node -p "require('./package.json').workspaces.join(' ')"); do
+            name=$(node -p "require('./$ws/package.json').name")
+            version=$(node -p "require('./$ws/package.json').version")
+            if [ -n "$(npm view "$name@$version" version 2>/dev/null)" ]; then
+              echo "Skipping $name@$version — already published"
+            else
+              echo "Publishing $name@$version"
+              npm publish --workspace "$ws"
+            fi
+          done
