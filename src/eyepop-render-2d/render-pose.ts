@@ -40,7 +40,7 @@ export class RenderPose implements Render {
         let minZ = -1.0
         for (let i = 0; i < keyPoints.points.length; i++) {
             const keyPoint = keyPoints.points[i]
-            labelsToPoints.set(keyPoint.classLabel, keyPoint)
+            labelsToPoints.set(keyPoint.classLabel?? "<undefined>", keyPoint)
             if (keyPoint.z) {
                 if (keyPoint.z > maxZ) {
                     maxZ = keyPoint.z
@@ -94,9 +94,9 @@ export class RenderPose implements Render {
             //draw circle
             context.beginPath()
             context.arc(x, y, radius, 0, Math.PI * 2, false)
-            if (p.classLabel.includes('left')) {
+            if (p.classLabel?.includes('left')) {
                 context.fillStyle = style.colors.left_color
-            } else if (p.classLabel.includes('right')) {
+            } else if (p.classLabel?.includes('right')) {
                 context.fillStyle = style.colors.right_color
             } else {
                 context.fillStyle = style.colors.primary_color

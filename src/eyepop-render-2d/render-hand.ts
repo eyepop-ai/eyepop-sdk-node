@@ -38,7 +38,7 @@ export class RenderHand implements Render {
         let minZ = -1.0
         for (let i = 0; i < keyPoints.points.length; i++) {
             const keyPoint = keyPoints.points[i]
-            labelsToPoints.set(keyPoint.classLabel, keyPoint)
+            labelsToPoints.set(keyPoint.classLabel ?? "<undefined>", keyPoint)
             if (keyPoint.z) {
                 if (keyPoint.z > maxZ) {
                     maxZ = keyPoint.z

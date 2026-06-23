@@ -39,7 +39,7 @@ export class RenderFace implements Render {
         let expressions = []
         if (face.classes) {
             for (let i = 0; i < face.classes.length; i++) {
-                if (face.classes[i].confidence > 0.95) {
+                if ((face.classes[i].confidence ?? 0.0) > 0.95) {
                     const label = <string>EXPRESSION_LABELS.get(face.classes[i].classLabel)
                     if (label) {
                         expressions.push(label)

@@ -80,9 +80,9 @@ export class RenderKeyPoints implements Render {
             // label
             let label
             if (typeof p.visible == 'undefined') {
-                label = p.classLabel
+                label = p.classLabel ?? "<undefined>"
             } else {
-                label = `${p.classLabel} (${p.visible ? 'visible' : 'invisible'})`
+                label = `${p.classLabel?? "<undefined>"} (${p.visible ? 'visible' : 'invisible'})`
             }
 
             context.font = style.font
