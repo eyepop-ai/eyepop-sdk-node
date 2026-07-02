@@ -1,6 +1,9 @@
 name: Node Sessions Smoke
 
 on:
+    push:
+        branches:
+            - codex/node-sdk-session-smoke
     schedule:
         # Run hourly, offset from the Python SDK smoke.
         - cron: '45 * * * *'
@@ -52,7 +55,7 @@ jobs:
         environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'production' }}
         env:
             SMOKE_ENVIRONMENT: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'production' }}
-            SDK_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.sdk_version || github.event_name == 'schedule' && 'latest' || 'source' }}
+            SDK_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.sdk_version || 'latest' }}
             EYEPOP_SESSION_NAME: node-smoke-${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'production' }}-${{ github.run_id }}-${{ github.run_attempt }}
             EYEPOP_URL: ${{ secrets.EYEPOP_URL }}
             SMOKE_POP_FILE: ${{ github.event_name == 'workflow_dispatch' && inputs.pop_file || '' }}
