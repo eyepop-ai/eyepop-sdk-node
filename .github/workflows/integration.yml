@@ -1,0 +1,85 @@
+name: Staging SDK Integration
+
+on:
+    workflow_dispatch:
+    schedule:
+        - cron: '15 6 * * *'
+
+concurrency:
+    group: ${{ github.workflow }}-staging
+    cancel-in-progress: true
+
+permissions:
+    contents: read
+
+jobs:
+    integration:
+        name: staging integration
+        runs-on: ubuntu-latest
+        timeout-minutes: 20
+        environment: staging
+        env:
+            EYEPOP_URL: ${{ vars.EYEPOP_URL }}
+            EYEPOP_SESSION_NAME: node-integration-staging-${{ github.run_id }}-${{ github.run_attempt }}
+            SUMMARY_JSON: session-smoke-summary.json
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  persist-credentials: false
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+
+            - name: Install dependencies
+              run: npm install
+
+            - name: Build source SDK
+              run: npm run build -w @eyepop.ai/eyepop
+
+            - name: Run source SDK session e2e
+              id: e2e
+              env:
+                  EYEPOP_API_KEY: ${{ secrets.EYEPOP_API_KEY }}
+              run: |
+                  node scripts/session-smoke.mjs \
+                    --environment staging \
+                    --sdk-module "$GITHUB_WORKSPACE/src/eyepop/dist/eyepop.index.js" \
+                    --image tests/test.jpg \
+                    --summary-json "$SUMMARY_JSON"
+
+            - name: Write summary
+              if: always()
+              run: |
+                  {
+                    echo "## Staging SDK Integration"
+                    echo ""
+                    echo "- conclusion: ${{ steps.e2e.conclusion }}"
+                    echo "- run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+                    if [[ -f "$SUMMARY_JSON" ]] && jq -e . "$SUMMARY_JSON" >/dev/null 2>&1; then
+                      jq -r '
+                        "- ok: \((.ok // false)|tostring)",
+                        "- sdk_version: \(.sdk_version // "n/a")",
+                        "- session_name: \(.session_name // "n/a")",
+                        "- session_uuid: \(.session_uuid_short // "n/a")",
+                        "- pipeline_id: \(.pipeline_id // "n/a")",
+                        "- ability: \(.ability // "n/a")",
+                        "- predictions: \((.prediction_count // "n/a")|tostring)",
+                        "- matching_objects: \((.matching_object_count // "n/a")|tostring)",
+                        "- session_status: \(.session_details.status // "n/a")",
+                        "- cleanup: \(.cleanup.result // "n/a")",
+                        "- duration_seconds: \((.duration_seconds // "n/a")|tostring)",
+                        if .error then "- error: \(.error)" else empty end
+                      ' "$SUMMARY_JSON"
+                    else
+                      echo "- result: no JSON summary captured"
+                    fi
+                  } >> "$GITHUB_STEP_SUMMARY"
+
+            - name: Upload e2e summary
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: node-staging-integration-summary
+                  path: ${{ env.SUMMARY_JSON }}
+                  if-no-files-found: ignore
