@@ -41,7 +41,7 @@ on:
                 type: string
 
 concurrency:
-    group: ${{ github.workflow }}-${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'production' }}
+    group: ${{ github.workflow }}-${{ github.event_name == 'workflow_dispatch' && inputs.environment || github.event_name == 'push' && 'staging' || 'production' }}
     cancel-in-progress: true
 
 permissions:
@@ -49,14 +49,14 @@ permissions:
 
 jobs:
     session-smoke:
-        name: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'production' }} transient session
+        name: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || github.event_name == 'push' && 'staging' || 'production' }} transient session
         runs-on: ubuntu-latest
         timeout-minutes: 30
-        environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'production' }}
+        environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || github.event_name == 'push' && 'staging' || 'production' }}
         env:
-            SMOKE_ENVIRONMENT: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'production' }}
+            SMOKE_ENVIRONMENT: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || github.event_name == 'push' && 'staging' || 'production' }}
             SDK_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.sdk_version || 'latest' }}
-            EYEPOP_SESSION_NAME: node-smoke-${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'production' }}-${{ github.run_id }}-${{ github.run_attempt }}
+            EYEPOP_SESSION_NAME: node-smoke-${{ github.event_name == 'workflow_dispatch' && inputs.environment || github.event_name == 'push' && 'staging' || 'production' }}-${{ github.run_id }}-${{ github.run_attempt }}
             EYEPOP_URL: ${{ secrets.EYEPOP_URL }}
             SMOKE_POP_FILE: ${{ github.event_name == 'workflow_dispatch' && inputs.pop_file || '' }}
             SMOKE_IMAGE: ${{ github.event_name == 'workflow_dispatch' && inputs.image || 'tests/test.jpg' }}
