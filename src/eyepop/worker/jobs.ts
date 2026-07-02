@@ -377,6 +377,134 @@ export class LoadFromJob extends AbstractJob {
     }
 }
 
+export interface UploadSource {
+    readonly stream: ReadableStream<Uint8Array> | Blob | BufferSource
+    readonly mimeType: string | null
+}
+
+export class UploadGroupJob extends AbstractJob {
+    private readonly _sources: UploadSource[]
+
+    get [Symbol.toStringTag](): string {
+        return 'uploadGroupJob'
+    }
+
+    constructor(
+        sources: UploadSource[],
+        params: ProcessParams,
+        getSession: () => Promise<WorkerSession>,
+        client: HttpClient,
+        requestLogger: Logger,
+    ) {
+        super(params, getSession, client, requestLogger)
+        if (sources.length === 0) {
+            throw new Error('upload group requires at least one source')
+        }
+        this._sources = sources
+    }
+
+    protected override async startJob(): Promise<Response> {
+        const session = await this._getSession()
+        if (!session.baseUrl) {
+            return Promise.reject(new Error('session.baseUrl must not be null'))
+        }
+        const queryParams = new URLSearchParams({
+            mode: 'queue',
+            processing: 'sync',
+        })
+        if (this._version !== undefined) {
+            queryParams.set('version', this._version.toString())
+        }
+        const postUrl = `${session.baseUrl.replace(/\/+$/, '')}/pipelines/${session.pipelineId}/source?${queryParams.toString()}`
+
+        const formData = new FormData()
+        if (this._params.componentParams) {
+            formData.append('params', new Blob([JSON.stringify(this._params.componentParams)], { type: 'application/json' }))
+        }
+        if (this._params.roi) {
+            formData.append('roi', new Blob([JSON.stringify(this._params.roi)], { type: 'application/json' }))
+        }
+        const fileBlobs = await Promise.all(
+            this._sources.map(async source => {
+                const buffer = await new Response(source.stream).arrayBuffer()
+                return source.mimeType
+                    ? new Blob([buffer], { type: source.mimeType })
+                    : new Blob([buffer])
+            })
+        )
+        for (const fileBlob of fileBlobs) {
+            formData.append('file', fileBlob)
+        }
+        const headers = {
+            ...session.authenticationHeaders(),
+            Accept: 'application/jsonl',
+        }
+        return await this._client.fetch(postUrl, {
+            headers,
+            method: 'POST',
+            body: formData,
+            signal: this._controller.signal,
+            // @ts-ignore
+            duplex: 'half',
+            eyepop: { responseStreaming: true },
+        })
+    }
+}
+
+export class LoadFromGroupJob extends AbstractJob {
+    private readonly _urls: string[]
+
+    get [Symbol.toStringTag](): string {
+        return 'loadFromGroupJob'
+    }
+
+    constructor(
+        urls: string[],
+        params: ProcessParams,
+        getSession: () => Promise<WorkerSession>,
+        client: HttpClient,
+        requestLogger: Logger,
+    ) {
+        super(params, getSession, client, requestLogger)
+        if (urls.length === 0) {
+            throw new Error('load from group requires at least one url')
+        }
+        this._urls = urls
+    }
+
+    protected override async startJob(): Promise<Response> {
+        const session = await this._getSession()
+        if (!session.baseUrl) {
+            return Promise.reject(new Error('session.baseUrl must not be null'))
+        }
+        const body: Record<string, any> = {
+            sourceType: 'GROUP',
+            sources: this._urls.map(url => ({ sourceType: 'URL', url })),
+            version: this._version,
+        }
+        if (this._params.componentParams) {
+            body['params'] = this._params.componentParams
+        }
+        if (this._params.roi) {
+            body['roi'] = this._params.roi
+        }
+        const headers = {
+            ...session.authenticationHeaders(),
+            Accept: 'application/jsonl',
+            'Content-Type': 'application/json',
+        }
+        const patchUrl = `${session.baseUrl.replace(/\/+$/, '')}/pipelines/${session.pipelineId}/source?mode=queue&processing=sync`
+        return await this._client.fetch(patchUrl, {
+            headers,
+            method: 'PATCH',
+            body: JSON.stringify(body),
+            signal: this._controller.signal,
+            // @ts-ignore
+            eyepop: { responseStreaming: true },
+        })
+    }
+}
+
 export class LoadFromAssetUuidJob extends AbstractJob {
     private readonly _assetUuid: string
 
