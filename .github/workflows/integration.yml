@@ -1,9 +1,6 @@
 name: SDK Integration
 
 on:
-    push:
-        branches:
-            - codex/node-sdk-session-smoke
     workflow_dispatch:
         inputs:
             environment:
