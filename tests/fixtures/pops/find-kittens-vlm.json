@@ -1,0 +1,9 @@
+{
+    "components": [
+        {
+            "type": "inference",
+            "ability": "eyepop-ai-ryan.find-events.find-kittens:latest",
+            "categoryName": "kitten"
+        }
+    ]
+}

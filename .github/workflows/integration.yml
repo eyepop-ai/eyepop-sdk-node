@@ -1,0 +1,113 @@
+name: SDK Integration
+
+on:
+    workflow_dispatch:
+        inputs:
+            environment:
+                description: Environment to test
+                required: true
+                default: staging
+                type: environment
+
+concurrency:
+    group: ${{ github.workflow }}-${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'staging' }}
+    cancel-in-progress: true
+
+permissions:
+    contents: read
+
+jobs:
+    integration:
+        name: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'staging' }} integration
+        runs-on: ubuntu-latest
+        timeout-minutes: 45
+        environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'staging' }}
+        env:
+            SMOKE_ENVIRONMENT: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'staging' }}
+            EYEPOP_URL: ${{ secrets.EYEPOP_URL }}
+            EYEPOP_SESSION_NAME: node-integration-${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'staging' }}-${{ github.run_id }}-${{ github.run_attempt }}
+            SUMMARY_JSON: session-smoke-all-transient.json
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  persist-credentials: false
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+
+            - name: Install dependencies
+              run: npm install
+
+            - name: Build source SDK
+              run: npm run build -w @eyepop.ai/eyepop
+
+            - name: Run source SDK session e2e
+              id: e2e
+              env:
+                  EYEPOP_API_KEY: ${{ secrets.EYEPOP_API_KEY }}
+              run: |
+                  node scripts/session-smoke.mjs \
+                    --environment "$SMOKE_ENVIRONMENT" \
+                    --scenario all-transient \
+                    --cleanup-preexisting \
+                    --sdk-module "$GITHUB_WORKSPACE/src/eyepop/dist/eyepop.index.js" \
+                    --gpu-image tests/test.jpg \
+                    --gpu-ability dot-gov-com.object-detection.person:latest \
+                    --gpu-expected-class person \
+                    --gpu-min-objects 1 \
+                    --gpu-min-confidence 0.5 \
+                    --cpu-image tests/fixtures/images/angrykitten.jpg \
+                    --cpu-pop-file tests/fixtures/pops/dot-gov-modeless-vlm.json \
+                    --cpu-expected-class EXPLODED \
+                    --cpu-min-objects 1 \
+                    --cpu-min-confidence 0 \
+                    --summary-json "$SUMMARY_JSON"
+
+            - name: Write summary
+              if: always()
+              run: |
+                  {
+                    echo "## SDK Integration"
+                    echo ""
+                    echo "- environment: $SMOKE_ENVIRONMENT"
+                    echo "- conclusion: ${{ steps.e2e.conclusion }}"
+                    echo "- run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+                    if [[ -f "$SUMMARY_JSON" ]] && jq -e . "$SUMMARY_JSON" >/dev/null 2>&1; then
+                      jq -r '
+                        "- scenario: \(.scenario // "n/a")",
+                        "- ok: \((.ok // false)|tostring)",
+                        "- sdk_version: \(.sdk_version // "n/a")",
+                        "- session_name: \(.session_name // "n/a")",
+                        "- duration_seconds: \((.duration_seconds // "n/a")|tostring)",
+                        if .scenarios then
+                          (.scenarios[] |
+                            "- \(.scenario): ok=\((.ok // false)|tostring) session=\(.session_uuid_short // "n/a") pipeline=\(.pipeline_id // "n/a") upgraded_session=\(.upgraded_session_uuid_short // "n/a") upgraded_pipeline=\(.upgraded_pipeline_id // "n/a") preserved=\((.session_uuid_preserved // "n/a")|tostring) predictions=\((.prediction_count // "n/a")|tostring) matches=\((.matching_object_count // "n/a")|tostring) cleanup=\(.cleanup.result // "n/a")" ,
+                            if .error then "  - error: \(.error)" else empty end
+                          )
+                        else
+                          "- session_uuid: \(.session_uuid_short // "n/a")",
+                          "- pipeline_id: \(.pipeline_id // "n/a")",
+                          "- upgraded_session_uuid: \(.upgraded_session_uuid_short // "n/a")",
+                          "- upgraded_pipeline_id: \(.upgraded_pipeline_id // "n/a")",
+                          "- session_uuid_preserved: \((.session_uuid_preserved // "n/a")|tostring)",
+                          "- ability: \(.ability // "n/a")",
+                          "- predictions: \((.prediction_count // "n/a")|tostring)",
+                          "- matching_objects: \((.matching_object_count // "n/a")|tostring)",
+                          "- session_status: \(.session_details.status // "n/a")",
+                          "- cleanup: \(.cleanup.result // "n/a")",
+                          if .error then "- error: \(.error)" else empty end
+                        end
+                      ' "$SUMMARY_JSON"
+                    else
+                      echo "- result: no JSON summary captured"
+                    fi
+                  } >> "$GITHUB_STEP_SUMMARY"
+
+            - name: Upload e2e summary
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: node-${{ env.SMOKE_ENVIRONMENT }}-integration-summary
+                  path: ${{ env.SUMMARY_JSON }}
+                  if-no-files-found: ignore

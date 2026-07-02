@@ -1,4 +1,5 @@
 import { Options } from '../options'
+import type { Pop } from './worker_types'
 
 export enum TransientPopId {
     Transient = 'transient',
@@ -11,6 +12,10 @@ export interface WorkerOptions extends Options {
     popId?: string | TransientPopId | undefined
 
     sessionUuid?: string | undefined
+    sessionName?: string | undefined
+    pipelineImage?: string | undefined
+    pipelineVersion?: string | undefined
+    pop?: Pop | undefined
     autoStart?: boolean
     stopJobs?: boolean
     isLocalMode?: boolean

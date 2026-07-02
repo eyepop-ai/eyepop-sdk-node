@@ -1,0 +1,246 @@
+name: Node Sessions Smoke
+
+on:
+    schedule:
+        # Run hourly, offset from the Python SDK smoke.
+        - cron: '45 * * * *'
+    workflow_dispatch:
+        inputs:
+            environment:
+                description: Environment to smoke
+                required: true
+                default: production
+                type: environment
+            sdk_version:
+                description: 'SDK package to test: latest, source, or an exact version like 3.15.1'
+                required: true
+                default: latest
+                type: string
+            pop_file:
+                description: 'Optional pop JSON fixture path, relative to repository root'
+                required: false
+                default: ''
+                type: string
+            image:
+                description: 'Image fixture path, relative to repository root'
+                required: false
+                default: tests/test.jpg
+                type: string
+            expected_class:
+                description: 'Expected class/category label in predictions'
+                required: false
+                default: person
+                type: string
+            ability:
+                description: 'Ability alias used when pop_file is empty'
+                required: false
+                default: eyepop.person:latest
+                type: string
+
+concurrency:
+    group: ${{ github.workflow }}-${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'production' }}
+    cancel-in-progress: true
+
+permissions:
+    contents: read
+
+jobs:
+    session-smoke:
+        name: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'production' }} transient session
+        runs-on: ubuntu-latest
+        timeout-minutes: 30
+        environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'production' }}
+        env:
+            SMOKE_ENVIRONMENT: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'production' }}
+            SDK_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.sdk_version || github.event_name == 'schedule' && 'latest' || 'source' }}
+            EYEPOP_SESSION_NAME: node-smoke-${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'production' }}-${{ github.run_id }}-${{ github.run_attempt }}
+            EYEPOP_URL: ${{ secrets.EYEPOP_URL }}
+            SMOKE_POP_FILE: ${{ github.event_name == 'workflow_dispatch' && inputs.pop_file || '' }}
+            SMOKE_IMAGE: ${{ github.event_name == 'workflow_dispatch' && inputs.image || 'tests/test.jpg' }}
+            SMOKE_EXPECTED_CLASS: ${{ github.event_name == 'workflow_dispatch' && inputs.expected_class || 'person' }}
+            SMOKE_ABILITY: ${{ github.event_name == 'workflow_dispatch' && inputs.ability || 'eyepop.person:latest' }}
+            SUMMARY_JSON: session-smoke-summary.json
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  persist-credentials: false
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+
+            - name: Install SDK under test
+              run: |
+                  set -euo pipefail
+                  if [[ "$SDK_VERSION" == "source" ]]; then
+                    npm install
+                    npm run build -w @eyepop.ai/eyepop
+                    echo "SDK_MODULE=$GITHUB_WORKSPACE/src/eyepop/dist/eyepop.index.js" >> "$GITHUB_ENV"
+                  else
+                    mkdir -p "$RUNNER_TEMP/node-session-smoke"
+                    cd "$RUNNER_TEMP/node-session-smoke"
+                    npm init -y
+                    if [[ "$SDK_VERSION" == "latest" ]]; then
+                      npm install @eyepop.ai/eyepop
+                    else
+                      npm install "@eyepop.ai/eyepop@$SDK_VERSION"
+                    fi
+                    echo "SDK_MODULE=$RUNNER_TEMP/node-session-smoke/node_modules/@eyepop.ai/eyepop/dist/eyepop.index.js" >> "$GITHUB_ENV"
+                  fi
+
+            - name: Run SDK session smoke
+              id: smoke
+              env:
+                  EYEPOP_API_KEY: ${{ secrets.EYEPOP_API_KEY }}
+              run: |
+                  set -euo pipefail
+                  args=(
+                    --environment "$SMOKE_ENVIRONMENT"
+                    --sdk-module "$SDK_MODULE"
+                    --image "$SMOKE_IMAGE"
+                    --expected-class "$SMOKE_EXPECTED_CLASS"
+                    --ability "$SMOKE_ABILITY"
+                    --summary-json "$SUMMARY_JSON"
+                  )
+                  if [[ -n "$SMOKE_POP_FILE" ]]; then
+                    args+=(--pop-file "$SMOKE_POP_FILE")
+                  fi
+                  node scripts/session-smoke.mjs "${args[@]}"
+
+            - name: Write summary
+              if: always()
+              run: |
+                  {
+                    echo "## Node Sessions Smoke"
+                    echo ""
+                    echo "- environment: $SMOKE_ENVIRONMENT"
+                    echo "- requested_sdk: $SDK_VERSION"
+                    echo "- conclusion: ${{ steps.smoke.conclusion }}"
+                    echo "- run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+                    if [[ -f "$SUMMARY_JSON" ]] && jq -e . "$SUMMARY_JSON" >/dev/null 2>&1; then
+                      jq -r '
+                        "- ok: \((.ok // false)|tostring)",
+                        "- sdk_version: \(.sdk_version // "n/a")",
+                        "- session_name: \(.session_name // "n/a")",
+                        "- session_uuid: \(.session_uuid_short // "n/a")",
+                        "- pipeline_id: \(.pipeline_id // "n/a")",
+                        "- ability: \(.ability // "n/a")",
+                        "- predictions: \((.prediction_count // "n/a")|tostring)",
+                        "- matching_objects: \((.matching_object_count // "n/a")|tostring)",
+                        "- session_status: \(.session_details.status // "n/a")",
+                        "- cleanup: \(.cleanup.result // "n/a")",
+                        "- duration_seconds: \((.duration_seconds // "n/a")|tostring)",
+                        if .error then "- error: \(.error)" else empty end
+                      ' "$SUMMARY_JSON"
+                    else
+                      echo "- result: no JSON summary captured"
+                    fi
+                  } >> "$GITHUB_STEP_SUMMARY"
+
+            - name: Upload smoke summary
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: node-sessions-smoke-summary-${{ env.SMOKE_ENVIRONMENT }}
+                  path: ${{ env.SUMMARY_JSON }}
+                  if-no-files-found: ignore
+
+            - name: Notify Slack
+              if: ${{ failure() }}
+              env:
+                  SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+                  SMOKE_CONCLUSION: ${{ steps.smoke.conclusion }}
+                  RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+              run: |
+                  set -euo pipefail
+
+                  if [[ -z "${SLACK_WEBHOOK_URL:-}" ]]; then
+                    echo "SLACK_WEBHOOK_URL not set; skipping Slack notification"
+                    exit 0
+                  fi
+
+                  session_uuid="n/a"
+                  session_name="n/a"
+                  pipeline_id="n/a"
+                  predictions="n/a"
+                  matching_objects="n/a"
+                  cleanup="n/a"
+                  duration="n/a"
+                  actual_sdk="n/a"
+                  reason="Smoke workflow failed before a JSON summary was captured."
+
+                  if [[ -f "$SUMMARY_JSON" ]] && jq -e . "$SUMMARY_JSON" >/dev/null 2>&1; then
+                    actual_sdk="$(jq -r '.sdk_version // "n/a"' "$SUMMARY_JSON")"
+                    session_name="$(jq -r '.session_name // "n/a"' "$SUMMARY_JSON")"
+                    session_uuid="$(jq -r '.session_uuid_short // "n/a"' "$SUMMARY_JSON")"
+                    pipeline_id="$(jq -r '.pipeline_id // "n/a"' "$SUMMARY_JSON")"
+                    predictions="$(jq -r '(.prediction_count // "n/a")|tostring' "$SUMMARY_JSON")"
+                    matching_objects="$(jq -r '(.matching_object_count // "n/a")|tostring' "$SUMMARY_JSON")"
+                    cleanup="$(jq -r '.cleanup.result // "n/a"' "$SUMMARY_JSON")"
+                    duration="$(jq -r '(.duration_seconds // "n/a")|tostring' "$SUMMARY_JSON")"
+                    reason="$(jq -r '.error // ""' "$SUMMARY_JSON")"
+                  else
+                    reason="No JSON summary captured."
+                  fi
+
+                  if [[ -z "$reason" ]]; then
+                    reason="Smoke step concluded with ${SMOKE_CONCLUSION}."
+                  fi
+
+                  title="Production Node sessions smoke"
+                  if [[ "$SMOKE_ENVIRONMENT" != "production" ]]; then
+                    title="${SMOKE_ENVIRONMENT^} Node sessions smoke"
+                  fi
+
+                  jq -n \
+                    --arg text "$title failed: $reason" \
+                    --arg title "$title" \
+                    --arg reason "$reason" \
+                    --arg environment "$SMOKE_ENVIRONMENT" \
+                    --arg requested_sdk "$SDK_VERSION" \
+                    --arg actual_sdk "$actual_sdk" \
+                    --arg session_name "$session_name" \
+                    --arg session_uuid "$session_uuid" \
+                    --arg pipeline_id "$pipeline_id" \
+                    --arg predictions "$predictions" \
+                    --arg matching_objects "$matching_objects" \
+                    --arg cleanup "$cleanup" \
+                    --arg duration "$duration" \
+                    --arg run_url "$RUN_URL" \
+                    '{
+                      text: $text,
+                      blocks: [
+                        {type: "section", text: {type: "mrkdwn", text: ("*" + $title + " failed*")}},
+                        {type: "section", text: {type: "mrkdwn", text: ("*Reason:* " + $reason)}},
+                        {
+                          type: "section",
+                          fields: [
+                            {type: "mrkdwn", text: ("*Environment:*\n" + $environment)},
+                            {type: "mrkdwn", text: ("*SDK:*\n" + $actual_sdk + " (requested: " + $requested_sdk + ")")},
+                            {type: "mrkdwn", text: ("*Session name:*\n" + $session_name)},
+                            {type: "mrkdwn", text: ("*Session:*\n" + $session_uuid)},
+                            {type: "mrkdwn", text: ("*Pipeline:*\n" + $pipeline_id)},
+                            {type: "mrkdwn", text: ("*Predictions:*\n" + $predictions)},
+                            {type: "mrkdwn", text: ("*Matching objects:*\n" + $matching_objects)},
+                            {type: "mrkdwn", text: ("*Cleanup:*\n" + $cleanup)},
+                            {type: "mrkdwn", text: ("*Duration:*\n" + $duration + "s")}
+                          ]
+                        },
+                        {
+                          type: "actions",
+                          elements: [
+                            {type: "button", text: {type: "plain_text", text: "Open GitHub run"}, url: $run_url}
+                          ]
+                        }
+                      ]
+                    }' > slack-payload.json
+
+                  for attempt in 1 2 3; do
+                    if curl --fail-with-body -sS -X POST -H 'Content-type: application/json' --data @slack-payload.json "$SLACK_WEBHOOK_URL"; then
+                      exit 0
+                    fi
+                    sleep "$((attempt * 2))"
+                  done
+
+                  echo "Slack notification failed after retries" >&2
+                  exit 1

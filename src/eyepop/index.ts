@@ -1,4 +1,4 @@
-import {ApiKeyAuth, LocalAuth, OAuth2Auth, Options, SessionAuth} from './options'
+import { ApiKeyAuth, LocalAuth, OAuth2Auth, Options, SessionAuth } from './options'
 
 import { WorkerEndpoint } from './worker/worker_endpoint'
 import { DataEndpoint } from './data/data_endpoint'
@@ -26,7 +26,7 @@ export {
     PredictedMotion,
     Contour,
     Point2d,
-    Point3d
+    Point3d,
 } from './types'
 
 export {
@@ -103,7 +103,7 @@ export {
     TaskMode,
     BaseTask,
     ClassificationTask,
-    AutoTask
+    AutoTask,
 } from './data/data_types'
 
 export {
@@ -122,7 +122,7 @@ export {
     ProcessRequest,
     MotionDetectConfig,
     PredictionVersion,
-    DEFAULT_PREDICTION_VERSION
+    DEFAULT_PREDICTION_VERSION,
 } from './worker/worker_types'
 
 export { Options, Authentication, SessionAuth, ApiKeyAuth, OAuth2Auth, Auth0Options, HttpClient, PlatformSupport, LocalAuth } from './options'
@@ -151,10 +151,11 @@ const stringToBooleanSafe = (str?: string): boolean => {
 export namespace EyePop {
     const envApiKey = readEnv('EYEPOP_API_KEY')
 
-    const defaultAuth: ApiKeyAuth | undefined =
-        envApiKey ? {
-            apiKey: envApiKey
-        } : undefined
+    const defaultAuth: ApiKeyAuth | undefined = envApiKey
+        ? {
+              apiKey: envApiKey,
+          }
+        : undefined
 
     /**
      * @deprecated use workerEndpoint() instead
@@ -179,6 +180,15 @@ export namespace EyePop {
 
         if (opts.sessionUuid === undefined) {
             opts.sessionUuid = readEnv('EYEPOP_SESSION_UUID')
+        }
+        if (opts.sessionName === undefined) {
+            opts.sessionName = readEnv('EYEPOP_SESSION_NAME')
+        }
+        if (opts.pipelineImage === undefined) {
+            opts.pipelineImage = readEnv('EYEPOP_PIPELINE_IMAGE')
+        }
+        if (opts.pipelineVersion === undefined) {
+            opts.pipelineVersion = readEnv('EYEPOP_PIPELINE_VERSION')
         }
 
         // TODO remove pop id support in 3.16

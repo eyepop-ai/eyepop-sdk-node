@@ -13,6 +13,7 @@
     },
     "scripts": {
         "test": "jest",
+        "smoke:session": "node scripts/session-smoke.mjs",
         "format": "prettier --write '**/*.{js,ts,json,md}'"
     },
     "dependencies": {
