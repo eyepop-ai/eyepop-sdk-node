@@ -1,12 +1,19 @@
-name: Staging SDK Integration
+name: SDK Integration
 
 on:
+    push:
+        branches:
+            - codex/node-sdk-session-smoke
     workflow_dispatch:
-    schedule:
-        - cron: '15 6 * * *'
+        inputs:
+            environment:
+                description: Environment to test
+                required: true
+                default: staging
+                type: environment
 
 concurrency:
-    group: ${{ github.workflow }}-staging
+    group: ${{ github.workflow }}-${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'staging' }}
     cancel-in-progress: true
 
 permissions:
@@ -14,13 +21,14 @@ permissions:
 
 jobs:
     integration:
-        name: staging integration
+        name: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'staging' }} integration
         runs-on: ubuntu-latest
         timeout-minutes: 45
-        environment: staging
+        environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'staging' }}
         env:
+            SMOKE_ENVIRONMENT: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'staging' }}
             EYEPOP_URL: ${{ secrets.EYEPOP_URL }}
-            EYEPOP_SESSION_NAME: node-integration-staging-${{ github.run_id }}-${{ github.run_attempt }}
+            EYEPOP_SESSION_NAME: node-integration-${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'staging' }}-${{ github.run_id }}-${{ github.run_attempt }}
             SUMMARY_JSON: session-smoke-all-transient.json
         steps:
             - uses: actions/checkout@v4
@@ -43,7 +51,7 @@ jobs:
                   EYEPOP_API_KEY: ${{ secrets.EYEPOP_API_KEY }}
               run: |
                   node scripts/session-smoke.mjs \
-                    --environment staging \
+                    --environment "$SMOKE_ENVIRONMENT" \
                     --scenario all-transient \
                     --cleanup-preexisting \
                     --sdk-module "$GITHUB_WORKSPACE/src/eyepop/dist/eyepop.index.js" \
@@ -63,8 +71,9 @@ jobs:
               if: always()
               run: |
                   {
-                    echo "## Staging SDK Integration"
+                    echo "## SDK Integration"
                     echo ""
+                    echo "- environment: $SMOKE_ENVIRONMENT"
                     echo "- conclusion: ${{ steps.e2e.conclusion }}"
                     echo "- run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
                     if [[ -f "$SUMMARY_JSON" ]] && jq -e . "$SUMMARY_JSON" >/dev/null 2>&1; then
@@ -102,6 +111,6 @@ jobs:
               if: always()
               uses: actions/upload-artifact@v4
               with:
-                  name: node-staging-integration-summary
+                  name: node-${{ env.SMOKE_ENVIRONMENT }}-integration-summary
                   path: ${{ env.SUMMARY_JSON }}
                   if-no-files-found: ignore
