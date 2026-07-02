@@ -19,7 +19,7 @@ jobs:
         timeout-minutes: 20
         environment: staging
         env:
-            EYEPOP_URL: ${{ vars.EYEPOP_URL }}
+            EYEPOP_URL: ${{ secrets.EYEPOP_URL }}
             EYEPOP_SESSION_NAME: node-integration-staging-${{ github.run_id }}-${{ github.run_attempt }}
             SUMMARY_JSON: session-smoke-summary.json
         steps:
