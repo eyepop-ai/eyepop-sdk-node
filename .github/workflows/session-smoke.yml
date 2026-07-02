@@ -62,6 +62,7 @@ jobs:
             SMOKE_IMAGE: ${{ github.event_name == 'workflow_dispatch' && inputs.image || 'tests/test.jpg' }}
             SMOKE_EXPECTED_CLASS: ${{ github.event_name == 'workflow_dispatch' && inputs.expected_class || 'person' }}
             SMOKE_ABILITY: ${{ github.event_name == 'workflow_dispatch' && inputs.ability || 'eyepop.person:latest' }}
+            EYEPOP_SMOKE_CLEANUP_PREEXISTING: ${{ github.event_name == 'push' && 'true' || 'false' }}
             SUMMARY_JSON: session-smoke-summary.json
         steps:
             - uses: actions/checkout@v4
