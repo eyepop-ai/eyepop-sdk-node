@@ -19,16 +19,30 @@ function parseArgs(argv) {
         eyepopUrl: process.env.EYEPOP_URL || '',
         apiKey: process.env.EYEPOP_API_KEY || '',
         sessionName: process.env.EYEPOP_SESSION_NAME || '',
+        scenario: process.env.EYEPOP_SMOKE_SCENARIO || 'gpu-direct',
         image: 'tests/test.jpg',
         popFile: process.env.EYEPOP_SMOKE_POP_FILE || '',
         ability: process.env.EYEPOP_SMOKE_ABILITY || 'eyepop.person:latest',
         expectedClass: process.env.EYEPOP_SMOKE_EXPECTED_CLASS || 'person',
         minObjects: Number(process.env.EYEPOP_SMOKE_MIN_OBJECTS || '1'),
         minConfidence: Number(process.env.EYEPOP_SMOKE_MIN_CONFIDENCE || '0.5'),
+        gpuImage: process.env.EYEPOP_SMOKE_GPU_IMAGE || '',
+        gpuPopFile: process.env.EYEPOP_SMOKE_GPU_POP_FILE || '',
+        gpuAbility: process.env.EYEPOP_SMOKE_GPU_ABILITY || '',
+        gpuExpectedClass: process.env.EYEPOP_SMOKE_GPU_EXPECTED_CLASS || '',
+        gpuMinObjects: process.env.EYEPOP_SMOKE_GPU_MIN_OBJECTS ? Number(process.env.EYEPOP_SMOKE_GPU_MIN_OBJECTS) : undefined,
+        gpuMinConfidence: process.env.EYEPOP_SMOKE_GPU_MIN_CONFIDENCE ? Number(process.env.EYEPOP_SMOKE_GPU_MIN_CONFIDENCE) : undefined,
+        cpuImage: process.env.EYEPOP_SMOKE_CPU_IMAGE || 'tests/fixtures/images/angrykitten.jpg',
+        cpuPopFile: process.env.EYEPOP_SMOKE_CPU_POP_FILE || 'tests/fixtures/pops/dot-gov-modeless-vlm.json',
+        cpuAbility: process.env.EYEPOP_SMOKE_CPU_ABILITY || '',
+        cpuExpectedClass: process.env.EYEPOP_SMOKE_CPU_EXPECTED_CLASS || 'EXPLODED',
+        cpuMinObjects: Number(process.env.EYEPOP_SMOKE_CPU_MIN_OBJECTS || '1'),
+        cpuMinConfidence: Number(process.env.EYEPOP_SMOKE_CPU_MIN_CONFIDENCE || '0'),
         timeoutSeconds: Number(process.env.EYEPOP_SMOKE_TIMEOUT_SECONDS || '600'),
         summaryJson: process.env.EYEPOP_SMOKE_SUMMARY_JSON || 'session-smoke-summary.json',
         sdkModule: process.env.EYEPOP_SMOKE_SDK_MODULE || './src/eyepop/dist/eyepop.index.js',
         noCleanup: false,
+        cleanupPreexisting: process.env.EYEPOP_SMOKE_CLEANUP_PREEXISTING === 'true',
     }
 
     for (let index = 0; index < argv.length; index += 1) {
@@ -54,6 +68,9 @@ function parseArgs(argv) {
             case '--session-name':
                 args.sessionName = next()
                 break
+            case '--scenario':
+                args.scenario = next()
+                break
             case '--image':
                 args.image = next()
                 break
@@ -72,6 +89,42 @@ function parseArgs(argv) {
             case '--min-confidence':
                 args.minConfidence = Number(next())
                 break
+            case '--gpu-image':
+                args.gpuImage = next()
+                break
+            case '--gpu-pop-file':
+                args.gpuPopFile = next()
+                break
+            case '--gpu-ability':
+                args.gpuAbility = next()
+                break
+            case '--gpu-expected-class':
+                args.gpuExpectedClass = next()
+                break
+            case '--gpu-min-objects':
+                args.gpuMinObjects = Number(next())
+                break
+            case '--gpu-min-confidence':
+                args.gpuMinConfidence = Number(next())
+                break
+            case '--cpu-image':
+                args.cpuImage = next()
+                break
+            case '--cpu-pop-file':
+                args.cpuPopFile = next()
+                break
+            case '--cpu-ability':
+                args.cpuAbility = next()
+                break
+            case '--cpu-expected-class':
+                args.cpuExpectedClass = next()
+                break
+            case '--cpu-min-objects':
+                args.cpuMinObjects = Number(next())
+                break
+            case '--cpu-min-confidence':
+                args.cpuMinConfidence = Number(next())
+                break
             case '--timeout-seconds':
                 args.timeoutSeconds = Number(next())
                 break
@@ -83,6 +136,9 @@ function parseArgs(argv) {
                 break
             case '--no-cleanup':
                 args.noCleanup = true
+                break
+            case '--cleanup-preexisting':
+                args.cleanupPreexisting = true
                 break
             default:
                 throw new Error(`Unknown argument: ${arg}`)
@@ -105,11 +161,24 @@ function requireInputs(args) {
     if (!Number.isFinite(args.minConfidence) || args.minConfidence < 0 || args.minConfidence > 1) {
         throw new Error('--min-confidence must be between 0.0 and 1.0')
     }
-    if (!existsSync(args.image)) {
-        throw new Error(`Image fixture does not exist: ${args.image}`)
+    if (!scenarioDefinitions(args).some(definition => definition.name === args.scenario) && args.scenario !== 'all-transient') {
+        throw new Error(`Unknown scenario ${args.scenario}`)
     }
-    if (args.popFile && !existsSync(args.popFile)) {
-        throw new Error(`Pop fixture does not exist: ${args.popFile}`)
+    for (const scenario of selectedScenarioDefinitions(args)) {
+        for (const step of scenario.steps) {
+            if (!Number.isFinite(step.minObjects) || step.minObjects < 1) {
+                throw new Error(`${scenario.name} ${step.name} min objects must be at least 1`)
+            }
+            if (!Number.isFinite(step.minConfidence) || step.minConfidence < 0 || step.minConfidence > 1) {
+                throw new Error(`${scenario.name} ${step.name} min confidence must be between 0.0 and 1.0`)
+            }
+            if (step.image && !existsSync(step.image)) {
+                throw new Error(`Image fixture does not exist: ${step.image}`)
+            }
+            if (step.popFile && !existsSync(step.popFile)) {
+                throw new Error(`Pop fixture does not exist: ${step.popFile}`)
+            }
+        }
     }
 }
 
@@ -125,19 +194,71 @@ function resolveImportSpecifier(specifier) {
     return specifier.startsWith('.') || specifier.startsWith('/') || existsSync(specifier) ? resolve(specifier) : specifier
 }
 
-function buildPop(args, sdk) {
-    if (args.popFile) {
-        return JSON.parse(readFileSync(args.popFile, 'utf8'))
+function buildPop(step, sdk) {
+    if (step.popFile) {
+        return JSON.parse(readFileSync(step.popFile, 'utf8'))
     }
     return {
         components: [
             {
                 type: sdk.PopComponentType?.INFERENCE || 'inference',
-                ability: args.ability,
-                categoryName: args.expectedClass,
+                ability: step.ability,
+                categoryName: step.expectedClass,
             },
         ],
     }
+}
+
+function scenarioDefinitions(args) {
+    const gpuStep = {
+        name: 'gpu-inference',
+        popFile: args.gpuPopFile || args.popFile,
+        ability: args.gpuAbility || args.ability,
+        expectedClass: args.gpuExpectedClass || args.expectedClass,
+        image: args.gpuImage || args.image,
+        minObjects: Number.isFinite(args.gpuMinObjects) ? args.gpuMinObjects : args.minObjects,
+        minConfidence: Number.isFinite(args.gpuMinConfidence) ? args.gpuMinConfidence : args.minConfidence,
+    }
+    const cpuStep = {
+        name: 'cpu-inference',
+        popFile: args.cpuPopFile,
+        ability: args.cpuAbility,
+        expectedClass: args.cpuExpectedClass,
+        image: args.cpuImage,
+        minObjects: args.cpuMinObjects,
+        minConfidence: args.cpuMinConfidence,
+    }
+
+    return [
+        {
+            name: 'gpu-direct',
+            startMode: 'constructor-pop',
+            steps: [gpuStep],
+        },
+        {
+            name: 'cpu-direct',
+            startMode: 'constructor-pop',
+            steps: [cpuStep],
+        },
+        {
+            name: 'cpu-then-gpu-upgrade',
+            startMode: 'constructor-pop',
+            steps: [cpuStep, gpuStep],
+        },
+        {
+            name: 'legacy-change-pop',
+            startMode: 'no-pop-then-change-pop',
+            steps: [gpuStep],
+        },
+    ]
+}
+
+function selectedScenarioDefinitions(args) {
+    const definitions = scenarioDefinitions(args)
+    if (args.scenario === 'all-transient') {
+        return definitions
+    }
+    return definitions.filter(definition => definition.name === args.scenario)
 }
 
 function objectLabel(object) {
@@ -287,68 +408,55 @@ async function deleteTransientSession(apiKey, eyepopUrl, sessionUuid) {
     }
 }
 
-async function runSmoke(args) {
-    requireInputs(args)
-
-    const started = Date.now()
-    const deadline = started + args.timeoutSeconds * 1000
-    const eyepopUrl = args.eyepopUrl || ENV_URLS[args.environment]
-    const sdk = await importSdk(args.sdkModule)
-    const preexistingTransientSessionUuids = await withDeadline(fetchTransientSessionUuids(args.apiKey, eyepopUrl), deadline, 'fetching existing sessions')
-    const summary = {
-        ok: false,
-        environment: args.environment,
-        sdk_module: args.sdkModule,
-        sdk_version: sdk.version || sdk.VERSION || 'n/a',
-        eyepop_url: eyepopUrl,
-        image: args.image,
-        image_name: basename(args.image),
-        pop_file: args.popFile || '',
-        ability: args.ability,
-        expected_class: args.expectedClass,
-        min_objects: args.minObjects,
-        min_confidence: args.minConfidence,
-        session_name: args.sessionName,
-        session_uuid: '',
-        session_uuid_short: '',
-        pipeline_id: '',
-        session_details: null,
-        preexisting_transient_sessions: preexistingTransientSessionUuids.size,
-        session_reused: false,
-        cleanup: { ok: true, result: 'not_started' },
-    }
-
-    let endpoint
+async function collectInference(endpoint, step, deadline) {
     let stream
-    let sessionUuid = ''
-    const requestedPop = buildPop(args, sdk)
     try {
-        endpoint = await withDeadline(
-            sdk.EyePop.workerEndpoint({
-                auth: { apiKey: args.apiKey },
-                eyepopUrl,
-                pop: requestedPop,
-                sessionName: args.sessionName,
-            }).connect(),
+        stream = await withDeadline(
+            endpoint.process({
+                source: { path: step.image },
+            }),
             deadline,
-            'connecting worker endpoint',
+            `starting inference for ${step.name}`,
         )
-
-        if (typeof endpoint.pop === 'function' && endpoint.pop() == null) {
-            await withDeadline(endpoint.changePop(requestedPop), deadline, 'setting worker pop')
+        const predictions = []
+        const iterator = stream[Symbol.asyncIterator]()
+        while (true) {
+            const next = await withDeadline(iterator.next(), deadline, `reading inference results for ${step.name}`)
+            if (next.done) {
+                break
+            }
+            predictions.push(next.value)
         }
 
-        const session = await withDeadline(endpoint.session(), deadline, 'reading worker session')
-        sessionUuid = sessionUuidFromUrl(session.baseUrl)
-        summary.session_reused = preexistingTransientSessionUuids.has(sessionUuid)
-        summary.session_uuid = sessionUuid
-        summary.session_uuid_short = sessionUuid.slice(0, 8)
-        summary.pipeline_id = session.pipelineId || ''
+        const predictionSummary = summarizePredictions(predictions, step.expectedClass, step.minConfidence)
+        if (predictionSummary.prediction_count === 0 || predictionSummary.matching_object_count < step.minObjects) {
+            predictionSummary.error = `Expected at least ${step.minObjects} ${step.expectedClass} objects with confidence >= ${step.minConfidence}; got ${predictionSummary.matching_object_count}`
+        }
+        return predictionSummary
+    } finally {
+        if (stream && typeof stream.cancel === 'function') {
+            try {
+                stream.cancel()
+            } catch (error) {
+                void error
+            }
+        }
+    }
+}
 
-        const details = sessionUuid
-            ? await withDeadline(fetchSessionDetails(args.apiKey, eyepopUrl, sessionUuid), deadline, 'fetching session details')
-            : { ok: false, status: 0, body: 'missing session UUID' }
-        summary.session_details = details.ok
+async function captureSession(endpoint, args, eyepopUrl, preexistingTransientSessionUuids, deadline) {
+    const session = await withDeadline(endpoint.session(), deadline, 'reading worker session')
+    const sessionUuid = sessionUuidFromUrl(session.baseUrl)
+    const details = sessionUuid
+        ? await withDeadline(fetchSessionDetails(args.apiKey, eyepopUrl, sessionUuid), deadline, 'fetching session details')
+        : { ok: false, status: 0, body: 'missing session UUID' }
+
+    return {
+        sessionUuid,
+        sessionUuidShort: sessionUuid.slice(0, 8),
+        sessionReused: preexistingTransientSessionUuids.has(sessionUuid),
+        pipelineId: session.pipelineId || '',
+        details: details.ok
             ? {
                   status: details.body.session_status,
                   active: details.body.session_active,
@@ -356,30 +464,137 @@ async function runSmoke(args) {
                   compute_resources: details.body.compute_resources || null,
                   pipelines: details.body.pipelines || null,
               }
-            : details
+            : details,
+    }
+}
 
-        stream = await withDeadline(
-            endpoint.process({
-                source: { path: args.image },
-            }),
-            deadline,
-            'starting inference',
-        )
-        const predictions = []
-        const iterator = stream[Symbol.asyncIterator]()
-        while (true) {
-            const next = await withDeadline(iterator.next(), deadline, 'reading inference results')
-            if (next.done) {
-                break
+async function runScenario(args, sdk, eyepopUrl, scenario) {
+    const started = Date.now()
+    const deadline = started + args.timeoutSeconds * 1000
+    let preexistingTransientSessionUuids = new Set()
+    const firstStep = scenario.steps[0]
+    const sessionName = args.sessionName ? `${args.sessionName}-${scenario.name}` : `node-session-smoke-${Date.now()}-${scenario.name}`
+    const summary = {
+        ok: false,
+        scenario: scenario.name,
+        start_mode: scenario.startMode,
+        environment: args.environment,
+        sdk_module: args.sdkModule,
+        sdk_version: sdk.version || sdk.VERSION || 'n/a',
+        eyepop_url: eyepopUrl,
+        image: firstStep.image,
+        image_name: basename(firstStep.image),
+        pop_file: firstStep.popFile || '',
+        ability: firstStep.ability,
+        expected_class: firstStep.expectedClass,
+        min_objects: firstStep.minObjects,
+        min_confidence: firstStep.minConfidence,
+        session_name: sessionName,
+        session_uuid: '',
+        session_uuid_short: '',
+        pipeline_id: '',
+        session_details: null,
+        session_uuid_preserved: null,
+        steps: [],
+        preexisting_transient_sessions: preexistingTransientSessionUuids.size,
+        preexisting_transient_sessions_deleted: 0,
+        session_reused: false,
+        cleanup: { ok: true, result: 'not_started' },
+    }
+
+    let endpoint
+    let sessionUuid = ''
+    try {
+        preexistingTransientSessionUuids = await withDeadline(fetchTransientSessionUuids(args.apiKey, eyepopUrl), deadline, 'fetching existing sessions')
+        summary.preexisting_transient_sessions = preexistingTransientSessionUuids.size
+        if (args.cleanupPreexisting && preexistingTransientSessionUuids.size > 0) {
+            for (const existingSessionUuid of preexistingTransientSessionUuids) {
+                await withDeadline(deleteTransientSession(args.apiKey, eyepopUrl, existingSessionUuid), deadline, `deleting preexisting session ${existingSessionUuid}`)
+                summary.preexisting_transient_sessions_deleted += 1
             }
-            predictions.push(next.value)
+            preexistingTransientSessionUuids = new Set()
         }
 
-        const predictionSummary = summarizePredictions(predictions, args.expectedClass, args.minConfidence)
-        Object.assign(summary, predictionSummary)
+        const connectOptions = {
+            auth: { apiKey: args.apiKey },
+            eyepopUrl,
+            sessionName,
+        }
+        if (scenario.startMode === 'constructor-pop') {
+            connectOptions.pop = buildPop(firstStep, sdk)
+        }
 
-        if (predictionSummary.prediction_count === 0 || predictionSummary.matching_object_count < args.minObjects) {
-            summary.error = `Expected at least ${args.minObjects} ${args.expectedClass} objects with confidence >= ${args.minConfidence}; got ${predictionSummary.matching_object_count}`
+        endpoint = await withDeadline(
+            sdk.EyePop.workerEndpoint(connectOptions).connect(),
+            deadline,
+            'connecting worker endpoint',
+        )
+
+        if (scenario.startMode === 'no-pop-then-change-pop') {
+            await withDeadline(endpoint.changePop(buildPop(firstStep, sdk)), deadline, `setting worker pop for ${scenario.name}`)
+        } else if (typeof endpoint.pop === 'function' && endpoint.pop() == null) {
+            await withDeadline(endpoint.changePop(buildPop(firstStep, sdk)), deadline, 'setting worker pop')
+        }
+
+        const initialSession = await captureSession(endpoint, args, eyepopUrl, preexistingTransientSessionUuids, deadline)
+        sessionUuid = initialSession.sessionUuid
+        summary.session_reused = initialSession.sessionReused
+        summary.session_uuid = initialSession.sessionUuid
+        summary.session_uuid_short = initialSession.sessionUuidShort
+        summary.pipeline_id = initialSession.pipelineId
+        summary.session_details = initialSession.details
+
+        const firstPredictionSummary = await collectInference(endpoint, firstStep, deadline)
+        summary.steps.push({
+            name: firstStep.name,
+            image: firstStep.image,
+            image_name: basename(firstStep.image),
+            pop_file: firstStep.popFile || '',
+            ability: firstStep.ability,
+            expected_class: firstStep.expectedClass,
+            min_objects: firstStep.minObjects,
+            min_confidence: firstStep.minConfidence,
+            pipeline_id: summary.pipeline_id,
+            ...firstPredictionSummary,
+        })
+        Object.assign(summary, firstPredictionSummary)
+
+        if (firstPredictionSummary.error) {
+            summary.error = firstPredictionSummary.error
+        }
+
+        if (!summary.error && scenario.steps.length > 1) {
+            const nextStep = scenario.steps[1]
+            await withDeadline(endpoint.changePop(buildPop(nextStep, sdk)), deadline, `upgrading pop for ${scenario.name}`)
+            const upgradedSession = await captureSession(endpoint, args, eyepopUrl, preexistingTransientSessionUuids, deadline)
+            summary.upgraded_session_uuid = upgradedSession.sessionUuid
+            summary.upgraded_session_uuid_short = upgradedSession.sessionUuidShort
+            summary.upgraded_pipeline_id = upgradedSession.pipelineId
+            summary.upgraded_session_details = upgradedSession.details
+            summary.session_uuid_preserved = sessionUuid === upgradedSession.sessionUuid
+            summary.pipeline_id = upgradedSession.pipelineId
+            summary.session_details = upgradedSession.details
+
+            const upgradedPredictionSummary = await collectInference(endpoint, nextStep, deadline)
+            summary.steps.push({
+                name: nextStep.name,
+                image: nextStep.image,
+                image_name: basename(nextStep.image),
+                pop_file: nextStep.popFile || '',
+                ability: nextStep.ability,
+                expected_class: nextStep.expectedClass,
+                min_objects: nextStep.minObjects,
+                min_confidence: nextStep.minConfidence,
+                pipeline_id: upgradedSession.pipelineId,
+                ...upgradedPredictionSummary,
+            })
+            Object.assign(summary, upgradedPredictionSummary)
+
+            if (!summary.session_uuid_preserved) {
+                summary.error = `Expected upgrade to preserve session UUID ${sessionUuid}; got ${upgradedSession.sessionUuid}`
+            } else if (upgradedPredictionSummary.error) {
+                summary.error = upgradedPredictionSummary.error
+            }
         }
     } catch (error) {
         if (!sessionUuid) {
@@ -392,14 +607,6 @@ async function runSmoke(args) {
         }
         summary.error = errorSummary(error)
     } finally {
-        if (stream && typeof stream.cancel === 'function') {
-            try {
-                stream.cancel()
-            } catch (error) {
-                summary.stream_cancel_error = errorSummary(error)
-            }
-        }
-
         if (endpoint) {
             try {
                 await withDeadline(endpoint.disconnect(), Date.now() + 30 * 1000, 'disconnecting worker endpoint')
@@ -430,6 +637,35 @@ async function runSmoke(args) {
     summary.duration_seconds = Math.round((Date.now() - started) / 100) / 10
     summary.ok = !summary.error && Boolean(summary.cleanup?.ok)
     return summary
+}
+
+async function runSmoke(args) {
+    requireInputs(args)
+
+    const eyepopUrl = args.eyepopUrl || ENV_URLS[args.environment]
+    const sdk = await importSdk(args.sdkModule)
+    const scenarios = selectedScenarioDefinitions(args)
+    if (scenarios.length === 1) {
+        return runScenario(args, sdk, eyepopUrl, scenarios[0])
+    }
+
+    const started = Date.now()
+    const summaries = []
+    for (const scenario of scenarios) {
+        summaries.push(await runScenario(args, sdk, eyepopUrl, scenario))
+    }
+    return {
+        ok: summaries.every(summary => summary.ok),
+        scenario: args.scenario,
+        environment: args.environment,
+        sdk_module: args.sdkModule,
+        sdk_version: sdk.version || sdk.VERSION || 'n/a',
+        eyepop_url: eyepopUrl,
+        session_name: args.sessionName,
+        scenarios: summaries,
+        duration_seconds: Math.round((Date.now() - started) / 100) / 10,
+        error: summaries.find(summary => !summary.ok)?.error,
+    }
 }
 
 function writeSummary(path, summary) {

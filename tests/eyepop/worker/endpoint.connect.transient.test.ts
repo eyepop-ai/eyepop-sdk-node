@@ -27,7 +27,7 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
         ],
     }
 
-    test('EyePopSdk connect transient', async () => {
+    test('EyePopSdk connect transient without a pop does not create an empty pipeline', async () => {
         const authenticationRoute = server.post('/v1/auth/authenticate').mockImplementationOnce(ctx => {
             ctx.status = 200
             ctx.response.headers['content-type'] = 'application/json'
@@ -51,7 +51,7 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
                 {
                     session_uuid: test_session_uuid,
                     session_endpoint: `${server.getURL().toString()}${test_session_uuid}`,
-                    pipeline_uuid: uuidv4().toString(),
+                    pipelines: [],
                     session_status: 'running',
                     session_active: true,
                 },
@@ -72,10 +72,6 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
             })
         })
 
-        const stopRoute = server.delete(`/${test_session_uuid}/pipelines/${test_pipeline_id}`).mockImplementationOnce(ctx => {
-            ctx.status = 204
-        })
-
         const endpoint = EyePop.workerEndpoint({
             eyepopUrl: server.getURL().toString(),
             popId: test_pop_id,
@@ -88,10 +84,9 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
             expect(listSessionsRoute).toHaveBeenCalledTimes(1)
             expect(createSessionRoute).toHaveBeenCalledTimes(1)
             expect(healthRoute).toHaveBeenCalledTimes(1)
-            expect(startPipelineRoute).toHaveBeenCalledTimes(1)
+            expect(startPipelineRoute).toHaveBeenCalledTimes(0)
         } finally {
             await endpoint.disconnect()
-            expect(stopRoute).toHaveBeenCalledTimes(1)
         }
     })
 
@@ -123,7 +118,7 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
                     {
                         session_uuid: test_session_uuid,
                         session_endpoint: `${server.getURL().toString()}${test_session_uuid}`,
-                        pipeline_uuid: uuidv4().toString(),
+                        pipelines: [],
                         session_status: 'running',
                         session_active: true,
                     },
@@ -151,10 +146,7 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
             ctx.body = "I'm fine"
         })
 
-        let pipelineCreatePop: Pop | null = null
         const startPipelineRoute = server.post(`/${test_session_uuid}/pipelines`).mockImplementationOnce(ctx => {
-            // @ts-ignore
-            pipelineCreatePop = ctx.request.body['pop']
             ctx.status = 200
             ctx.response.headers['content-type'] = 'application/json'
             ctx.body = JSON.stringify({
@@ -170,7 +162,7 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
             ctx.status = 204
         })
 
-        const stopReplacementPipelineRoute = server.delete(`/${test_session_uuid}/pipelines/${replacementPipelineId}`).mockImplementationOnce(ctx => {
+        server.delete(`/${test_session_uuid}/pipelines/${replacementPipelineId}`).mockImplementationOnce(ctx => {
             ctx.status = 204
         })
 
@@ -186,22 +178,22 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
             expect(listSessionsRoute).toHaveBeenCalledTimes(1)
             expect(createSessionRoute).toHaveBeenCalledTimes(1)
             expect(healthRoute).toHaveBeenCalledTimes(1)
-            expect(startPipelineRoute).toHaveBeenCalledTimes(1)
+            expect(startPipelineRoute).toHaveBeenCalledTimes(0)
 
             let pop = await endpoint.pop()
             expect(pop).toBeNull()
 
             await endpoint.changePop(test_transient_pop)
             pop = endpoint.pop()
+            const session = await endpoint.session()
             expect(pop).toEqual(test_transient_pop)
-            expect(pipelineCreatePop).toEqual({ components: [] })
+            expect(session.pipelineId).toEqual(replacementPipelineId)
             expect(sessionCreatePop).toEqual(test_transient_pop)
-            expect(stopInitialPipelineRoute).toHaveBeenCalledTimes(1)
+            expect(stopInitialPipelineRoute).toHaveBeenCalledTimes(0)
             expect(createSessionRoute).toHaveBeenCalledTimes(2)
             expect(patchPopRoute).toHaveBeenCalledTimes(0)
         } finally {
             await endpoint.disconnect()
-            expect(stopReplacementPipelineRoute).toHaveBeenCalledTimes(1)
         }
     })
 
@@ -232,7 +224,7 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
                     {
                         session_uuid: test_session_uuid,
                         session_endpoint: `${server.getURL().toString()}${test_session_uuid}`,
-                        pipeline_uuid: uuidv4().toString(),
+                        pipeline_uuid: test_pipeline_id,
                         session_status: 'running',
                         session_active: true,
                     },
@@ -258,7 +250,7 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
             ctx.body = "I'm fine"
         })
 
-        server.post(`/${test_session_uuid}/pipelines`).mockImplementationOnce(ctx => {
+        const startPipelineRoute = server.post(`/${test_session_uuid}/pipelines`).mockImplementationOnce(ctx => {
             ctx.status = 200
             ctx.response.headers['content-type'] = 'application/json'
             ctx.body = JSON.stringify({
@@ -271,7 +263,7 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
             ctx.body = 'cleanup failed'
         })
 
-        const stopReplacementPipelineRoute = server.delete(`/${test_session_uuid}/pipelines/${replacementPipelineId}`).mockImplementationOnce(ctx => {
+        server.delete(`/${test_session_uuid}/pipelines/${replacementPipelineId}`).mockImplementationOnce(ctx => {
             ctx.status = 204
         })
 
@@ -283,13 +275,15 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
 
         try {
             await endpoint.connect()
+            expect(startPipelineRoute).toHaveBeenCalledTimes(0)
             await endpoint.changePop(test_transient_pop)
+            const session = await endpoint.session()
             expect(endpoint.pop()).toEqual(test_transient_pop)
+            expect(session.pipelineId).toEqual(replacementPipelineId)
             expect(failedDeleteRoute).toHaveBeenCalledTimes(1)
             expect(createSessionRoute).toHaveBeenCalledTimes(2)
         } finally {
             await endpoint.disconnect()
-            expect(stopReplacementPipelineRoute).toHaveBeenCalledTimes(1)
         }
     })
 

@@ -480,7 +480,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
     protected override async reconnect(): Promise<WorkerEndpoint> {
         if (this.options().popId == TransientPopId.Transient) {
             await this.getComputeSession()
-            if (!this._pipelineId || !this.options().pop) {
+            if (!this._pipelineId && this.options().pop) {
                 this._pipelineId = await this.startTransientPipeline()
             }
             this.setTransientPipelinePop()
@@ -593,7 +593,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
     private static SESSION_DEAD = new Set<SessionStatus>([SessionStatus.ERROR, SessionStatus.FAILED, SessionStatus.STOPPED, SessionStatus.PIPELINE_ERROR, SessionStatus.UNKNOWN])
     private static PIPELINE_PENDING = new Set<SessionStatus>([SessionStatus.PENDING, SessionStatus.PIPELINE_CREATING, SessionStatus.PIPELINE_CHECKING, SessionStatus.UPGRADING])
 
-    private static WAIT_FOR_IS_READY: number = 60 * 1000
+    private static WAIT_FOR_IS_READY: number = 10 * 60 * 1000
     private static CHECK_FOR_IS_READY_INTERVAL: number = 250
 
     private async getComputeSession(): Promise<void> {
@@ -769,9 +769,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         } else if (this._pipeline && this._pipeline.pop) {
             pop = this._pipeline.pop
         } else {
-            pop = {
-                components: [],
-            }
+            throw new Error('Cannot start a transient pipeline without a pop')
         }
 
         const body = {
