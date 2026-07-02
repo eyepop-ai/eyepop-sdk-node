@@ -452,4 +452,84 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
             expect(stopRoute).toHaveBeenCalledTimes(1)
         }
     })
+
+    test('EyePopSdk falls back to worker pipeline creation when compute loses constructor pop session', async () => {
+        server.post('/v1/auth/authenticate').mockImplementationOnce(ctx => {
+            ctx.status = 200
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify({
+                access_token: test_access_token,
+                expires_in: long_token_valid_time,
+                token_type: 'Bearer',
+            })
+        })
+
+        server.post(`/v1/sessions`).mockImplementationOnce(ctx => {
+            ctx.status = 200
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify([
+                {
+                    session_uuid: test_session_uuid,
+                    session_endpoint: `${server.getURL().toString()}${test_session_uuid}`,
+                    pipelines: [],
+                    session_status: 'pipeline_creating',
+                    session_active: true,
+                },
+            ])
+        })
+
+        server.get(`/${test_session_uuid}/health`).mockImplementationOnce(ctx => {
+            ctx.status = 200
+            ctx.response.headers['content-type'] = 'text/plain'
+            ctx.body = "I'm fine"
+        })
+
+        const pollSessionRoute = server.get(`/v1/sessions/${test_session_uuid}`).mockImplementationOnce(ctx => {
+            ctx.status = 404
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify({
+                error: {
+                    code: 'RES_001',
+                    type: 'resource',
+                    message: `session "${test_session_uuid}" not found`,
+                    retryable: false,
+                },
+            })
+        })
+
+        const startPipelineRoute = server.post(`/${test_session_uuid}/pipelines`).mockImplementationOnce(ctx => {
+            ctx.status = 200
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify({
+                id: test_pipeline_id,
+            })
+        })
+
+        const stopRoute = server.delete(`/${test_session_uuid}/pipelines/${test_pipeline_id}`).mockImplementationOnce(ctx => {
+            ctx.status = 204
+        })
+
+        const endpoint = EyePop.workerEndpoint({
+            eyepopUrl: server.getURL().toString(),
+            popId: test_pop_id,
+            pop: test_transient_pop,
+            auth: { apiKey: test_api_key },
+        })
+
+        let connected = false
+        try {
+            await endpoint.connect()
+            connected = true
+            const session = await endpoint.session()
+            expect(session.pipelineId).toEqual(test_pipeline_id)
+            expect(endpoint.pop()).toEqual(test_transient_pop)
+            expect(pollSessionRoute).toHaveBeenCalledTimes(1)
+            expect(startPipelineRoute).toHaveBeenCalledTimes(1)
+        } finally {
+            await endpoint.disconnect()
+            if (connected) {
+                expect(stopRoute).toHaveBeenCalledTimes(1)
+            }
+        }
+    })
 })

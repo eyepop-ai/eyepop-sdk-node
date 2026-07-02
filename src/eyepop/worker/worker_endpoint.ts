@@ -630,6 +630,12 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         this._baseUrl = session.session_endpoint
         this._pipeline = null
         this._pipelineId = this.pipelineIdFromSession(session)
+        if (this.options().pop && !this._pipelineId) {
+            this._pipelineId = await this.startTransientPipeline()
+        }
+        if (this.options().pop) {
+            this.setTransientPipelinePop()
+        }
     }
 
     private async getOnDemandComputeSession(httpClient: HttpClient): Promise<[ComputeSession, any]> {
@@ -746,6 +752,10 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             const response = await this._client.fetch(sessionUrl, {
                 headers: headers,
             })
+            if (response.status == 404) {
+                this._logger.debug(`session ${latest.session_uuid} not found while polling compute, falling back to worker pipeline creation`)
+                return latest
+            }
             if (response.status != 200) {
                 const message = await response.text()
                 throw new Error(`Unexpected status ${response.status} polling compute session: ${message}`)
