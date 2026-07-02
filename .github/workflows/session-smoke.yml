@@ -1,9 +1,6 @@
 name: Node Sessions Smoke
 
 on:
-    push:
-        branches:
-            - codex/node-sdk-session-smoke
     schedule:
         # Run hourly, offset from the Python SDK smoke.
         - cron: '45 * * * *'
@@ -41,7 +38,7 @@ on:
                 type: string
 
 concurrency:
-    group: ${{ github.workflow }}-${{ github.event_name == 'workflow_dispatch' && inputs.environment || github.event_name == 'push' && 'staging' || 'production' }}
+    group: ${{ github.workflow }}-${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'production' }}
     cancel-in-progress: true
 
 permissions:
@@ -49,20 +46,19 @@ permissions:
 
 jobs:
     session-smoke:
-        name: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || github.event_name == 'push' && 'staging' || 'production' }} transient session
+        name: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'production' }} transient session
         runs-on: ubuntu-latest
         timeout-minutes: 30
-        environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || github.event_name == 'push' && 'staging' || 'production' }}
+        environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'production' }}
         env:
-            SMOKE_ENVIRONMENT: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || github.event_name == 'push' && 'staging' || 'production' }}
+            SMOKE_ENVIRONMENT: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'production' }}
             SDK_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.sdk_version || github.event_name == 'schedule' && 'latest' || 'source' }}
-            EYEPOP_SESSION_NAME: node-smoke-${{ github.event_name == 'workflow_dispatch' && inputs.environment || github.event_name == 'push' && 'staging' || 'production' }}-${{ github.run_id }}-${{ github.run_attempt }}
+            EYEPOP_SESSION_NAME: node-smoke-${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'production' }}-${{ github.run_id }}-${{ github.run_attempt }}
             EYEPOP_URL: ${{ secrets.EYEPOP_URL }}
             SMOKE_POP_FILE: ${{ github.event_name == 'workflow_dispatch' && inputs.pop_file || '' }}
             SMOKE_IMAGE: ${{ github.event_name == 'workflow_dispatch' && inputs.image || 'tests/test.jpg' }}
             SMOKE_EXPECTED_CLASS: ${{ github.event_name == 'workflow_dispatch' && inputs.expected_class || 'person' }}
             SMOKE_ABILITY: ${{ github.event_name == 'workflow_dispatch' && inputs.ability || 'eyepop.person:latest' }}
-            EYEPOP_SMOKE_CLEANUP_PREEXISTING: ${{ github.event_name == 'push' && 'true' || 'false' }}
             SUMMARY_JSON: session-smoke-summary.json
         steps:
             - uses: actions/checkout@v4
