@@ -1,6 +1,6 @@
 import { HttpClient, LocalAuth } from '../options'
 import { EndpointState, Session } from '../types'
-import { AbstractJob, LoadFromAssetUuidJob, LoadFromJob, LoadMediaStreamJob, UploadJob } from './jobs'
+import { AbstractJob, LoadFromAssetUuidJob, LoadFromGroupJob, LoadFromJob, LoadMediaStreamJob, UploadGroupJob, UploadJob, UploadSource } from './jobs'
 import { resolvePath } from '../shims/local_file'
 import { Endpoint } from '../endpoint'
 import { TransientPopId, WorkerOptions } from '../worker/worker_options'
@@ -245,6 +245,109 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             return this.loadMediaStream(request.source as MediaStreamSource, request)
         } else {
             return Promise.reject('unknown source type')
+        }
+    }
+
+    public async uploadGroup(paths: string[], params: ProcessParams = {}): Promise<ResultStream> {
+        if (paths.length === 0) {
+            throw new Error('upload group requires at least one path')
+        }
+        if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
+            throw new Error('endpoint not connected, use connect()')
+        }
+        await this._limit.acquire()
+        try {
+            this.updateState()
+            const sources: UploadSource[] = await Promise.all(
+                paths.map(async (path): Promise<UploadSource> => {
+                    let streamSource
+                    if (this._options.platformSupport?.resolvePath) {
+                        streamSource = await this._options.platformSupport.resolvePath({ path }, this._logger)
+                    } else {
+                        streamSource = await resolvePath({ path }, this._logger)
+                    }
+                    return { stream: streamSource.stream, mimeType: streamSource.mimeType }
+                })
+            )
+            const job = new UploadGroupJob(
+                sources,
+                params,
+                async () => this.session(),
+                this._client,
+                this._requestLogger,
+            )
+            return job.start(
+                () => { this.jobDone(job) },
+                (statusCode: number) => { this.jobStatus(job, statusCode) },
+            )
+        } catch (e) {
+            this._limit.release()
+            throw e
+        }
+    }
+
+    public async uploadStreamGroup(
+        streams: Array<ReadableStream<Uint8Array> | Blob | BufferSource>,
+        mimeTypes?: string[],
+        params: ProcessParams = {}
+    ): Promise<ResultStream> {
+        if (streams.length === 0) {
+            throw new Error('upload stream group requires at least one stream')
+        }
+        if (mimeTypes !== undefined && mimeTypes.length !== streams.length) {
+            throw new Error('mimeTypes must have the same length as streams')
+        }
+        if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
+            throw new Error('endpoint not connected, use connect()')
+        }
+        await this._limit.acquire()
+        try {
+            this.updateState()
+            const sources: UploadSource[] = streams.map((stream, i) => ({
+                stream,
+                mimeType: mimeTypes?.[i] ?? null,
+            }))
+            const job = new UploadGroupJob(
+                sources,
+                params,
+                async () => this.session(),
+                this._client,
+                this._requestLogger,
+            )
+            return job.start(
+                () => { this.jobDone(job) },
+                (statusCode: number) => { this.jobStatus(job, statusCode) },
+            )
+        } catch (e) {
+            this._limit.release()
+            throw e
+        }
+    }
+
+    public async loadFromGroup(urls: string[], params: ProcessParams = {}): Promise<ResultStream> {
+        if (urls.length === 0) {
+            throw new Error('load from group requires at least one url')
+        }
+        if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
+            throw new Error('endpoint not connected, use connect()')
+        }
+        await this._limit.acquire()
+        try {
+            this.updateState()
+            const job = new LoadFromGroupJob(
+                urls,
+                params,
+                async () => this.session(),
+                this._client,
+                this._requestLogger,
+            )
+            return job.start(
+                () => { this.jobDone(job) },
+                (statusCode: number) => { this.jobStatus(job, statusCode) },
+            )
+        } catch (e) {
+            this._limit.release()
+            throw e
         }
     }
 
