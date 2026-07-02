@@ -46,6 +46,10 @@ jobs:
                     --environment staging \
                     --sdk-module "$GITHUB_WORKSPACE/src/eyepop/dist/eyepop.index.js" \
                     --image tests/test.jpg \
+                    --ability eyepop.person:latest \
+                    --expected-class person \
+                    --min-objects 1 \
+                    --min-confidence 0.5 \
                     --summary-json "$SUMMARY_JSON"
 
             - name: Write summary
