@@ -21,6 +21,7 @@ export interface WorkerOptions extends Options {
     pipelineImage?: string | undefined
     pipelineVersion?: string | undefined
     pop?: Pop | undefined
+    sessionReadyTimeoutSeconds?: number | undefined
     autoStart?: boolean
     stopJobs?: boolean
     isLocalMode?: boolean

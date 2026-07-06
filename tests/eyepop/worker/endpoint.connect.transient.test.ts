@@ -357,6 +357,53 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
         }
     })
 
+    test('EyePopSdk uses configured session ready timeout for compute health', async () => {
+        server.post('/v1/auth/authenticate').mockImplementationOnce(ctx => {
+            ctx.status = 200
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify({
+                access_token: test_access_token,
+                expires_in: long_token_valid_time,
+                token_type: 'Bearer',
+            })
+        })
+
+        server.post(`/v1/sessions`).mockImplementationOnce(ctx => {
+            ctx.status = 200
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify([
+                {
+                    session_uuid: test_session_uuid,
+                    session_endpoint: `${server.getURL().toString()}${test_session_uuid}`,
+                    access_token: test_access_token,
+                    access_token_expires_in: long_token_valid_time,
+                    pipelines: [],
+                    session_status: 'pipeline_creating',
+                    session_active: true,
+                },
+            ])
+        })
+
+        const healthRoute = server.get(`/${test_session_uuid}/health`).mockImplementation(ctx => {
+            ctx.status = 200
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify({
+                session_status: 'pipeline_creating',
+            })
+        })
+
+        const endpoint = EyePop.workerEndpoint({
+            eyepopUrl: server.getURL().toString(),
+            popId: test_pop_id,
+            pop: test_transient_pop,
+            sessionReadyTimeoutSeconds: 0.001,
+            auth: { apiKey: test_api_key },
+        })
+
+        await expect(endpoint.connect()).rejects.toThrow(`Created session ${test_session_uuid} did not become healthy after 0.001 seconds`)
+        expect(healthRoute).toHaveBeenCalled()
+    })
+
     test('EyePopSdk starts constructor pop pipeline before first source when compute returns no pipeline', async () => {
         server.post('/v1/auth/authenticate').mockImplementationOnce(ctx => {
             ctx.status = 200

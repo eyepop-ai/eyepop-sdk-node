@@ -38,6 +38,7 @@ function parseArgs(argv) {
         cpuExpectedClass: process.env.EYEPOP_SMOKE_CPU_EXPECTED_CLASS || 'person',
         cpuMinObjects: Number(process.env.EYEPOP_SMOKE_CPU_MIN_OBJECTS || '1'),
         cpuMinConfidence: Number(process.env.EYEPOP_SMOKE_CPU_MIN_CONFIDENCE || '0'),
+        sessionReadyTimeoutSeconds: Number(process.env.EYEPOP_SMOKE_SESSION_READY_TIMEOUT_SECONDS || '60'),
         timeoutSeconds: Number(process.env.EYEPOP_SMOKE_TIMEOUT_SECONDS || '600'),
         summaryJson: process.env.EYEPOP_SMOKE_SUMMARY_JSON || 'session-smoke-summary.json',
         sdkModule: process.env.EYEPOP_SMOKE_SDK_MODULE || './src/eyepop/dist/eyepop.index.js',
@@ -125,6 +126,9 @@ function parseArgs(argv) {
             case '--cpu-min-confidence':
                 args.cpuMinConfidence = Number(next())
                 break
+            case '--session-ready-timeout-seconds':
+                args.sessionReadyTimeoutSeconds = Number(next())
+                break
             case '--timeout-seconds':
                 args.timeoutSeconds = Number(next())
                 break
@@ -160,6 +164,9 @@ function requireInputs(args) {
     }
     if (!Number.isFinite(args.minConfidence) || args.minConfidence < 0 || args.minConfidence > 1) {
         throw new Error('--min-confidence must be between 0.0 and 1.0')
+    }
+    if (!Number.isFinite(args.sessionReadyTimeoutSeconds) || args.sessionReadyTimeoutSeconds <= 0) {
+        throw new Error('--session-ready-timeout-seconds must be greater than 0')
     }
     if (!scenarioDefinitions(args).some(definition => definition.name === args.scenario) && args.scenario !== 'all-transient') {
         throw new Error(`Unknown scenario ${args.scenario}`)
@@ -519,6 +526,7 @@ async function runScenario(args, sdk, eyepopUrl, scenario) {
             auth: { apiKey: args.apiKey },
             eyepopUrl,
             sessionName,
+            sessionReadyTimeoutSeconds: args.sessionReadyTimeoutSeconds,
         }
         if (scenario.startMode === 'constructor-pop') {
             connectOptions.pop = buildPop(firstStep, sdk)

@@ -621,6 +621,11 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
     private static WAIT_FOR_IS_READY: number = 60 * 1000
     private static CHECK_FOR_IS_READY_INTERVAL: number = 250
 
+    private sessionReadyTimeoutMs(): number {
+        const seconds = this.options().sessionReadyTimeoutSeconds
+        return typeof seconds == 'number' && Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : WorkerEndpoint.WAIT_FOR_IS_READY
+    }
+
     private sessionHealthReady(body: string, contentType: string): boolean {
         if (contentType.includes('application/json')) {
             const health = JSON.parse(body)
@@ -650,7 +655,8 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             Authorization: await this.authorizationHeader(),
         }
         let isReady: boolean = false
-        const deadline: number = Date.now() + WorkerEndpoint.WAIT_FOR_IS_READY
+        const readyTimeoutMs = this.sessionReadyTimeoutMs()
+        const deadline: number = Date.now() + readyTimeoutMs
         while (!isReady) {
             const health_url = `${session.session_endpoint}/health`
             const response = await this._client.fetch(health_url, {
@@ -668,14 +674,14 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
                     this._logger.debug(`session ${session.session_uuid} health check returned invalid JSON, wait and poll for update`)
                 }
                 if (!isReady && Date.now() > deadline) {
-                    throw new Error(`Created session ${session.session_uuid} did not become healthy after ${WorkerEndpoint.WAIT_FOR_IS_READY / 1000} seconds`)
+                    throw new Error(`Created session ${session.session_uuid} did not become healthy after ${readyTimeoutMs / 1000} seconds`)
                 }
                 if (!isReady) {
                     this._logger.debug(`session ${session.session_uuid} health check not ready, wait and poll for update`)
                     await sleep(WorkerEndpoint.CHECK_FOR_IS_READY_INTERVAL)
                 }
             } else if (Date.now() > deadline) {
-                throw new Error(`Created session ${session.session_uuid} did not become healthy after ${WorkerEndpoint.WAIT_FOR_IS_READY / 1000} seconds`)
+                throw new Error(`Created session ${session.session_uuid} did not become healthy after ${readyTimeoutMs / 1000} seconds`)
             } else {
                 this._logger.debug(`session ${session.session_uuid} health check status ${response.status}, wait and poll for update`)
                 await sleep(WorkerEndpoint.CHECK_FOR_IS_READY_INTERVAL)

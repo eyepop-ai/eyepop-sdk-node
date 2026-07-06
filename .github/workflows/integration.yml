@@ -55,6 +55,7 @@ jobs:
                     --scenario all-transient \
                     --cleanup-preexisting \
                     --sdk-module "$GITHUB_WORKSPACE/src/eyepop/dist/eyepop.index.js" \
+                    --session-ready-timeout-seconds 180 \
                     --gpu-image tests/test.jpg \
                     --gpu-ability dot-gov-com.object-detection.person:latest \
                     --gpu-expected-class person \
