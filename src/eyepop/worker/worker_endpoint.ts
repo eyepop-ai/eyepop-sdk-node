@@ -79,6 +79,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
     private _sessionAccessTokenValidUntil: number | null
 
     private _pipeline: Pipeline | null
+    private _pipelineCreatePromise: Promise<string> | null
 
     constructor(options: WorkerOptions) {
         super(options)
@@ -89,6 +90,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         this._sessionAccessToken = null
         this._sessionAccessTokenValidUntil = null
         this._pipeline = null
+        this._pipelineCreatePromise = null
     }
 
     private options(): WorkerOptions {
@@ -120,9 +122,9 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
 
     public override async session(): Promise<WorkerSession> {
         let session: Session | null = null
-        if (this._baseUrl == null || this._pipelineId == null) {
+        if (this._baseUrl == null) {
             await this.reconnect()
-            if (this._baseUrl == null || this._pipelineId == null) {
+            if (this._baseUrl == null) {
                 return Promise.reject('endpoint not connected')
             }
         }
@@ -141,7 +143,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             validUntil: session.validUntil,
             popId: this.options().popId as string,
             baseUrl: this._baseUrl as string,
-            pipelineId: this._pipelineId as string,
+            pipelineId: this._pipelineId || undefined,
             authenticationHeaders: () => this._authenticationHeaders(session),
         }
     }
@@ -153,9 +155,8 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
     public pop(): Pop | null {
         if (this._pipeline) {
             return this._pipeline.pop || null
-        } else {
-            return null
         }
+        return this.options().pop || null
     }
 
     public async changePop(pop: Pop): Promise<void> {
@@ -272,6 +273,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
     }
 
     private async uploadFile(source: FileSource, params: ProcessParams): Promise<ResultStream> {
+        await this.ensureTransientPipelineStarted()
         if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
             return Promise.reject('endpoint not connected, use connect()')
         }
@@ -306,6 +308,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
     }
 
     private async uploadStream(source: StreamSource, params: ProcessParams): Promise<ResultStream> {
+        await this.ensureTransientPipelineStarted()
         if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
             return Promise.reject('endpoint not connected, use connect()')
         }
@@ -340,6 +343,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
     }
 
     private async uploadPath(source: PathSource, params: ProcessParams): Promise<ResultStream> {
+        await this.ensureTransientPipelineStarted()
         if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
             throw new Error('endpoint not connected, use connect()')
         }
@@ -388,6 +392,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
                 params,
             )
         }
+        await this.ensureTransientPipelineStarted()
         if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
             throw new Error('endpoint not connected, use connect()')
         }
@@ -419,6 +424,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
     }
 
     private async loadFromAssetUuid(source: AssetUuidSource, params: ProcessParams): Promise<ResultStream> {
+        await this.ensureTransientPipelineStarted()
         if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
             throw new Error('endpoint not connected, use connect()')
         }
@@ -450,6 +456,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
     }
 
     private async loadMediaStream(source: MediaStreamSource, params: ProcessParams): Promise<ResultStream> {
+        await this.ensureTransientPipelineStarted()
         if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
             throw new Error('endpoint not connected, use connect()')
         }
@@ -496,16 +503,13 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
     protected override async reconnect(): Promise<WorkerEndpoint> {
         if (this.options().popId == TransientPopId.Transient) {
             await this.getComputeSession()
-            if (!this._pipelineId && this.options().pop) {
-                this._pipelineId = await this.startTransientPipeline()
-            }
             if (this.options().pop) {
                 this.setTransientPipelinePop()
             }
         } else if (this.options().sessionUuid) {
             await this.getComputeSession()
         } else {
-            // TDOD remove pop id support in 3.16
+            // TODO remove pop id support in 3.16
             await this.startWebApiSessionWithPopId()
         }
         this.updateState()
@@ -647,12 +651,6 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         this._baseUrl = session.session_endpoint
         this._pipeline = null
         this._pipelineId = this.pipelineIdFromSession(session)
-        if (this.options().pop && !this._pipelineId) {
-            this._pipelineId = await this.findTransientPipeline()
-        }
-        if (this.options().pop && !this._pipelineId) {
-            this._pipelineId = await this.startTransientPipeline()
-        }
         if (this.options().pop) {
             this.setTransientPipelinePop()
         }
@@ -783,6 +781,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
 
         const response = await this.fetchWithRetry(async () => {
             let headers = {
+                Accept: 'application/json',
                 'Content-Type': 'application/json',
                 Authorization: await this.authorizationHeader(),
             }
@@ -794,39 +793,34 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         })
         if (response.status != 200) {
             const message = await response.text()
-            throw new Error(`Unexpected status ${response.status}: ${message}`)
+            throw new Error(`Unexpected status ${response.status} starting transient pipeline: ${message.slice(0, 300)}`)
         }
         const result = await response.json()
         return result['id']
     }
 
-    private async findTransientPipeline(): Promise<string | null> {
-        const client = this._client
-        const baseUrl = this._baseUrl
-
-        if (client == null || baseUrl == null) {
-            throw new Error('endpoint not initialized')
+    private async ensureTransientPipelineStarted(): Promise<void> {
+        if (this.options().popId != TransientPopId.Transient || this._pipelineId) {
+            return
         }
-
-        const getUrl = `${baseUrl.replace(/\/+$/, '')}/pipelines`
-        const headers = {
-            Authorization: await this.authorizationHeader(),
+        if (!this.options().pop) {
+            return
         }
-        const response = await client.fetch(getUrl, {
-            method: 'GET',
-            headers: headers,
-        })
-        if (response.status == 404) {
-            return null
+        if (!this._baseUrl) {
+            await this.reconnect()
         }
-        if (response.status != 200) {
-            const message = await response.text()
-            throw new Error(`Unexpected status ${response.status}: ${message}`)
+        if (this._pipelineId) {
+            return
         }
-        const result = await response.json()
-        const pipelines = Array.isArray(result) ? result : result?.pipelines
-        const pipeline = pipelines?.[0]
-        return pipeline?.id || pipeline?.pipeline_id || null
+        if (!this._pipelineCreatePromise) {
+            this._pipelineCreatePromise = this.startTransientPipeline()
+        }
+        try {
+            this._pipelineId = await this._pipelineCreatePromise
+            this.setTransientPipelinePop()
+        } finally {
+            this._pipelineCreatePromise = null
+        }
     }
 
     private async changeTransientPop(pop: Pop): Promise<void> {
@@ -834,6 +828,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             throw new Error('endpoint not initialized')
         }
         const previousPop = this.options().pop
+        const previousPipeline = this._pipeline
         if (this._pipelineId) {
             await this.deleteTransientPipeline(this._pipelineId)
             this._pipelineId = null
@@ -841,9 +836,10 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         this._pipeline = null
         try {
             this.options().pop = pop
-            await this.getComputeSession()
+            await this.ensureTransientPipelineStarted()
         } catch (error) {
             this.options().pop = previousPop
+            this._pipeline = previousPipeline
             throw error
         }
         if (!this._pipelineId) {

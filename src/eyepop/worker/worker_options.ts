@@ -7,7 +7,8 @@ export enum TransientPopId {
 
 export interface WorkerOptions extends Options {
     /**
-     * TODO: deprecated, support for pop id will be removed in 3.16
+     * @deprecated Pass `pop` for transient sessions or `sessionUuid` for persistent sessions.
+     * Support for pop id will be removed in 3.16.
      */
     popId?: string | TransientPopId | undefined
 
