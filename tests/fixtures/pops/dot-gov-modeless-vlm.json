@@ -1,9 +1,0 @@
-{
-    "components": [
-        {
-            "type": "inference",
-            "ability": "dot-gov-com.find-events.my-sweet-ability:latest",
-            "categoryName": "EXPLODED"
-        }
-    ]
-}

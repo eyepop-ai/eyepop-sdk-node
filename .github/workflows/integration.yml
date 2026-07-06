@@ -60,9 +60,9 @@ jobs:
                     --gpu-expected-class person \
                     --gpu-min-objects 1 \
                     --gpu-min-confidence 0.5 \
-                    --cpu-image tests/fixtures/images/angrykitten.jpg \
-                    --cpu-pop-file tests/fixtures/pops/dot-gov-modeless-vlm.json \
-                    --cpu-expected-class EXPLODED \
+                    --cpu-image tests/test.jpg \
+                    --cpu-pop-file tests/fixtures/pops/localize-objects-modeless.json \
+                    --cpu-expected-class person \
                     --cpu-min-objects 1 \
                     --cpu-min-confidence 0 \
                     --summary-json "$SUMMARY_JSON"
