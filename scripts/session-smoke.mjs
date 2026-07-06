@@ -249,8 +249,8 @@ function scenarioDefinitions(args) {
         },
         {
             name: 'cpu-then-gpu-upgrade',
-            startMode: 'constructor-pop',
-            steps: [cpuStep, gpuStep],
+            startMode: 'reconnect-per-step',
+            steps: [cpuStep, gpuStep, cpuStep],
         },
         {
             name: 'legacy-change-pop',
@@ -574,7 +574,56 @@ async function runScenario(args, sdk, eyepopUrl, scenario) {
             summary.error = firstPredictionSummary.error
         }
 
-        if (!summary.error && scenario.steps.length > 1) {
+        if (!summary.error && scenario.startMode === 'reconnect-per-step' && scenario.steps.length > 1) {
+            for (let stepIndex = 1; stepIndex < scenario.steps.length && !summary.error; stepIndex++) {
+                const step = scenario.steps[stepIndex]
+
+                await withDeadline(endpoint.disconnect(), Date.now() + 30 * 1000, `disconnecting before step ${stepIndex + 1}`)
+                endpoint = null
+
+                const reconnectOptions = {
+                    auth: { apiKey: args.apiKey },
+                    eyepopUrl,
+                    sessionName,
+                    sessionReadyTimeoutSeconds: args.sessionReadyTimeoutSeconds,
+                    pop: buildPop(step, sdk),
+                }
+                endpoint = await withDeadline(
+                    sdk.EyePop.workerEndpoint(reconnectOptions).connect(),
+                    deadline,
+                    `reconnecting for step ${stepIndex + 1} (${step.name})`,
+                )
+
+                const reconnectedSession = await captureSession(endpoint, args, eyepopUrl, preexistingTransientSessionUuids, deadline)
+                summary.session_uuid_preserved = sessionUuid === reconnectedSession.sessionUuid
+                summary.pipeline_id = reconnectedSession.pipelineId
+                summary.session_details = reconnectedSession.details
+
+                if (!summary.session_uuid_preserved) {
+                    summary.error = `Step ${stepIndex + 1}: session UUID changed from ${sessionUuid} to ${reconnectedSession.sessionUuid}`
+                    break
+                }
+
+                const stepPredictions = await collectInference(endpoint, step, deadline)
+                summary.steps.push({
+                    name: step.name,
+                    image: step.image,
+                    image_name: basename(step.image),
+                    pop_file: step.popFile || '',
+                    ability: step.ability,
+                    expected_class: step.expectedClass,
+                    min_objects: step.minObjects,
+                    min_confidence: step.minConfidence,
+                    pipeline_id: reconnectedSession.pipelineId,
+                    ...stepPredictions,
+                })
+                Object.assign(summary, stepPredictions)
+
+                if (stepPredictions.error) {
+                    summary.error = stepPredictions.error
+                }
+            }
+        } else if (!summary.error && scenario.steps.length > 1) {
             const nextStep = scenario.steps[1]
             await withDeadline(endpoint.changePop(buildPop(nextStep, sdk)), deadline, `upgrading pop for ${scenario.name}`)
             const upgradedSession = await captureSession(endpoint, args, eyepopUrl, preexistingTransientSessionUuids, deadline)
