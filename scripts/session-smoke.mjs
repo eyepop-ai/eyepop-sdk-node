@@ -278,7 +278,10 @@ function objectLabel(object) {
 }
 
 function summarizePredictions(predictions, expectedClass, minConfidence) {
-    const objects = predictions.flatMap(prediction => (Array.isArray(prediction.objects) ? prediction.objects : []))
+    const objects = predictions.flatMap(prediction => [
+        ...(Array.isArray(prediction.objects) ? prediction.objects : []),
+        ...(Array.isArray(prediction.classes) ? prediction.classes : []),
+    ])
     const expected = expectedClass.trim().toLowerCase()
     const matches = objects.filter(object => {
         const confidence = object?.confidence ?? 0
