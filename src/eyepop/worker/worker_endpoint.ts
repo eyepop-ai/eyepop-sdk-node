@@ -614,7 +614,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
 
     private static SESSION_DEAD = new Set<SessionStatus>([SessionStatus.ERROR, SessionStatus.FAILED, SessionStatus.STOPPED, SessionStatus.PIPELINE_ERROR, SessionStatus.UNKNOWN])
 
-    private static WAIT_FOR_IS_READY: number = 10 * 60 * 1000
+    private static WAIT_FOR_IS_READY: number = 60 * 1000
     private static CHECK_FOR_IS_READY_INTERVAL: number = 250
 
     private sessionHealthReady(body: string, contentType: string): boolean {
