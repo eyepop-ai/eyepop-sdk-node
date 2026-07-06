@@ -38,6 +38,12 @@ function parseArgs(argv) {
         cpuExpectedClass: process.env.EYEPOP_SMOKE_CPU_EXPECTED_CLASS || 'person',
         cpuMinObjects: Number(process.env.EYEPOP_SMOKE_CPU_MIN_OBJECTS || '1'),
         cpuMinConfidence: Number(process.env.EYEPOP_SMOKE_CPU_MIN_CONFIDENCE || '0'),
+        vlmImage: process.env.EYEPOP_SMOKE_VLM_IMAGE || 'tests/fixtures/images/angrykitten.jpg',
+        vlmPopFile: process.env.EYEPOP_SMOKE_VLM_POP_FILE || 'tests/fixtures/pops/find-kittens-vlm.json',
+        vlmAbility: process.env.EYEPOP_SMOKE_VLM_ABILITY || '',
+        vlmExpectedClass: process.env.EYEPOP_SMOKE_VLM_EXPECTED_CLASS || 'SAW_KITTEN',
+        vlmMinObjects: Number(process.env.EYEPOP_SMOKE_VLM_MIN_OBJECTS || '1'),
+        vlmMinConfidence: Number(process.env.EYEPOP_SMOKE_VLM_MIN_CONFIDENCE || '0'),
         sessionReadyTimeoutSeconds: Number(process.env.EYEPOP_SMOKE_SESSION_READY_TIMEOUT_SECONDS || '60'),
         timeoutSeconds: Number(process.env.EYEPOP_SMOKE_TIMEOUT_SECONDS || '600'),
         summaryJson: process.env.EYEPOP_SMOKE_SUMMARY_JSON || 'session-smoke-summary.json',
@@ -125,6 +131,24 @@ function parseArgs(argv) {
                 break
             case '--cpu-min-confidence':
                 args.cpuMinConfidence = Number(next())
+                break
+            case '--vlm-image':
+                args.vlmImage = next()
+                break
+            case '--vlm-pop-file':
+                args.vlmPopFile = next()
+                break
+            case '--vlm-ability':
+                args.vlmAbility = next()
+                break
+            case '--vlm-expected-class':
+                args.vlmExpectedClass = next()
+                break
+            case '--vlm-min-objects':
+                args.vlmMinObjects = Number(next())
+                break
+            case '--vlm-min-confidence':
+                args.vlmMinConfidence = Number(next())
                 break
             case '--session-ready-timeout-seconds':
                 args.sessionReadyTimeoutSeconds = Number(next())
@@ -236,6 +260,16 @@ function scenarioDefinitions(args) {
         minConfidence: args.cpuMinConfidence,
     }
 
+    const vlmStep = {
+        name: 'vlm-inference',
+        popFile: args.vlmPopFile,
+        ability: args.vlmAbility,
+        expectedClass: args.vlmExpectedClass,
+        image: args.vlmImage,
+        minObjects: args.vlmMinObjects,
+        minConfidence: args.vlmMinConfidence,
+    }
+
     return [
         {
             name: 'gpu-direct',
@@ -246,6 +280,11 @@ function scenarioDefinitions(args) {
             name: 'cpu-direct',
             startMode: 'constructor-pop',
             steps: [cpuStep],
+        },
+        {
+            name: 'vlm-direct',
+            startMode: 'constructor-pop',
+            steps: [vlmStep],
         },
         {
             name: 'cpu-then-gpu-upgrade',
