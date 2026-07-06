@@ -648,6 +648,9 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         this._pipeline = null
         this._pipelineId = this.pipelineIdFromSession(session)
         if (this.options().pop && !this._pipelineId) {
+            this._pipelineId = await this.findTransientPipeline()
+        }
+        if (this.options().pop && !this._pipelineId) {
             this._pipelineId = await this.startTransientPipeline()
         }
         if (this.options().pop) {
@@ -795,6 +798,35 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         }
         const result = await response.json()
         return result['id']
+    }
+
+    private async findTransientPipeline(): Promise<string | null> {
+        const client = this._client
+        const baseUrl = this._baseUrl
+
+        if (client == null || baseUrl == null) {
+            throw new Error('endpoint not initialized')
+        }
+
+        const getUrl = `${baseUrl.replace(/\/+$/, '')}/pipelines`
+        const headers = {
+            Authorization: await this.authorizationHeader(),
+        }
+        const response = await client.fetch(getUrl, {
+            method: 'GET',
+            headers: headers,
+        })
+        if (response.status == 404) {
+            return null
+        }
+        if (response.status != 200) {
+            const message = await response.text()
+            throw new Error(`Unexpected status ${response.status}: ${message}`)
+        }
+        const result = await response.json()
+        const pipelines = Array.isArray(result) ? result : result?.pipelines
+        const pipeline = pipelines?.[0]
+        return pipeline?.id || pipeline?.pipeline_id || null
     }
 
     private async changeTransientPop(pop: Pop): Promise<void> {

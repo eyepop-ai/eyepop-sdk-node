@@ -438,6 +438,12 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
             })
         })
 
+        const listPipelinesRoute = server.get(`/${test_session_uuid}/pipelines`).mockImplementationOnce(ctx => {
+            ctx.status = 200
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify([])
+        })
+
         const startPipelineRoute = server.post(`/${test_session_uuid}/pipelines`).mockImplementationOnce(ctx => {
             ctx.status = 200
             ctx.response.headers['content-type'] = 'application/json'
@@ -462,6 +468,7 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
             const session = await endpoint.session()
             expect(session.pipelineId).toEqual(test_pipeline_id)
             expect(pollSessionRoute).toHaveBeenCalledTimes(0)
+            expect(listPipelinesRoute).toHaveBeenCalledTimes(1)
             expect(startPipelineRoute).toHaveBeenCalledTimes(1)
         } finally {
             await endpoint.disconnect()
@@ -515,6 +522,16 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
             })
         })
 
+        const listPipelinesRoute = server.get(`/${test_session_uuid}/pipelines`).mockImplementationOnce(ctx => {
+            ctx.status = 200
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify([
+                {
+                    id: test_pipeline_id,
+                },
+            ])
+        })
+
         const startPipelineRoute = server.post(`/${test_session_uuid}/pipelines`).mockImplementationOnce(ctx => {
             ctx.status = 200
             ctx.response.headers['content-type'] = 'application/json'
@@ -542,7 +559,8 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
             expect(session.pipelineId).toEqual(test_pipeline_id)
             expect(endpoint.pop()).toEqual(test_transient_pop)
             expect(pollSessionRoute).toHaveBeenCalledTimes(0)
-            expect(startPipelineRoute).toHaveBeenCalledTimes(1)
+            expect(listPipelinesRoute).toHaveBeenCalledTimes(1)
+            expect(startPipelineRoute).toHaveBeenCalledTimes(0)
         } finally {
             await endpoint.disconnect()
             if (connected) {
