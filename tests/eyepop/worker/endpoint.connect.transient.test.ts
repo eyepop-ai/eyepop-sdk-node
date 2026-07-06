@@ -453,7 +453,7 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
         }
     })
 
-    test('EyePopSdk falls back to worker pipeline creation when compute loses constructor pop session', async () => {
+    test('EyePopSdk does not create worker pipeline when compute loses constructor pop session', async () => {
         server.post('/v1/auth/authenticate').mockImplementationOnce(ctx => {
             ctx.status = 200
             ctx.response.headers['content-type'] = 'application/json'
@@ -518,13 +518,9 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
 
         let connected = false
         try {
-            await endpoint.connect()
-            connected = true
-            const session = await endpoint.session()
-            expect(session.pipelineId).toEqual(test_pipeline_id)
-            expect(endpoint.pop()).toEqual(test_transient_pop)
+            await expect(endpoint.connect()).rejects.toThrow()
             expect(pollSessionRoute).toHaveBeenCalledTimes(1)
-            expect(startPipelineRoute).toHaveBeenCalledTimes(1)
+            expect(startPipelineRoute).toHaveBeenCalledTimes(0)
         } finally {
             await endpoint.disconnect()
             if (connected) {
