@@ -205,6 +205,10 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         return (this._options.auth as LocalAuth).isLocal !== undefined ? {} : { Authorization: `Bearer ${session.accessToken}` }
     }
 
+    /**
+     * @deprecated Pop ids are only retained for backwards compatibility.
+     * Configure transient sessions with `WorkerOptions.pop`.
+     */
     public popId(): string | null {
         return this.options().popId || null
     }

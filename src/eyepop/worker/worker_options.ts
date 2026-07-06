@@ -1,6 +1,10 @@
 import { Options } from '../options'
 import type { Pop } from './worker_types'
 
+/**
+ * @deprecated Configure transient sessions with `WorkerOptions.pop`.
+ * Support for pop id will be removed in 3.16.
+ */
 export enum TransientPopId {
     Transient = 'transient',
 }
