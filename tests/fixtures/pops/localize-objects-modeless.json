@@ -1,0 +1,16 @@
+{
+    "components": [
+        {
+            "type": "inference",
+            "ability": "eyepop.localize-objects:latest",
+            "categoryName": "objects",
+            "params": {
+                "prompts": [
+                    {
+                        "prompt": "person"
+                    }
+                ]
+            }
+        }
+    ]
+}

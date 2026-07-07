@@ -9,8 +9,15 @@ export enum PredictionVersion {
 export const DEFAULT_PREDICTION_VERSION: PredictionVersion = PredictionVersion.V2
 
 export interface WorkerSession extends Session {
+    /**
+     * @deprecated Pop ids are only retained for backwards compatibility.
+     * Configure transient sessions with `WorkerOptions.pop`.
+     */
     readonly popId: string
     readonly baseUrl: string | undefined
+    /**
+     * Transient sessions may not have a pipeline until the first source is processed.
+     */
     readonly pipelineId: string | undefined
     authenticationHeaders(): any
 }

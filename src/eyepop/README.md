@@ -56,18 +56,18 @@ For provisioned persistent worker sessions, also set `EYEPOP_SESSION_UUID`.
 import { EyePop } from '@eyepop.ai/eyepop'
 
 ;(async () => {
-    const endpoint = await EyePop.workerEndpoint().connect()
-    try {
-        await endpoint.changePop({
+    const endpoint = await EyePop.workerEndpoint({
+        pop: {
             components: [
                 {
                     type: 'inference',
-                    model: 'eyepop.person:latest',
+                    ability: 'eyepop.person:latest',
                     categoryName: 'person',
                 },
             ],
-        })
-
+        },
+    }).connect()
+    try {
         const results = await endpoint.process({ source: { path: 'examples/example.jpg' } })
         for await (const result of results) {
             console.log(result)
@@ -77,6 +77,8 @@ import { EyePop } from '@eyepop.ai/eyepop'
     }
 })()
 ```
+
+For transient sessions, pass `pop` when creating the endpoint whenever possible. Use `endpoint.changePop(pop)` only when an already connected transient worker needs to switch Pops.
 
 You can also pass the key explicitly from server-side configuration:
 
@@ -133,7 +135,7 @@ Dashboard users can run local browser demos with the current browser session:
                 components: [
                     {
                         type: 'inference',
-                        model: 'eyepop.person:latest',
+                        ability: 'eyepop.person:latest',
                         categoryName: 'person',
                     },
                 ],

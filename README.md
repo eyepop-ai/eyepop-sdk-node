@@ -58,21 +58,23 @@ When `EYEPOP_SESSION_UUID` is set, `EyePop.workerEndpoint()` connects to that pe
 
 ## Configure a Pop
 
-Transient sessions can be configured in code before processing media:
+Transient sessions can be configured when the worker endpoint is created, so EyePop can schedule the right compute before media is processed:
 
 ```javascript
-await endpoint.changePop({
-    components: [
-        {
-            type: 'inference',
-            model: 'eyepop.person:latest',
-            categoryName: 'person',
-        },
-    ],
-})
+const endpoint = await EyePop.workerEndpoint({
+    pop: {
+        components: [
+            {
+                type: 'inference',
+                ability: 'eyepop.person:latest',
+                categoryName: 'person',
+            },
+        ],
+    },
+}).connect()
 ```
 
-Persistent sessions are usually preconfigured. Process media directly unless your deployment is intended to accept runtime Pop changes.
+Use `endpoint.changePop(pop)` when an already connected transient worker needs to switch Pops. Persistent sessions are usually preconfigured; process media directly unless your deployment is intended to accept runtime Pop changes.
 
 ## Module Docs
 
