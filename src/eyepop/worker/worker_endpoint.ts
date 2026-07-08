@@ -745,7 +745,8 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             if (createBody) {
                 request.body = createBody
             }
-            const response = await httpClient.fetch(`${sessionsUrl}?wait=true`, request)
+            const query = this.options().pop ? 'wait=true&transient=true' : 'wait=true'
+            const response = await httpClient.fetch(`${sessionsUrl}?${query}`, request)
             if (response.status != 200) {
                 this.updateState(EndpointState.Error)
                 const message = await response.text()
@@ -760,6 +761,9 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         }
         if (!session) {
             throw new Error('unexpected undefined session')
+        }
+        if (this.options().pop && !this.pipelineIdFromSession(session)) {
+            throw new Error('Compute session did not provide a pipeline for the requested pop')
         }
         return session
     }
@@ -868,6 +872,8 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         }
         const previousPop = this.options().pop
         const previousPipeline = this._pipeline
+        const previousPipelineId = this._pipelineId
+        const previousBaseUrl = this._baseUrl
         if (this._pipelineId) {
             await this.deleteTransientPipeline(this._pipelineId)
             this._pipelineId = null
@@ -875,10 +881,12 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         this._pipeline = null
         try {
             this.options().pop = pop
-            await this.ensureTransientPipelineStarted()
+            await this.getComputeSession()
         } catch (error) {
             this.options().pop = previousPop
             this._pipeline = previousPipeline
+            this._pipelineId = previousPipelineId
+            this._baseUrl = previousBaseUrl
             throw error
         }
         if (!this._pipelineId) {
