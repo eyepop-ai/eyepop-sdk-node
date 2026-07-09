@@ -749,12 +749,28 @@ async function runSmoke(args) {
     }
 
     const started = Date.now()
+    const preexistingTransientSessionUuids = await fetchTransientSessionUuids(args.apiKey, eyepopUrl)
     const summaries = []
     for (const scenario of scenarios) {
-        summaries.push(await runScenario(args, sdk, eyepopUrl, scenario))
+        summaries.push(await runScenario({ ...args, noCleanup: true }, sdk, eyepopUrl, scenario))
+    }
+
+    const suiteCleanup = []
+    if (!args.noCleanup) {
+        const createdSessionUuids = new Set(
+            summaries
+                .map(summary => summary.session_uuid)
+                .filter(sessionUuid => sessionUuid && !preexistingTransientSessionUuids.has(sessionUuid)),
+        )
+        for (const sessionUuid of createdSessionUuids) {
+            suiteCleanup.push({
+                session_uuid: sessionUuid,
+                ...(await deleteTransientSession(args.apiKey, eyepopUrl, sessionUuid)),
+            })
+        }
     }
     return {
-        ok: summaries.every(summary => summary.ok),
+        ok: summaries.every(summary => summary.ok) && suiteCleanup.every(cleanup => cleanup.ok),
         scenario: args.scenario,
         environment: args.environment,
         sdk_module: args.sdkModule,
@@ -762,8 +778,9 @@ async function runSmoke(args) {
         eyepop_url: eyepopUrl,
         session_name: args.sessionName,
         scenarios: summaries,
+        suite_cleanup: suiteCleanup,
         duration_seconds: Math.round((Date.now() - started) / 100) / 10,
-        error: summaries.find(summary => !summary.ok)?.error,
+        error: summaries.find(summary => !summary.ok)?.error || suiteCleanup.find(cleanup => !cleanup.ok)?.error,
     }
 }
 
