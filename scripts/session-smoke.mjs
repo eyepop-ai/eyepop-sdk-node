@@ -763,12 +763,26 @@ async function runSmoke(args) {
                 .filter(sessionUuid => sessionUuid && !preexistingTransientSessionUuids.has(sessionUuid)),
         )
         for (const sessionUuid of createdSessionUuids) {
-            suiteCleanup.push({
-                session_uuid: sessionUuid,
-                ...(await deleteTransientSession(args.apiKey, eyepopUrl, sessionUuid)),
-            })
+            try {
+                suiteCleanup.push({
+                    session_uuid: sessionUuid,
+                    ...(await withDeadline(
+                        deleteTransientSession(args.apiKey, eyepopUrl, sessionUuid),
+                        Date.now() + 30 * 1000,
+                        `deleting transient session ${sessionUuid}`,
+                    )),
+                })
+            } catch (error) {
+                suiteCleanup.push({
+                    session_uuid: sessionUuid,
+                    ok: false,
+                    result: 'error',
+                    error: errorSummary(error),
+                })
+            }
         }
     }
+    const failedCleanup = suiteCleanup.find(cleanup => !cleanup.ok)
     return {
         ok: summaries.every(summary => summary.ok) && suiteCleanup.every(cleanup => cleanup.ok),
         scenario: args.scenario,
@@ -780,7 +794,9 @@ async function runSmoke(args) {
         scenarios: summaries,
         suite_cleanup: suiteCleanup,
         duration_seconds: Math.round((Date.now() - started) / 100) / 10,
-        error: summaries.find(summary => !summary.ok)?.error || suiteCleanup.find(cleanup => !cleanup.ok)?.error,
+        error:
+            summaries.find(summary => !summary.ok)?.error ||
+            (failedCleanup ? failedCleanup.error || failedCleanup.body || `cleanup failed with status ${failedCleanup.status}` : undefined),
     }
 }
 

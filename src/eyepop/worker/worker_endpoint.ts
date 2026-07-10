@@ -723,7 +723,11 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             if (sessions.length > 0) {
                 this._logger.debug(`User has ${sessions.length} sessions, inspecting for usable session`)
                 for (let s of sessions) {
-                    if (!WorkerEndpoint.SESSION_DEAD.has(s.session_status) && !s.persistent) {
+                    if (
+                        !WorkerEndpoint.SESSION_DEAD.has(s.session_status) &&
+                        !s.persistent &&
+                        (!this.options().sessionName || s.session_name === this.options().sessionName)
+                    ) {
                         session = s
                         this._logger.debug(`Use active session ${s.session_uuid} with pipeline ${this.pipelineIdFromSession(s)}`)
                         break
@@ -871,9 +875,9 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             throw new Error('endpoint not initialized')
         }
         const previousPop = this.options().pop
-        const previousPipeline = this._pipeline
-        const previousPipelineId = this._pipelineId
         const previousBaseUrl = this._baseUrl
+        const previousSessionAccessToken = this._sessionAccessToken
+        const previousSessionAccessTokenValidUntil = this._sessionAccessTokenValidUntil
         if (this._pipelineId) {
             await this.deleteTransientPipeline(this._pipelineId)
             this._pipelineId = null
@@ -884,9 +888,11 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             await this.getComputeSession()
         } catch (error) {
             this.options().pop = previousPop
-            this._pipeline = previousPipeline
-            this._pipelineId = previousPipelineId
+            this._pipeline = null
+            this._pipelineId = null
             this._baseUrl = previousBaseUrl
+            this._sessionAccessToken = previousSessionAccessToken
+            this._sessionAccessTokenValidUntil = previousSessionAccessTokenValidUntil
             throw error
         }
         if (!this._pipelineId) {
