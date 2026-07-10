@@ -1,0 +1,42 @@
+name: CI
+
+on:
+    pull_request:
+    push:
+        branches:
+            - main
+
+concurrency:
+    group: ${{ github.workflow }}-${{ github.event.pull_request.head.ref || github.ref_name }}
+    cancel-in-progress: true
+
+permissions:
+    contents: read
+
+jobs:
+    test:
+        runs-on: ubuntu-latest
+        timeout-minutes: 20
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  persist-credentials: false
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+
+            - name: Install dependencies
+              run: npm install
+
+            - name: Build core SDK
+              run: npm --workspace @eyepop.ai/eyepop run build
+
+            - name: Build render package
+              run: npm --workspace @eyepop.ai/eyepop-render-2d run build
+
+            - name: Typecheck React Native package
+              run: npm --workspace @eyepop.ai/react-native-eyepop run typecheck
+
+            - name: Run unit tests
+              run: npx jest --runInBand --testPathIgnorePatterns="<rootDir>/.worktrees"

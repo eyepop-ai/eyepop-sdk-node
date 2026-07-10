@@ -50,7 +50,7 @@ Set `EYEPOP_API_KEY` in your server environment. API keys are secrets and must n
 export EYEPOP_API_KEY=<your_api_key>
 ```
 
-For provisioned persistent worker sessions, also set `EYEPOP_SESSION_UUID`.
+Create transient sessions with a pop when the worker endpoint is constructed. This lets EyePop schedule the right compute before media is processed.
 
 ```typescript
 import { EyePop } from '@eyepop.ai/eyepop'
@@ -79,6 +79,27 @@ import { EyePop } from '@eyepop.ai/eyepop'
 ```
 
 For transient sessions, pass `pop` when creating the endpoint whenever possible. Use `endpoint.changePop(pop)` only when an already connected transient worker needs to switch Pops.
+
+When `sessionUuid` is not provided, the SDK creates compute sessions with `POST /v1/sessions?wait=true&transient=true`.
+
+ModelLess CPU pops use the same constructor-pop path:
+
+```typescript
+const endpoint = await EyePop.workerEndpoint({
+    pop: {
+        components: [
+            {
+                type: 'inference',
+                ability: 'eyepop.localize-objects:latest',
+                categoryName: 'objects',
+                params: {
+                    prompts: [{ prompt: 'person' }],
+                },
+            },
+        ],
+    },
+}).connect()
+```
 
 You can also pass the key explicitly from server-side configuration:
 
@@ -117,6 +138,31 @@ import { EyePop } from '@eyepop.ai/eyepop'
 ```
 
 Persistent sessions are normally preconfigured. In that case, process media directly and do not call `changePop()` unless your deployment is meant to accept runtime Pop changes.
+
+Persistent deployments are created through compute-api or EyePop tooling. For example, a trusted server can create a persistent deployment with an inline pop and then pass the returned `session_uuid` to the SDK:
+
+```shell
+curl -sS -X POST "https://compute.eyepop.ai/v1/deployments?wait=true" \
+  -H "Authorization: Bearer $EYEPOP_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "display_name": "node-modeless-deployment",
+    "pop": {
+      "components": [
+        {
+          "type": "inference",
+          "ability": "eyepop.localize-objects:latest",
+          "categoryName": "objects",
+          "params": {
+            "prompts": [{ "prompt": "person" }]
+          }
+        }
+      ]
+    }
+  }'
+```
+
+The response includes `session_uuid`, `session_status`, `status_url`, and worker access metadata. Poll `status_url` until the deployment reaches `pipeline_ok`, then connect with `sessionUuid`.
 
 ### Browser and Mobile Clients
 
@@ -202,18 +248,18 @@ for await (const result of results) {
 
 ## Endpoint Options
 
-By default, `EyePop.workerEndpoint().connect()` starts a worker when needed and cancels queued jobs on that worker when it connects.
+By default, `EyePop.workerEndpoint({ pop }).connect()` starts a transient worker when needed and cancels queued jobs on that worker when it connects.
 
 Disable worker startup:
 
 ```typescript
-const endpoint = await EyePop.workerEndpoint({ autoStart: false }).connect()
+const endpoint = await EyePop.workerEndpoint({ pop, autoStart: false }).connect()
 ```
 
 Keep pending jobs:
 
 ```typescript
-const endpoint = await EyePop.workerEndpoint({ stopJobs: false }).connect()
+const endpoint = await EyePop.workerEndpoint({ pop, stopJobs: false }).connect()
 ```
 
 ## Visualization

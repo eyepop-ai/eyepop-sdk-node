@@ -179,7 +179,7 @@ export class ComputeSessionClient {
             if (createBody) {
                 request.body = createBody
             }
-            const query = this.options.pop ? 'wait=true&transient=true' : 'wait=true'
+            const query = 'wait=true&transient=true'
             const response = await this.options.httpClient.fetch(`${sessionsUrl}?${query}`, request)
             if (response.status != 200) {
                 const message = await response.text()

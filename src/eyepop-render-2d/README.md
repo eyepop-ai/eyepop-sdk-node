@@ -46,7 +46,17 @@ const example_image_path = 'examples/example.jpg'
 
     context.drawImage(image, 0, 0)
 
-    const endpoint = await EyePop.workerEndpoint().connect()
+    const endpoint = await EyePop.workerEndpoint({
+        pop: {
+            components: [
+                {
+                    type: 'inference',
+                    ability: 'eyepop.person:latest',
+                    categoryName: 'person',
+                },
+            ],
+        },
+    }).connect()
     try {
         let results = await endpoint.process({ source: { path: example_image_path } })
         for await (let result of results) {

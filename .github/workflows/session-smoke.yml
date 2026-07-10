@@ -12,7 +12,7 @@ on:
                 default: production
                 type: environment
             sdk_version:
-                description: 'SDK package to test: latest, source, or an exact version like 3.15.1'
+                description: 'SDK package to test: latest, source, or an exact version like 3.16.0'
                 required: true
                 default: latest
                 type: string

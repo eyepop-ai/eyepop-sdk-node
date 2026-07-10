@@ -16,12 +16,26 @@ export EYEPOP_SESSION_UUID=<your session uuid>
 
 ## In Node
 
+Build the local SDK before running examples that import from `src/eyepop/dist`:
+
+```shell
+npm run build -w @eyepop.ai/eyepop
+```
+
 ```shell
 npx tsx examples/node/pop_demo.ts \
   --pop person \
   --output \
   --localPath examples/example.jpg
 ```
+
+To exercise a CPU ModelLess transient session:
+
+```shell
+npm run demo:cpu-session
+```
+
+This creates a transient staging session with a ModelLess pop, prompts for `person`, processes `examples/example.jpg`, prints the session and pipeline IDs, then deletes the transient session.
 
 ## With Webpack
 

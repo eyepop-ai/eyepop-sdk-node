@@ -18,12 +18,6 @@ Set your EyePop API key in the server environment:
 export EYEPOP_API_KEY=<your_api_key>
 ```
 
-For a provisioned persistent worker session, also set the session UUID:
-
-```shell
-export EYEPOP_SESSION_UUID=<your_session_uuid>
-```
-
 API keys are secrets. Do not put `EYEPOP_API_KEY` in browser bundles, mobile app bundles, or public repositories.
 
 ## Quickstart
@@ -33,11 +27,21 @@ Create `quickstart.mjs`:
 ```javascript
 import { EyePop } from '@eyepop.ai/eyepop'
 
-const endpoint = await EyePop.workerEndpoint().connect()
+const endpoint = await EyePop.workerEndpoint({
+    pop: {
+        components: [
+            {
+                type: 'inference',
+                ability: 'eyepop.person:latest',
+                categoryName: 'person',
+            },
+        ],
+    },
+}).connect()
 
 try {
     const results = await endpoint.process({
-        source: { path: 'sample.mp4' },
+        source: { path: 'examples/example.jpg' },
     })
 
     for await (const result of results) {
@@ -54,7 +58,7 @@ Run it:
 node quickstart.mjs
 ```
 
-When `EYEPOP_SESSION_UUID` is set, `EyePop.workerEndpoint()` connects to that persistent session. Otherwise it creates a transient worker session.
+Passing `pop` up front creates a transient worker session with the requested pipeline already scheduled. SDK-created transient sessions use compute-api with `wait=true&transient=true`.
 
 ## Configure a Pop
 
@@ -75,6 +79,20 @@ const endpoint = await EyePop.workerEndpoint({
 ```
 
 Use `endpoint.changePop(pop)` when an already connected transient worker needs to switch Pops. Persistent sessions are usually preconfigured; process media directly unless your deployment is intended to accept runtime Pop changes.
+
+## Persistent Sessions
+
+For a provisioned persistent worker session, set the session UUID and connect without a transient pop:
+
+```shell
+export EYEPOP_SESSION_UUID=<your_session_uuid>
+```
+
+```javascript
+const endpoint = await EyePop.workerEndpoint().connect()
+```
+
+When `EYEPOP_SESSION_UUID` is set, `EyePop.workerEndpoint()` connects to that persistent session. Persistent deployments are normally created outside the SDK through the compute API or EyePop tooling.
 
 ## Module Docs
 

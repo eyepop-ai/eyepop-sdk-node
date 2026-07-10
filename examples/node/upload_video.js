@@ -53,13 +53,24 @@ function upload_video(video_path, seconds) {
         var endpoint, results, _d, results_1, results_1_1, result, e_1_1;
         return __generator(this, function (_e) {
             switch (_e.label) {
-                case 0: return [4 /*yield*/, eyepop_1.EyePop.workerEndpoint({ logger: logger }).connect()];
+                case 0: return [4 /*yield*/, eyepop_1.EyePop.workerEndpoint({
+                        logger: logger,
+                        pop: {
+                            components: [
+                                {
+                                    type: 'inference',
+                                    ability: 'eyepop.person:latest',
+                                    categoryName: 'person',
+                                },
+                            ],
+                        },
+                    }).connect()];
                 case 1:
                     endpoint = _e.sent();
                     _e.label = 2;
                 case 2:
                     _e.trys.push([2, , 16, 18]);
-                    return [4 /*yield*/, endpoint.process({ path: video_path })];
+                    return [4 /*yield*/, endpoint.process({ source: { path: video_path } })];
                 case 3:
                     results = _e.sent();
                     _e.label = 4;

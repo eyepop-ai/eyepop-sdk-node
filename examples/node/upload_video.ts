@@ -5,7 +5,18 @@ import { pino } from 'pino'
 const logger = pino({ level: 'debug', name: 'eyepop-example' })
 
 async function upload_video(video_path: string, is_streaming: boolean, seconds: number) {
-    const endpoint = await EyePop.workerEndpoint({ logger: logger }).connect()
+    const endpoint = await EyePop.workerEndpoint({
+        logger: logger,
+        pop: {
+            components: [
+                {
+                    type: 'inference',
+                    ability: 'eyepop.person:latest',
+                    categoryName: 'person',
+                },
+            ],
+        },
+    }).connect()
     try {
         const results = await endpoint.process({
             source: {

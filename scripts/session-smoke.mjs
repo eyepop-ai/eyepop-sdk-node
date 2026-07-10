@@ -183,8 +183,8 @@ function requireInputs(args) {
     if (!args.apiKey) {
         throw new Error('Missing EYEPOP_API_KEY')
     }
-    if (!Number.isFinite(args.minObjects) || args.minObjects < 1) {
-        throw new Error('--min-objects must be at least 1')
+    if (!Number.isFinite(args.minObjects) || args.minObjects < 0) {
+        throw new Error('--min-objects must be at least 0')
     }
     if (!Number.isFinite(args.minConfidence) || args.minConfidence < 0 || args.minConfidence > 1) {
         throw new Error('--min-confidence must be between 0.0 and 1.0')
@@ -197,8 +197,8 @@ function requireInputs(args) {
     }
     for (const scenario of selectedScenarioDefinitions(args)) {
         for (const step of scenario.steps) {
-            if (!Number.isFinite(step.minObjects) || step.minObjects < 1) {
-                throw new Error(`${scenario.name} ${step.name} min objects must be at least 1`)
+            if (!Number.isFinite(step.minObjects) || step.minObjects < 0) {
+                throw new Error(`${scenario.name} ${step.name} min objects must be at least 0`)
             }
             if (!Number.isFinite(step.minConfidence) || step.minConfidence < 0 || step.minConfidence > 1) {
                 throw new Error(`${scenario.name} ${step.name} min confidence must be between 0.0 and 1.0`)
@@ -290,6 +290,11 @@ function scenarioDefinitions(args) {
             name: 'cpu-then-gpu-upgrade',
             startMode: 'reconnect-per-step',
             steps: [cpuStep, gpuStep, cpuStep],
+        },
+        {
+            name: 'gpu-then-cpu-downgrade',
+            startMode: 'reconnect-per-step',
+            steps: [gpuStep, cpuStep],
         },
         {
             name: 'legacy-change-pop',
