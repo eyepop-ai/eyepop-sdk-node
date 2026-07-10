@@ -24,7 +24,7 @@ Theses are all the dependencies to add to the application's `package.json`:
 ```json
 {
   "dependencies": {
-    "@eyepop.ai/react-native-eyepop": "1.15.1",
+    "@eyepop.ai/react-native-eyepop": "3.16.0",
     "react-native-canvas": "^0.1.40",
     "react-native-file-access": "^3.1.1",
     "react-native-polyfill-globals": "^3.1.0",
@@ -35,9 +35,9 @@ Theses are all the dependencies to add to the application's `package.json`:
 }
 ```
 
-Use the `EyePop` namespace from `react-native-eyepop` with the identical Api as the original `eyepop` package.
+Use the `EyePop` namespace from `@eyepop.ai/react-native-eyepop` with the identical API as the original `@eyepop.ai/eyepop` package, including `WorkerOptions.pop` for transient ModelLess sessions and `WorkerOptions.sessionUuid` for persistent sessions.
 ```js
-import { EyePop } from 'react-native-eyepop';
+import { EyePop } from '@eyepop.ai/react-native-eyepop';
 
 const endpoint = EyePop.workerEndpoint({
     auth: { session },
