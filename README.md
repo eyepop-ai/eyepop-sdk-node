@@ -58,7 +58,7 @@ Run it:
 node quickstart.mjs
 ```
 
-Passing `pop` up front creates a transient worker session with the requested pipeline already scheduled. SDK-created transient sessions use compute-api with `wait=true&transient=true`.
+Passing `pop` up front creates a transient worker session with the requested pipeline already scheduled. SDK-created sessions use compute-api with `wait=true`; persistent deployments are created separately.
 
 ## Configure a Pop
 

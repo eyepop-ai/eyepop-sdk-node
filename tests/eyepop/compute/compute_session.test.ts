@@ -64,7 +64,7 @@ describe('ComputeSessionClient', () => {
     const authorizationHeader = async () => 'Bearer api-key'
     const readyTimeoutMs = 1000
 
-    test('creates no-pop on-demand sessions as transient sessions', async () => {
+    test('creates no-pop on-demand sessions with wait', async () => {
         const calls: FetchCall[] = []
 
         await new ComputeSessionClient({
@@ -75,10 +75,10 @@ describe('ComputeSessionClient', () => {
         }).resolve()
 
         const createCall = calls.find(call => call.init?.method === 'POST')
-        expect(createCall?.url).toBe(`${computeUrl}/v1/sessions?wait=true&transient=true`)
+        expect(createCall?.url).toBe(`${computeUrl}/v1/sessions?wait=true`)
     })
 
-    test('creates constructor-pop sessions as transient sessions', async () => {
+    test('creates constructor-pop sessions with wait', async () => {
         const calls: FetchCall[] = []
         const pop: Pop = {
             components: [
@@ -100,7 +100,7 @@ describe('ComputeSessionClient', () => {
         }).resolve()
 
         const createCall = calls.find(call => call.init?.method === 'POST')
-        expect(createCall?.url).toBe(`${computeUrl}/v1/sessions?wait=true&transient=true`)
+        expect(createCall?.url).toBe(`${computeUrl}/v1/sessions?wait=true`)
         expect(JSON.parse(String(createCall?.init?.body))).toEqual({ pop })
     })
 })

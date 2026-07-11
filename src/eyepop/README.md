@@ -80,7 +80,7 @@ import { EyePop } from '@eyepop.ai/eyepop'
 
 For transient sessions, pass `pop` when creating the endpoint whenever possible. Use `endpoint.changePop(pop)` only when an already connected transient worker needs to switch Pops.
 
-When `sessionUuid` is not provided, the SDK creates compute sessions with `POST /v1/sessions?wait=true&transient=true`.
+When `sessionUuid` is not provided, the SDK creates compute sessions with `POST /v1/sessions?wait=true`.
 
 ModelLess CPU pops use the same constructor-pop path:
 
