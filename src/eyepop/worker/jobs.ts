@@ -424,15 +424,11 @@ export class UploadGroupJob extends AbstractJob {
         if (this._params.roi) {
             formData.append('roi', new Blob([JSON.stringify(this._params.roi)], { type: 'application/json' }))
         }
-        const fileBlobs = await Promise.all(
-            this._sources.map(async source => {
-                const buffer = await new Response(source.stream).arrayBuffer()
-                return source.mimeType
-                    ? new Blob([buffer], { type: source.mimeType })
-                    : new Blob([buffer])
-            })
-        )
-        for (const fileBlob of fileBlobs) {
+        for (const source of this._sources) {
+            const buffer = await new Response(source.stream).arrayBuffer()
+            const fileBlob = source.mimeType
+                ? new Blob([buffer], { type: source.mimeType })
+                : new Blob([buffer])
             formData.append('file', fileBlob)
         }
         const headers = {
