@@ -14,7 +14,7 @@
  * Environment variables:
  *   EYEPOP_API_KEY             — required
  *   EYEPOP_SESSION_UUID        — use a pre-configured persistent session (skips changePop)
- *   EYEPOP_MULTI_IMAGE_ABILITY — ability to use (default: eyepop.common-objects:latest)
+ *   EYEPOP_MULTI_IMAGE_ABILITY — ability to use (default: eyepop.vlm.image:latest)
  */
 
 import { EyePop, EndpointState, InferenceComponent, Pop } from '@eyepop.ai/eyepop'
