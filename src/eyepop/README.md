@@ -242,8 +242,9 @@ for await (const result of results) {
 
 // In-memory streams (optional parallel MIME types)
 import fs from 'node:fs'
-const stream1 = fs.createReadStream('a.jpg')
-const stream2 = fs.createReadStream('b.jpg')
+import { Readable } from 'node:stream'
+const stream1 = Readable.toWeb(fs.createReadStream('a.jpg'))
+const stream2 = Readable.toWeb(fs.createReadStream('b.jpg'))
 const results = await endpoint.uploadStreamGroup([stream1, stream2], ['image/jpeg', 'image/jpeg'])
 
 // Remote URLs (the server fetches each)
