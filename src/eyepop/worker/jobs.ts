@@ -484,6 +484,9 @@ export class LoadFromGroupJob extends AbstractJob {
         if (this._params.roi) {
             body['roi'] = this._params.roi
         }
+        if (this._params.motionDetect) {
+            Object.assign(body, this._params.motionDetect)
+        }
         const headers = {
             ...session.authenticationHeaders(),
             Accept: 'application/jsonl',
