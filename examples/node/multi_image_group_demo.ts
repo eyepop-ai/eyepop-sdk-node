@@ -17,7 +17,7 @@
  *   EYEPOP_MULTI_IMAGE_ABILITY — ability to use (default: eyepop.vlm.image:latest)
  */
 
-import { EyePop, EndpointState, InferenceComponent, Pop } from '@eyepop.ai/eyepop'
+import { EyePop, EndpointState, InferenceComponent, Pop, WorkerEndpoint } from '@eyepop.ai/eyepop'
 import { pino } from 'pino'
 import process from 'process'
 
@@ -51,13 +51,14 @@ const groupPop: Pop = {
 }
 
 ;(async () => {
-    const endpoint = await EyePop.workerEndpoint({ logger, sessionUuid })
-        .onStateChanged((from: EndpointState, to: EndpointState) => {
-            logger.info('Endpoint state %s -> %s', from, to)
-        })
-        .connect()
-
+    let endpoint: WorkerEndpoint | undefined
     try {
+        endpoint = await EyePop.workerEndpoint({ logger, sessionUuid })
+            .onStateChanged((from: EndpointState, to: EndpointState) => {
+                logger.info('Endpoint state %s -> %s', from, to)
+            })
+            .connect()
+
         if (!sessionUuid) {
             await endpoint.changePop(groupPop)
         }
@@ -72,6 +73,6 @@ const groupPop: Pop = {
     } catch (e) {
         logger.error(e)
     } finally {
-        await endpoint.disconnect()
+        await endpoint?.disconnect()
     }
 })()
