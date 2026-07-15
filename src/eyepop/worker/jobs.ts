@@ -1,5 +1,5 @@
 import { Prediction } from '../types'
-import {Stream, StreamEvent, readableStreamFromString} from '../streaming'
+import {Stream, StreamEvent, readableStreamFromString, MultipartPart, randomMultipartBoundary, encodeMultipartFormData} from '../streaming'
 import {Logger} from 'pino'
 import { ComponentParams, DEFAULT_PREDICTION_VERSION, PredictionVersion, ProcessParams, ResultStream, VideoMode, WorkerSession } from '../worker/worker_types'
 import { HttpClient } from '../options'
@@ -417,28 +417,26 @@ export class UploadGroupJob extends AbstractJob {
         }
         const postUrl = `${session.baseUrl.replace(/\/+$/, '')}/pipelines/${session.pipelineId}/source?${queryParams.toString()}`
 
-        const formData = new FormData()
+        const parts: MultipartPart[] = []
         if (this._params.componentParams) {
-            formData.append('params', new Blob([JSON.stringify(this._params.componentParams)], { type: 'application/json' }))
+            parts.push({ name: 'params', contentType: 'application/json', content: JSON.stringify(this._params.componentParams) })
         }
         if (this._params.roi) {
-            formData.append('roi', new Blob([JSON.stringify(this._params.roi)], { type: 'application/json' }))
+            parts.push({ name: 'roi', contentType: 'application/json', content: JSON.stringify(this._params.roi) })
         }
         for (const source of this._sources) {
-            const buffer = await new Response(source.stream).arrayBuffer()
-            const fileBlob = source.mimeType
-                ? new Blob([buffer], { type: source.mimeType })
-                : new Blob([buffer])
-            formData.append('file', fileBlob)
+            parts.push({ name: 'file', contentType: source.mimeType, content: source.stream })
         }
+        const boundary = randomMultipartBoundary()
         const headers = {
             ...session.authenticationHeaders(),
             Accept: 'application/jsonl',
+            'Content-Type': `multipart/form-data; boundary=${boundary}`,
         }
         return await this._client.fetch(postUrl, {
             headers,
             method: 'POST',
-            body: formData,
+            body: encodeMultipartFormData(parts, boundary),
             signal: this._controller.signal,
             // @ts-ignore
             duplex: 'half',
