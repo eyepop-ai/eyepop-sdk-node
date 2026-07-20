@@ -52,11 +52,10 @@ describe('EyePopSdk endpoint module loadFromGroup', () => {
             expect(ctx.headers['authorization']).toBeDefined()
             expect(ctx.request.query['mode']).toBe('queue')
             expect(ctx.request.query['processing']).toBe('sync')
-            expect(ctx.request.body).toBeDefined()
-            // @ts-ignore
-            expect(ctx.request.body['sourceType']).toBe('GROUP')
-            // @ts-ignore
-            const sources = ctx.request.body['sources']
+            const body = ctx.request.body as Record<string, any>
+            expect(body).toBeDefined()
+            expect(body['sourceType']).toBe('GROUP')
+            const sources = body['sources']
             expect(Array.isArray(sources)).toBe(true)
             expect(sources.length).toBe(3)
             sources.forEach((s: any, i: number) => {
