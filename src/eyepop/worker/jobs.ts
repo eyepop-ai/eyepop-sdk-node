@@ -1,9 +1,9 @@
 import { Prediction } from '../types'
-import {Stream, StreamEvent, readableStreamFromString, MultipartPart, randomMultipartBoundary, encodeMultipartFormData} from '../streaming'
-import {Logger} from 'pino'
+import { Stream, StreamEvent, readableStreamFromString, MultipartPart, randomMultipartBoundary, encodeMultipartFormData } from '../streaming'
+import { Logger } from 'pino'
 import { ComponentParams, DEFAULT_PREDICTION_VERSION, PredictionVersion, ProcessParams, ResultStream, VideoMode, WorkerSession } from '../worker/worker_types'
 import { HttpClient } from '../options'
-import {WebrtcWhip} from "./webrtc_whip";
+import { WebrtcWhip } from './webrtc_whip'
 import { Area } from 'EyePop/data/data_types'
 
 export class AbstractJob implements ResultStream {
@@ -16,7 +16,7 @@ export class AbstractJob implements ResultStream {
 
     protected _client: HttpClient
 
-    protected _requestLogger: Logger;
+    protected _requestLogger: Logger
 
     protected _version: PredictionVersion;
 
@@ -29,12 +29,7 @@ export class AbstractJob implements ResultStream {
         })
     }
 
-    protected constructor(
-        params: ProcessParams,
-        getSession: () => Promise<WorkerSession>,
-        client: HttpClient, requestLogger: Logger,
-        version: PredictionVersion = DEFAULT_PREDICTION_VERSION
-    ) {
+    protected constructor(params: ProcessParams, getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger, version: PredictionVersion = DEFAULT_PREDICTION_VERSION) {
         this._getSession = getSession
         this._params = params
         this._client = client
@@ -47,7 +42,7 @@ export class AbstractJob implements ResultStream {
     }
 
     protected async onEvent(event: StreamEvent): Promise<void> {
-        if (event.type == "error") {
+        if (event.type == 'error') {
             return Promise.reject(`Error event for source ${event.source_id}: ${event.message}`)
         }
         return Promise.resolve()
@@ -85,9 +80,9 @@ export class AbstractJob implements ResultStream {
                             resolve(response.body)
                             break
                         } else {
-                            const text = await response.text();
+                            const text = await response.text()
                             if (text) {
-                                resolve(readableStreamFromString(text));
+                                resolve(readableStreamFromString(text))
                                 break
                             } else {
                                 reject('response body is empty')
@@ -329,13 +324,7 @@ export class UploadJob extends AbstractJob {
 export class LoadFromJob extends AbstractJob {
     private readonly _location: string
 
-    constructor(
-        location: string,
-        params: ProcessParams,
-        getSession: () => Promise<WorkerSession>,
-        client: HttpClient,
-        requestLogger: Logger
-    ) {
+    constructor(location: string, params: ProcessParams, getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger) {
         super(params, getSession, client, requestLogger)
         this._location = location
     }
@@ -389,13 +378,7 @@ export class UploadGroupJob extends AbstractJob {
         return 'uploadGroupJob'
     }
 
-    constructor(
-        sources: UploadSource[],
-        params: ProcessParams,
-        getSession: () => Promise<WorkerSession>,
-        client: HttpClient,
-        requestLogger: Logger,
-    ) {
+    constructor(sources: UploadSource[], params: ProcessParams, getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger) {
         super(params, getSession, client, requestLogger)
         if (sources.length === 0) {
             throw new Error('upload group requires at least one source')
@@ -415,6 +398,11 @@ export class UploadGroupJob extends AbstractJob {
         if (this._version !== undefined) {
             queryParams.set('version', this._version.toString())
         }
+        if (this._params.motionDetect) {
+            for (const [key, value] of Object.entries(this._params.motionDetect)) {
+                queryParams.set(key, value)
+            }
+        }
         const postUrl = `${session.baseUrl.replace(/\/+$/, '')}/pipelines/${session.pipelineId}/source?${queryParams.toString()}`
 
         const parts: MultipartPart[] = []
@@ -423,6 +411,9 @@ export class UploadGroupJob extends AbstractJob {
         }
         if (this._params.roi) {
             parts.push({ name: 'roi', contentType: 'application/json', content: JSON.stringify(this._params.roi) })
+        }
+        if (this._params.fps) {
+            parts.push({ name: 'fps', contentType: 'application/json', content: JSON.stringify(this._params.fps) })
         }
         for (const source of this._sources) {
             parts.push({ name: 'file', contentType: source.mimeType, content: source.stream })
@@ -452,13 +443,7 @@ export class LoadFromGroupJob extends AbstractJob {
         return 'loadFromGroupJob'
     }
 
-    constructor(
-        urls: string[],
-        params: ProcessParams,
-        getSession: () => Promise<WorkerSession>,
-        client: HttpClient,
-        requestLogger: Logger,
-    ) {
+    constructor(urls: string[], params: ProcessParams, getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger) {
         super(params, getSession, client, requestLogger)
         if (urls.length === 0) {
             throw new Error('load from group requires at least one url')
@@ -505,13 +490,7 @@ export class LoadFromGroupJob extends AbstractJob {
 export class LoadFromAssetUuidJob extends AbstractJob {
     private readonly _assetUuid: string
 
-    constructor(
-        assetUuid: string,
-        params: ProcessParams,
-        getSession: () => Promise<WorkerSession>,
-        client: HttpClient,
-        requestLogger: Logger
-    ) {
+    constructor(assetUuid: string, params: ProcessParams, getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger) {
         super(params, getSession, client, requestLogger)
         this._assetUuid = assetUuid
     }
@@ -556,13 +535,7 @@ export class LoadFromAssetUuidJob extends AbstractJob {
 export class LoadMediaStreamJob extends AbstractJob {
     private readonly _mediaStream: MediaStream
 
-    constructor(
-        mediaStream: MediaStream,
-        params: ProcessParams,
-        getSession: () => Promise<WorkerSession>,
-        client: HttpClient,
-        requestLogger: Logger
-    ) {
+    constructor(mediaStream: MediaStream, params: ProcessParams, getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger) {
         super(params, getSession, client, requestLogger)
         this._mediaStream = mediaStream
     }

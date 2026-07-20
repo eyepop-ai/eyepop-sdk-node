@@ -236,13 +236,13 @@ function readableStreamAsyncIterable<T>(stream: any): AsyncIterableIterator<T> {
         },
     }
 }
-export function readableStreamFromString(s: string) : ReadableStream<Uint8Array> {
+export function readableStreamFromString(s: string): ReadableStream<Uint8Array> {
     return new ReadableStream({
         start(controller) {
-            controller.enqueue(Buffer.from(s));
-            controller.close();
-        }
-    });
+            controller.enqueue(Buffer.from(s))
+            controller.close()
+        },
+    })
 }
 
 export type MultipartContent = ReadableStream<Uint8Array> | Blob | BufferSource | string
@@ -264,15 +264,19 @@ function toPartStream(content: Exclude<MultipartContent, string>): ReadableStrea
     if (content instanceof Blob) {
         return content.stream()
     }
-    const bytes = ArrayBuffer.isView(content)
-        ? new Uint8Array(content.buffer, content.byteOffset, content.byteLength)
-        : new Uint8Array(content)
+    const bytes = ArrayBuffer.isView(content) ? new Uint8Array(content.buffer, content.byteOffset, content.byteLength) : new Uint8Array(content)
     return new ReadableStream({
         start(controller) {
             controller.enqueue(bytes)
             controller.close()
-        }
+        },
     })
+}
+
+async function cancelMultipartContent(content: MultipartContent, reason?: unknown): Promise<void> {
+    if (content instanceof ReadableStream) {
+        await content.cancel(reason)
+    }
 }
 
 /**
@@ -318,6 +322,8 @@ export function encodeMultipartFormData(parts: MultipartPart[], boundary: string
         },
         async cancel(reason) {
             await reader?.cancel(reason)
-        }
+            const firstUnstartedPart = reader ? partIndex + 1 : partIndex
+            await Promise.all(parts.slice(firstUnstartedPart).map(part => cancelMultipartContent(part.content, reason)))
+        },
     })
 }

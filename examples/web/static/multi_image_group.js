@@ -18,8 +18,10 @@ let processButton = undefined
 let fileListSpan = undefined
 let timingSpan = undefined
 let resultSpan = undefined
+let sdk = undefined
 
 async function setup() {
+    sdk = window.EyePopSdk || window
     popNameElement = document.getElementById('pop-name')
     connectionStatusElement = document.getElementById('connection-status')
     abilityInput = document.getElementById('ability')
@@ -92,8 +94,9 @@ async function connect(event) {
     }
 
     try {
-        const auth = apiKey ? { apiKey: apiKey } : { oAuth2: true }
-        endpoint = await EyePop.workerEndpoint({
+        const envApiKey = typeof apiKey !== 'undefined' ? apiKey : undefined
+        const auth = envApiKey ? { apiKey: envApiKey } : { oAuth2: true }
+        endpoint = await sdk.EyePop.workerEndpoint({
             auth: auth,
         }).onStateChanged((from, to) => {
             console.log('Endpoint state transition from ' + from + ' to ' + to)
@@ -103,12 +106,14 @@ async function connect(event) {
         })
         await endpoint.connect()
         await endpoint.changePop({
-            components: [{
-                type: PopComponentType.INFERENCE,
-                ability: abilityInput.value,
-            }]
+            components: [
+                {
+                    type: sdk.PopComponentType.INFERENCE,
+                    ability: abilityInput.value,
+                },
+            ],
         })
-        popNameElement.innerHTML = endpoint.popName()
+        popNameElement.textContent = endpoint.popName()
         setConnectionState(ConnectionState.CONNECTED)
     } catch (e) {
         console.error(e)
@@ -136,15 +141,16 @@ async function processGroup(event) {
     }
 
     const startTime = performance.now()
-    timingSpan.innerHTML = '__ms'
+    timingSpan.textContent = '__ms'
     resultSpan.textContent = 'processing'
 
     const mimeTypes = files.map(f => f.type || 'application/octet-stream')
     const results = await endpoint.uploadStreamGroup(files, mimeTypes)
+    resultSpan.textContent = ''
     for await (const result of results) {
-        resultSpan.textContent = JSON.stringify(result, null, 2)
+        resultSpan.textContent += JSON.stringify(result, null, 2) + '\n\n'
     }
-    timingSpan.innerHTML = Math.floor(performance.now() - startTime) + 'ms'
+    timingSpan.textContent = Math.floor(performance.now() - startTime) + 'ms'
 }
 
 document.addEventListener('DOMContentLoaded', async event => {

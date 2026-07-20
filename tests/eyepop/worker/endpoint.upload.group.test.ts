@@ -3,13 +3,16 @@ import { EyePop } from '../../../src/eyepop'
 import { MockServer } from 'jest-mock-server'
 import { describe, expect, test } from '@jest/globals'
 import { v4 as uuidv4 } from 'uuid'
-async function countMultipartFileParts(ctx: any): Promise<number> {
+async function readMultipartBody(ctx: any): Promise<string> {
     const chunks: Buffer[] = []
     for await (const chunk of ctx.req) {
         chunks.push(chunk)
     }
-    const rawBody = Buffer.concat(chunks).toString('utf8')
-    return (rawBody.match(/name="file"/g) ?? []).length
+    return Buffer.concat(chunks).toString('utf8')
+}
+
+function countMultipartParts(rawBody: string, name: string): number {
+    return (rawBody.match(new RegExp(`name="${name}"`, 'g')) ?? []).length
 }
 
 function prepMockServer(server: MockServer, test_pop_id: string, test_pipeline_id: string) {
@@ -61,7 +64,8 @@ describe('EyePopSdk endpoint module uploadGroup', () => {
             expect(ctx.request.query['mode']).toBe('queue')
             expect(ctx.request.query['processing']).toBe('sync')
             expect(ctx.headers['content-type']).toMatch(/multipart\/form-data/)
-            expect(await countMultipartFileParts(ctx)).toBe(2)
+            const rawBody = await readMultipartBody(ctx)
+            expect(countMultipartParts(rawBody, 'file')).toBe(2)
             ctx.status = 200
             ctx.response.headers['content-type'] = 'application/json'
             ctx.body = JSON.stringify({ timestamp: fake_timestamp })
@@ -101,7 +105,11 @@ describe('EyePopSdk endpoint module uploadGroup', () => {
         const uploadRoute = server.post(`/worker/pipelines/${test_pipeline_id}/source`).mockImplementation(async ctx => {
             expect(ctx.headers['authorization']).toBeDefined()
             expect(ctx.headers['content-type']).toMatch(/multipart\/form-data/)
-            expect(await countMultipartFileParts(ctx)).toBe(2)
+            expect(ctx.request.query['motionDetect']).toBe('true')
+            expect(ctx.request.query['motionSensitivity']).toBe('0.5')
+            const rawBody = await readMultipartBody(ctx)
+            expect(countMultipartParts(rawBody, 'file')).toBe(2)
+            expect(countMultipartParts(rawBody, 'fps')).toBe(1)
             ctx.status = 200
             ctx.response.headers['content-type'] = 'application/json'
             ctx.body = JSON.stringify({ timestamp: fake_timestamp })
@@ -118,9 +126,15 @@ describe('EyePopSdk endpoint module uploadGroup', () => {
             expect(authenticationRoute).toHaveBeenCalledTimes(1)
             expect(popConfigRoute).toHaveBeenCalledTimes(1)
 
-            const blob1 = new Blob(['fake-image-data'], )
-            const blob2 = new Blob(['fake-image-data'], )
-            const job = await endpoint.uploadStreamGroup([blob1, blob2], ['image/jpeg', 'image/jpeg'])
+            const blob1 = new Blob(['fake-image-data'])
+            const blob2 = new Blob(['fake-image-data'])
+            const job = await endpoint.uploadStreamGroup([blob1, blob2], ['image/jpeg', 'image/jpeg'], {
+                fps: '1/2',
+                motionDetect: {
+                    motionDetect: true,
+                    motionSensitivity: 0.5,
+                },
+            })
             expect(job).toBeDefined()
             let count = 0
             for await (const prediction of job) {
@@ -157,10 +171,8 @@ describe('EyePopSdk endpoint module uploadGroup', () => {
         })
         try {
             await endpoint.connect()
-            const blob = new Blob(['fake'], )
-            await expect(
-                endpoint.uploadStreamGroup([blob, blob], ['image/jpeg'])
-            ).rejects.toThrow()
+            const blob = new Blob(['fake'])
+            await expect(endpoint.uploadStreamGroup([blob, blob], ['image/jpeg'])).rejects.toThrow()
         } finally {
             await endpoint.disconnect()
         }
