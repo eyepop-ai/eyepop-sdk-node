@@ -229,6 +229,33 @@ const results = await endpoint.process({
 })
 ```
 
+### Image Groups (multiple images, one result)
+
+Send several images as a **single** source that the pop processes **together** as one inference unit — for example a multi-image VLM prompt. The group yields **one** prediction for the whole set, unlike batching below, where each image is an independent inference.
+
+```typescript
+// Local files
+const results = await endpoint.uploadGroup(['a.jpg', 'b.jpg', 'c.jpg'])
+for await (const result of results) {
+    console.log(result)
+}
+
+// In-memory streams (optional parallel MIME types)
+import fs from 'node:fs'
+import { Readable } from 'node:stream'
+const stream1 = Readable.toWeb(fs.createReadStream('a.jpg'))
+const stream2 = Readable.toWeb(fs.createReadStream('b.jpg'))
+const results = await endpoint.uploadStreamGroup([stream1, stream2], ['image/jpeg', 'image/jpeg'])
+
+// Remote URLs (the server fetches each)
+const results = await endpoint.loadFromGroup([
+    'https://example.com/a.jpg',
+    'https://example.com/b.jpg',
+])
+```
+
+Image order is preserved end-to-end. A group may contain **up to 16 images** (enforced server-side). The pop's ability must be multi-image-capable; a single-image ability handed a group returns an error.
+
 ### Canceling Jobs
 
 Queued and in-progress jobs can be cancelled from the result iterator:

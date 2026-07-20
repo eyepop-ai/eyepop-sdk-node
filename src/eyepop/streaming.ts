@@ -1,3 +1,5 @@
+import { v4 as uuidv4 } from 'uuid'
+
 type Bytes = string | ArrayBuffer | Uint8Array | Buffer | null | undefined
 
 export interface StreamEvent {
@@ -234,11 +236,94 @@ function readableStreamAsyncIterable<T>(stream: any): AsyncIterableIterator<T> {
         },
     }
 }
-export function readableStreamFromString(s: string) : ReadableStream<Uint8Array> {
+export function readableStreamFromString(s: string): ReadableStream<Uint8Array> {
     return new ReadableStream({
         start(controller) {
-            controller.enqueue(Buffer.from(s));
-            controller.close();
-        }
-    });
+            controller.enqueue(Buffer.from(s))
+            controller.close()
+        },
+    })
+}
+
+export type MultipartContent = ReadableStream<Uint8Array> | Blob | BufferSource | string
+
+export interface MultipartPart {
+    name: string
+    contentType?: string | null
+    content: MultipartContent
+}
+
+export function randomMultipartBoundary(): string {
+    return `----formdata-boundary-${uuidv4()}`
+}
+
+function toPartStream(content: Exclude<MultipartContent, string>): ReadableStream<Uint8Array> {
+    if (content instanceof ReadableStream) {
+        return content
+    }
+    if (content instanceof Blob) {
+        return content.stream()
+    }
+    const bytes = ArrayBuffer.isView(content) ? new Uint8Array(content.buffer, content.byteOffset, content.byteLength) : new Uint8Array(content)
+    return new ReadableStream({
+        start(controller) {
+            controller.enqueue(bytes)
+            controller.close()
+        },
+    })
+}
+
+async function cancelMultipartContent(content: MultipartContent, reason?: unknown): Promise<void> {
+    if (content instanceof ReadableStream) {
+        await content.cancel(reason)
+    }
+}
+
+/**
+ * Streams a multipart/form-data body part by part, piping each part's bytes through as they
+ * become available instead of buffering any part's full content in memory first.
+ */
+export function encodeMultipartFormData(parts: MultipartPart[], boundary: string): ReadableStream<Uint8Array> {
+    const encoder = new TextEncoder()
+    let partIndex = 0
+    let reader: ReadableStreamDefaultReader<Uint8Array> | null = null
+
+    return new ReadableStream<Uint8Array>({
+        async pull(controller) {
+            if (reader) {
+                const { done, value } = await reader.read()
+                if (!done) {
+                    controller.enqueue(value)
+                    return
+                }
+                reader = null
+                controller.enqueue(encoder.encode('\r\n'))
+                partIndex++
+            }
+            if (partIndex >= parts.length) {
+                controller.enqueue(encoder.encode(`--${boundary}--\r\n`))
+                controller.close()
+                return
+            }
+            const part = parts[partIndex]!
+            let header = `--${boundary}\r\nContent-Disposition: form-data; name="${part.name}"\r\n`
+            if (part.contentType) {
+                header += `Content-Type: ${part.contentType}\r\n`
+            }
+            header += '\r\n'
+            controller.enqueue(encoder.encode(header))
+            if (typeof part.content === 'string') {
+                controller.enqueue(encoder.encode(part.content))
+                controller.enqueue(encoder.encode('\r\n'))
+                partIndex++
+            } else {
+                reader = toPartStream(part.content).getReader()
+            }
+        },
+        async cancel(reason) {
+            await reader?.cancel(reason)
+            const firstUnstartedPart = reader ? partIndex + 1 : partIndex
+            await Promise.all(parts.slice(firstUnstartedPart).map(part => cancelMultipartContent(part.content, reason)))
+        },
+    })
 }

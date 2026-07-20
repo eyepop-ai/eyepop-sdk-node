@@ -64,3 +64,11 @@ open http://localhost:8000/examples/web/static/upload.html
 or
 
 open http://localhost:8000/examples/web/static/ingress.html
+
+or
+
+open http://localhost:8000/examples/web/static/multi_image_group.html
+
+(select two or more image files, then click Process Group to send them as a single image-group inference)
+
+If OAuth2 login isn't set up for your browser session, create an untracked `examples/web/static/env.js` defining `const apiKey = '<your api key>'` to authenticate with an API key instead (same fallback used by `dataset.html`/`modeltest.html`).
