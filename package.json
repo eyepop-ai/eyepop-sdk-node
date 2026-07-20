@@ -13,6 +13,7 @@
     },
     "scripts": {
         "test": "jest",
+        "demo:cpu-session": "node examples/node/cpu_session_demo.mjs",
         "smoke:session": "node scripts/session-smoke.mjs",
         "format": "prettier --write '**/*.{js,ts,json,md}'"
     },

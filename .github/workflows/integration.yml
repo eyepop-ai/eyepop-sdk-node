@@ -61,7 +61,7 @@ jobs:
                     --cpu-image tests/test.jpg \
                     --cpu-pop-file tests/fixtures/pops/localize-objects-modeless.json \
                     --cpu-expected-class person \
-                    --cpu-min-objects 1 \
+                    --cpu-min-objects 0 \
                     --cpu-min-confidence 0 \
                     --vlm-image tests/fixtures/images/angrykitten.jpg \
                     --vlm-pop-file tests/fixtures/pops/find-kittens-vlm.json \

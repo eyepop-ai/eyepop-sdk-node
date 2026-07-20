@@ -1,4 +1,6 @@
-import { ApiKeyAuth, HttpClient, LocalAuth } from '../options'
+import { ApiKeyAuth, LocalAuth } from '../options'
+import { ComputeSessionClient } from '../compute/compute_session'
+import type { ResolvedComputeSession } from '../compute/compute_session'
 import { EndpointState, Session } from '../types'
 import { AbstractJob, LoadFromAssetUuidJob, LoadFromJob, LoadMediaStreamJob, UploadJob } from './jobs'
 import { resolvePath } from '../shims/local_file'
@@ -34,42 +36,6 @@ interface Pipeline {
     state: string
     pop?: Pop
 }
-
-export enum SessionStatus {
-    UNKNOWN = 'unknown',
-    PENDING = 'pending',
-    RUNNING = 'running',
-    STOPPED = 'stopped',
-    FAILED = 'failed',
-    ERROR = 'error',
-
-    PIPELINE_CREATING = 'pipeline_creating',
-    PIPELINE_OK = 'pipeline_ok',
-    PIPELINE_CHECKING = 'pipeline_checking',
-    PIPELINE_ERROR = 'pipeline_error',
-    UPGRADING = 'upgrading',
-}
-
-interface ComputeSession {
-    session_uuid: string
-    session_endpoint: string
-    pipeline_uuid: string
-    access_token?: string
-    access_token_expires_at?: string
-    access_token_expires_in?: number
-    session_status: SessionStatus
-    session_message: string
-    session_name: string
-    user_uuid: string
-    created_at: string
-    uptime: number
-    pipeline_ttl?: number | undefined
-    session_active: boolean
-    persistent?: boolean
-    pipelines?: { id?: string; pipeline_id?: string }[]
-}
-
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
     private _baseUrl: string | null
@@ -616,177 +582,44 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         }
     }
 
-    private static SESSION_DEAD = new Set<SessionStatus>([SessionStatus.ERROR, SessionStatus.FAILED, SessionStatus.STOPPED, SessionStatus.PIPELINE_ERROR, SessionStatus.UNKNOWN])
-
     private static WAIT_FOR_IS_READY: number = 60 * 1000
-    private static CHECK_FOR_IS_READY_INTERVAL: number = 250
 
     private sessionReadyTimeoutMs(): number {
         const seconds = this.options().sessionReadyTimeoutSeconds
         return typeof seconds == 'number' && Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : WorkerEndpoint.WAIT_FOR_IS_READY
     }
 
-    private sessionHealthReady(body: string, contentType: string): boolean {
-        if (contentType.includes('application/json')) {
-            const health = JSON.parse(body)
-            if (health && typeof health == 'object') {
-                if (health.message && !health.session_status) {
-                    return true
-                }
-                return health.session_status == SessionStatus.RUNNING
-            }
-        }
-        return contentType.includes('text/plain') && body.includes("I'm fine")
-    }
-
     private async getComputeSession(): Promise<void> {
         if (!this._client) {
             throw new Error('endpoint not initialized')
         }
-        let session: ComputeSession
-        const sessionUuid = this.options().sessionUuid
-        if (sessionUuid) {
-            session = await this.getPermanentComputeSession(this._client, sessionUuid)
-        } else {
-            session = await this.getOnDemandComputeSession(this._client)
+        let resolved: ResolvedComputeSession
+        try {
+            resolved = await new ComputeSessionClient({
+                computeUrl: this.eyepopUrl(),
+                httpClient: this._client,
+                authorizationHeader: () => this.computeAuthorizationHeader(),
+                sessionUuid: this.options().sessionUuid,
+                sessionName: this.options().sessionName,
+                pipelineImage: this.options().pipelineImage,
+                pipelineVersion: this.options().pipelineVersion,
+                pop: this.options().pop,
+                readyTimeoutMs: this.sessionReadyTimeoutMs(),
+                logger: this._logger,
+                requestLogger: this._requestLogger,
+            }).resolve()
+        } catch (error) {
+            this.updateState(EndpointState.Error)
+            throw error
         }
-        this.setComputeSessionAccessToken(session)
-        const headers = {
-            Authorization: await this.authorizationHeader(),
-        }
-        let isReady: boolean = false
-        const readyTimeoutMs = this.sessionReadyTimeoutMs()
-        const deadline: number = Date.now() + readyTimeoutMs
-        while (!isReady) {
-            const health_url = `${session.session_endpoint}/health`
-            const response = await this._client.fetch(health_url, {
-                headers: {
-                    ...headers,
-                    Accept: 'application/json',
-                },
-            })
-            if (response.status == 200) {
-                const contentType = response.headers.get('content-type') || ''
-                const body = await response.text()
-                try {
-                    isReady = this.sessionHealthReady(body, contentType)
-                } catch (error) {
-                    this._logger.debug(`session ${session.session_uuid} health check returned invalid JSON, wait and poll for update`)
-                }
-                if (!isReady && Date.now() > deadline) {
-                    throw new Error(`Created session ${session.session_uuid} did not become healthy after ${readyTimeoutMs / 1000} seconds`)
-                }
-                if (!isReady) {
-                    this._logger.debug(`session ${session.session_uuid} health check not ready, wait and poll for update`)
-                    await sleep(WorkerEndpoint.CHECK_FOR_IS_READY_INTERVAL)
-                }
-            } else if (Date.now() > deadline) {
-                throw new Error(`Created session ${session.session_uuid} did not become healthy after ${readyTimeoutMs / 1000} seconds`)
-            } else {
-                this._logger.debug(`session ${session.session_uuid} health check status ${response.status}, wait and poll for update`)
-                await sleep(WorkerEndpoint.CHECK_FOR_IS_READY_INTERVAL)
-            }
-        }
-        this._baseUrl = session.session_endpoint
+        this._sessionAccessToken = resolved.accessToken
+        this._sessionAccessTokenValidUntil = resolved.accessTokenValidUntil
+        this._baseUrl = resolved.session.session_endpoint
         this._pipeline = null
-        this._pipelineId = this.pipelineIdFromSession(session)
+        this._pipelineId = resolved.pipelineId
         if (this.options().pop) {
             this.setTransientPipelinePop()
         }
-    }
-
-    private async getOnDemandComputeSession(httpClient: HttpClient): Promise<ComputeSession> {
-        let session: ComputeSession | null = null
-
-        const sessionsUrl = `${this.eyepopUrl()}/v1/sessions`
-        const headers = {
-            Authorization: await this.computeAuthorizationHeader(),
-        }
-        let sessions: ComputeSession[]
-
-        if (!this.options().pop) {
-            this._requestLogger.debug('fetching sessions from: %s', sessionsUrl)
-            const response = await httpClient.fetch(sessionsUrl, {
-                headers: headers,
-            })
-
-            if (response.status == 404) {
-                sessions = []
-            } else if (response.status != 200) {
-                this.updateState(EndpointState.Error)
-                const message = await response.text()
-                throw new Error(`Unexpected status ${response.status} fetching compute sessions: ${message}`)
-            } else {
-                const response_content = await response.json()
-                sessions = response_content as ComputeSession[]
-            }
-            if (sessions.length > 0) {
-                this._logger.debug(`User has ${sessions.length} sessions, inspecting for usable session`)
-                for (let s of sessions) {
-                    if (!WorkerEndpoint.SESSION_DEAD.has(s.session_status) && !s.persistent) {
-                        session = s
-                        this._logger.debug(`Use active session ${s.session_uuid} with pipeline ${this.pipelineIdFromSession(s)}`)
-                        break
-                    }
-                }
-            }
-        }
-        if (!session) {
-            this._requestLogger.debug('creating a new session at: %s', sessionsUrl)
-            const createBody = this.sessionCreateBody()
-            const createHeaders = {
-                ...headers,
-                ...(createBody ? { 'Content-Type': 'application/json' } : {}),
-            }
-            const request: RequestInit = {
-                headers: createHeaders,
-                method: 'POST',
-            }
-            if (createBody) {
-                request.body = createBody
-            }
-            const response = await httpClient.fetch(`${sessionsUrl}?wait=true`, request)
-            if (response.status != 200) {
-                this.updateState(EndpointState.Error)
-                const message = await response.text()
-                throw new Error(`Unexpected status ${response.status} creating a compute session: ${message}`)
-            } else {
-                sessions = (await response.json()) as ComputeSession[]
-            }
-            if (sessions.length == 0) {
-                throw new Error('Unexpected, no compute session after attempt to create one')
-            }
-            session = sessions[0] || null
-        }
-        if (!session) {
-            throw new Error('unexpected undefined session')
-        }
-        return session
-    }
-
-    private async getPermanentComputeSession(httpClient: HttpClient, sessionUuid: string): Promise<ComputeSession> {
-        let session: ComputeSession | null = null
-
-        const sessionUrl = `${this.eyepopUrl()}/v1/sessions/${sessionUuid}`
-        this._requestLogger.debug('fetching session from: %s', sessionUrl)
-        const headers = {
-            Authorization: await this.computeAuthorizationHeader(),
-        }
-        let response = await httpClient.fetch(sessionUrl, {
-            headers: headers,
-        })
-        if (response.status == 404) {
-            this.updateState(EndpointState.Error)
-            throw new Error(`Unexpected status ${response.status} compute sessions ${sessionUuid} not found`)
-        } else if (response.status != 200) {
-            this.updateState(EndpointState.Error)
-            const message = await response.text()
-            throw new Error(`Unexpected status ${response.status} fetching compute sessions: ${message}`)
-        } else {
-            const response_content = await response.json()
-            session = response_content as ComputeSession
-        }
-        return session
     }
 
     private async startTransientPipeline(): Promise<string> {
@@ -851,6 +684,13 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         if (this._pipelineId) {
             return
         }
+        if (this.options().pop) {
+            await this.reconnect()
+            if (!this._pipelineId) {
+                throw new Error('Compute session did not provide a pipeline for the requested pop')
+            }
+            return
+        }
         if (!this._pipelineCreatePromise) {
             this._pipelineCreatePromise = this.startTransientPipeline()
         }
@@ -867,7 +707,9 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             throw new Error('endpoint not initialized')
         }
         const previousPop = this.options().pop
-        const previousPipeline = this._pipeline
+        const previousBaseUrl = this._baseUrl
+        const previousSessionAccessToken = this._sessionAccessToken
+        const previousSessionAccessTokenValidUntil = this._sessionAccessTokenValidUntil
         if (this._pipelineId) {
             await this.deleteTransientPipeline(this._pipelineId)
             this._pipelineId = null
@@ -875,10 +717,14 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         this._pipeline = null
         try {
             this.options().pop = pop
-            await this.ensureTransientPipelineStarted()
+            await this.getComputeSession()
         } catch (error) {
             this.options().pop = previousPop
-            this._pipeline = previousPipeline
+            this._pipeline = null
+            this._pipelineId = null
+            this._baseUrl = previousPop ? null : previousBaseUrl
+            this._sessionAccessToken = previousSessionAccessToken
+            this._sessionAccessTokenValidUntil = previousSessionAccessTokenValidUntil
             throw error
         }
         if (!this._pipelineId) {
@@ -905,14 +751,6 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         }
     }
 
-    private pipelineIdFromSession(session: ComputeSession): string | null {
-        if (session.pipeline_uuid) {
-            return session.pipeline_uuid
-        }
-        const pipeline = session.pipelines?.[0]
-        return pipeline?.id || pipeline?.pipeline_id || null
-    }
-
     protected override async authorizationHeader(): Promise<string> {
         if (this._sessionAccessToken) {
             return `Bearer ${this._sessionAccessToken}`
@@ -930,21 +768,6 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         return super.authorizationHeader()
     }
 
-    private setComputeSessionAccessToken(session: ComputeSession): void {
-        if (!session.access_token) {
-            throw new Error(`Compute session ${session.session_uuid} did not provide an access token`)
-        }
-        this._sessionAccessToken = session.access_token
-        if (session.access_token_expires_at) {
-            const expiresAt = Date.parse(session.access_token_expires_at)
-            this._sessionAccessTokenValidUntil = Number.isNaN(expiresAt) ? null : expiresAt
-        } else if (session.access_token_expires_in) {
-            this._sessionAccessTokenValidUntil = Date.now() + session.access_token_expires_in * 1000
-        } else {
-            this._sessionAccessTokenValidUntil = null
-        }
-    }
-
     private setTransientPipelinePop(): void {
         const pop = this.options().pop
         if (pop && this._pipelineId) {
@@ -957,20 +780,4 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         }
     }
 
-    private sessionCreateBody(): string | undefined {
-        const body: any = {}
-        if (this.options().sessionName) {
-            body.session_name = this.options().sessionName
-        }
-        if (this.options().pipelineImage) {
-            body.pipeline_image = this.options().pipelineImage
-        }
-        if (this.options().pipelineVersion) {
-            body.pipeline_version = this.options().pipelineVersion
-        }
-        if (this.options().pop) {
-            body.pop = this.options().pop
-        }
-        return Object.keys(body).length > 0 ? JSON.stringify(body) : undefined
-    }
 }

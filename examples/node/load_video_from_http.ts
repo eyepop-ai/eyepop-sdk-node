@@ -1,7 +1,17 @@
 import { EyePop } from '../../src/eyepop'
 
 async function load_video_from_url(video_url: string, seconds: number) {
-    const endpoint = await EyePop.workerEndpoint().connect()
+    const endpoint = await EyePop.workerEndpoint({
+        pop: {
+            components: [
+                {
+                    type: 'inference',
+                    ability: 'eyepop.person:latest',
+                    categoryName: 'person',
+                },
+            ],
+        },
+    }).connect()
     try {
         const results = await endpoint.process({source: { url: video_url }})
         for await (let result of results) {

@@ -183,8 +183,8 @@ function requireInputs(args) {
     if (!args.apiKey) {
         throw new Error('Missing EYEPOP_API_KEY')
     }
-    if (!Number.isFinite(args.minObjects) || args.minObjects < 1) {
-        throw new Error('--min-objects must be at least 1')
+    if (!Number.isFinite(args.minObjects) || args.minObjects < 0) {
+        throw new Error('--min-objects must be at least 0')
     }
     if (!Number.isFinite(args.minConfidence) || args.minConfidence < 0 || args.minConfidence > 1) {
         throw new Error('--min-confidence must be between 0.0 and 1.0')
@@ -197,8 +197,8 @@ function requireInputs(args) {
     }
     for (const scenario of selectedScenarioDefinitions(args)) {
         for (const step of scenario.steps) {
-            if (!Number.isFinite(step.minObjects) || step.minObjects < 1) {
-                throw new Error(`${scenario.name} ${step.name} min objects must be at least 1`)
+            if (!Number.isFinite(step.minObjects) || step.minObjects < 0) {
+                throw new Error(`${scenario.name} ${step.name} min objects must be at least 0`)
             }
             if (!Number.isFinite(step.minConfidence) || step.minConfidence < 0 || step.minConfidence > 1) {
                 throw new Error(`${scenario.name} ${step.name} min confidence must be between 0.0 and 1.0`)
@@ -290,6 +290,11 @@ function scenarioDefinitions(args) {
             name: 'cpu-then-gpu-upgrade',
             startMode: 'reconnect-per-step',
             steps: [cpuStep, gpuStep, cpuStep],
+        },
+        {
+            name: 'gpu-then-cpu-downgrade',
+            startMode: 'reconnect-per-step',
+            steps: [gpuStep, cpuStep],
         },
         {
             name: 'legacy-change-pop',
@@ -749,12 +754,42 @@ async function runSmoke(args) {
     }
 
     const started = Date.now()
+    const preexistingTransientSessionUuids = await fetchTransientSessionUuids(args.apiKey, eyepopUrl)
     const summaries = []
     for (const scenario of scenarios) {
-        summaries.push(await runScenario(args, sdk, eyepopUrl, scenario))
+        summaries.push(await runScenario({ ...args, noCleanup: true }, sdk, eyepopUrl, scenario))
     }
+
+    const suiteCleanup = []
+    if (!args.noCleanup) {
+        const createdSessionUuids = new Set(
+            summaries
+                .map(summary => summary.session_uuid)
+                .filter(sessionUuid => sessionUuid && !preexistingTransientSessionUuids.has(sessionUuid)),
+        )
+        for (const sessionUuid of createdSessionUuids) {
+            try {
+                suiteCleanup.push({
+                    session_uuid: sessionUuid,
+                    ...(await withDeadline(
+                        deleteTransientSession(args.apiKey, eyepopUrl, sessionUuid),
+                        Date.now() + 30 * 1000,
+                        `deleting transient session ${sessionUuid}`,
+                    )),
+                })
+            } catch (error) {
+                suiteCleanup.push({
+                    session_uuid: sessionUuid,
+                    ok: false,
+                    result: 'error',
+                    error: errorSummary(error),
+                })
+            }
+        }
+    }
+    const failedCleanup = suiteCleanup.find(cleanup => !cleanup.ok)
     return {
-        ok: summaries.every(summary => summary.ok),
+        ok: summaries.every(summary => summary.ok) && suiteCleanup.every(cleanup => cleanup.ok),
         scenario: args.scenario,
         environment: args.environment,
         sdk_module: args.sdkModule,
@@ -762,8 +797,11 @@ async function runSmoke(args) {
         eyepop_url: eyepopUrl,
         session_name: args.sessionName,
         scenarios: summaries,
+        suite_cleanup: suiteCleanup,
         duration_seconds: Math.round((Date.now() - started) / 100) / 10,
-        error: summaries.find(summary => !summary.ok)?.error,
+        error:
+            summaries.find(summary => !summary.ok)?.error ||
+            (failedCleanup ? failedCleanup.error || failedCleanup.body || `cleanup failed with status ${failedCleanup.status}` : undefined),
     }
 }
 

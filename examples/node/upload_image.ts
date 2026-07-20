@@ -21,6 +21,15 @@ const example_image_path = process.argv[2]
 
     const endpoint = await EyePop.workerEndpoint({
         logger: logger,
+        pop: {
+            components: [
+                {
+                    type: 'inference',
+                    ability: 'eyepop.person:latest',
+                    categoryName: 'person',
+                },
+            ],
+        },
     })
         .onStateChanged((fromState: EndpointState, toState: EndpointState) => {
             logger.info('Endpoint changed state %s -> %s', fromState, toState)
