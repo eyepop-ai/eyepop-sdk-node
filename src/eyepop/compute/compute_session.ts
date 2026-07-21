@@ -33,6 +33,13 @@ export interface ComputeSession {
     session_active: boolean
     persistent?: boolean
     pipelines?: { id?: string; pipeline_id?: string }[]
+    pipeline_error?: ComputeErrorInfo
+}
+
+export interface ComputeErrorInfo {
+    code?: string
+    message?: string
+    details?: string
 }
 
 export interface ResolvedComputeSession {
@@ -111,11 +118,102 @@ function accessTokenValidUntil(session: ComputeSession): number | null {
     return null
 }
 
+function errorInfoMessage(errorInfo: ComputeErrorInfo): string {
+    return [errorInfo.code, errorInfo.message, errorInfo.details].filter((part): part is string => typeof part == 'string' && part.length > 0).join(': ')
+}
+
+function pipelineErrorMessage(session: ComputeSession): string | null {
+    if (session.pipeline_error) {
+        const message = errorInfoMessage(session.pipeline_error)
+        return message ? `Pipeline failed for compute session ${session.session_uuid}: ${message}` : `Pipeline failed for compute session ${session.session_uuid}`
+    }
+    if (session.session_status == SessionStatus.PIPELINE_ERROR) {
+        return `Pipeline failed for compute session ${session.session_uuid}`
+    }
+    return null
+}
+
+async function responseErrorMessage(response: Response): Promise<string> {
+    const contentType = response.headers.get('content-type') || ''
+    if (contentType.includes('application/json')) {
+        try {
+            const parsed = normalizedJsonValue(await response.clone().json())
+            const message = normalizedErrorMessage(parsed)
+            if (message) {
+                return message
+            }
+        } catch (_) {}
+    }
+    const body = await response.text()
+    const message = normalizedErrorMessage(body)
+    return message || body
+}
+
+function normalizedJsonValue(value: unknown): unknown {
+    if (typeof value == 'string') {
+        try {
+            const parsed = JSON.parse(value)
+            return normalizedJsonValue(parsed)
+        } catch (_) {
+            const unescaped = value.replace(/\\"/g, '"')
+            if (unescaped != value) {
+                try {
+                    const parsed = JSON.parse(unescaped)
+                    return normalizedJsonValue(parsed)
+                } catch (_) {}
+            }
+            return value
+        }
+    }
+    return value
+}
+
+async function responseJson<T>(response: Response): Promise<T> {
+    return normalizedJsonValue(await response.json()) as T
+}
+
+function normalizedErrorMessage(value: unknown): string | null {
+    value = normalizedJsonValue(value)
+
+    if (typeof value == 'string') {
+        return value
+    }
+    if (!value || typeof value != 'object') {
+        return null
+    }
+
+    const record = value as Record<string, unknown>
+    const normalizedError = normalizedJsonValue(record['error'])
+    const errorMessage = normalizedErrorMessage(normalizedError) || (typeof normalizedError == 'string' ? normalizedError : null)
+    const message = [record['code'], errorMessage, record['message'], record['details']].filter((part): part is string => typeof part == 'string' && part.length > 0).join(': ')
+    if (message) {
+        return message
+    }
+
+    if (record['pipeline_error']) {
+        return normalizedErrorMessage(record['pipeline_error'])
+    }
+
+    if (normalizedError && typeof normalizedError == 'object') {
+        return normalizedErrorMessage(normalizedError)
+    }
+
+    try {
+        return JSON.stringify(value)
+    } catch (_) {
+        return null
+    }
+}
+
 export class ComputeSessionClient {
     constructor(private readonly options: ComputeSessionClientOptions) {}
 
     public async resolve(): Promise<ResolvedComputeSession> {
         const session = this.options.sessionUuid ? await this.getPermanentComputeSession(this.options.sessionUuid) : await this.getOnDemandComputeSession()
+        const pipelineFailure = pipelineErrorMessage(session)
+        if (pipelineFailure) {
+            throw new Error(pipelineFailure)
+        }
         const accessToken = this.sessionAccessToken(session)
         await this.waitUntilReady(session, accessToken)
         const pipelineId = pipelineIdFromSession(session)
@@ -148,10 +246,10 @@ export class ComputeSessionClient {
             if (response.status == 404) {
                 sessions = []
             } else if (response.status != 200) {
-                const message = await response.text()
+                const message = await responseErrorMessage(response)
                 throw new Error(`Unexpected status ${response.status} fetching compute sessions: ${message}`)
             } else {
-                const response_content = await response.json()
+                const response_content = await responseJson<ComputeSession[]>(response)
                 sessions = response_content as ComputeSession[]
             }
             if (sessions.length > 0) {
@@ -182,10 +280,10 @@ export class ComputeSessionClient {
             const query = 'wait=true'
             const response = await this.options.httpClient.fetch(`${sessionsUrl}?${query}`, request)
             if (response.status != 200) {
-                const message = await response.text()
+                const message = await responseErrorMessage(response)
                 throw new Error(`Unexpected status ${response.status} creating a compute session: ${message}`)
             } else {
-                sessions = (await response.json()) as ComputeSession[]
+                sessions = await responseJson<ComputeSession[]>(response)
             }
             if (sessions.length == 0) {
                 throw new Error('Unexpected, no compute session after attempt to create one')
@@ -194,9 +292,6 @@ export class ComputeSessionClient {
         }
         if (!session) {
             throw new Error('unexpected undefined session')
-        }
-        if (this.options.pop && !pipelineIdFromSession(session)) {
-            throw new Error('Compute session did not provide a pipeline for the requested pop')
         }
         return session
     }
@@ -215,10 +310,10 @@ export class ComputeSessionClient {
         if (response.status == 404) {
             throw new Error(`Unexpected status ${response.status} compute sessions ${sessionUuid} not found`)
         } else if (response.status != 200) {
-            const message = await response.text()
+            const message = await responseErrorMessage(response)
             throw new Error(`Unexpected status ${response.status} fetching compute sessions: ${message}`)
         } else {
-            const response_content = await response.json()
+            const response_content = await responseJson<ComputeSession>(response)
             session = response_content as ComputeSession
         }
         return session

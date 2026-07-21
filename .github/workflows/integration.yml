@@ -65,7 +65,7 @@ jobs:
                     --cpu-min-confidence 0 \
                     --vlm-image tests/fixtures/images/angrykitten.jpg \
                     --vlm-pop-file tests/fixtures/pops/find-kittens-vlm.json \
-                    --vlm-expected-class SAW_KITTEN \
+                    --vlm-expected-class EXPLODED \
                     --vlm-min-objects 1 \
                     --vlm-min-confidence 0 \
                     --summary-json "$SUMMARY_JSON"

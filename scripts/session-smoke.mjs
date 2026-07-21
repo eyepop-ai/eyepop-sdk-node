@@ -41,7 +41,7 @@ function parseArgs(argv) {
         vlmImage: process.env.EYEPOP_SMOKE_VLM_IMAGE || 'tests/fixtures/images/angrykitten.jpg',
         vlmPopFile: process.env.EYEPOP_SMOKE_VLM_POP_FILE || 'tests/fixtures/pops/find-kittens-vlm.json',
         vlmAbility: process.env.EYEPOP_SMOKE_VLM_ABILITY || '',
-        vlmExpectedClass: process.env.EYEPOP_SMOKE_VLM_EXPECTED_CLASS || 'SAW_KITTEN',
+        vlmExpectedClass: process.env.EYEPOP_SMOKE_VLM_EXPECTED_CLASS || 'EXPLODED',
         vlmMinObjects: Number(process.env.EYEPOP_SMOKE_VLM_MIN_OBJECTS || '1'),
         vlmMinConfidence: Number(process.env.EYEPOP_SMOKE_VLM_MIN_CONFIDENCE || '0'),
         sessionReadyTimeoutSeconds: Number(process.env.EYEPOP_SMOKE_SESSION_READY_TIMEOUT_SECONDS || '60'),

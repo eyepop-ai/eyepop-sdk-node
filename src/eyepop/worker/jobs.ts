@@ -6,6 +6,8 @@ import { HttpClient } from '../options'
 import { WebrtcWhip } from './webrtc_whip'
 import { Area } from 'EyePop/data/data_types'
 
+type UploadBody = ReadableStream<Uint8Array> | Blob | BufferSource
+
 export class AbstractJob implements ResultStream {
     protected _getSession: () => Promise<WorkerSession>
 
@@ -115,7 +117,8 @@ export class AbstractJob implements ResultStream {
 }
 
 export class UploadJob extends AbstractJob {
-    private readonly _uploadStream: ReadableStream<Uint8Array> | Blob | BufferSource
+    private readonly _uploadStream: UploadBody
+    private readonly _uploadBodyFactory: (() => Promise<UploadBody>) | undefined
     private readonly _mimeType: string
     private readonly _size: number | undefined
     private readonly _needsFullDuplex: boolean
@@ -125,7 +128,7 @@ export class UploadJob extends AbstractJob {
     }
 
     constructor(
-        stream: ReadableStream<Uint8Array> | Blob | BufferSource,
+        stream: UploadBody,
         mimeType: string,
         size: number | undefined,
         videoMode: VideoMode | undefined,
@@ -133,13 +136,19 @@ export class UploadJob extends AbstractJob {
         getSession: () => Promise<WorkerSession>,
         client: HttpClient,
         requestLogger: Logger,
+        uploadBodyFactory?: () => Promise<UploadBody>,
     ) {
         super(params, getSession, client, requestLogger)
         this._uploadStream = stream
+        this._uploadBodyFactory = uploadBodyFactory
         this._mimeType = mimeType
         this._size = size
         this._videoMode = videoMode
         this._needsFullDuplex = !client.isFullDuplex() && mimeType.startsWith('video/') && videoMode == VideoMode.STREAM
+    }
+
+    private async uploadBody(): Promise<UploadBody> {
+        return this._uploadBodyFactory ? await this._uploadBodyFactory() : this._uploadStream
     }
 
     protected override async onEvent(event: StreamEvent): Promise<void> {
@@ -183,7 +192,7 @@ export class UploadJob extends AbstractJob {
                     const blob = new Blob([JSON.stringify(this._params.fps)], { type: 'application/json' })
                     formData.append('fps', blob)
                 }
-                const fileBlob = await new Response(this._uploadStream).blob()
+                const fileBlob = await new Response(await this.uploadBody()).blob()
                 formData.append('file', fileBlob)
                 const headers = {
                     ...session.authenticationHeaders(),
@@ -211,7 +220,7 @@ export class UploadJob extends AbstractJob {
                 request = this._client.fetch(postUrl, {
                     headers: headers,
                     method: 'POST',
-                    body: this._uploadStream,
+                    body: await this.uploadBody(),
                     signal: this._controller.signal,
                     // @ts-ignore
                     duplex: 'half',
@@ -282,7 +291,7 @@ export class UploadJob extends AbstractJob {
                     const blob = new Blob([JSON.stringify(this._params.fps)], { type: 'application/json' })
                     formData.append('fps', blob)
                 }
-                const fileBlob = await new Response(this._uploadStream).blob()
+                const fileBlob = await new Response(await this.uploadBody()).blob()
                 formData.append('file', fileBlob)
                 const headers = {
                     ...session.authenticationHeaders(),
@@ -310,7 +319,7 @@ export class UploadJob extends AbstractJob {
                 response = await this._client.fetch(postUrl, {
                     headers: headers,
                     method: 'POST',
-                    body: this._uploadStream,
+                    body: await this.uploadBody(),
                     signal: this._controller.signal,
                     // @ts-ignore
                     duplex: 'half',

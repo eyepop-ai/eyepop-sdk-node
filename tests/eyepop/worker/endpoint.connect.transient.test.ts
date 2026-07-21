@@ -92,6 +92,94 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
         }
     })
 
+    test('EyePopSdk connect transient reports compute pipeline errors', async () => {
+        server.get(`/v1/sessions`).mockImplementationOnce(ctx => {
+            ctx.status = 404
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify('no sessions')
+        })
+
+        server.post(`/v1/sessions`).mockImplementationOnce(ctx => {
+            ctx.status = 400
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify({
+                code: 'SESS_007',
+                message: 'Invalid pipeline configuration',
+                details: 'no element "Glasses"',
+            })
+        })
+
+        const endpoint = EyePop.workerEndpoint({
+            eyepopUrl: server.getURL().toString(),
+            popId: test_pop_id,
+            pop: test_transient_pop,
+            auth: { apiKey: test_api_key },
+        })
+
+        await expect(endpoint.connect()).rejects.toThrow('SESS_007: Invalid pipeline configuration: no element "Glasses"')
+    })
+
+    test('EyePopSdk connect transient reports string-wrapped compute pipeline errors', async () => {
+        server.get(`/v1/sessions`).mockImplementationOnce(ctx => {
+            ctx.status = 404
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify('no sessions')
+        })
+
+        server.post(`/v1/sessions`).mockImplementationOnce(ctx => {
+            ctx.status = 400
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify({
+                error: JSON.stringify({
+                    code: 'SESS_007',
+                    message: 'Invalid pipeline configuration',
+                    details: 'no element "Glasses"',
+                }),
+            })
+        })
+
+        const endpoint = EyePop.workerEndpoint({
+            eyepopUrl: server.getURL().toString(),
+            popId: test_pop_id,
+            pop: test_transient_pop,
+            auth: { apiKey: test_api_key },
+        })
+
+        await expect(endpoint.connect()).rejects.toThrow('Unexpected status 400 creating a compute session: SESS_007: Invalid pipeline configuration: no element "Glasses"')
+    })
+
+    test('EyePopSdk connect transient reports session pipeline errors', async () => {
+        server.post(`/v1/sessions`).mockImplementationOnce(ctx => {
+            ctx.status = 200
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify([
+                {
+                    session_uuid: test_session_uuid,
+                    session_endpoint: `${server.getURL().toString()}${test_session_uuid}`,
+                    access_token: test_access_token,
+                    access_token_expires_in: long_token_valid_time,
+                    pipelines: [],
+                    session_status: 'pipeline_error',
+                    session_active: true,
+                    pipeline_error: {
+                        code: 'PIPELINE_001',
+                        message: 'Pipeline failed',
+                        details: 'no element "Glasses"',
+                    },
+                },
+            ])
+        })
+
+        const endpoint = EyePop.workerEndpoint({
+            eyepopUrl: server.getURL().toString(),
+            popId: test_pop_id,
+            pop: test_transient_pop,
+            auth: { apiKey: test_api_key },
+        })
+
+        await expect(endpoint.connect()).rejects.toThrow(`Pipeline failed for compute session ${test_session_uuid}: PIPELINE_001: Pipeline failed: no element "Glasses"`)
+    })
+
     test('EyePopSdk changePop transient', async () => {
         const authenticationRoute = server.post('/v1/auth/authenticate').mockImplementationOnce(ctx => {
             ctx.status = 200
@@ -418,9 +506,7 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
             expect((endpoint as any)._pipelineId).toEqual(initialPipelineId)
             expect((endpoint as any)._sessionAccessToken).toEqual(initialAccessToken)
 
-            await expect(endpoint.changePop(replacementPop)).rejects.toThrow(
-                `Created session ${replacementSessionUuid} did not become healthy after 0.001 seconds`,
-            )
+            await expect(endpoint.changePop(replacementPop)).rejects.toThrow(`Created session ${replacementSessionUuid} did not become healthy after 0.001 seconds`)
 
             expect(endpoint.pop()).toEqual(test_transient_pop)
             expect((endpoint as any)._baseUrl).toBeNull()
