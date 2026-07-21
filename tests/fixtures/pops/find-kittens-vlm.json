@@ -2,8 +2,8 @@
     "components": [
         {
             "type": "inference",
-            "ability": "eyepop-ai-ryan.find-events.find-kittens:latest",
-            "categoryName": "kitten"
+            "ability": "dot-gov-com.find-events.my-sweet-ability:latest",
+            "categoryName": "exploded"
         }
     ]
 }
