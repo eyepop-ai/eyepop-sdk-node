@@ -142,3 +142,19 @@ examples/web/static/env.js
 
 examples/react_native/*/android
 examples/react_native/*/ios
+
+# Agent / planning artifacts — never committed (untracked, kept local)
+HANDOFF.md
+CONTEXT.md
+docs/CONTEXT.md
+docs/CONTEXT-MAP.md
+docs/adr/
+docs/adrs/
+docs/prd/
+docs/prds/
+docs/pdr/
+docs/issues/
+docs/agents/
+docs/superpowers/
+superpowers/
+docs/postmortems/
