@@ -19,8 +19,10 @@ export EYEPOP_SESSION_UUID=<your session uuid>
 Build the local SDK before running examples that import from `src/eyepop/dist`:
 
 ```shell
-npm run build -w @eyepop.ai/eyepop
+npm --workspace @eyepop.ai/eyepop run build
 ```
+
+For the staging SDK integration matrix used by CI, see the local command in `../CONTRIBUTING.md`.
 
 ```shell
 npx tsx examples/node/pop_demo.ts \
