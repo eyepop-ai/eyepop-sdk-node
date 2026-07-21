@@ -183,7 +183,9 @@ function normalizedErrorMessage(value: unknown): string | null {
     }
 
     const record = value as Record<string, unknown>
-    const message = [record['code'], record['error'], record['message'], record['details']].filter((part): part is string => typeof part == 'string' && part.length > 0).join(': ')
+    const normalizedError = normalizedJsonValue(record['error'])
+    const errorMessage = normalizedErrorMessage(normalizedError) || (typeof normalizedError == 'string' ? normalizedError : null)
+    const message = [record['code'], errorMessage, record['message'], record['details']].filter((part): part is string => typeof part == 'string' && part.length > 0).join(': ')
     if (message) {
         return message
     }
@@ -192,8 +194,8 @@ function normalizedErrorMessage(value: unknown): string | null {
         return normalizedErrorMessage(record['pipeline_error'])
     }
 
-    if (record['error'] && typeof record['error'] == 'object') {
-        return normalizedErrorMessage(record['error'])
+    if (normalizedError && typeof normalizedError == 'object') {
+        return normalizedErrorMessage(normalizedError)
     }
 
     try {

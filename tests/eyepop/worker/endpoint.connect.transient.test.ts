@@ -119,6 +119,35 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
         await expect(endpoint.connect()).rejects.toThrow('SESS_007: Invalid pipeline configuration: no element "Glasses"')
     })
 
+    test('EyePopSdk connect transient reports string-wrapped compute pipeline errors', async () => {
+        server.get(`/v1/sessions`).mockImplementationOnce(ctx => {
+            ctx.status = 404
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify('no sessions')
+        })
+
+        server.post(`/v1/sessions`).mockImplementationOnce(ctx => {
+            ctx.status = 400
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify({
+                error: JSON.stringify({
+                    code: 'SESS_007',
+                    message: 'Invalid pipeline configuration',
+                    details: 'no element "Glasses"',
+                }),
+            })
+        })
+
+        const endpoint = EyePop.workerEndpoint({
+            eyepopUrl: server.getURL().toString(),
+            popId: test_pop_id,
+            pop: test_transient_pop,
+            auth: { apiKey: test_api_key },
+        })
+
+        await expect(endpoint.connect()).rejects.toThrow('Unexpected status 400 creating a compute session: SESS_007: Invalid pipeline configuration: no element "Glasses"')
+    })
+
     test('EyePopSdk connect transient reports session pipeline errors', async () => {
         server.post(`/v1/sessions`).mockImplementationOnce(ctx => {
             ctx.status = 200
