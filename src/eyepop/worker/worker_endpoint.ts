@@ -423,11 +423,20 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         await this._limit.acquire()
         try {
             this.updateState()
-            let streamSource
-            if (this._options.platformSupport?.resolvePath) {
-                streamSource = await this._options.platformSupport.resolvePath(source as PathSource, this._logger)
-            } else {
-                streamSource = await resolvePath(source as PathSource, this._logger)
+            const resolveStreamSource = async (): Promise<StreamSource> => {
+                if (this._options.platformSupport?.resolvePath) {
+                    return await this._options.platformSupport.resolvePath(source as PathSource, this._logger)
+                }
+                return await resolvePath(source as PathSource, this._logger)
+            }
+            const streamSource = await resolveStreamSource()
+            let firstStreamPending = true
+            const uploadBodyFactory = async () => {
+                if (firstStreamPending) {
+                    firstStreamPending = false
+                    return streamSource.stream
+                }
+                return (await resolveStreamSource()).stream
             }
             const job = new UploadJob(
                 streamSource.stream,
@@ -440,6 +449,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
                 },
                 this._client,
                 this._requestLogger,
+                uploadBodyFactory,
             )
             return job.start(
                 () => {
