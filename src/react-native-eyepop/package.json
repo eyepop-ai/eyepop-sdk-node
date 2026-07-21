@@ -1,6 +1,6 @@
 {
   "name": "@eyepop.ai/react-native-eyepop",
-  "version": "3.17.0",
+  "version": "3.17.1",
   "description": "The official Typescript library for EyePop.ai's inference API for React Native",
   "source": "./src/index.ts",
   "main": "./lib/commonjs/index.js",
@@ -67,21 +67,21 @@
     "registry": "https://registry.npmjs.org/"
   },
   "dependencies": {
-      "@azure/core-asynciterator-polyfill": "^1.0.2",
-      "@eyepop.ai/eyepop": "3.17.0",
-      "@eyepop.ai/eyepop-render-2d": "3.17.0",
-      "@types/react-native-canvas": "^0.1.14",
-      "buffer": "^6.0.3",
-      "react": "^19.2.0",
-      "react-native": "^0.82.1",
-      "react-native-polyfill-globals": "^3.1.0",
-      "web-streams-polyfill": "^3.3.3"
+    "@azure/core-asynciterator-polyfill": "^1.0.2",
+    "@eyepop.ai/eyepop": "3.17.1",
+    "@eyepop.ai/eyepop-render-2d": "3.17.1",
+    "@types/react-native-canvas": "^0.1.14",
+    "buffer": "^6.0.3",
+    "react": "^19.2.0",
+    "react-native": "^0.82.1",
+    "react-native-polyfill-globals": "^3.1.0",
+    "web-streams-polyfill": "^3.3.3"
   },
   "peerDependencies": {
-      "react-native-canvas": "^0.1.40",
-      "react-native-file-access": "3.1.1",
-      "react-native-tcp-socket": "^6.2.0",
-      "react-native-webrtc": "^124.0.5"
+    "react-native-canvas": "^0.1.40",
+    "react-native-file-access": "3.1.1",
+    "react-native-tcp-socket": "^6.2.0",
+    "react-native-webrtc": "^124.0.5"
   },
   "devDependencies": {
     "@commitlint/config-conventional": "^19.6.0",
