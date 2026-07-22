@@ -17,7 +17,7 @@ reviews:
     auto_incremental_review: false
     drafts: false
     labels:
-      - review-ready
+      - needs-review
       - "!skip-review"
       - "!no-review"
       - "!autorelease: pending"
