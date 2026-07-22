@@ -1,4 +1,6 @@
-import { EyePop, PopComponentType, TransientPopId, Pop } from '../../../src/eyepop'
+import { WorkerEndpoint } from '../../../src/eyepop/worker/worker_endpoint'
+import { TransientPopId, type WorkerOptions } from '../../../src/eyepop/worker/worker_options'
+import { PopComponentType, type Pop } from '../../../src/eyepop/worker/worker_types'
 
 import { MockServer } from 'jest-mock-server'
 import { describe, expect, test } from '@jest/globals'
@@ -26,6 +28,13 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
             },
         ],
     }
+    const workerEndpoint = (opts: WorkerOptions) =>
+        new WorkerEndpoint({
+            ...opts,
+            autoStart: opts.autoStart ?? true,
+            stopJobs: opts.stopJobs ?? true,
+            popId: opts.popId === undefined && opts.sessionUuid === undefined ? TransientPopId.Transient : opts.popId,
+        })
 
     test('EyePopSdk connect transient without a pop does not create an empty pipeline', async () => {
         const authenticationRoute = server.post('/v1/auth/authenticate').mockImplementationOnce(ctx => {
@@ -74,7 +83,7 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
             })
         })
 
-        const endpoint = EyePop.workerEndpoint({
+        const endpoint = workerEndpoint({
             eyepopUrl: server.getURL().toString(),
             popId: test_pop_id,
             auth: { apiKey: test_api_key },
@@ -109,7 +118,7 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
             })
         })
 
-        const endpoint = EyePop.workerEndpoint({
+        const endpoint = workerEndpoint({
             eyepopUrl: server.getURL().toString(),
             popId: test_pop_id,
             pop: test_transient_pop,
@@ -138,7 +147,7 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
             })
         })
 
-        const endpoint = EyePop.workerEndpoint({
+        const endpoint = workerEndpoint({
             eyepopUrl: server.getURL().toString(),
             popId: test_pop_id,
             pop: test_transient_pop,
@@ -170,7 +179,7 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
             ])
         })
 
-        const endpoint = EyePop.workerEndpoint({
+        const endpoint = workerEndpoint({
             eyepopUrl: server.getURL().toString(),
             popId: test_pop_id,
             pop: test_transient_pop,
@@ -254,7 +263,7 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
             ctx.status = 204
         })
 
-        const endpoint = EyePop.workerEndpoint({
+        const endpoint = workerEndpoint({
             eyepopUrl: server.getURL().toString(),
             popId: test_pop_id,
             auth: { apiKey: test_api_key },
@@ -360,7 +369,7 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
             ctx.status = 204
         })
 
-        const endpoint = EyePop.workerEndpoint({
+        const endpoint = workerEndpoint({
             eyepopUrl: server.getURL().toString(),
             popId: test_pop_id,
             auth: { apiKey: test_api_key },
@@ -493,7 +502,7 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
             ctx.status = 204
         })
 
-        const endpoint = EyePop.workerEndpoint({
+        const endpoint = workerEndpoint({
             eyepopUrl: server.getURL().toString(),
             popId: test_pop_id,
             pop: test_transient_pop,
@@ -595,7 +604,7 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
             ctx.status = 204
         })
 
-        const endpoint = EyePop.workerEndpoint({
+        const endpoint = workerEndpoint({
             eyepopUrl: server.getURL().toString(),
             popId: test_pop_id,
             sessionName: 'target-smoke-scenario',
@@ -678,7 +687,7 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
             ctx.status = 204
         })
 
-        const endpoint = EyePop.workerEndpoint({
+        const endpoint = workerEndpoint({
             eyepopUrl: server.getURL().toString(),
             popId: test_pop_id,
             pop: test_transient_pop,
@@ -744,7 +753,7 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
             })
         })
 
-        const endpoint = EyePop.workerEndpoint({
+        const endpoint = workerEndpoint({
             eyepopUrl: server.getURL().toString(),
             popId: test_pop_id,
             pop: test_transient_pop,
@@ -815,7 +824,7 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
             })
         })
 
-        const endpoint = EyePop.workerEndpoint({
+        const endpoint = workerEndpoint({
             eyepopUrl: server.getURL().toString(),
             popId: test_pop_id,
             pop: test_transient_pop,
@@ -892,7 +901,7 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
             })
         })
 
-        const endpoint = EyePop.workerEndpoint({
+        const endpoint = workerEndpoint({
             eyepopUrl: server.getURL().toString(),
             popId: test_pop_id,
             pop: test_transient_pop,

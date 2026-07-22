@@ -13,7 +13,7 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
     /**
      * From https://github.com/MattMorgis/async-stream-generator
      */
-    async function* nodeStreamToIterator(stream: fs.ReadStream) {
+    async function* nodeStreamToIterator(stream: AsyncIterable<Uint8Array>) {
         for await (const chunk of stream) {
             yield chunk
         }
@@ -44,7 +44,7 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
         const filehandle = require('node:fs/promises')
         const fd = await filehandle.open(source.path, 'r')
         const stream = fd.createReadStream()
-        const iterator = nodeStreamToIterator(stream)
+        const iterator = nodeStreamToIterator(stream as AsyncIterable<Uint8Array>)
         const webStream = iteratorToStream(iterator)
 
         const mimeType = source.mimeType? source.mimeType : (mime.lookup(source.path) || 'image/*')

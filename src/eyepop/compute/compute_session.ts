@@ -45,7 +45,7 @@ export interface ComputeErrorInfo {
 export interface ResolvedComputeSession {
     session: ComputeSession
     pipelineId: string | null
-    accessToken: string
+    accessToken: string | null
     accessTokenValidUntil: number | null
 }
 
@@ -214,8 +214,8 @@ export class ComputeSessionClient {
         if (pipelineFailure) {
             throw new Error(pipelineFailure)
         }
-        const accessToken = this.sessionAccessToken(session)
-        await this.waitUntilReady(session, accessToken)
+        const authorizationHeader = await this.sessionAuthorizationHeader(session)
+        await this.waitUntilReady(session, authorizationHeader)
         const pipelineId = pipelineIdFromSession(session)
         if (this.options.pop && !pipelineId) {
             throw new Error('Compute session did not provide a pipeline for the requested pop')
@@ -223,7 +223,7 @@ export class ComputeSessionClient {
         return {
             session,
             pipelineId,
-            accessToken,
+            accessToken: session.access_token || null,
             accessTokenValidUntil: accessTokenValidUntil(session),
         }
     }
@@ -319,21 +319,21 @@ export class ComputeSessionClient {
         return session
     }
 
-    private sessionAccessToken(session: ComputeSession): string {
-        if (!session.access_token) {
-            throw new Error(`Compute session ${session.session_uuid} did not provide an access token`)
+    private async sessionAuthorizationHeader(session: ComputeSession): Promise<string> {
+        if (session.access_token) {
+            return `Bearer ${session.access_token}`
         }
-        return session.access_token
+        return this.options.authorizationHeader()
     }
 
-    private async waitUntilReady(session: ComputeSession, accessToken: string): Promise<void> {
+    private async waitUntilReady(session: ComputeSession, authorizationHeader: string): Promise<void> {
         let isReady: boolean = false
         const deadline: number = Date.now() + this.options.readyTimeoutMs
         while (!isReady) {
             const health_url = `${session.session_endpoint}/health`
             const response = await this.options.httpClient.fetch(health_url, {
                 headers: {
-                    Authorization: `Bearer ${accessToken}`,
+                    Authorization: authorizationHeader,
                     Accept: 'application/json',
                 },
             })
