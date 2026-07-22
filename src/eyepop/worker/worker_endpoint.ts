@@ -1,4 +1,4 @@
-import { LocalAuth, bearerCredential, resolveAuth } from '../options'
+import { LocalAuth, accessTokenCredential, apiKeyCredential, resolveAuth } from '../options'
 import { ComputeSessionClient } from '../compute/compute_session'
 import type { ResolvedComputeSession } from '../compute/compute_session'
 import { EndpointState, Session } from '../types'
@@ -261,18 +261,16 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
                         streamSource = await resolvePath({ path }, this._logger)
                     }
                     return { stream: streamSource.stream, mimeType: streamSource.mimeType }
-                })
+                }),
             )
-            const job = new UploadGroupJob(
-                sources,
-                params,
-                async () => this.session(),
-                this._client,
-                this._requestLogger,
-            )
+            const job = new UploadGroupJob(sources, params, async () => this.session(), this._client, this._requestLogger)
             return job.start(
-                () => { this.jobDone(job) },
-                (statusCode: number) => { this.jobStatus(job, statusCode) },
+                () => {
+                    this.jobDone(job)
+                },
+                (statusCode: number) => {
+                    this.jobStatus(job, statusCode)
+                },
             )
         } catch (e) {
             this._limit.release()
@@ -280,11 +278,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         }
     }
 
-    public async uploadStreamGroup(
-        streams: Array<ReadableStream<Uint8Array> | Blob | BufferSource>,
-        mimeTypes?: string[],
-        params: ProcessParams = {}
-    ): Promise<ResultStream> {
+    public async uploadStreamGroup(streams: Array<ReadableStream<Uint8Array> | Blob | BufferSource>, mimeTypes?: string[], params: ProcessParams = {}): Promise<ResultStream> {
         if (streams.length === 0) {
             throw new Error('upload stream group requires at least one stream')
         }
@@ -301,16 +295,14 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
                 stream,
                 mimeType: mimeTypes?.[i] ?? null,
             }))
-            const job = new UploadGroupJob(
-                sources,
-                params,
-                async () => this.session(),
-                this._client,
-                this._requestLogger,
-            )
+            const job = new UploadGroupJob(sources, params, async () => this.session(), this._client, this._requestLogger)
             return job.start(
-                () => { this.jobDone(job) },
-                (statusCode: number) => { this.jobStatus(job, statusCode) },
+                () => {
+                    this.jobDone(job)
+                },
+                (statusCode: number) => {
+                    this.jobStatus(job, statusCode)
+                },
             )
         } catch (e) {
             this._limit.release()
@@ -328,16 +320,14 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         await this._limit.acquire()
         try {
             this.updateState()
-            const job = new LoadFromGroupJob(
-                urls,
-                params,
-                async () => this.session(),
-                this._client,
-                this._requestLogger,
-            )
+            const job = new LoadFromGroupJob(urls, params, async () => this.session(), this._client, this._requestLogger)
             return job.start(
-                () => { this.jobDone(job) },
-                (statusCode: number) => { this.jobStatus(job, statusCode) },
+                () => {
+                    this.jobDone(job)
+                },
+                (statusCode: number) => {
+                    this.jobStatus(job, statusCode)
+                },
             )
         } catch (e) {
             this._limit.release()
@@ -876,7 +866,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         if ((auth as LocalAuth | undefined)?.isLocal !== undefined) {
             return 'Implicit'
         }
-        const credential = bearerCredential(auth)
+        const credential = apiKeyCredential(auth) ?? accessTokenCredential(auth)
         if (credential !== undefined) {
             return `Bearer ${credential}`
         }
@@ -894,5 +884,4 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             }
         }
     }
-
 }

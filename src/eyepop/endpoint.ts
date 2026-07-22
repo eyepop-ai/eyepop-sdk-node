@@ -1,4 +1,4 @@
-import { Auth0Options, HttpClient, LocalAuth, OAuth2Auth, Options, SessionAuth, bearerCredential, resolveAuth } from './options'
+import { Auth0Options, HttpClient, LocalAuth, OAuth2Auth, Options, SessionAuth, accessTokenCredential, apiKeyCredential, resolveAuth } from './options'
 import { EndpointState, Session } from './types'
 import { createHttpClient } from './shims/http_client'
 import { Semaphore } from './semaphore'
@@ -119,12 +119,12 @@ export class Endpoint<T extends Endpoint<T>> {
         if (auth === undefined) {
             return Promise.reject('cannot connect without defined auth option')
         }
-        const credential = bearerCredential(auth)
         if ((auth as SessionAuth).session !== undefined) {
             this._token = (auth as SessionAuth).session.accessToken
             this._expire_token_time = (auth as SessionAuth).session.validUntil / 1000
         } else if ((auth as OAuth2Auth).oAuth2 !== undefined) {
-        } else if (credential !== undefined) {
+        } else if (accessTokenCredential(auth) !== undefined) {
+        } else if (apiKeyCredential(auth) !== undefined) {
         } else if ((auth as LocalAuth).isLocal !== undefined) {
         } else {
             return Promise.reject('option apiKey/accessToken or environment variable EYEPOP_API_KEY is required')
@@ -236,8 +236,11 @@ export class Endpoint<T extends Endpoint<T>> {
                     const session = await authenticateBrowserSession((auth as OAuth2Auth).oAuth2 as Auth0Options, this._options)
                     this._token = session.accessToken
                     this._expire_token_time = session.validUntil / 1000
+                } else if (accessTokenCredential(auth) !== undefined) {
+                    this._token = accessTokenCredential(auth) as string
+                    this._expire_token_time = Number.MAX_VALUE
                 } else if (this._options.eyepopUrl) {
-                    const credential = bearerCredential(auth)
+                    const credential = apiKeyCredential(auth)
                     if (credential === undefined) {
                         return Promise.reject('no valid auth option')
                     }

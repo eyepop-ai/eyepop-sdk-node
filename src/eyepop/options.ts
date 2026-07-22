@@ -63,13 +63,16 @@ export function resolveAuth(options: Options): Authentication {
     return options.auth
 }
 
-export function bearerCredential(auth: Authentication): string | undefined {
+export function apiKeyCredential(auth: Authentication): string | undefined {
     if (auth === undefined) {
         return undefined
     }
-    const apiKey = (auth as ApiKeyAuth).apiKey
-    if (apiKey !== undefined) {
-        return apiKey
+    return (auth as ApiKeyAuth).apiKey
+}
+
+export function accessTokenCredential(auth: Authentication): string | undefined {
+    if (auth === undefined) {
+        return undefined
     }
     return (auth as AccessTokenAuth).accessToken
 }
