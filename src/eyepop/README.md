@@ -109,6 +109,14 @@ const endpoint = await EyePop.workerEndpoint({
 }).connect()
 ```
 
+`accessToken` is accepted as the same bearer credential shape:
+
+```typescript
+const endpoint = await EyePop.workerEndpoint({
+    auth: { accessToken: process.env.EYEPOP_API_KEY },
+}).connect()
+```
+
 ### Persistent Sessions
 
 If EyePop has provisioned a persistent worker session for your deployment, set `EYEPOP_SESSION_UUID` in the trusted server environment or pass `sessionUuid` explicitly.

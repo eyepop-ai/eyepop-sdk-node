@@ -1,4 +1,4 @@
-import { Auth0Options, HttpClient, LocalAuth, OAuth2Auth, Options, ApiKeyAuth, SessionAuth } from './options'
+import { Auth0Options, HttpClient, LocalAuth, OAuth2Auth, Options, SessionAuth, bearerCredential } from './options'
 import { EndpointState, Session } from './types'
 import { createHttpClient } from './shims/http_client'
 import { Semaphore } from './semaphore'
@@ -118,14 +118,15 @@ export class Endpoint<T extends Endpoint<T>> {
         if (this._options.auth === undefined) {
             return Promise.reject('cannot connect without defined auth option')
         }
+        const credential = bearerCredential(this._options.auth)
         if ((this._options.auth as SessionAuth).session !== undefined) {
             this._token = (this._options.auth as SessionAuth).session.accessToken
             this._expire_token_time = (this._options.auth as SessionAuth).session.validUntil / 1000
         } else if ((this._options.auth as OAuth2Auth).oAuth2 !== undefined) {
-        } else if ((this._options.auth as ApiKeyAuth).apiKey !== undefined) {
+        } else if (credential !== undefined) {
         } else if ((this._options.auth as LocalAuth).isLocal !== undefined) {
         } else {
-            return Promise.reject('option apiKey or environment variable EYEPOP_API_KEY is required')
+            return Promise.reject('option apiKey/accessToken or environment variable EYEPOP_API_KEY is required')
         }
 
         if (this._options.platformSupport?.createHttpClient !== undefined) {
@@ -233,8 +234,12 @@ export class Endpoint<T extends Endpoint<T>> {
                     const session = await authenticateBrowserSession((this._options.auth as OAuth2Auth).oAuth2 as Auth0Options, this._options)
                     this._token = session.accessToken
                     this._expire_token_time = session.validUntil / 1000
-                } else if ((this._options.auth as ApiKeyAuth).apiKey !== undefined && this._options.eyepopUrl) {
-                    const headers = { 'Authorization': `Bearer ${(this._options.auth as ApiKeyAuth).apiKey}` }
+                } else if (this._options.eyepopUrl) {
+                    const credential = bearerCredential(this._options.auth)
+                    if (credential === undefined) {
+                        return Promise.reject('no valid auth option')
+                    }
+                    const headers = { 'Authorization': `Bearer ${credential}` }
                     const post_url = `${this.eyepopUrl()}/v1/auth/authenticate`
                     const response = await this._client.fetch(post_url, {
                         method: 'POST',

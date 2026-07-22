@@ -1,4 +1,4 @@
-import { ApiKeyAuth, LocalAuth, OAuth2Auth, Options, SessionAuth } from './options'
+import { AccessTokenAuth, ApiKeyAuth, LocalAuth, OAuth2Auth, Options, SessionAuth } from './options'
 
 import { WorkerEndpoint } from './worker/worker_endpoint'
 import { DataEndpoint } from './data/data_endpoint'
@@ -125,7 +125,7 @@ export {
     DEFAULT_PREDICTION_VERSION,
 } from './worker/worker_types'
 
-export { Options, Authentication, SessionAuth, ApiKeyAuth, OAuth2Auth, Auth0Options, HttpClient, PlatformSupport, LocalAuth } from './options'
+export { Options, Authentication, SessionAuth, ApiKeyAuth, AccessTokenAuth, OAuth2Auth, Auth0Options, HttpClient, PlatformSupport, LocalAuth } from './options'
 
 export { DataOptions } from './data/data_options'
 

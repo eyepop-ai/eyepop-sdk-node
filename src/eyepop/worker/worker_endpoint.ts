@@ -1,4 +1,4 @@
-import { ApiKeyAuth, LocalAuth } from '../options'
+import { LocalAuth, bearerCredential } from '../options'
 import { ComputeSessionClient } from '../compute/compute_session'
 import type { ResolvedComputeSession } from '../compute/compute_session'
 import { EndpointState, Session } from '../types'
@@ -875,8 +875,9 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         if ((this.options().auth as LocalAuth).isLocal !== undefined) {
             return 'Implicit'
         }
-        if ((this.options().auth as ApiKeyAuth).apiKey !== undefined) {
-            return `Bearer ${(this.options().auth as ApiKeyAuth).apiKey}`
+        const credential = bearerCredential(this.options().auth)
+        if (credential !== undefined) {
+            return `Bearer ${credential}`
         }
         return super.authorizationHeader()
     }

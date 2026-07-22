@@ -17,6 +17,13 @@ export interface ApiKeyAuth {
     apiKey: string
 }
 
+export interface AccessTokenAuth {
+    /**
+     * Bearer token accepted by the compute API.
+     */
+    accessToken: string
+}
+
 export interface SessionAuth {
     /**
      * Temporary authentication token for client side execution.
@@ -38,7 +45,18 @@ export interface LocalAuth {
     isLocal: true
 }
 
-export type Authentication = undefined | ApiKeyAuth | SessionAuth | OAuth2Auth | LocalAuth
+export type Authentication = undefined | ApiKeyAuth | AccessTokenAuth | SessionAuth | OAuth2Auth | LocalAuth
+
+export function bearerCredential(auth: Authentication): string | undefined {
+    if (auth === undefined) {
+        return undefined
+    }
+    const apiKey = (auth as ApiKeyAuth).apiKey
+    if (apiKey !== undefined) {
+        return apiKey
+    }
+    return (auth as AccessTokenAuth).accessToken
+}
 
 export interface HttpClient {
     fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response>
