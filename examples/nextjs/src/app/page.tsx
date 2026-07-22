@@ -30,7 +30,7 @@ export default function Home() {
             const session = await sessionResponse.json()
 
             endpointRef.current = EyePop.workerEndpoint({
-                auth: { session },
+                session,
             })
             await endpointRef.current.connect()
 

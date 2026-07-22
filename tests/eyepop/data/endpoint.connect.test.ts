@@ -44,13 +44,41 @@ describe('EyePopSdk endpoint module auth and connect', () => {
         const endpoint = EyePop.dataEndpoint({
             eyepopUrl: server.getURL().toString(),
             accountId: test_account_id,
-            auth: { apiKey: test_api_key },
+            apiKey: test_api_key,
             disableWs: true,
         })
         expect(endpoint).toBeDefined()
         try {
             await endpoint.connect()
             expect(authenticationRoute).toHaveBeenCalledTimes(1)
+            expect(dataConfigRoute).toHaveBeenCalledTimes(1)
+        } finally {
+            await endpoint.disconnect()
+        }
+    })
+
+    test('EyePopSdk connect uses accessToken directly', async () => {
+        const authenticationRoute = server.post('/v1/auth/authenticate').mockImplementationOnce(ctx => {
+            ctx.status = 500
+        })
+
+        const dataConfigRoute = server.get(`/v1/configs`).mockImplementationOnce(ctx => {
+            expect(ctx.headers.authorization).toBe(`Bearer ${test_access_token}`)
+            ctx.status = 200
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify({ dataset_api_url: `${server.getURL()}data/` })
+        })
+
+        const endpoint = EyePop.dataEndpoint({
+            eyepopUrl: server.getURL().toString(),
+            accountId: test_account_id,
+            accessToken: test_access_token,
+            disableWs: true,
+        })
+        expect(endpoint).toBeDefined()
+        try {
+            await endpoint.connect()
+            expect(authenticationRoute).toHaveBeenCalledTimes(0)
             expect(dataConfigRoute).toHaveBeenCalledTimes(1)
         } finally {
             await endpoint.disconnect()

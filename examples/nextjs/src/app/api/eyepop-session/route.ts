@@ -8,7 +8,7 @@ export async function GET() {
     }
 
     const endpoint = await EyePop.workerEndpoint({
-        auth: { apiKey },
+        apiKey,
     }).connect()
 
     try {

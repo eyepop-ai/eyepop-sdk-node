@@ -64,6 +64,48 @@ describe('EyePopSdk endpoint module auth and connect', () => {
         }
     })
 
+    test('EyePopSdk connect uses accessToken directly', async () => {
+        const authenticationRoute = server.post('/v1/auth/authenticate').mockImplementationOnce(ctx => {
+            ctx.status = 500
+        })
+
+        const popConfigRoute = server.get(`/pops/${test_pop_id}/config`).mockImplementationOnce(ctx => {
+            expect(ctx.headers.authorization).toBe(`Bearer ${test_access_token}`)
+            ctx.status = 200
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify({ base_url: `${server.getURL()}worker/`, pipeline_id: test_pipeline_id })
+        })
+
+        const stopRoute = server.patch(`/worker/pipelines/${test_pipeline_id}/source`).mockImplementationOnce(ctx => {
+            ctx.status = 204
+        })
+
+        const getPipelineRoute = server.get(`/worker/pipelines/${test_pipeline_id}`).mockImplementationOnce(ctx => {
+            expect(ctx.headers.authorization).toBe(`Bearer ${test_access_token}`)
+            ctx.status = 200
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify({
+                id: test_pipeline_id,
+            })
+        })
+
+        const endpoint = EyePop.workerEndpoint({
+            eyepopUrl: server.getURL().toString(),
+            popId: test_pop_id,
+            accessToken: test_access_token,
+        })
+        expect(endpoint).toBeDefined()
+        try {
+            await endpoint.connect()
+            expect(authenticationRoute).toHaveBeenCalledTimes(0)
+            expect(popConfigRoute).toHaveBeenCalledTimes(1)
+            expect(stopRoute).toHaveBeenCalledTimes(1)
+            expect(getPipelineRoute).toHaveBeenCalledTimes(1)
+        } finally {
+            await endpoint.disconnect()
+        }
+    })
+
     test('EyePopSdk reuse token', async () => {
         const test_pop_id = uuidv4()
         const test_pipeline_id = uuidv4()
@@ -293,7 +335,7 @@ describe('EyePopSdk endpoint module auth and connect', () => {
             eyepopUrl: server.getURL().toString(),
             popId: test_pop_id,
             stopJobs: false,
-            auth: { session: session },
+            session,
         })
         expect(endpoint2).toBeDefined()
 

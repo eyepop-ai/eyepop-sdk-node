@@ -1,4 +1,4 @@
-import { SessionAuth } from '../options'
+import { SessionAuth, resolveAuth } from '../options'
 import { EndpointState } from '../types'
 import { createWebSocket } from '../shims/websockets'
 import { Endpoint } from '../endpoint'
@@ -92,8 +92,8 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         this._accountId = options.accountId || null
         this._account_event_handlers = []
         this._dataset_uuid_to_event_handlers = new Map<string, OnChangeEvent[]>()
-        const sessionAuth: SessionAuth = options.auth as SessionAuth
-        if (sessionAuth.session !== undefined) {
+        const sessionAuth = resolveAuth(options) as SessionAuth | undefined
+        if (sessionAuth?.session !== undefined) {
             const dataSession = sessionAuth.session as DataSession
             if (dataSession.accountId) {
                 this._accountId = dataSession.accountId

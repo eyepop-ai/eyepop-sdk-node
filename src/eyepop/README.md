@@ -54,7 +54,6 @@ Create transient sessions with a pop when the worker endpoint is constructed. Th
 
 ```typescript
 import { EyePop } from '@eyepop.ai/eyepop'
-
 ;(async () => {
     const endpoint = await EyePop.workerEndpoint({
         pop: {
@@ -105,9 +104,19 @@ You can also pass the key explicitly from server-side configuration:
 
 ```typescript
 const endpoint = await EyePop.workerEndpoint({
-    auth: { apiKey: process.env.EYEPOP_API_KEY },
+    apiKey: process.env.EYEPOP_API_KEY,
 }).connect()
 ```
+
+`accessToken` is accepted as the same bearer credential shape:
+
+```typescript
+const endpoint = await EyePop.workerEndpoint({
+    accessToken: process.env.EYEPOP_ACCESS_TOKEN,
+}).connect()
+```
+
+The nested `auth` option is still supported but deprecated. Pass `apiKey`, `accessToken`, `session`, or `oAuth2` at the top level for new code.
 
 ### Persistent Sessions
 
@@ -120,7 +129,6 @@ export EYEPOP_SESSION_UUID=<your_session_uuid>
 
 ```typescript
 import { EyePop } from '@eyepop.ai/eyepop'
-
 ;(async () => {
     const endpoint = await EyePop.workerEndpoint({
         sessionUuid: process.env.EYEPOP_SESSION_UUID,
@@ -175,7 +183,7 @@ Dashboard users can run local browser demos with the current browser session:
 ```html
 <script>
     document.addEventListener('DOMContentLoaded', async () => {
-        const endpoint = await EyePop.workerEndpoint({ auth: { oAuth2: true } }).connect()
+        const endpoint = await EyePop.workerEndpoint({ oAuth2: true }).connect()
         try {
             await endpoint.changePop({
                 components: [
@@ -248,10 +256,7 @@ const stream2 = Readable.toWeb(fs.createReadStream('b.jpg'))
 const results = await endpoint.uploadStreamGroup([stream1, stream2], ['image/jpeg', 'image/jpeg'])
 
 // Remote URLs (the server fetches each)
-const results = await endpoint.loadFromGroup([
-    'https://example.com/a.jpg',
-    'https://example.com/b.jpg',
-])
+const results = await endpoint.loadFromGroup(['https://example.com/a.jpg', 'https://example.com/b.jpg'])
 ```
 
 Image order is preserved end-to-end. A group may contain **up to 16 images** (enforced server-side). The pop's ability must be multi-image-capable; a single-image ability handed a group returns an error.
