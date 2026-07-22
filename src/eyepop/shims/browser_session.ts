@@ -1,7 +1,6 @@
 import { Session } from '../types'
 import { Auth0Options, Options } from '../options'
 import { createAuth0Client } from '@auth0/auth0-spa-js'
-import { Auth0ClientOptions } from '@auth0/auth0-spa-js/src/global'
 import { WorkerOptions, WorkerSession } from '../index'
 
 export let authenticateBrowserSession: (auth0: Auth0Options, options: Options) => Promise<Session>
@@ -11,7 +10,7 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
         if (options.eyepopUrl == null) {
             return Promise.reject('options.eyepopUrl cannot be null')
         }
-        const auth0ClientOptions: Auth0ClientOptions = {
+        const auth0ClientOptions = {
             clientId: auth0.clientId,
             domain: auth0.domain,
             authorizationParams: {

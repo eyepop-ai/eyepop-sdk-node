@@ -2,20 +2,19 @@ import { describe, expect, test } from '@jest/globals'
 
 import { ComputeSessionClient, SessionStatus } from '../../../src/eyepop/compute/compute_session'
 import type { HttpClient } from '../../../src/eyepop/options'
-import { PopComponentType, type Pop } from '../../../src/eyepop'
+import { PopComponentType, type Pop } from '../../../src/eyepop/worker/worker_types'
 
 const computeUrl = 'https://compute.example.test'
 const sessionEndpoint = 'https://worker.example.test/session'
 const accessToken = 'session-token'
 
-function sessionResponse(pipelineId?: string) {
+function sessionResponse(pipelineId?: string, includeAccessToken = true) {
     return [
         {
             session_uuid: 'session-uuid',
             session_endpoint: sessionEndpoint,
             pipeline_uuid: pipelineId || '',
-            access_token: accessToken,
-            access_token_expires_in: 60,
+            ...(includeAccessToken ? { access_token: accessToken, access_token_expires_in: 60 } : {}),
             session_status: SessionStatus.RUNNING,
             session_message: '',
             session_name: 'node-sdk-test',
@@ -31,7 +30,7 @@ function sessionResponse(pipelineId?: string) {
 
 type FetchCall = { url: string; init: RequestInit | undefined }
 
-function createHttpClient(calls: FetchCall[], pipelineId?: string): HttpClient {
+function createHttpClient(calls: FetchCall[], pipelineId?: string, includeAccessToken = true): HttpClient {
     return {
         async fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
             const url = input.toString()
@@ -40,7 +39,7 @@ function createHttpClient(calls: FetchCall[], pipelineId?: string): HttpClient {
                 return new Response('not found', { status: 404 })
             }
             if (url.startsWith(`${computeUrl}/v1/sessions?`)) {
-                return new Response(JSON.stringify(sessionResponse(pipelineId)), {
+                return new Response(JSON.stringify(sessionResponse(pipelineId, includeAccessToken)), {
                     status: 200,
                     headers: { 'content-type': 'application/json' },
                 })
@@ -102,5 +101,25 @@ describe('ComputeSessionClient', () => {
         const createCall = calls.find(call => call.init?.method === 'POST')
         expect(createCall?.url).toBe(`${computeUrl}/v1/sessions?wait=true`)
         expect(JSON.parse(String(createCall?.init?.body))).toEqual({ pop })
+    })
+
+    test('uses caller authorization when compute session has no access token', async () => {
+        const calls: FetchCall[] = []
+        const callerAuthorizationHeader = 'Bearer user-jwt'
+
+        const resolved = await new ComputeSessionClient({
+            computeUrl,
+            httpClient: createHttpClient(calls, undefined, false),
+            authorizationHeader: async () => callerAuthorizationHeader,
+            readyTimeoutMs,
+        }).resolve()
+
+        const healthCall = calls.find(call => call.url === `${sessionEndpoint}/health`)
+        expect(healthCall?.init?.headers).toMatchObject({
+            Authorization: callerAuthorizationHeader,
+            Accept: 'application/json',
+        })
+        expect(resolved.accessToken).toBeNull()
+        expect(resolved.accessTokenValidUntil).toBeNull()
     })
 })
