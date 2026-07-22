@@ -105,7 +105,7 @@ You can also pass the key explicitly from server-side configuration:
 
 ```typescript
 const endpoint = await EyePop.workerEndpoint({
-    auth: { apiKey: process.env.EYEPOP_API_KEY },
+    apiKey: process.env.EYEPOP_API_KEY,
 }).connect()
 ```
 
@@ -113,9 +113,11 @@ const endpoint = await EyePop.workerEndpoint({
 
 ```typescript
 const endpoint = await EyePop.workerEndpoint({
-    auth: { accessToken: process.env.EYEPOP_API_KEY },
+    accessToken: process.env.EYEPOP_API_KEY,
 }).connect()
 ```
+
+The nested `auth` option is still supported but deprecated. Pass `apiKey`, `accessToken`, `session`, or `oAuth2` at the top level for new code.
 
 ### Persistent Sessions
 
@@ -183,7 +185,7 @@ Dashboard users can run local browser demos with the current browser session:
 ```html
 <script>
     document.addEventListener('DOMContentLoaded', async () => {
-        const endpoint = await EyePop.workerEndpoint({ auth: { oAuth2: true } }).connect()
+        const endpoint = await EyePop.workerEndpoint({ oAuth2: true }).connect()
         try {
             await endpoint.changePop({
                 components: [

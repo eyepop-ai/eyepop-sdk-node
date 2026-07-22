@@ -1,4 +1,4 @@
-import { LocalAuth, bearerCredential } from '../options'
+import { LocalAuth, bearerCredential, resolveAuth } from '../options'
 import { ComputeSessionClient } from '../compute/compute_session'
 import type { ResolvedComputeSession } from '../compute/compute_session'
 import { EndpointState, Session } from '../types'
@@ -168,7 +168,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
     }
 
     private _authenticationHeaders(session: Session): any {
-        return (this._options.auth as LocalAuth).isLocal !== undefined ? {} : { Authorization: `Bearer ${session.accessToken}` }
+        return (resolveAuth(this._options) as LocalAuth | undefined)?.isLocal !== undefined ? {} : { Authorization: `Bearer ${session.accessToken}` }
     }
 
     /**
@@ -872,10 +872,11 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
     }
 
     private async computeAuthorizationHeader(): Promise<string> {
-        if ((this.options().auth as LocalAuth).isLocal !== undefined) {
+        const auth = resolveAuth(this.options())
+        if ((auth as LocalAuth | undefined)?.isLocal !== undefined) {
             return 'Implicit'
         }
-        const credential = bearerCredential(this.options().auth)
+        const credential = bearerCredential(auth)
         if (credential !== undefined) {
             return `Bearer ${credential}`
         }

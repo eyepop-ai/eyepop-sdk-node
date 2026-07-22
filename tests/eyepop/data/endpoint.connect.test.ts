@@ -44,7 +44,7 @@ describe('EyePopSdk endpoint module auth and connect', () => {
         const endpoint = EyePop.dataEndpoint({
             eyepopUrl: server.getURL().toString(),
             accountId: test_account_id,
-            auth: { apiKey: test_api_key },
+            apiKey: test_api_key,
             disableWs: true,
         })
         expect(endpoint).toBeDefined()

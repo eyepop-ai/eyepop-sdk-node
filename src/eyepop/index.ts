@@ -1,4 +1,4 @@
-import { AccessTokenAuth, ApiKeyAuth, LocalAuth, OAuth2Auth, Options, SessionAuth } from './options'
+import { AccessTokenAuth, ApiKeyAuth, LocalAuth, OAuth2Auth, Options, SessionAuth, resolveAuth } from './options'
 
 import { WorkerEndpoint } from './worker/worker_endpoint'
 import { DataEndpoint } from './data/data_endpoint'
@@ -170,11 +170,11 @@ export namespace EyePop {
             opts.eyepopUrl = 'http://127.0.0.1:8080'
         }
         _fill_default_options(opts)
-        if (opts.auth === undefined) {
+        if (resolveAuth(opts) === undefined) {
             if (opts.isLocalMode) {
                 opts.auth = { isLocal: true } as LocalAuth
             } else {
-                throw new Error('auth option or EYEPOP_API_KEY environment variable is required')
+                throw new Error('apiKey/accessToken/session/oAuth2 option or EYEPOP_API_KEY environment variable is required')
             }
         }
 
@@ -204,11 +204,12 @@ export namespace EyePop {
             opts.stopJobs = true
         }
 
-        if (opts.auth !== undefined) {
-            if ((opts.auth as SessionAuth).session !== undefined) {
-                if (((opts.auth as SessionAuth).session as WorkerSession) !== undefined) {
-                    if (((opts.auth as SessionAuth).session as WorkerSession).popId) {
-                        opts.popId = ((opts.auth as SessionAuth).session as WorkerSession).popId
+        const auth = resolveAuth(opts)
+        if (auth !== undefined) {
+            if ((auth as SessionAuth).session !== undefined) {
+                if (((auth as SessionAuth).session as WorkerSession) !== undefined) {
+                    if (((auth as SessionAuth).session as WorkerSession).popId) {
+                        opts.popId = ((auth as SessionAuth).session as WorkerSession).popId
                     }
                 }
             }
@@ -218,16 +219,17 @@ export namespace EyePop {
 
     export function dataEndpoint(opts: DataOptions = {}): DataEndpoint {
         _fill_default_options(opts)
-        if (opts.auth === undefined) {
-            throw new Error('auth option or EYEPOP_API_KEY environment variable is required')
+        const auth = resolveAuth(opts)
+        if (auth === undefined) {
+            throw new Error('apiKey/accessToken/session/oAuth2 option or EYEPOP_API_KEY environment variable is required')
         }
         if (opts.accountId === undefined) {
             opts.accountId = readEnv('EYEPOP_ACCOUNT_ID')
         }
-        if ((opts.auth as SessionAuth).session !== undefined) {
-            if (((opts.auth as SessionAuth).session as DataSession) !== undefined) {
-                if (((opts.auth as SessionAuth).session as DataSession).accountId) {
-                    opts.accountId = ((opts.auth as SessionAuth).session as DataSession).accountId
+        if ((auth as SessionAuth).session !== undefined) {
+            if (((auth as SessionAuth).session as DataSession) !== undefined) {
+                if (((auth as SessionAuth).session as DataSession).accountId) {
+                    opts.accountId = ((auth as SessionAuth).session as DataSession).accountId
                 }
             }
         }
@@ -235,13 +237,13 @@ export namespace EyePop {
     }
 
     function _fill_default_options(opts: Options) {
-        if (!opts.auth) {
-            opts.auth = defaultAuth
+        if (resolveAuth(opts) === undefined && defaultAuth) {
+            opts.apiKey = defaultAuth.apiKey
         }
 
-        if (!opts.eyepopUrl && opts.auth && (opts.auth as SessionAuth).session && (opts.auth as SessionAuth).session.eyepopUrl) {
-            // Pre-authenticated browser session may overwrite eyepopUrl
-            opts.eyepopUrl = (opts.auth as SessionAuth).session.eyepopUrl
+        const auth = resolveAuth(opts)
+        if (!opts.eyepopUrl && auth && (auth as SessionAuth).session && (auth as SessionAuth).session.eyepopUrl) {
+            opts.eyepopUrl = (auth as SessionAuth).session.eyepopUrl
         }
 
         if (!opts.eyepopUrl) {
@@ -252,27 +254,31 @@ export namespace EyePop {
             opts.eyepopUrl = 'https://compute.eyepop.ai'
         }
 
-        if (opts.auth) {
-            if ((opts.auth as OAuth2Auth).oAuth2 !== undefined) {
-                if (typeof (opts.auth as OAuth2Auth).oAuth2 === 'boolean') {
-                    if (opts.eyepopUrl && opts.eyepopUrl.match(/https:(.*).staging.eyepop.xyz/i)) {
-                        opts.auth = {
-                            oAuth2: {
-                                domain: 'dev-eyepop.us.auth0.com',
-                                clientId: 'jktx3YO2UnbkNPvr05PQWf26t1kNTJyg',
-                                audience: 'https://dev-app.eyepop.ai',
-                                scope: 'admin:clouds access:inference-api access:datasets',
-                            },
-                        }
+        if (auth) {
+            if ((auth as OAuth2Auth).oAuth2 !== undefined) {
+                if (typeof (auth as OAuth2Auth).oAuth2 === 'boolean') {
+                    const oAuth2: OAuth2Auth =
+                        opts.eyepopUrl && opts.eyepopUrl.match(/https:(.*).staging.eyepop.xyz/i)
+                            ? {
+                                  oAuth2: {
+                                      domain: 'dev-eyepop.us.auth0.com',
+                                      clientId: 'jktx3YO2UnbkNPvr05PQWf26t1kNTJyg',
+                                      audience: 'https://dev-app.eyepop.ai',
+                                      scope: 'admin:clouds access:inference-api access:datasets',
+                                  },
+                              }
+                            : {
+                                  oAuth2: {
+                                      domain: 'eyepop.us.auth0.com',
+                                      clientId: 'Lb9ubA9Hf3jlaqWLUx8XgA0zvotgViCl',
+                                      audience: 'https://api.eyepop.ai',
+                                      scope: 'admin:clouds access:inference-api access:datasets',
+                                  },
+                              }
+                    if (opts.oAuth2 !== undefined) {
+                        opts.oAuth2 = oAuth2.oAuth2
                     } else {
-                        opts.auth = {
-                            oAuth2: {
-                                domain: 'eyepop.us.auth0.com',
-                                clientId: 'Lb9ubA9Hf3jlaqWLUx8XgA0zvotgViCl',
-                                audience: 'https://api.eyepop.ai',
-                                scope: 'admin:clouds access:inference-api access:datasets',
-                            },
-                        }
+                        opts.auth = oAuth2
                     }
                 }
             }

@@ -293,7 +293,7 @@ describe('EyePopSdk endpoint module auth and connect', () => {
             eyepopUrl: server.getURL().toString(),
             popId: test_pop_id,
             stopJobs: false,
-            auth: { session: session },
+            session,
         })
         expect(endpoint2).toBeDefined()
 

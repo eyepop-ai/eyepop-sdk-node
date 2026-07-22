@@ -87,7 +87,7 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
         const endpoint = workerEndpoint({
             eyepopUrl: server.getURL().toString(),
             popId: test_pop_id,
-            auth: { apiKey: test_api_key },
+            apiKey: test_api_key,
         })
         expect(endpoint).toBeDefined()
         try {
@@ -146,7 +146,7 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
         const endpoint = workerEndpoint({
             eyepopUrl: server.getURL().toString(),
             popId: test_pop_id,
-            auth: { accessToken: test_access_token },
+            accessToken: test_access_token,
         })
         expect(endpoint).toBeDefined()
         try {
