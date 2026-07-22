@@ -47,12 +47,18 @@ export interface LocalAuth {
 
 export type Authentication = undefined | ApiKeyAuth | AccessTokenAuth | SessionAuth | OAuth2Auth | LocalAuth
 
+function nonEmptyCredential(value: string | undefined): string | undefined {
+    return value && value.length > 0 ? value : undefined
+}
+
 export function resolveAuth(options: Options): Authentication {
-    if (options.apiKey !== undefined) {
-        return { apiKey: options.apiKey }
+    const apiKey = nonEmptyCredential(options.apiKey)
+    if (apiKey !== undefined) {
+        return { apiKey }
     }
-    if (options.accessToken !== undefined) {
-        return { accessToken: options.accessToken }
+    const accessToken = nonEmptyCredential(options.accessToken)
+    if (accessToken !== undefined) {
+        return { accessToken }
     }
     if (options.session !== undefined) {
         return { session: options.session }
@@ -67,14 +73,14 @@ export function apiKeyCredential(auth: Authentication): string | undefined {
     if (auth === undefined) {
         return undefined
     }
-    return (auth as ApiKeyAuth).apiKey
+    return nonEmptyCredential((auth as ApiKeyAuth).apiKey)
 }
 
 export function accessTokenCredential(auth: Authentication): string | undefined {
     if (auth === undefined) {
         return undefined
     }
-    return (auth as AccessTokenAuth).accessToken
+    return nonEmptyCredential((auth as AccessTokenAuth).accessToken)
 }
 
 export interface HttpClient {

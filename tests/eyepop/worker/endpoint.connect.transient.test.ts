@@ -160,6 +160,54 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
         }
     })
 
+    test('EyePopSdk connect transient ignores blank top-level apiKey when accessToken is set', async () => {
+        const listSessionsRoute = server.get(`/v1/sessions`).mockImplementationOnce(ctx => {
+            expect(ctx.headers.authorization).toBe(`Bearer ${test_access_token}`)
+            ctx.status = 404
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify('no sessions')
+        })
+
+        const createSessionRoute = server.post(`/v1/sessions`).mockImplementationOnce(ctx => {
+            expect(ctx.headers.authorization).toBe(`Bearer ${test_access_token}`)
+            ctx.status = 200
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify([
+                {
+                    session_uuid: test_session_uuid,
+                    session_endpoint: `${server.getURL().toString()}${test_session_uuid}`,
+                    access_token: test_access_token,
+                    access_token_expires_in: long_token_valid_time,
+                    pipelines: [],
+                    session_status: 'running',
+                    session_active: true,
+                },
+            ])
+        })
+
+        const healthRoute = server.get(`/${test_session_uuid}/health`).mockImplementation(ctx => {
+            ctx.status = 200
+            ctx.response.headers['content-type'] = 'text/plain'
+            ctx.body = "I'm fine"
+        })
+
+        const endpoint = workerEndpoint({
+            eyepopUrl: server.getURL().toString(),
+            popId: test_pop_id,
+            apiKey: '',
+            accessToken: test_access_token,
+        })
+        expect(endpoint).toBeDefined()
+        try {
+            await endpoint.connect()
+            expect(listSessionsRoute).toHaveBeenCalledTimes(1)
+            expect(createSessionRoute).toHaveBeenCalledTimes(1)
+            expect(healthRoute).toHaveBeenCalledTimes(1)
+        } finally {
+            await endpoint.disconnect()
+        }
+    })
+
     test('EyePopSdk connect transient preserves deprecated nested apiKey auth', async () => {
         const listSessionsRoute = server.get(`/v1/sessions`).mockImplementationOnce(ctx => {
             expect(ctx.headers.authorization).toBe(`Bearer ${test_api_key}`)
