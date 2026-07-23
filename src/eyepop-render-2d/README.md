@@ -141,7 +141,7 @@ Most prebuild render classes provide a reasonable defaults, as shown below.
 Render2d.renderBox({
     showClass: true,
     showConfidence: false,
-    showTraceId: false,
+    showTrackId: false,
     showNestedClasses: false,
     target: '$..objects.*',
 })
@@ -180,6 +180,29 @@ Render2d.renderText({
 })
 ```
 
+#### Render Classification Labels
+
+Renders whole-image classification labels. Defaults shown:
+
+```typescript
+Render2d.renderClasses({
+    showConfidence: false,
+    labelSizePercentage: 0.05,
+    target: '$',
+})
+```
+
+#### Render Key Points
+
+Renders key points for any object that carries them. Defaults shown:
+
+```typescript
+Render2d.renderKeypoints({
+    showLabels: false,
+    target: '$..objects[?(@.keyPoints)]',
+})
+```
+
 #### Render Segmentation Masks
 
 ```typescript
@@ -196,13 +219,15 @@ Render2d.renderContour({
 })
 ```
 
-#### Blur an Object (TODO does black-put instead of blur)
+#### Blur an Object
 
 ```typescript
 Render2d.renderBlur({
     target: '$..objects[?(@.classLabel=="face")]',
 })
 ```
+
+Note: this currently paints a solid fill over the object rather than applying a true blur.
 
 #### Render a Trail of a traced object over time
 
