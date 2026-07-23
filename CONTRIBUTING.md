@@ -9,22 +9,19 @@ npm --workspace @eyepop.ai/eyepop run build
 npx jest --runInBand --testPathIgnorePatterns="<rootDir>/.worktrees"
 ```
 
-## Staging session integration
+## Session integration
 
-Run the staging session matrix locally before dispatching the `SDK Integration` workflow. The local equivalent of the workflow's staging `EYEPOP_API_KEY` secret is `ACTIONS_EYEPOP_API_KEY` from `$EYEPOP_ROOT/.keys/staging`.
+Run the session matrix locally before dispatching the `SDK Integration` workflow. Copy `.env.example` to `.env` and set `EYEPOP_API_KEY` to a key for the account you want to exercise; the smoke script loads `.env` when the variable is not already exported.
 
 ```shell
-KEY=$(grep -E '^ACTIONS_EYEPOP_API_KEY=' "$EYEPOP_ROOT/.keys/staging" | head -1 | cut -d= -f2- | tr -d '"')
-
-EYEPOP_API_KEY="$KEY" node scripts/session-smoke.mjs \
-  --environment staging \
+node scripts/session-smoke.mjs \
   --scenario all-transient \
   --cleanup-preexisting \
   --sdk-module ./src/eyepop/dist/eyepop.index.js \
-  --session-name "node-local-staging-$(date +%s)" \
+  --session-name "node-local-$(date +%s)" \
   --session-ready-timeout-seconds 180 \
   --gpu-image tests/test.jpg \
-  --gpu-ability dot-gov-com.object-detection.person:latest \
+  --gpu-ability eyepop.person:latest \
   --gpu-expected-class person \
   --gpu-min-objects 1 \
   --gpu-min-confidence 0.5 \
@@ -33,12 +30,15 @@ EYEPOP_API_KEY="$KEY" node scripts/session-smoke.mjs \
   --cpu-expected-class person \
   --cpu-min-objects 0 \
   --cpu-min-confidence 0 \
-  --vlm-image tests/fixtures/images/angrykitten.jpg \
-  --vlm-pop-file tests/fixtures/pops/find-kittens-vlm.json \
-  --vlm-expected-class EXPLODED \
-  --vlm-min-objects 1 \
+  --vlm-image tests/test.jpg \
+  --vlm-ability eyepop-ai-eyepop-basic.describe.image:latest \
+  --vlm-expected-class description \
+  --vlm-min-objects 0 \
   --vlm-min-confidence 0 \
-  --summary-json /tmp/node-sdk-staging-integration.json
+  --vlm-min-texts 1 \
+  --summary-json /tmp/node-sdk-integration.json
 ```
 
-For the VLM-only slice, change `--scenario all-transient` to `--scenario vlm-direct`. Use `EYEPOP_API_KEY_LP` only when testing the basic dot-gov user fixture directly; it is not the GitHub Actions integration key.
+For the VLM-only slice, change `--scenario all-transient` to `--scenario vlm-direct`. Add `--environment staging` to target staging instead of the default.
+
+Pops that depend on account-private abilities are not documented here — point the `--*-ability` and `--*-pop-file` flags at fixtures your own account owns.

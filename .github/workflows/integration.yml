@@ -54,7 +54,7 @@ jobs:
                     --sdk-module "$GITHUB_WORKSPACE/src/eyepop/dist/eyepop.index.js" \
                     --session-ready-timeout-seconds 180 \
                     --gpu-image tests/test.jpg \
-                    --gpu-ability dot-gov-com.object-detection.person:latest \
+                    --gpu-ability eyepop.person:latest \
                     --gpu-expected-class person \
                     --gpu-min-objects 1 \
                     --gpu-min-confidence 0.5 \
@@ -63,11 +63,12 @@ jobs:
                     --cpu-expected-class person \
                     --cpu-min-objects 0 \
                     --cpu-min-confidence 0 \
-                    --vlm-image tests/fixtures/images/angrykitten.jpg \
-                    --vlm-pop-file tests/fixtures/pops/find-kittens-vlm.json \
-                    --vlm-expected-class EXPLODED \
-                    --vlm-min-objects 1 \
+                    --vlm-image tests/test.jpg \
+                    --vlm-ability eyepop-ai-eyepop-basic.describe.image:latest \
+                    --vlm-expected-class description \
+                    --vlm-min-objects 0 \
                     --vlm-min-confidence 0 \
+                    --vlm-min-texts 1 \
                     --summary-json "$SUMMARY_JSON"
 
             - name: Write summary
