@@ -32,7 +32,7 @@ This example adds an attribute into the resulting meta data. The `postTransform`
 }
 ```
 
-The Pop will apply all components independent of each other on the input media, i.e. semantically a parallel execution. The Pop runtime may decide to execute the components in parallel, sequential or mixed depending on available resources and externally configured constrains.
+The Pop will apply all components independent of each other on the input media, i.e. semantically a parallel execution. The Pop runtime may decide to execute the components in parallel, sequential or mixed depending on available resources and externally configured constraints.
 
 ## Pop Components
 
@@ -66,7 +66,7 @@ The `inference` component performs ML based inference on the input media and pro
 }
 ```
 
-The `modelUuid` must be a valid Uuid of a model instance in the Dataset API and must be readable by the user creating this Pop. This can be a custom trained (aka SST model) or a public, EyePop provided model. TBD how clients can discover public models.
+The `modelUuid` must be a valid Uuid of a model instance in the Dataset API and must be readable by the user creating this Pop. This can be a custom trained (aka SST) model or a public, EyePop provided model.
 
 Valid `inferenceTypes` values are below and have to match or be a subset of the model's capabilities:
 
@@ -81,7 +81,7 @@ Valid `inferenceTypes` values are below and have to match or be a subset of the 
 #### Model aliases
 
 Alternatively, instead of `modelUuid` you can also use the `model` attribute which must be a string `[alias]:[tag]`. The management of model aliases is handled in the Dataset API and not discussed here.  
-A valid alias/tag identifier resolves the a concrete `modelUuid` and this resolution process is transparent to the user. The runtime's responsibility id to initially resolve and frequently check for updated values. The Runtime MAY use the resolved modelUuid for the full lifetime of a pipeline instance. Upon starting new pipelines or changing the Pop definition of a running pipeline, the Runtime SHOULD check resolution of a used alias if it is older than 30 minutes.
+A valid alias/tag identifier resolves the a concrete `modelUuid` and this resolution process is transparent to the user. The runtime's responsibility is to initially resolve and frequently check for updated values. The Runtime MAY use the resolved modelUuid for the full lifetime of a pipeline instance. Upon starting new pipelines or changing the Pop definition of a running pipeline, the Runtime SHOULD check resolution of a used alias if it is older than 30 minutes.
 
 For example:
 
@@ -181,7 +181,7 @@ Supported attributes to control forwarding:
 
 ### Component Type: tracking
 
-The `tracking` component performs object tracging for video media. It i.e. attempts to re-identify detected objects in subsequent frames by its trajectory and similarity. Tracked objects have the same `trackId` in the meta data of subsequent frames. Example:
+The `tracking` component performs object tracking for video media. It i.e. attempts to re-identify detected objects in subsequent frames by its trajectory and similarity. Tracked objects have the same `trackId` in the meta data of subsequent frames. Example:
 
 ```json
 {
@@ -213,7 +213,7 @@ Supported attributes to control tracking:
 -   `reidModelUuid` optional REid model to calculate similarity. If omitted, tracking only used trajectory.&#x20;
 -   `maxAgeSeconds` maximum time to keep traces without being matched to an object. This does not limit the temporal length of traces in general, just how long the tracer keeps them if unmatched.
 -   `simThreshold` the minimum similarity for objects to be matched to an active trace.
--   `iouThreshold` the minimum iuo factor for an object in a frame to be be matched to the projected position of an active trace in this frame if not matched by similarity yet.
+-   `iouThreshold` the minimum IoU factor for an object in a frame to be be matched to the projected position of an active trace in this frame if not matched by similarity yet.
 
 ### Component Type: contour_finder
 
@@ -265,7 +265,7 @@ Supported attributes to control contour finding:
     -   `triangle`
     -   `rectangle`
 
-Contours are always expressed as polygons in the result meta data, even for the regular shapes `circle` and `rectangle`. Contour types `all_pixels` and `polygon` can hace "cut outs".
+Contours are always expressed as polygons in the result meta data, even for the regular shapes `circle` and `rectangle`. Contour types `all_pixels` and `polygon` can have "cut outs".
 
 ### Component Type: component_finder
 
