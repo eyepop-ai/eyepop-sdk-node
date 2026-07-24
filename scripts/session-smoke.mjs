@@ -13,6 +13,27 @@ const ENV_URLS = {
     staging: 'https://compute.staging.eyepop.xyz',
 }
 
+function loadDotEnv(path = '.env') {
+    if (!existsSync(path)) {
+        return
+    }
+    for (const line of readFileSync(path, 'utf8').split(/\r?\n/)) {
+        const trimmed = line.trim()
+        if (!trimmed || trimmed.startsWith('#')) {
+            continue
+        }
+        const match = trimmed.match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/)
+        if (!match || process.env[match[1]] !== undefined) {
+            continue
+        }
+        let value = match[2].trim()
+        if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+            value = value.slice(1, -1)
+        }
+        process.env[match[1]] = value
+    }
+}
+
 function parseArgs(argv) {
     const args = {
         environment: process.env.EYEPOP_ENV || 'production',
@@ -38,12 +59,13 @@ function parseArgs(argv) {
         cpuExpectedClass: process.env.EYEPOP_SMOKE_CPU_EXPECTED_CLASS || 'person',
         cpuMinObjects: Number(process.env.EYEPOP_SMOKE_CPU_MIN_OBJECTS || '1'),
         cpuMinConfidence: Number(process.env.EYEPOP_SMOKE_CPU_MIN_CONFIDENCE || '0'),
-        vlmImage: process.env.EYEPOP_SMOKE_VLM_IMAGE || 'tests/fixtures/images/angrykitten.jpg',
-        vlmPopFile: process.env.EYEPOP_SMOKE_VLM_POP_FILE || 'tests/fixtures/pops/find-kittens-vlm.json',
-        vlmAbility: process.env.EYEPOP_SMOKE_VLM_ABILITY || '',
-        vlmExpectedClass: process.env.EYEPOP_SMOKE_VLM_EXPECTED_CLASS || 'EXPLODED',
-        vlmMinObjects: Number(process.env.EYEPOP_SMOKE_VLM_MIN_OBJECTS || '1'),
+        vlmImage: process.env.EYEPOP_SMOKE_VLM_IMAGE || 'tests/test.jpg',
+        vlmPopFile: process.env.EYEPOP_SMOKE_VLM_POP_FILE || '',
+        vlmAbility: process.env.EYEPOP_SMOKE_VLM_ABILITY || 'eyepop-ai-eyepop-basic.describe.image:latest',
+        vlmExpectedClass: process.env.EYEPOP_SMOKE_VLM_EXPECTED_CLASS || 'description',
+        vlmMinObjects: Number(process.env.EYEPOP_SMOKE_VLM_MIN_OBJECTS || '0'),
         vlmMinConfidence: Number(process.env.EYEPOP_SMOKE_VLM_MIN_CONFIDENCE || '0'),
+        vlmMinTexts: Number(process.env.EYEPOP_SMOKE_VLM_MIN_TEXTS || '1'),
         sessionReadyTimeoutSeconds: Number(process.env.EYEPOP_SMOKE_SESSION_READY_TIMEOUT_SECONDS || '60'),
         timeoutSeconds: Number(process.env.EYEPOP_SMOKE_TIMEOUT_SECONDS || '600'),
         summaryJson: process.env.EYEPOP_SMOKE_SUMMARY_JSON || 'session-smoke-summary.json',
@@ -150,6 +172,9 @@ function parseArgs(argv) {
             case '--vlm-min-confidence':
                 args.vlmMinConfidence = Number(next())
                 break
+            case '--vlm-min-texts':
+                args.vlmMinTexts = Number(next())
+                break
             case '--session-ready-timeout-seconds':
                 args.sessionReadyTimeoutSeconds = Number(next())
                 break
@@ -181,7 +206,7 @@ function requireInputs(args) {
         throw new Error(`Unknown environment ${args.environment}; pass --eyepop-url`)
     }
     if (!args.apiKey) {
-        throw new Error('Missing EYEPOP_API_KEY')
+        throw new Error('Missing EYEPOP_API_KEY; load an eyepop-testing fixture or fill out repo .env from .env.example')
     }
     if (!Number.isFinite(args.minObjects) || args.minObjects < 0) {
         throw new Error('--min-objects must be at least 0')
@@ -202,6 +227,9 @@ function requireInputs(args) {
             }
             if (!Number.isFinite(step.minConfidence) || step.minConfidence < 0 || step.minConfidence > 1) {
                 throw new Error(`${scenario.name} ${step.name} min confidence must be between 0.0 and 1.0`)
+            }
+            if (!Number.isFinite(step.minTexts) || step.minTexts < 0) {
+                throw new Error(`${scenario.name} ${step.name} min texts must be at least 0`)
             }
             if (step.image && !existsSync(step.image)) {
                 throw new Error(`Image fixture does not exist: ${step.image}`)
@@ -249,6 +277,7 @@ function scenarioDefinitions(args) {
         image: args.gpuImage || args.image,
         minObjects: Number.isFinite(args.gpuMinObjects) ? args.gpuMinObjects : args.minObjects,
         minConfidence: Number.isFinite(args.gpuMinConfidence) ? args.gpuMinConfidence : args.minConfidence,
+        minTexts: 0,
     }
     const cpuStep = {
         name: 'cpu-inference',
@@ -258,6 +287,7 @@ function scenarioDefinitions(args) {
         image: args.cpuImage,
         minObjects: args.cpuMinObjects,
         minConfidence: args.cpuMinConfidence,
+        minTexts: 0,
     }
 
     const vlmStep = {
@@ -268,6 +298,7 @@ function scenarioDefinitions(args) {
         image: args.vlmImage,
         minObjects: args.vlmMinObjects,
         minConfidence: args.vlmMinConfidence,
+        minTexts: args.vlmMinTexts,
     }
 
     return [
@@ -326,6 +357,8 @@ function summarizePredictions(predictions, expectedClass, minConfidence) {
         ...(Array.isArray(prediction.objects) ? prediction.objects : []),
         ...(Array.isArray(prediction.classes) ? prediction.classes : []),
     ])
+    const texts = predictions.flatMap(prediction => (Array.isArray(prediction.texts) ? prediction.texts : []))
+    const nonEmptyTexts = texts.map(text => String(text?.text ?? '').trim()).filter(Boolean)
     const expected = expectedClass.trim().toLowerCase()
     const matches = objects.filter(object => {
         const confidence = object?.confidence ?? 0
@@ -336,6 +369,9 @@ function summarizePredictions(predictions, expectedClass, minConfidence) {
         prediction_count: predictions.length,
         object_count: objects.length,
         matching_object_count: matches.length,
+        text_count: texts.length,
+        non_empty_text_count: nonEmptyTexts.length,
+        sample_texts: nonEmptyTexts.slice(0, 3).map(text => text.slice(0, 160)),
         top_matches: matches.slice(0, 5).map(object => ({
             class: objectLabel(object),
             confidence: object.confidence,
@@ -483,8 +519,12 @@ async function collectInference(endpoint, step, deadline) {
         }
 
         const predictionSummary = summarizePredictions(predictions, step.expectedClass, step.minConfidence)
-        if (predictionSummary.prediction_count === 0 || predictionSummary.matching_object_count < step.minObjects) {
+        if (predictionSummary.prediction_count === 0) {
+            predictionSummary.error = `Expected inference predictions; got 0`
+        } else if (predictionSummary.matching_object_count < step.minObjects) {
             predictionSummary.error = `Expected at least ${step.minObjects} ${step.expectedClass} objects with confidence >= ${step.minConfidence}; got ${predictionSummary.matching_object_count}`
+        } else if (predictionSummary.non_empty_text_count < step.minTexts) {
+            predictionSummary.error = `Expected at least ${step.minTexts} non-empty texts; got ${predictionSummary.non_empty_text_count}`
         }
         return predictionSummary
     } finally {
@@ -609,6 +649,7 @@ async function runScenario(args, sdk, eyepopUrl, scenario) {
             expected_class: firstStep.expectedClass,
             min_objects: firstStep.minObjects,
             min_confidence: firstStep.minConfidence,
+            min_texts: firstStep.minTexts,
             pipeline_id: summary.pipeline_id,
             ...firstPredictionSummary,
         })
@@ -658,6 +699,7 @@ async function runScenario(args, sdk, eyepopUrl, scenario) {
                     expected_class: step.expectedClass,
                     min_objects: step.minObjects,
                     min_confidence: step.minConfidence,
+                    min_texts: step.minTexts,
                     pipeline_id: reconnectedSession.pipelineId,
                     ...stepPredictions,
                 })
@@ -689,6 +731,7 @@ async function runScenario(args, sdk, eyepopUrl, scenario) {
                 expected_class: nextStep.expectedClass,
                 min_objects: nextStep.minObjects,
                 min_confidence: nextStep.minConfidence,
+                min_texts: nextStep.minTexts,
                 pipeline_id: upgradedSession.pipelineId,
                 ...upgradedPredictionSummary,
             })
@@ -811,6 +854,7 @@ function writeSummary(path, summary) {
 }
 
 async function main() {
+    loadDotEnv()
     const args = parseArgs(process.argv.slice(2))
     let summary
     try {
