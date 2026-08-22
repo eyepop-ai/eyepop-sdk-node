@@ -219,6 +219,20 @@ Render2d.renderContour({
 })
 ```
 
+#### Render Depth Maps
+
+Renders the frame-level depth map produced by depth estimation abilities (e.g. `eyepop.depth.*`)
+as a turbo-colormap heatmap blended over the frame: near = warm (red/yellow), far = cool (blue).
+Sky pixels (+Infinity) leave the frame untouched unless `renderSky` is set.
+
+```typescript
+Render2d.renderDepth({
+    target: '$',
+    opacity: 0.5, // overlay opacity over the underlying frame
+    renderSky: false, // also paint sky pixels
+})
+```
+
 #### Blur an Object
 
 ```typescript

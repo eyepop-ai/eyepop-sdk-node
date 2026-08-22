@@ -13,6 +13,7 @@ import { RenderKeyPoints, RenderKeyPointsOptions } from './render-keypoints'
 import { Render, RenderTarget } from './render'
 import { RenderText, RenderTextOptions } from './render-text'
 import { RenderClasses, RenderClassesOptions } from './render-classes'
+import { RenderDepth, RenderDepthOptions } from './render-depth'
 
 export interface Renderer extends RenderTarget {
     draw(p: Prediction, color?: string): void
@@ -36,6 +37,9 @@ export namespace Render2d {
     }
     export function renderContour(options: Partial<RenderContourOptions> = {}): Render {
         return new RenderContour(options)
+    }
+    export function renderDepth(options: Partial<RenderDepthOptions> = {}): Render {
+        return new RenderDepth(options)
     }
     export function renderFace(options: Partial<RenderFaceOptions> = {}): Render {
         return new RenderFace(options)
@@ -61,6 +65,7 @@ export * from './render-blur'
 export * from './render-box'
 export * from './render-classes'
 export * from './render-contour'
+export * from './render-depth'
 export * from './render-face'
 export * from './render-hand'
 export * from './render-keypoints'

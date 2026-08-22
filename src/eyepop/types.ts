@@ -73,6 +73,7 @@ export interface Prediction extends StreamTime {
     embeddings?: Array<PredictedEmbedding>
     details?: Array<Map<string, any>>
     motions?: Array<PredictedMotion>
+    depth?: Depth
 }
 
 export interface PredictedClass {
@@ -106,6 +107,25 @@ export interface Mask {
     width: number
     height: number
     stride: number
+}
+
+/**
+ * A frame-level depth map as produced by depth estimation abilities
+ * (e.g. eyepop.depth.*).
+ *
+ * `values` is the base64 encoding of width*height little-endian float32
+ * values in row-major order. The map always has the aspect ratio of the
+ * source frame; map a source coordinate (x, y) to the map proportionally:
+ * (x * width / source_width, y * height / source_height).
+ *
+ * Values are canonical metric depth (multiply by the camera's focal length
+ * in pixels and divide by 300 for meters). Sky pixels carry +Infinity.
+ * Use decodeDepthMap() to access the values.
+ */
+export interface Depth {
+    width: number
+    height: number
+    values: string
 }
 
 export interface PredictedObject extends PredictedClass {
