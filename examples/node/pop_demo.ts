@@ -205,6 +205,12 @@ const POP_EXAMPLES = {
     id: 1,
     ability: 'eyepop.localize-objects:latest',
   }]},
+
+  "depth": { components: [{
+    type: PopComponentType.INFERENCE,
+    id: 1,
+    ability: 'eyepop.depth.large:latest',
+  }]},
 }
 const logger = pino({ level: "debug", name: "eyepop-example" });
 
@@ -339,6 +345,7 @@ function printHelpAndExit(message?: string, exitCode: number = -1) {
             '\n\t-a --abilityUuid=[ability uuid] to run inference using a specific ability uuid' +
             '\n\t--ability=[ability] to run inference using a specific ability alias' +
             '\n\t-1 --sam1 to compose a model given by --model with segmentation using Efficient SAM' +
+            '\n\t   (the depth example defaults to eyepop.depth.large; the small and *-landscape variants trade cost for aspect fit)' +
             '\n\t-2 --sam2 to compose a model given by --model with segmentation using SAM2' +
             '\n\t--points list of POIs as coordinates like (x1, y1), (x2, y2) in the original image coordinate system' +
             '\n\t--boxes list of POIs as boxes like (left1, top1, right1, bottom1), (left1, top1, right1, bottom1) in the original image coordinate system' +
@@ -360,6 +367,18 @@ function printHelpAndExit(message?: string, exitCode: number = -1) {
             '\n\t-h --help to print this help message',
     )
     process.exit(exitCode);
+}
+
+// JSON.stringify replacer that summarizes large binary members (depth values,
+// mask bitmaps) instead of dumping megabytes of base64 to the console
+function replaceBinaryMembers(key: string, value: any): any {
+    if (value && typeof value == 'object' && typeof value.values == 'string' && value.width && value.height) {
+        return { ...value, values: `<${value.width}x${value.height} base64 float32, ${value.values.length} chars>` }
+    }
+    if (value && typeof value == 'object' && typeof value.bitmap == 'string' && value.width && value.height) {
+        return { ...value, bitmap: `<${value.width}x${value.height} base64 bitmap, ${value.bitmap.length} chars>` }
+    }
+    return value
 }
 
 function list_of_points(arg: string) {
@@ -605,13 +624,14 @@ function rectangle_roi_area(arg: string): Area {
     })
     for await (let result of results) {
       if (parameters.output) {
-        console.info(JSON.stringify(result, undefined, 2));
+        console.info(JSON.stringify(result, replaceBinaryMembers, 2));
       }
       if (parameters.visualize && canvas && context && image) {
         canvas.width = result.source_width;
         canvas.height = result.source_height;
         context.drawImage(image, 0, 0);
         Render2d.renderer(context, [
+            Render2d.renderDepth(),
             Render2d.renderPose(),
             Render2d.renderText(),
             Render2d.renderContour(),

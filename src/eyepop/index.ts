@@ -25,9 +25,13 @@ export {
     PredictedKeyPoints,
     PredictedMotion,
     Contour,
+    Mask,
+    Depth,
     Point2d,
     Point3d,
 } from './types'
+
+export { DepthMap, decodeDepthMap } from './depth'
 
 export {
     ChangeType,
