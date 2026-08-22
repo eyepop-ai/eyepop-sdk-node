@@ -95,6 +95,9 @@ export class DepthMap {
  * row-major order; sky pixels are +Infinity.
  */
 export function decodeDepthMap(depth: Depth): DepthMap {
+    if (!Number.isSafeInteger(depth.width) || depth.width <= 0 || !Number.isSafeInteger(depth.height) || depth.height <= 0 || !Number.isSafeInteger(depth.width * depth.height * 4)) {
+        throw new Error(`invalid depth dimensions: ${depth.width}x${depth.height}`)
+    }
     const bytes = base64ToBytes(depth.values)
     const count = depth.width * depth.height
     if (bytes.byteLength !== count * 4) {

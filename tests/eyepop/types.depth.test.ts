@@ -61,4 +61,11 @@ describe('Depth prediction member', () => {
     test('rejects a truncated payload', () => {
         expect(() => decodeDepthMap({ width: 4, height: 2, values: encodeFloats([1, 2]) })).toThrow()
     })
+
+    test('rejects invalid dimensions', () => {
+        expect(() => decodeDepthMap({ width: 0, height: 4, values: '' })).toThrow()
+        expect(() => decodeDepthMap({ width: -2, height: -4, values: encodeFloats(values) })).toThrow()
+        expect(() => decodeDepthMap({ width: 1.5, height: 1.5, values: encodeFloats([1, 2]).slice(0, 12) })).toThrow()
+        expect(() => decodeDepthMap({ width: Number.MAX_SAFE_INTEGER, height: 2, values: '' })).toThrow()
+    })
 })

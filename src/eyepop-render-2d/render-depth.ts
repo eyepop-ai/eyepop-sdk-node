@@ -28,7 +28,11 @@ const isLittleEndianPlatform = new Uint8Array(new Uint16Array([1]).buffer)[0] ==
 // runtime imports from @eyepop.ai/eyepop would pull the whole (node-flavored)
 // core package into the browser bundle, so - like render-mask - this renderer
 // decodes the wire format itself; Buffer is polyfilled by webpack.ProvidePlugin
-function decodeDepthValues(base64: string, count: number): Float32Array {
+function decodeDepthValues(base64: string, width: number, height: number): Float32Array {
+    if (!Number.isSafeInteger(width) || width <= 0 || !Number.isSafeInteger(height) || height <= 0 || !Number.isSafeInteger(width * height * 4)) {
+        throw new Error(`invalid depth dimensions: ${width}x${height}`)
+    }
+    const count = width * height
     const buffer = Buffer.from(base64, 'base64')
     if (buffer.byteLength !== count * 4) {
         throw new Error(`depth values hold ${buffer.byteLength} bytes, expected ${count * 4} float32 bytes`)
@@ -97,7 +101,7 @@ export class RenderDepth implements Render {
         }
         const depthWidth = element.depth.width
         const depthHeight = element.depth.height
-        const values = decodeDepthValues(element.depth.values, depthWidth * depthHeight)
+        const values = decodeDepthValues(element.depth.values, depthWidth, depthHeight)
         const destWidth = Math.round(element.source_width * xScale)
         const destHeight = Math.round(element.source_height * yScale)
         if (destWidth <= 0 || destHeight <= 0) {
@@ -134,10 +138,16 @@ export class RenderDepth implements Render {
                     continue
                 }
                 const index = (y * destWidth + x) * 4
-                pixels[index] = Math.round(heat[0] * this.opacity + pixels[index] * (1 - this.opacity))
-                pixels[index + 1] = Math.round(heat[1] * this.opacity + pixels[index + 1] * (1 - this.opacity))
-                pixels[index + 2] = Math.round(heat[2] * this.opacity + pixels[index + 2] * (1 - this.opacity))
-                pixels[index + 3] = 255
+                // source-over compositing so destination alpha is preserved
+                // (a transparent canvas stays transparent at opacity 0)
+                const destinationAlpha = (pixels[index + 3] / 255) * (1 - this.opacity)
+                const outAlpha = this.opacity + destinationAlpha
+                if (outAlpha > 0) {
+                    pixels[index] = Math.round((heat[0] * this.opacity + pixels[index] * destinationAlpha) / outAlpha)
+                    pixels[index + 1] = Math.round((heat[1] * this.opacity + pixels[index + 1] * destinationAlpha) / outAlpha)
+                    pixels[index + 2] = Math.round((heat[2] * this.opacity + pixels[index + 2] * destinationAlpha) / outAlpha)
+                }
+                pixels[index + 3] = Math.round(outAlpha * 255)
             }
         }
         context.putImageData(dest, xOffset, yOffset)
