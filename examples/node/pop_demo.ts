@@ -324,6 +324,10 @@ const { positionals, values } = parseArgs({
             short: 'h',
             default: false,
         },
+        depthMapOpacity: {
+            type: 'string',
+            default: '0.5',
+        }
     },
 })
 
@@ -631,7 +635,7 @@ function rectangle_roi_area(arg: string): Area {
         canvas.height = result.source_height;
         context.drawImage(image, 0, 0);
         Render2d.renderer(context, [
-            Render2d.renderDepth(),
+            Render2d.renderDepth({opacity: parameters.depthMapOpacity}),
             Render2d.renderPose(),
             Render2d.renderText(),
             Render2d.renderContour(),
