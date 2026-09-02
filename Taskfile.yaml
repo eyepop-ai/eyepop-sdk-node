@@ -1,0 +1,20 @@
+version: "3"
+
+tasks:
+  check:
+    desc: Run the CI-equivalent build, typecheck, and unit-test gate
+    cmds:
+      - npm --workspace @eyepop.ai/eyepop run build
+      - npm --workspace @eyepop.ai/eyepop-render-2d run build
+      - npm --workspace @eyepop.ai/react-native-eyepop run typecheck
+      - npx jest --runInBand --testPathIgnorePatterns="<rootDir>/.worktrees"
+
+  test:
+    desc: Run unit tests
+    cmds:
+      - npm test
+
+  fmt:
+    desc: Format JavaScript, TypeScript, JSON, and Markdown
+    cmds:
+      - npm run format

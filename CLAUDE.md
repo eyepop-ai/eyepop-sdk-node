@@ -4,9 +4,9 @@ Official Node.js / TypeScript SDK for EyePop.ai's inference API — connect to w
 images/videos through vision pipelines ("Pops"). npm-workspaces monorepo (`src/eyepop`, `src/eyepop-render-2d`, `src/react-native-eyepop`).
 
 ## Commands
-npm workspaces (not pnpm/yarn/go-task). No single check task. Unit tests: `npm test` (jest, fully mocked).
-Before done, mirror CI (`.github/workflows/ci.yml`, Node 22): build `@eyepop.ai/eyepop` + `eyepop-render-2d`,
-`typecheck` `react-native-eyepop`, then `npx jest --runInBand`.
+Use npm workspaces (not pnpm/yarn). Install dependencies with `npm install`. Before done, run
+`task check`, which mirrors `.github/workflows/ci.yml`: build `@eyepop.ai/eyepop` and
+`eyepop-render-2d`, typecheck `react-native-eyepop`, then run Jest in-band.
 
 ## Gotchas
 - Dual node+browser codebase: `build` = `tsup` (CJS+ESM+dts) then `webpack` browser bundle; the `browser` field
@@ -18,6 +18,6 @@ Before done, mirror CI (`.github/workflows/ci.yml`, Node 22): build `@eyepop.ai/
   from `.env.example`. Its default abilities must stay account-portable; no private fixtures.
 - Publish is GitHub-Release-triggered and idempotent (skips any `name@version` already on npm). All three
   workspaces share one version with exact inter-pins — bump them in lockstep; `react-native-eyepop` has its own `release-it` path.
-- Version pins disagree (`engines` ≥18, READMEs say 20, `ci.yml` uses 22, `npm-publish.yml` uses 24) and
-  `lefthook.yml` ships entirely commented out — **no hooks are configured**, so nothing auto-runs lint/tests
+- The supported runtime floor is Node.js 18. CI validates Node.js 22 and the publish workflow uses Node.js 24.
+- `lefthook.yml` ships entirely commented out — **no hooks are configured**, so nothing auto-runs lint/tests
   locally even if a lefthook shim is installed in `.git/hooks`.

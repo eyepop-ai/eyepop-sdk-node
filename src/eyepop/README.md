@@ -6,7 +6,7 @@ The EyePop.ai Node SDK provides JavaScript and TypeScript access to EyePop worke
 
 ### Node
 
-The SDK is tested with Node 20 LTS and newer.
+Requires Node.js 18 or newer. CI validates Node.js 22.
 
 ```shell
 npm install --save @eyepop.ai/eyepop
