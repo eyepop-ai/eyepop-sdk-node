@@ -94,6 +94,10 @@ const endpoint = await EyePop.workerEndpoint().connect()
 
 When `EYEPOP_SESSION_UUID` is set, `EyePop.workerEndpoint()` connects to that persistent session. Persistent deployments are normally created outside the SDK through the compute API or EyePop tooling.
 
+## Documentation
+
+Customer documentation lives in [docs/gitbook](docs/gitbook/README.md) and is published at [docs.eyepop.ai](https://docs.eyepop.ai).
+
 ## Module Docs
 
 - [@eyepop.ai/eyepop](src/eyepop/README.md) - Node and browser SDK for worker sessions.
