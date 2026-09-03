@@ -43,10 +43,12 @@
         "node-polyfill-webpack-plugin": "^4.1.0",
         "pino": "^8.17.2",
         "undici": "^6.3.0",
+        "url-join": "^4.0.1",
         "uuid": "^11.0.5",
         "ws": "^8.18.0"
     },
     "devDependencies": {
+        "@types/url-join": "^4.0.3",
         "chokidar-cli": "^3.0.0"
     }
 }

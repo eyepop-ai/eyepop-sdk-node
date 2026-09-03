@@ -41,8 +41,7 @@
         "@types/jsonpath": "^0.2.4",
         "canvas": "3.2.0",
         "jsonpath": "^1.1.1",
-        "webpack": "^5.92.0",
-        "url-join": "^5.0.0"
+        "webpack": "^5.92.0"
     },
     "devDependencies": {
         "chokidar-cli": "^3.0.0"
