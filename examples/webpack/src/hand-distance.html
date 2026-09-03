@@ -13,7 +13,7 @@
     <header class="mt-4">
         <div class="container-fluid d-flex align-items-center">
             <img src="images/eyepop-logo.svg" alt="EyePop.ai Logo" class="p-2" style="height: 70px;">
-            <h1 class="p-2">Hand to hand distance: <span id="pop-name">...</span></h1>
+            <h1 class="p-2">World Demo</h1>
         </div>
     </header>
 
@@ -29,8 +29,10 @@
 
     <div class="container-fluid mt-3">
         <div class="card">
-            <div class="card-header">Camera calibration</div>
-            <div class="card-body">
+            <div class="card-header section-header" data-section="intrinsics">
+                <span class="twisty">&#9656;</span> Camera intrinsics
+            </div>
+            <div class="card-body" id="section-intrinsics" hidden>
                 <p class="text-muted mb-3" id="detected">No camera opened yet.</p>
 
                 <div class="row g-2 align-items-end">
@@ -78,10 +80,22 @@
                     (OpenCV's checkerboard) and type the four numbers in. Applied when the stream starts: change them,
                     then Stop and Start.
                 </p>
-                <hr>
+                <p class="text-muted mb-0 mt-2" style="font-size: 0.9rem;">
+                    A wrong field of view mostly cancels out of a hand to hand distance. Canonical metric depth scales
+                    with the focal length, so it cancels from the lateral coordinates and survives only along the
+                    optical axis - two hands held up side by side measure right even with the guess above, while one
+                    hand reached toward the camera does not.
+                </p>
+            </div>
+        </div>
 
+        <div class="card mt-2">
+            <div class="card-header section-header" data-section="extrinsics">
+                <span class="twisty">&#9656;</span> Camera extrinsics
+            </div>
+            <div class="card-body" id="section-extrinsics" hidden>
                 <div class="form-check form-switch mb-2">
-                    <input class="form-check-input" type="checkbox" role="switch" id="extrinsics-on">
+                    <input class="form-check-input" type="checkbox" role="switch" id="extrinsics-on" checked>
                     <label class="form-check-label" for="extrinsics-on">
                         Send extrinsics (where the camera sits in the world)
                     </label>
@@ -91,50 +105,41 @@
                     <div class="col-6 col-md-3">
                         <label class="form-label mb-0" for="yaw">Yaw</label>
                         <div class="input-group">
-                            <input class="form-control" id="yaw" type="number" step="1" value="0" disabled>
+                            <input class="form-control" id="yaw" type="number" step="1" value="0">
                             <span class="input-group-text">deg</span>
                         </div>
                     </div>
                     <div class="col-6 col-md-3">
                         <label class="form-label mb-0" for="tilt">Tilt below horizontal</label>
                         <div class="input-group">
-                            <input class="form-control" id="tilt" type="number" step="1" value="0" disabled>
+                            <input class="form-control" id="tilt" type="number" step="1" value="0">
                             <span class="input-group-text">deg</span>
                         </div>
                     </div>
                     <div class="col-6 col-md-3">
                         <label class="form-label mb-0" for="height">Height</label>
                         <div class="input-group">
-                            <input class="form-control" id="height" type="number" step="0.05" value="1.2" disabled>
+                            <input class="form-control" id="height" type="number" step="0.05" value="1.2">
                             <span class="input-group-text">m</span>
                         </div>
                     </div>
                     <div class="col-6 col-md-3">
-                        <label class="form-label mb-0">Rotation sent</label>
-                        <input class="form-control" id="quaternion" type="text" readonly disabled>
+                        <label class="form-label mb-0" for="quaternion">Rotation sent</label>
+                        <input class="form-control" id="quaternion" type="text" readonly>
                     </div>
                 </div>
 
                 <p class="text-muted mt-2 mb-0" style="font-size: 0.9rem;">
                     A pose is entered as yaw, tilt and height because a unit quaternion is not something to type by
                     hand; the one actually sent is shown beside them. Yaw turns about the world's up axis,
-                    counter-clockwise seen from above, so +90 degrees points the camera along world -X. Left off, the worker returns coordinates in the
-                    camera's own frame - OpenCV convention, X right, Y <em>down</em>, Z forward - rather than the
-                    world frame with Z up and the ground at Z = 0.
+                    counter-clockwise seen from above, so +90 degrees points the camera along world -X.
+                    Left off, the worker returns coordinates in the camera's own frame - OpenCV convention, X right,
+                    Y <em>down</em>, Z forward - rather than the world frame with Z up and the ground at Z = 0.
                 </p>
                 <p class="text-muted mb-0 mt-2" style="font-size: 0.9rem;">
                     A pose moves and turns the whole scene, so it does <strong>not</strong> change the hand to hand
                     distance: a rigid transform preserves distances. It changes where the points sit in the 3D tab,
                     and nothing else. Applied when the stream starts, like the intrinsics.
-                </p>
-
-                <hr>
-
-                <p class="text-muted mb-0 mt-2" style="font-size: 0.9rem;">
-                    A wrong field of view mostly cancels out of a hand to hand distance. Canonical metric depth scales
-                    with the focal length, so it cancels from the lateral coordinates and survives only along the
-                    optical axis - two hands held up side by side measure right even with the guess above, while one
-                    hand reached toward the camera does not.
                 </p>
             </div>
         </div>
@@ -154,7 +159,7 @@
         </div>
 
         <div class="pt-3" id="view-world" hidden>
-            <div id="world-canvas" style="width:100%; height:520px; background:#101418; border-radius:4px;"></div>
+            <div class="world-view" id="world-canvas"></div>
             <p class="text-muted mt-2 mb-0" style="font-size: 0.9rem;" id="world-frame-note"></p>
             <p class="text-muted mb-0" style="font-size: 0.9rem;">
                 Drag to orbit, scroll to zoom, right-drag to pan. Red, green and blue are world X, Y and Z; the grid

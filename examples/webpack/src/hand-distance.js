@@ -35,7 +35,7 @@ let probedSettings = undefined
 let connectButton, startButton, stopButton, deviceSelect, statusLine
 let detectedLine, hfovInput, deriveButton, fxInput, fyInput, cxInput, cyInput
 let extrinsicsSwitch, yawInput, tiltInput, heightInput, quaternionField, worldFrameNote
-let popNameElement, popJsonElement, measurementsList
+let popJsonElement, measurementsList
 let localVideo, overlay, overlayContext
 
 // One colour per series, so the carriers stay apart in the 3D view the way one
@@ -177,6 +177,12 @@ function updateExtrinsicsEnabled() {
     showQuaternion()
 }
 
+// half the default distance, so the scene starts twice as large as the framing
+// that fits it - a person is a small object in a room sized grid
+const DEFAULT_ZOOM = 2
+const DEFAULT_TARGET = new THREE.Vector3(0, 1.5, 0)
+const DEFAULT_OFFSET = new THREE.Vector3(2.5, -5.0, 2.0)
+
 function setStatus(message, isError) {
     statusLine.textContent = message
     statusLine.className = isError ? 'm-2 text-danger' : 'm-2 text-muted'
@@ -195,7 +201,6 @@ async function setup() {
     fyInput = document.getElementById('fy')
     cxInput = document.getElementById('cx')
     cyInput = document.getElementById('cy')
-    popNameElement = document.getElementById('pop-name')
     popJsonElement = document.getElementById('pop-json')
     measurementsList = document.getElementById('measurements')
     extrinsicsSwitch = document.getElementById('extrinsics-on')
@@ -222,6 +227,9 @@ async function setup() {
     }
     for (const button of document.querySelectorAll('#view-tabs .nav-link')) {
         button.addEventListener('click', () => showView(button.dataset.view))
+    }
+    for (const header of document.querySelectorAll('.section-header')) {
+        header.addEventListener('click', () => toggleSection(header))
     }
 
     setupWorldView(document.getElementById('world-canvas'))
@@ -349,7 +357,6 @@ async function connect() {
             await endpoint.connect()
             await endpoint.changePop(handDistancePop())
         }
-        popNameElement.textContent = endpoint.popName()
         startButton.disabled = false
         setStatus('Connected. Pick a camera and press Start.')
     } catch (e) {
@@ -651,10 +658,10 @@ function setupWorldView(container) {
     // camera's up axis is set before the controls read it - otherwise orbiting
     // rolls the scene onto its side
     world.camera.up.set(0, 0, 1)
-    world.camera.position.set(2.5, -3.5, 2.0)
+    world.camera.position.copy(DEFAULT_TARGET).addScaledVector(DEFAULT_OFFSET, 1 / DEFAULT_ZOOM)
 
     world.controls = new OrbitControls(world.camera, world.renderer.domElement)
-    world.controls.target.set(0, 1.5, 0)
+    world.controls.target.copy(DEFAULT_TARGET)
     world.controls.enableDamping = true
 
     world.scene.add(new THREE.AxesHelper(1))
@@ -690,6 +697,9 @@ function setupWorldView(container) {
         if (!width || !height) {
             return
         }
+        // updateStyle false: the drawing buffer is sized in device pixels and
+        // the stylesheet stretches the canvas over its box, so a high DPR
+        // display does not push a canvas wider than the container it sits in
         world.renderer.setSize(width, height, false)
         world.camera.aspect = width / height
         world.camera.updateProjectionMatrix()
@@ -757,6 +767,12 @@ function updateWorldView(series) {
     world.lines.geometry.setDrawRange(0, vertexCount)
     world.lines.geometry.attributes.position.needsUpdate = true
     world.lines.geometry.attributes.color.needsUpdate = true
+}
+
+function toggleSection(header) {
+    const body = document.getElementById(`section-${header.dataset.section}`)
+    body.hidden = !body.hidden
+    header.classList.toggle('open', !body.hidden)
 }
 
 function showView(name) {
