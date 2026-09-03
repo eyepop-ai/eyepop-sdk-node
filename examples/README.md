@@ -60,7 +60,9 @@ open http://localhost:8000/hand-distance.html
 (live webcam, with a camera selector and a calibration panel. Runs 2d body points back-projected through
 `eyepop.depth.metric.small-landscape`, and overlays the distance in metres between each person's wrists. The intrinsics are
 prefilled from the camera's reported resolution and an assumed field of view, which the page states plainly:
-a browser never reports a focal length, so they are a starting point to be replaced by a real calibration.)
+a browser never reports a focal length, so they are a starting point to be replaced by a real calibration. A second tab
+draws the world coordinates in 3D with three.js - skeletons, contours and point clouds - with controls for the camera's
+pose.)
 
 The build mints a worker session from `EYEPOP_API_KEY` and emits it as `eyepop-session.json`, so the key stays
 on the build host and only the short lived session reaches the browser. Never place an EyePop API key in a

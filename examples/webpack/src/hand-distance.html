@@ -78,6 +78,58 @@
                     (OpenCV's checkerboard) and type the four numbers in. Applied when the stream starts: change them,
                     then Stop and Start.
                 </p>
+                <hr>
+
+                <div class="form-check form-switch mb-2">
+                    <input class="form-check-input" type="checkbox" role="switch" id="extrinsics-on">
+                    <label class="form-check-label" for="extrinsics-on">
+                        Send extrinsics (where the camera sits in the world)
+                    </label>
+                </div>
+
+                <div class="row g-2" id="extrinsics-fields">
+                    <div class="col-6 col-md-3">
+                        <label class="form-label mb-0" for="yaw">Yaw</label>
+                        <div class="input-group">
+                            <input class="form-control" id="yaw" type="number" step="1" value="0" disabled>
+                            <span class="input-group-text">deg</span>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label mb-0" for="tilt">Tilt below horizontal</label>
+                        <div class="input-group">
+                            <input class="form-control" id="tilt" type="number" step="1" value="0" disabled>
+                            <span class="input-group-text">deg</span>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label mb-0" for="height">Height</label>
+                        <div class="input-group">
+                            <input class="form-control" id="height" type="number" step="0.05" value="1.2" disabled>
+                            <span class="input-group-text">m</span>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label mb-0">Rotation sent</label>
+                        <input class="form-control" id="quaternion" type="text" readonly disabled>
+                    </div>
+                </div>
+
+                <p class="text-muted mt-2 mb-0" style="font-size: 0.9rem;">
+                    A pose is entered as yaw, tilt and height because a unit quaternion is not something to type by
+                    hand; the one actually sent is shown beside them. Yaw turns about the world's up axis,
+                    counter-clockwise seen from above, so +90 degrees points the camera along world -X. Left off, the worker returns coordinates in the
+                    camera's own frame - OpenCV convention, X right, Y <em>down</em>, Z forward - rather than the
+                    world frame with Z up and the ground at Z = 0.
+                </p>
+                <p class="text-muted mb-0 mt-2" style="font-size: 0.9rem;">
+                    A pose moves and turns the whole scene, so it does <strong>not</strong> change the hand to hand
+                    distance: a rigid transform preserves distances. It changes where the points sit in the 3D tab,
+                    and nothing else. Applied when the stream starts, like the intrinsics.
+                </p>
+
+                <hr>
+
                 <p class="text-muted mb-0 mt-2" style="font-size: 0.9rem;">
                     A wrong field of view mostly cancels out of a hand to hand distance. Canonical metric depth scales
                     with the focal length, so it cancels from the lateral coordinates and survives only along the
@@ -89,9 +141,27 @@
     </div>
 
     <div class="container-fluid mt-4">
-        <div class="preview-wrapper">
-            <video class="local-video" id="local-video" muted autoplay playsinline></video>
-            <canvas class="result-overlay" id="local-result-overlay"></canvas>
+        <ul class="nav nav-tabs" id="view-tabs">
+            <li class="nav-item"><button class="nav-link active" data-view="video">Video</button></li>
+            <li class="nav-item"><button class="nav-link" data-view="world">3D world</button></li>
+        </ul>
+
+        <div class="pt-3" id="view-video">
+            <div class="preview-wrapper">
+                <video class="local-video" id="local-video" muted autoplay playsinline></video>
+                <canvas class="result-overlay" id="local-result-overlay"></canvas>
+            </div>
+        </div>
+
+        <div class="pt-3" id="view-world" hidden>
+            <div id="world-canvas" style="width:100%; height:520px; background:#101418; border-radius:4px;"></div>
+            <p class="text-muted mt-2 mb-0" style="font-size: 0.9rem;" id="world-frame-note"></p>
+            <p class="text-muted mb-0" style="font-size: 0.9rem;">
+                Drag to orbit, scroll to zoom, right-drag to pan. Red, green and blue are world X, Y and Z; the grid
+                is the Z = 0 plane. Every carrier the worker placed is drawn - key points joined into skeletons,
+                outlines and contours as closed rings, mask and scene clouds as points - so a Pop richer than this
+                one fills the view without further work here.
+            </p>
         </div>
     </div>
 
