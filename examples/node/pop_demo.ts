@@ -1,5 +1,5 @@
 import { Area, BaseComponent, Camera, CameraExtrinsics, CameraIntrinsics, ComponentParams, ContourType, EndpointState, EyePop, ForwardOperatorType, InferenceComponent, MotionDetectConfig, MotionModel, Pop, PointCloud, PopComponent, PopComponentType, PopDepthMap, Quaternion, TrackingComponent, Vector3, Vector3d, cloudOfDepth, cloudOfObject } from '@eyepop.ai/eyepop'
-import { Render2d } from "@eyepop.ai/eyepop-render-2d";
+import { POSE_CONNECTIONS, Render2d } from "@eyepop.ai/eyepop-render-2d";
 
 import { createCanvas, loadImage } from "canvas";
 import { open } from "openurl";
@@ -649,28 +649,43 @@ const WORLD_PLY_COLOURS: ReadonlyArray<readonly [number, number, number]> = [
 ]
 
 // One labelled set of world coordinates: a skeleton, an outline, a contour, a
-// mask cloud or the scene.
+// mask cloud or the scene. Segments index into points.
 interface WorldSeries {
   label: string
   points: Vector3[]
+  segments: Array<[number, number]>
 }
 
-// The points of a point bearing carrier that the worker actually placed.
+// The placed points of a carrier, and where each original point ended up.
 //
+// The map is what keeps the segments honest: unplaced points are dropped, so
+// joining points by their new positions would connect across a hole as though
+// the geometry ran straight through it.
+interface PlacedPoints {
+  points: Vector3[]
+  // new index per original index, -1 where the worker placed no point
+  indexOf: number[]
+}
+
 // An unplaced point carries no world members at all rather than a zero or a
-// NaN - sky, outside the depth map, no usable map - so testing one coordinate
-// for a number is what separates them.
-function placed_points(points: any[] | undefined): Vector3[] {
+// NaN - sky, outside the depth map, no usable map - so testing a coordinate for
+// a number is what separates them.
+function placed_points(points: any[] | undefined): PlacedPoints {
   const placed: Vector3[] = []
+  const indexOf: number[] = []
   for (const point of points ?? []) {
     if (Number.isFinite(point?.worldX) && Number.isFinite(point?.worldY) && Number.isFinite(point?.worldZ)) {
+      indexOf.push(placed.length)
       placed.push({ x: point.worldX, y: point.worldY, z: point.worldZ })
+    } else {
+      indexOf.push(-1)
     }
   }
-  return placed
+  return { points: placed, indexOf: indexOf }
 }
 
-// The same, for a dense cloud, where an unplaced point is NaN in all three.
+// The same, for a dense cloud, where an unplaced point is NaN in all three. A
+// cloud is a grid rather than a path, so there is nothing to connect.
 function placed_cloud_points(cloud: PointCloud): Vector3[] {
   const placed: Vector3[] = []
   for (let offset = 0; offset + 2 < cloud.points.length; offset += 3) {
@@ -682,6 +697,57 @@ function placed_cloud_points(cloud: PointCloud): Vector3[] {
     }
   }
   return placed
+}
+
+// Segments joining consecutive points, closed back to the first: an outline or
+// a contour is a ring in the order the worker emitted it.
+//
+// A pair with an unplaced point in it is skipped rather than bridged, which is
+// what keeps a partially placed contour honest - an edge across the gap would
+// be a line the geometry does not have.
+function path_segments(placed: PlacedPoints): Array<[number, number]> {
+  const segments: Array<[number, number]> = []
+  const count = placed.indexOf.length
+  if (count < 2) {
+    return segments
+  }
+  for (let i = 0; i < count; i++) {
+    const from = placed.indexOf[i] as number
+    const to = placed.indexOf[(i + 1) % count] as number
+    if (from >= 0 && to >= 0) {
+      segments.push([from, to])
+    }
+  }
+  return segments
+}
+
+// Skeleton segments for a key point group, or none for a category that has no
+// skeleton.
+//
+// Matched by class label rather than index, mirroring the 2D renderer and using
+// its table: the label is what identifies a joint, and an unrecognised category
+// gets no lines at all rather than points joined in whatever order they arrived.
+function pose_segments(group: any, placed: PlacedPoints): Array<[number, number]> {
+  const connections = typeof group?.category === 'string' ? POSE_CONNECTIONS[group.category] : undefined
+  if (!connections) {
+    return []
+  }
+  const byLabel = new Map<string, number>()
+  ;(group?.points ?? []).forEach((point: any, i: number) => {
+    const index = placed.indexOf[i] ?? -1
+    if (index >= 0 && typeof point?.classLabel === 'string') {
+      byLabel.set(point.classLabel, index)
+    }
+  })
+  const segments: Array<[number, number]> = []
+  for (const connection of connections) {
+    const from = byLabel.get(connection[0] as string)
+    const to = byLabel.get(connection[1] as string)
+    if (from !== undefined && to !== undefined) {
+      segments.push([from, to])
+    }
+  }
+  return segments
 }
 
 // Every set of world coordinates in a prediction, labelled.
@@ -698,9 +764,9 @@ function labelled_world_points(prediction: any): WorldSeries[] {
   const series: WorldSeries[] = []
   const seen = new Map<string, number>()
 
-  const add = (name: string, carrier: string, points: Vector3[]): void => {
+  const add = (label: string, points: Vector3[], segments: Array<[number, number]>): void => {
     if (points.length) {
-      series.push({ label: `${name} ${carrier}`, points: points })
+      series.push({ label: label, points: points, segments: segments })
     }
   }
 
@@ -714,18 +780,22 @@ function labelled_world_points(prediction: any): WorldSeries[] {
       }
 
       for (const group of obj?.keyPoints ?? []) {
-        add(name, 'keypoints', placed_points(group?.points))
+        const placed = placed_points(group?.points)
+        add(`${name} keypoints`, placed.points, pose_segments(group, placed))
       }
-      add(name, 'outline', placed_points(obj?.outline))
+      const outline = placed_points(obj?.outline)
+      add(`${name} outline`, outline.points, path_segments(outline))
       for (const contour of obj?.contours ?? []) {
-        add(name, 'contour', placed_points(contour?.points))
+        const points = placed_points(contour?.points)
+        add(`${name} contour`, points.points, path_segments(points))
         for (const cutout of contour?.cutouts ?? []) {
-          add(name, 'cutout', placed_points(cutout))
+          const hole = placed_points(cutout)
+          add(`${name} cutout`, hole.points, path_segments(hole))
         }
       }
       const cloud = cloudOfObject(obj)
       if (cloud !== undefined) {
-        add(name, 'mask', placed_cloud_points(cloud))
+        add(`${name} mask`, placed_cloud_points(cloud), [])
       }
 
       walk(obj?.objects)
@@ -735,10 +805,8 @@ function labelled_world_points(prediction: any): WorldSeries[] {
   // a prediction carries key point groups of its own, for the abilities that
   // produce them without an enclosing object
   for (const group of prediction?.keyPoints ?? []) {
-    const points = placed_points(group?.points)
-    if (points.length) {
-      series.push({ label: 'keypoints', points: points })
-    }
+    const placed = placed_points(group?.points)
+    add('keypoints', placed.points, pose_segments(group, placed))
   }
   walk(prediction?.objects)
 
@@ -746,10 +814,7 @@ function labelled_world_points(prediction: any): WorldSeries[] {
   // cloud two orders of magnitude larger
   const scene = cloudOfDepth(prediction?.depth, prediction?.source_width, prediction?.source_height)
   if (scene !== undefined) {
-    const points = placed_cloud_points(scene)
-    if (points.length) {
-      series.push({ label: 'scene', points: points })
-    }
+    add('scene', placed_cloud_points(scene), [])
   }
   return series
 }
@@ -773,6 +838,7 @@ function metres(value: number): number {
 // ignores safely.
 function write_world_ply(series: WorldSeries[], path: string): number {
   const vertices: string[] = []
+  const edges: string[] = []
   const legend: string[] = []
   series.forEach((entry, index) => {
     const colour = WORLD_PLY_COLOURS[index % WORLD_PLY_COLOURS.length] as readonly [number, number, number]
@@ -780,8 +846,14 @@ function write_world_ply(series: WorldSeries[], path: string): number {
     // comment early and corrupt the header
     const label = entry.label.replace(/\s+/g, ' ')
     legend.push(`comment ${label}: ${entry.points.length} point(s), rgb ${colour[0]} ${colour[1]} ${colour[2]}`)
+    // segments index within their own series; the file numbers every vertex
+    // from the start of the file
+    const base = vertices.length
     for (const point of entry.points) {
       vertices.push(`${metres(point.x)} ${metres(point.y)} ${metres(point.z)} ${colour[0]} ${colour[1]} ${colour[2]}`)
+    }
+    for (const segment of entry.segments) {
+      edges.push(`${base + segment[0]} ${base + segment[1]} ${colour[0]} ${colour[1]} ${colour[2]}`)
     }
   })
   const header = [
@@ -796,9 +868,21 @@ function write_world_ply(series: WorldSeries[], path: string): number {
     'property uchar red',
     'property uchar green',
     'property uchar blue',
-    'end_header',
   ]
-  writeFileSync(path, header.concat(vertices).join('\n') + '\n')
+  // declared only when there are edges: a scene cloud has none, and viewers
+  // vary in what they make of an empty element
+  if (edges.length) {
+    header.push(
+      `element edge ${edges.length}`,
+      'property int vertex1',
+      'property int vertex2',
+      'property uchar red',
+      'property uchar green',
+      'property uchar blue',
+    )
+  }
+  header.push('end_header')
+  writeFileSync(path, header.concat(vertices).concat(edges).join('\n') + '\n')
   return vertices.length
 }
 
@@ -1077,7 +1161,9 @@ function write_world_ply(series: WorldSeries[], path: string): number {
           + "--toWorld for the objects or --depthMapToWorld for the scene", parameters.worldOut);
       } else {
         const written = write_world_ply(worldSeries, parameters.worldOut);
-        logger.info("wrote %d world point(s) in %d series to %s", written, worldSeries.length, parameters.worldOut);
+        const connected = worldSeries.reduce((total, entry) => total + entry.segments.length, 0);
+        logger.info("wrote %d world point(s) and %d edge(s) in %d series to %s", written, connected,
+          worldSeries.length, parameters.worldOut);
         for (const entry of worldSeries) {
           logger.debug("  %s: %d point(s)", entry.label, entry.points.length);
         }
