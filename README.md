@@ -145,7 +145,7 @@ Intrinsics are **normalised to the frame**, not in pixels, so one calibration su
 
 Extrinsics are the camera-to-world pose, so world coordinates come back in a **Z up** frame with the ground at Z = 0. Note this is the _inverse_ of what `cv2.solvePnP` returns, and its `tvec` is not the camera position. Without extrinsics the coordinates are in the OpenCV camera frame: X right, Y down, Z forward.
 
-Without any calibration the worker assumes a 60 degree horizontal field of view. That is a development scaffold: for canonical metric depth the guess cancels out of X and Y and survives only in Z, so lateral measurements stay exact while every distance along the optical axis is wrong by however wrong the guess was.
+Without any calibration the worker assumes a 60-degree horizontal field of view. That is a development scaffold: for canonical metric depth the guess cancels out of X and Y and survives only in Z, so lateral measurements stay exact while every distance along the optical axis is wrong by however wrong the guess was.
 
 ## Persistent Sessions
 

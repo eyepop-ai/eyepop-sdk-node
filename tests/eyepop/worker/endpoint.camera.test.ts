@@ -98,6 +98,30 @@ describe('a source camera reaches the worker', () => {
         }
     })
 
+    test('a group upload validates its calibration too', async () => {
+        // the group paths build their jobs directly rather than going through
+        // process(), so they need the check of their own
+        const test_pop_id = uuidv4()
+        const test_pipeline_id = uuidv4()
+        const { popConfigRoute } = prepMockServer(server, test_pop_id, test_pipeline_id)
+
+        const loadFromRoute = server.patch(`/worker/pipelines/${test_pipeline_id}/source`).mockImplementation(async ctx => {
+            ctx.status = 200
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify({ timestamp: Date.now() })
+        })
+
+        const endpoint = EyePop.workerEndpoint({ eyepopUrl: server.getURL().toString(), auth: { apiKey: test_api_key }, popId: test_pop_id, stopJobs: false })
+        try {
+            await endpoint.connect()
+            expect(popConfigRoute).toHaveBeenCalledTimes(1)
+            await expect(endpoint.loadFromGroup(['http://invalid.example'], { camera: {} })).rejects.toThrow()
+            expect(loadFromRoute).toHaveBeenCalledTimes(0)
+        } finally {
+            await endpoint.disconnect()
+        }
+    })
+
     test('an unusable calibration fails before the upload starts', async () => {
         const test_pop_id = uuidv4()
         const test_pipeline_id = uuidv4()

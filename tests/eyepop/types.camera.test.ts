@@ -1,6 +1,6 @@
 import { describe, expect, test } from '@jest/globals'
 import type { Camera, Pop } from '../../src/eyepop'
-import { PopComponentType, validateCamera, validatePop } from '../../src/eyepop'
+import { EyePop, PopComponentType, validateCamera, validatePop } from '../../src/eyepop'
 
 function intrinsics(overrides: Partial<Camera['intrinsics']> = {}) {
     return { fx: 0.9, fy: 1.6, cx: 0.5, cy: 0.5, ...overrides }
@@ -100,5 +100,22 @@ describe('pop world coordinate contract', () => {
     test('a defaulted camera is validated with the pop that carries it', () => {
         expect(() => validatePop({ components: [detector], defaults: { camera: {} } })).toThrow()
         expect(() => validatePop({ components: [detector], defaults: { camera: { hfovDegrees: 72 } } })).not.toThrow()
+    })
+})
+
+describe('the initial pop is validated too', () => {
+    // options.pop is serialized into the session-creation body, so changePop()'s
+    // check never sees it - and this is the common way to set a Pop
+    test('an endpoint cannot be built around a pop that cannot mean what it says', () => {
+        const badPop: Pop = { components: [{ type: PopComponentType.INFERENCE, ability: 'eyepop.person:latest' }], depthMap: {} }
+        expect(() => EyePop.workerEndpoint({ auth: { apiKey: 'k' }, popId: 'transient', pop: badPop })).toThrow()
+    })
+
+    test('a valid pop builds an endpoint', () => {
+        const pop: Pop = {
+            components: [{ type: PopComponentType.INFERENCE, ability: 'eyepop.person:latest', toWorld: true }],
+            depthMap: { ability: 'eyepop.depth.anything-3:latest' },
+        }
+        expect(() => EyePop.workerEndpoint({ auth: { apiKey: 'k' }, popId: 'transient', pop })).not.toThrow()
     })
 })
