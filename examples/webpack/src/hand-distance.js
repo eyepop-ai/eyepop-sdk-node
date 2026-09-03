@@ -6,6 +6,8 @@
  * The wrists are the hands here: the 2D body model has no hand point of its
  * own, and a wrist is the closest joint it does place.
  */
+import { EyePop, ForwardOperatorType, PopComponentType, validateCamera } from '@eyepop.ai/eyepop'
+import { Render2d } from '@eyepop.ai/eyepop-render-2d'
 
 // The body model's own labels for the two joints, matched by label rather than
 // index: the label is what identifies a joint, and a model emitting its points
@@ -39,7 +41,7 @@ function handDistancePop() {
                 categoryName: 'person',
                 forward: {
                     operator: {
-                        type: EyePopSdk.ForwardOperatorType.CROP,
+                        type: ForwardOperatorType.CROP,
                         crop: { maxItems: 16 },
                     },
                     targets: [
@@ -118,6 +120,7 @@ async function setup() {
     deriveButton.addEventListener('click', deriveIntrinsics)
     hfovInput.addEventListener('change', deriveIntrinsics)
 
+    connectButton.disabled = false
     await populateDevices()
 }
 
@@ -173,7 +176,8 @@ async function probeSelectedDevice() {
     }
 
     if (!probedSettings || !probedSettings.width || !probedSettings.height) {
-        detectedLine.textContent = 'That camera did not report a resolution, so fx and fy cannot be derived. Type them in.'
+        detectedLine.textContent =
+            'That camera did not report a resolution, so fx and fy cannot be derived. Type them in.'
         return
     }
     const rate = probedSettings.frameRate ? ` at ${Math.round(probedSettings.frameRate)} fps` : ''
@@ -216,7 +220,7 @@ function cameraFromInputs() {
         return undefined
     }
     const camera = { intrinsics: intrinsics }
-    EyePopSdk.validateCamera(camera)
+    validateCamera(camera)
     return camera
 }
 
@@ -225,10 +229,11 @@ async function connect() {
     setStatus('Connecting...')
     try {
         if (!endpoint) {
-            endpoint = await EyePop.workerEndpoint({
-                auth: { oAuth2: true },
-                popId: EyePopSdk.TransientPopId.Transient,
-            }).onStateChanged((from, to) => {
+            // minted by webpack.config.js at build time from EYEPOP_API_KEY and
+            // emitted as an asset: the key stays on the build host, and only the
+            // short lived session reaches the browser
+            const session = await (await fetch('eyepop-session.json')).json()
+            endpoint = await EyePop.workerEndpoint({ auth: { session: session } }).onStateChanged((from, to) => {
                 console.log(`Endpoint state transition from ${from} to ${to}`)
             })
             await endpoint.connect()
@@ -273,7 +278,7 @@ function placedJoints(keyPoints) {
 function handSpans(prediction) {
     const spans = []
 
-    const walk = (objects) => {
+    const walk = objects => {
         for (const [index, obj] of (objects || []).entries()) {
             for (const group of obj.keyPoints || []) {
                 if (group.category !== BODY_POINTS_CATEGORY) {

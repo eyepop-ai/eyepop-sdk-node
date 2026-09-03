@@ -53,33 +53,15 @@ or
 
 open http://localhost:8000/ingress.html
 
-## Plain JS in browser
-
-in project root
-
-```shell
-python3 -m http.server
-```
-
-open http://localhost:8000/examples/web/static/upload.html
-
 or
 
-open http://localhost:8000/examples/web/static/ingress.html
-
-or
-
-open http://localhost:8000/examples/web/static/multi_image_group.html
-
-(select two or more image files, then click Process Group to send them as a single image-group inference)
-
-or
-
-open http://localhost:8000/examples/web/static/hand-distance.html
+open http://localhost:8000/hand-distance.html
 
 (live webcam, with a camera selector and a calibration panel. Runs 2d body points back-projected through
 `eyepop.depth.large`, and overlays the distance in metres between each person's wrists. The intrinsics are
 prefilled from the camera's reported resolution and an assumed field of view, which the page states plainly:
 a browser never reports a focal length, so they are a starting point to be replaced by a real calibration.)
 
-Browser examples require OAuth2 login or a session created by a trusted backend. Never place an EyePop API key in `env.js` or any other browser-delivered file.
+The build mints a worker session from `EYEPOP_API_KEY` and emits it as `eyepop-session.json`, so the key stays
+on the build host and only the short lived session reaches the browser. Never place an EyePop API key in a
+browser-delivered file.
