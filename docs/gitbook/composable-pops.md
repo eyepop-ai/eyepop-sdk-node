@@ -70,5 +70,5 @@ The complete component reference — every component type, its attributes, and w
 
 ### Next steps
 
-* [Processing Media](inference.md) — submit media to the Pop you just built
+* [Running Inference](inference.md) — submit media to the Pop you just built
 * [Visualization](visualization.md) — draw the results on a canvas

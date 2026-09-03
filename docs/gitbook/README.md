@@ -57,6 +57,6 @@ Pass the Pop when you create the endpoint so EyePop can schedule the right compu
 ### Next steps
 
 * [Configuration](configuration.md) — credentials and session options
-* [Processing Media](inference.md) — files, streams, URLs, and image groups
+* [Running Inference](inference.md) — files, streams, URLs, and image groups
 * [Composable Pops](composable-pops.md) — chain models into a pipeline
 * [Visualization](visualization.md) — draw predictions on a canvas

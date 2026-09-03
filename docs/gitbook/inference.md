@@ -3,7 +3,7 @@ description: Files, streams, URLs, and image groups
 icon: play
 ---
 
-# Processing Media
+# Running Inference
 
 `endpoint.process()` accepts a source and returns an `AsyncIterable` of predictions.
 
