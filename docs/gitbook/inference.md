@@ -22,8 +22,9 @@ Streams need an explicit MIME type.
 
 ```typescript
 import fs from 'node:fs'
+import { Readable } from 'node:stream'
 
-const stream = fs.createReadStream('image.jpg')
+const stream = Readable.toWeb(fs.createReadStream('image.jpg'))
 const results = await endpoint.process({
     source: { stream, mimeType: 'image/jpeg' },
 })

@@ -27,7 +27,7 @@ The nested `auth` option is deprecated. Pass the credential at the top level in 
 
 ### Transient and persistent sessions
 
-With no session UUID the SDK creates a **transient** session on connect and releases it on disconnect — the right default for building and testing.
+With no session UUID the SDK creates a **transient** session on the first connect and reuses it on later connects, tearing down only the pipeline it created on disconnect — the right default for building and testing. The session itself idles out server-side once you stop using it.
 
 To run against a persistent Deployment, set `EYEPOP_SESSION_UUID` or pass `sessionUuid`. The Pop is fixed when the Deployment is created, so you do not pass one:
 
@@ -43,7 +43,7 @@ Never ship an API key in client code. Create the session on a trusted backend an
 
 ### Local mode
 
-An [on-premise instance](https://docs.eyepop.ai/deploying/on-premise) serves the EyePop runtime on your own machine. **Local mode** points the SDK at `http://127.0.0.1:8080` instead of the cloud and sends no account credentials — the instance is already registered to your account, and reaching the loopback port is what authorizes the client.
+An [on-premise instance](https://docs.eyepop.ai/deploying/on-premise) serves the EyePop runtime on your own machine. **Local mode** points the SDK at `http://127.0.0.1:8080` instead of the cloud and needs no account credentials — the instance is already registered to your account, and reaching the loopback port is what authorizes the client. An `EYEPOP_API_KEY` in the environment is still sent if it is set; unset it to connect anonymously.
 
 ```typescript
 import { EyePop, PopComponentType } from '@eyepop.ai/eyepop'

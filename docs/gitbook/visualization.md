@@ -8,10 +8,13 @@ icon: chart-area
 `@eyepop.ai/eyepop-render-2d` draws predictions onto a canvas — boxes, keypoints, contours, and more.
 
 ```shell
-npm install --save @eyepop.ai/eyepop-render-2d
+npm install --save @eyepop.ai/eyepop @eyepop.ai/eyepop-render-2d canvas
 ```
 
+This example runs under Node. In a browser, take the context from a DOM canvas and pass `source: { file }` — resolving a `path` is not supported there.
+
 ```typescript
+import { createCanvas, loadImage } from 'canvas'
 import { EyePop, PopComponentType } from '@eyepop.ai/eyepop'
 import { Render2d } from '@eyepop.ai/eyepop-render-2d'
 
@@ -23,7 +26,11 @@ const endpoint = await EyePop.workerEndpoint({
     },
 }).connect()
 
-const context = document.getElementById('my-canvas').getContext('2d')
+const image = await loadImage('people.jpg')
+const canvas = createCanvas(image.width, image.height)
+const context = canvas.getContext('2d')
+context.drawImage(image, 0, 0)
+
 const renderer = Render2d.renderer(context, [
     Render2d.renderBox({ showClass: true, showConfidence: true }),
 ])
