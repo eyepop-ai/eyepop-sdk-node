@@ -21,7 +21,9 @@ import {
     StreamSource,
     UrlSource,
     WorkerSession,
+    validatePop,
 } from '../worker/worker_types'
+import { validateCamera } from '../camera'
 import { Area } from 'EyePop/data/data_types'
 
 interface PopConfig {
@@ -126,6 +128,9 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
     }
 
     public async changePop(pop: Pop): Promise<void> {
+        // locally, so a Pop that cannot mean what it says fails here rather
+        // than as a 400 from the worker that compiles it
+        validatePop(pop)
         if (this.options().popId == TransientPopId.Transient) {
             await this.changeTransientPop(pop)
             return
@@ -225,6 +230,10 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
     }
 
     private async processV2(request: ProcessRequest): Promise<ResultStream> {
+        if (request.camera !== undefined) {
+            // before the upload starts rather than partway through it
+            validateCamera(request.camera)
+        }
         if ((request.source as FileSource).file !== undefined) {
             return this.uploadFile(request.source as FileSource, request)
         } else if ((request.source as StreamSource).stream !== undefined) {

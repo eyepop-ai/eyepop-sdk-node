@@ -32,6 +32,8 @@ export {
 } from './types'
 
 export { DepthMap, decodeDepthMap } from './depth'
+export { PointCloud, CloudBox, CloudBounds, Vector3, decodePointCloud, cloudOfObject, cloudOfDepth, cloudsOfPrediction } from './point_cloud'
+export { Camera, CameraIntrinsics, CameraDistortion, CameraExtrinsics, Quaternion, Vector3d, QUATERNION_TOLERANCE, validateCamera } from './camera'
 
 export {
     ChangeType,
@@ -127,6 +129,9 @@ export {
     MotionDetectConfig,
     PredictionVersion,
     DEFAULT_PREDICTION_VERSION,
+    PopDepthMap,
+    SourceDefaults,
+    validatePop,
 } from './worker/worker_types'
 
 export { Options, Authentication, SessionAuth, ApiKeyAuth, AccessTokenAuth, OAuth2Auth, Auth0Options, HttpClient, PlatformSupport, LocalAuth } from './options'
