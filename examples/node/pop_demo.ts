@@ -1,4 +1,4 @@
-import { Area, BaseComponent, ComponentParams, ContourType, EndpointState, EyePop, ForwardOperatorType, MotionDetectConfig, MotionModel, PopComponentType, TrackingComponent } from '@eyepop.ai/eyepop'
+import { Area, BaseComponent, Camera, CameraExtrinsics, CameraIntrinsics, ComponentParams, ContourType, EndpointState, EyePop, ForwardOperatorType, InferenceComponent, MotionDetectConfig, MotionModel, Pop, PopComponent, PopComponentType, PopDepthMap, Quaternion, TrackingComponent, Vector3d } from '@eyepop.ai/eyepop'
 import { Render2d } from "@eyepop.ai/eyepop-render-2d";
 
 import { createCanvas, loadImage } from "canvas";
@@ -12,6 +12,12 @@ import { pino } from "pino";
 import { parseArgs } from 'node:util';
 import process from "process";
 import { AreaType } from 'EyePop/data/data_types'
+
+// The depth ability used when --toWorld is asked for on its own. Must be a
+// metric one: a 'relative' map is accepted and silently yields no coordinates,
+// because relative depth is scale- AND shift-invariant, so a cloud recovered
+// from it would be distorted rather than merely unscaled.
+const DEFAULT_DEPTH_ABILITY = 'eyepop.depth.large:latest'
 
 const POP_EXAMPLES = {
   "person": { components: [{
@@ -319,6 +325,33 @@ const { positionals, values } = parseArgs({
         roi: {
             type: 'string',
         },
+        toWorld: {
+            type: 'boolean',
+            short: 'w',
+            default: false,
+        },
+        depthMapToWorld: {
+            type: 'boolean',
+            default: false,
+        },
+        depthMapAbility: {
+            type: 'string',
+        },
+        depthMapAbilityUuid: {
+            type: 'string',
+        },
+        cameraHfovDegrees: {
+            type: 'string',
+        },
+        cameraIntrinsics: {
+            type: 'string',
+        },
+        cameraRotation: {
+            type: 'string',
+        },
+        cameraTranslation: {
+            type: 'string',
+        },
         help: {
             type: 'boolean',
             short: 'h',
@@ -366,6 +399,20 @@ function printHelpAndExit(message?: string, exitCode: number = -1) {
             '\n\t--trackingIoUThreshold=[threshold 0...1] IoU threshold to match tracks' +
             '\n\t--trackingSimThreshold=[threshold 0...1] Similarity threshold to match tracks by re-id' +
             '\n\t--trackingMotionModel=[random_walk|constant_velocity|constant_acceleration] specify which motion model to use in tracking' +
+            '\n\t-w --toWorld translate this pop\'s point based predictions into world coordinates in metres, back-projected through a depth map' +
+            '\n\t--depthMapToWorld back-project the depth map itself, so the results carry a point cloud of the whole scene rather than one per segmented object.' +
+            '\n\t   Also what reveals the map: without it the depth branch stays out of the response. Stands on its own, with or without --toWorld' +
+            '\n\t--depthMapAbility=[ability] depth ability supplying the map to back-project through, default ' + DEFAULT_DEPTH_ABILITY +
+            '\n\t   (must be a metric one; a \'relative\' ability is accepted and silently yields no coordinates)' +
+            '\n\t--depthMapAbilityUuid=[uuid] depth ability by uuid, instead of --depthMapAbility' +
+            '\n\t--cameraHfovDegrees=[degrees] source\'s horizontal field of view in (0, 180). Without a calibration the worker assumes 60 degrees,' +
+            '\n\t   which stretches world coordinates along the optical axis by however wrong that guess is' +
+            '\n\t--cameraIntrinsics=(fx, fy, cx, cy) source\'s normalized intrinsics, fractions of the frame rather than pixels.' +
+            '\n\t   Mutually exclusive with --cameraHfovDegrees' +
+            '\n\t--cameraRotation=(w, x, y, z) source\'s camera-to-world rotation as a unit quaternion. With extrinsics, world coordinates come back' +
+            '\n\t   in the world frame - Z up, ground at Z = 0 - instead of the camera frame. Note this is the inverse of what cv2.solvePnP returns' +
+            '\n\t--cameraTranslation=(x, y, z) where the camera itself sits in the world, in metres. A camera declared 5 m up reports its scene 5 m up.' +
+            '\n\t   Not solvePnP\'s tvec, which is not the camera position' +
             '\n\t-v --visualize to visualize the result' +
             '\n\t-o --output to print the result to stdout' +
             '\n\t-h --help to print this help message',
@@ -376,13 +423,23 @@ function printHelpAndExit(message?: string, exitCode: number = -1) {
 // JSON.stringify replacer that summarizes large binary members (depth values,
 // mask bitmaps) instead of dumping megabytes of base64 to the console
 function replaceBinaryMembers(key: string, value: any): any {
-    if (value && typeof value == 'object' && typeof value.values == 'string' && value.width && value.height) {
-        return { ...value, values: `<${value.width}x${value.height} base64 float32, ${value.values.length} chars>` }
+    if (!value || typeof value != 'object' || !value.width || !value.height) {
+        return value
     }
-    if (value && typeof value == 'object' && typeof value.bitmap == 'string' && value.width && value.height) {
-        return { ...value, bitmap: `<${value.width}x${value.height} base64 bitmap, ${value.bitmap.length} chars>` }
+    // accumulated rather than returned at the first match: a depth map carries
+    // its values and, once back-projected, its cloud, and returning early left
+    // the second one to print in full
+    let replaced = value
+    if (typeof value.values == 'string') {
+        replaced = { ...replaced, values: `<${value.width}x${value.height} base64 float32, ${value.values.length} chars>` }
     }
-    return value
+    if (typeof value.bitmap == 'string') {
+        replaced = { ...replaced, bitmap: `<${value.width}x${value.height} base64 bitmap, ${value.bitmap.length} chars>` }
+    }
+    if (typeof value.world == 'string') {
+        replaced = { ...replaced, world: `<${value.width}x${value.height} base64 xyz float32, ${value.world.length} chars>` }
+    }
+    return replaced
 }
 
 function list_of_points(arg: string) {
@@ -426,10 +483,179 @@ function rectangle_roi_area(arg: string): Area {
     }
 }
 
+function tuple_of_numbers(arg: string, expected: number, option: string): number[] {
+  const parsed = eval(arg.replace('(', '[').replace(')', ']'))
+  if (!Array.isArray(parsed) || parsed.length !== expected || parsed.some((v) => typeof v !== 'number')) {
+    printHelpAndExit(`--${option} needs ${expected} numbers, like ${'(' + Array(expected).fill('0').join(', ') + ')'}`)
+  }
+  return parsed as number[]
+}
+
+function camera_intrinsics(arg: string): CameraIntrinsics {
+  const [fx, fy, cx, cy] = tuple_of_numbers(arg, 4, 'cameraIntrinsics')
+  return { fx: fx, fy: fy, cx: cx, cy: cy }
+}
+
+function camera_rotation(arg: string): Quaternion {
+  const [w, x, y, z] = tuple_of_numbers(arg, 4, 'cameraRotation')
+  return { w: w, x: x, y: y, z: z }
+}
+
+function camera_translation(arg: string): Vector3d {
+  const [x, y, z] = tuple_of_numbers(arg, 3, 'cameraTranslation')
+  return { x: x, y: y, z: z }
+}
+
+// The source calibration, or undefined to let the worker assume a field of
+// view. Assuming one is a development scaffold: for canonical metric depth the
+// guess cancels out of X and Y and survives only in Z, so lateral measurements
+// stay exact while every distance along the optical axis is wrong by however
+// wrong the guess was.
+function camera_from_args(camera_args: typeof values): Camera | undefined {
+  let extrinsics: CameraExtrinsics | undefined = undefined
+  if (camera_args.cameraRotation !== undefined || camera_args.cameraTranslation !== undefined) {
+    // either half alone is meaningful: a rotation with no translation is a
+    // camera at the world origin, a translation with no rotation is one looking
+    // along the world axes
+    // spread rather than assigned undefined: the SDK's types are declared with
+    // exactOptionalPropertyTypes, where an absent member and one explicitly set
+    // to undefined are not the same thing
+    extrinsics = {
+      ...(camera_args.cameraRotation !== undefined ? { rotation: camera_rotation(camera_args.cameraRotation) } : {}),
+      ...(camera_args.cameraTranslation !== undefined ? { translation: camera_translation(camera_args.cameraTranslation) } : {}),
+    }
+  }
+  const pose = extrinsics !== undefined ? { extrinsics: extrinsics } : {}
+  if (camera_args.cameraIntrinsics !== undefined) {
+    return { intrinsics: camera_intrinsics(camera_args.cameraIntrinsics), ...pose }
+  }
+  if (camera_args.cameraHfovDegrees !== undefined) {
+    return { hfovDegrees: parseFloat(camera_args.cameraHfovDegrees), ...pose }
+  }
+  return undefined
+}
+
+// Opt every component that can be enriched into world coordinates, returning
+// how many were opted in. Walks nested forward targets so this works with the
+// deeply composed examples as well as the flat ones.
+//
+// Only a component that runs its own inference can honour it, which is what
+// gives it an id for the worker to select on; the converter rejects it on the
+// others. A hidden component is skipped rather than rejected - its predictions
+// never reach the response, so back-projecting them would be paid for and
+// thrown away - but its forward targets are still walked, which is what an
+// encoder-then-detector composition needs.
+function request_world_coordinates(components: PopComponent[]): number {
+  let count = 0
+  for (const component of components) {
+    const runsOwnInference = component.type === PopComponentType.INFERENCE || component.type === PopComponentType.TRACKING
+    if (runsOwnInference && !(component as InferenceComponent).hidden) {
+      component.toWorld = true
+      count += 1
+    }
+    if (component.forward?.targets) {
+      count += request_world_coordinates(component.forward.targets)
+    }
+  }
+  return count
+}
+
+// Return a copy of the pop that asks for world coordinates. Copied rather than
+// mutated because the examples are shared module level objects, and a demo that
+// edits one in place would be a trap for the next reader.
+function add_world_coordinates_to_pop(original: Pop, world_args: typeof values): Pop {
+  const pop: Pop = JSON.parse(JSON.stringify(original))
+  const depthMap: PopDepthMap = {
+    ...(world_args.depthMapAbilityUuid !== undefined
+      ? { abilityUuid: world_args.depthMapAbilityUuid }
+      : { ability: world_args.depthMapAbility ?? DEFAULT_DEPTH_ABILITY }),
+    // left out rather than set false when not asked for: false would still
+    // reveal nothing, but it says the caller decided against a scene cloud
+    // rather than never having mentioned one
+    ...(world_args.depthMapToWorld ? { toWorld: true } : {}),
+  }
+  pop.depthMap = depthMap
+
+  const enriched = world_args.toWorld ? request_world_coordinates(pop.components) : 0
+  if (enriched === 0 && !world_args.depthMapToWorld) {
+    // the converter rejects this rather than silently doing nothing, so say so
+    // here where the reason is obvious
+    logger.warn('no component in this pop can carry world coordinates, so the depth ability has nothing to enrich')
+  } else {
+    const askedFor = [
+      ...(enriched ? [`${enriched} component(s)`] : []),
+      ...(world_args.depthMapToWorld ? ['the whole scene'] : []),
+    ]
+    logger.info('requesting world coordinates for %s via %s', askedFor.join(' and '), depthMap.abilityUuid ?? depthMap.ability)
+  }
+  return pop
+}
+
+// One line on how many points came back placed, or undefined if none did.
+//
+// A point the worker could not place carries no world members at all - sky,
+// outside the depth map, no usable map - so counting them is what tells a
+// calibration that worked from one that quietly did not.
+function summarize_world_coordinates(prediction: any): string | undefined {
+  let placed = 0
+  let unplaced = 0
+
+  const countPoints = (points: any[] | undefined) => {
+    for (const point of points ?? []) {
+      if (point?.worldZ !== undefined && point?.worldZ !== null) {
+        placed += 1
+      } else {
+        unplaced += 1
+      }
+    }
+  }
+  const walk = (obj: any) => {
+    for (const keyPoints of obj.keyPoints ?? []) {
+      countPoints(keyPoints.points)
+    }
+    countPoints(obj.outline)
+    for (const contour of obj.contours ?? []) {
+      countPoints(contour.points)
+      for (const cutout of contour.cutouts ?? []) {
+        countPoints(cutout)
+      }
+    }
+    for (const nested of obj.objects ?? []) {
+      walk(nested)
+    }
+  }
+  // a prediction carries the same point bearing members an object does, so one
+  // walk from the root covers both; walking its objects again would count the
+  // whole tree twice
+  walk(prediction)
+
+  if (placed === 0 && unplaced === 0) {
+    return undefined
+  }
+  return `world coordinates: ${placed} point(s) placed, ${unplaced} not`
+}
+
 (async (parameters=values) => {
   if (parameters.help) {
     printHelpAndExit(undefined, 0);
   }
+
+  if (parameters.cameraIntrinsics !== undefined && parameters.cameraHfovDegrees !== undefined) {
+    // rejected rather than resolved by precedence: two descriptions of one lens
+    // that disagree have no right answer
+    printHelpAndExit("pass either --cameraIntrinsics or --cameraHfovDegrees, not both");
+  }
+  if ((parameters.cameraRotation !== undefined || parameters.cameraTranslation !== undefined)
+      && parameters.cameraIntrinsics === undefined && parameters.cameraHfovDegrees === undefined) {
+    // a pose says where the camera is, not what it sees; the worker rejects a
+    // calibration that describes no lens, so say so here where the fix is obvious
+    printHelpAndExit("--cameraRotation and --cameraTranslation describe a pose, not a lens; pass --cameraIntrinsics or --cameraHfovDegrees as well");
+  }
+  if ((parameters.depthMapAbility !== undefined || parameters.depthMapAbilityUuid !== undefined)
+      && !(parameters.toWorld || parameters.depthMapToWorld)) {
+    printHelpAndExit("--depthMapAbility needs --toWorld or --depthMapToWorld; a depth ability nothing asked to use is rejected as a bad pop rather than silently doing nothing");
+  }
+
   let pop;
 
   const topK = (parameters.topK && parameters.topK.length? parseInt(parameters.topK): undefined)
@@ -544,9 +770,28 @@ function rectangle_roi_area(arg: string): Area {
     } else {
       printHelpAndExit(`unknown pop ${parameters.pop}`);
     }
+  } else if (parameters.depthMapToWorld) {
+    // a complete pop on its own: the depth map is the only consumer, so there is
+    // nothing for a component to do and none has to be named
+    pop = { components: [] }
   } else if (!parameters.session_uuid) {
-    printHelpAndExit("required: --modelUuid --abilityUuid or --model or --ability or --pop pt --session-uuid");
+    printHelpAndExit("required: --modelUuid --abilityUuid or --model or --ability or --pop pt --session-uuid or --depthMapToWorld");
   }
+
+  if (parameters.toWorld || parameters.depthMapToWorld) {
+    if (!pop) {
+      printHelpAndExit("world coordinates cannot be added to a preconfigured session; pass a pop or a model");
+    }
+    pop = add_world_coordinates_to_pop(pop as Pop, parameters)
+  }
+
+  const camera = camera_from_args(parameters)
+  if ((parameters.toWorld || parameters.depthMapToWorld) && camera === undefined) {
+    logger.warn("no camera calibration supplied, so the worker assumes a 60 degree horizontal field of "
+      + "view; lateral measurements are exact but depth is only as right as that guess. Pass "
+      + "--cameraHfovDegrees to turn the guess into a measurement")
+  }
+
   console.log(JSON.stringify(pop, undefined, 2))
   let example_input;
   let image = null;
@@ -624,11 +869,16 @@ function rectangle_roi_area(arg: string): Area {
         componentParams: sourceParams,
         motionDetect: parameters.motionDetect ? { motionDetect: true } : undefined,
         roi: parameters.roi ? rectangle_roi_area(parameters.roi) : undefined,
-        fps: parameters.fps ?? undefined
+        fps: parameters.fps ?? undefined,
+        camera: camera
     })
     for await (let result of results) {
       if (parameters.output) {
         console.info(JSON.stringify(result, replaceBinaryMembers, 2));
+        const world = summarize_world_coordinates(result);
+        if (world !== undefined) {
+          console.info(world);
+        }
       }
       if (parameters.visualize && canvas && context && image) {
         canvas.width = result.source_width;
