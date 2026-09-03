@@ -17,11 +17,14 @@ const RIGHT_HAND = 'right wrist'
 
 const BODY_POINTS_CATEGORY = '2d-body-points'
 
-// Metric, and large rather than small: the distance is only as good as the
-// depth it is read from. A 'relative' depth ability is accepted by the worker
-// and silently yields no world coordinates at all, because relative depth is
-// scale- and shift-invariant.
-const DEPTH_ABILITY = 'eyepop.depth.large:latest'
+// Metric: a 'relative' depth ability is accepted by the worker and silently
+// yields no world coordinates at all, because relative depth is scale- AND
+// shift-invariant, so a distance recovered from one would be distorted rather
+// than merely unscaled.
+//
+// The landscape variant because a webcam frame is wide, and these fit that
+// aspect rather than paying for a square map to cover it.
+const DEPTH_ABILITY = 'eyepop.depth.metric.small-landscape:latest'
 
 let endpoint = undefined
 let resultStream = undefined

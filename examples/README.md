@@ -58,7 +58,7 @@ or
 open http://localhost:8000/hand-distance.html
 
 (live webcam, with a camera selector and a calibration panel. Runs 2d body points back-projected through
-`eyepop.depth.large`, and overlays the distance in metres between each person's wrists. The intrinsics are
+`eyepop.depth.metric.small-landscape`, and overlays the distance in metres between each person's wrists. The intrinsics are
 prefilled from the camera's reported resolution and an assumed field of view, which the page states plainly:
 a browser never reports a focal length, so they are a starting point to be replaced by a real calibration.)
 
