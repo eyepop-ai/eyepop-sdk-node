@@ -1,4 +1,4 @@
-import { EyePop, VideoMode } from '@eyepop.ai/eyepop'
+import { EyePop, PopComponentType, VideoMode } from '@eyepop.ai/eyepop'
 import process from 'process'
 import { pino } from 'pino'
 
@@ -10,7 +10,7 @@ async function upload_video(video_path: string, is_streaming: boolean, seconds: 
         pop: {
             components: [
                 {
-                    type: 'inference',
+                    type: PopComponentType.INFERENCE,
                     ability: 'eyepop.person:latest',
                     categoryName: 'person',
                 },

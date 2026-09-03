@@ -17,7 +17,7 @@
  *   EYEPOP_MULTI_IMAGE_ABILITY — ability to use (default: eyepop.vlm.image:latest)
  */
 
-import { EyePop, EndpointState, InferenceComponent, Pop, WorkerEndpoint } from '@eyepop.ai/eyepop'
+import { EyePop, EndpointState, Pop, PopComponentType, WorkerEndpoint } from '@eyepop.ai/eyepop'
 import { pino } from 'pino'
 import process from 'process'
 
@@ -44,9 +44,9 @@ if (!allUrls && !allPaths) {
 const groupPop: Pop = {
     components: [
         {
-            type: 'inference',
+            type: PopComponentType.INFERENCE,
             ability,
-        } as InferenceComponent,
+        },
     ],
 }
 

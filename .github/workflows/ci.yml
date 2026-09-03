@@ -38,5 +38,10 @@ jobs:
             - name: Typecheck React Native package
               run: npm --workspace @eyepop.ai/react-native-eyepop run typecheck
 
+            # The workspace builds run tsup, which strips types without
+            # checking them, so nothing here typechecked src/ or examples/.
+            - name: Typecheck the SDK, tests, and examples
+              run: npm run typecheck
+
             - name: Run unit tests
               run: npx jest --runInBand --testPathIgnorePatterns="<rootDir>/.worktrees"
