@@ -9,7 +9,7 @@ import { WorkerSession } from './worker/worker_types'
 import { DataSession } from './data/data_types'
 
 export { WorkerEndpoint } from './worker/worker_endpoint'
-export { DataEndpoint } from './data/data_endpoint'
+export { DataEndpoint, EyePopDataWebSocketError } from './data/data_endpoint'
 
 export {
     Session,

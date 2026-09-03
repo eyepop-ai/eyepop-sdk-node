@@ -65,6 +65,39 @@ interface DataConfig {
 const WS_INITIAL_RECONNECT_DELAY = 1000
 const WS_MAX_RECONNECT_DELAY = 60000
 
+function ws_origin(url: string): string {
+    try {
+        return new URL(url).origin
+    } catch {
+        return url
+    }
+}
+
+function ws_failure_reason(event: unknown, sourceError: unknown): string {
+    if (sourceError instanceof Error) {
+        return sourceError.message
+    }
+    if (typeof sourceError === 'string') {
+        return sourceError
+    }
+    return (event as { message?: string })?.message ?? ''
+}
+
+export class EyePopDataWebSocketError extends Error {
+    readonly code = 'DATA_WEBSOCKET_CONNECTION_FAILED'
+    readonly endpoint: string
+    readonly sourceError: unknown
+
+    constructor(url: string, event: unknown) {
+        const sourceError = (event as { error?: unknown })?.error ?? event
+        const reason = ws_failure_reason(event, sourceError)
+        super(reason ? `EyePop Dataset event WebSocket connection failed: ${reason}` : 'EyePop Dataset event WebSocket connection failed')
+        this.name = 'EyePopDataWebSocketError'
+        this.endpoint = ws_origin(url)
+        this.sourceError = sourceError
+    }
+}
+
 function omit_nulls(_: any, value: any) {
     if (value === null) {
         return undefined
@@ -79,6 +112,9 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
 
     private _ws: WebSocket | null
     private _ws_current_reconnect_delay: number | null
+    private _ws_reconnect_timeout: ReturnType<typeof setTimeout> | null
+    private _ws_reconnect_enabled: boolean
+    private _ws_connecting: Promise<void> | null
 
     private _account_event_handlers: OnChangeEvent[]
     private _dataset_uuid_to_event_handlers: Map<string, OnChangeEvent[]>
@@ -89,6 +125,9 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         this.vlmApiUrl = null
         this._ws = null
         this._ws_current_reconnect_delay = null
+        this._ws_reconnect_timeout = null
+        this._ws_reconnect_enabled = false
+        this._ws_connecting = null
         this._accountId = options.accountId || null
         this._account_event_handlers = []
         this._dataset_uuid_to_event_handlers = new Map<string, OnChangeEvent[]>()
@@ -114,14 +153,15 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
     }
 
     public override async disconnect(wait: boolean = true): Promise<void> {
+        this._ws_reconnect_enabled = false
+        if (this._ws_reconnect_timeout) {
+            clearTimeout(this._ws_reconnect_timeout)
+            this._ws_reconnect_timeout = null
+        }
         this.datasetApiUrl = null
         this.vlmApiUrl = null
         if (this._ws) {
-            try {
-                this._ws.close()
-            } catch (e) {
-                this._logger.warn('ignored exception', e)
-            }
+            this.close_ws(this._ws, 'unsubscribe')
             this._ws = null
         }
         await super.disconnect(wait)
@@ -164,6 +204,7 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         this.vlmApiUrl = vlmApiUrl.toString()
 
         if (this.options().disableWs) {
+            this._ws_reconnect_enabled = false
             this._logger.info('disabled ws connection')
         } else {
             await this.reconnect_ws()
@@ -190,8 +231,21 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
     }
 
     private async reconnect_ws(): Promise<void> {
+        if (this._ws_connecting) {
+            return this._ws_connecting
+        }
+        const connecting = this.open_ws()
+        this._ws_connecting = connecting
+        try {
+            await connecting
+        } finally {
+            this._ws_connecting = null
+        }
+    }
+
+    private async open_ws(): Promise<void> {
         if (this._ws) {
-            this._ws.close()
+            this.close_ws(this._ws, 'unsubscribe')
             this._ws = null
         }
         const baseUrl = this.datasetApiUrl?.replace('https://', 'wss://').replace('http://', 'ws://')
@@ -201,27 +255,51 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         const ws_url = urljoin(baseUrl, 'events')
         this._requestLogger.debug('about to connect ws to: %s', ws_url)
         return new Promise((resolve, reject) => {
+            let settled = false
+            const settle_ok = () => {
+                settled = true
+                resolve()
+            }
+            const settle_err = (error: unknown) => {
+                settled = true
+                reject(error)
+            }
+
             const ws = createWebSocket(ws_url)
             if (!ws) {
-                return resolve()
+                return settle_ok()
             }
             this._ws = ws
 
-            ws.onopen = async () => {
-                const auth_header = await this.authorizationHeader()
-                let msg = JSON.stringify({ authorization: auth_header })
-                this._requestLogger.debug('ws send: %s', msg)
-                ws.send(msg)
-                msg = JSON.stringify({ subscribe: { account_uuid: this._accountId } })
-                this._requestLogger.debug('ws send: %s', msg)
-                ws.send(msg)
-                for (let dataset_uuid in this._dataset_uuid_to_event_handlers.keys()) {
-                    const msg = JSON.stringify({ subscribe: { dataset_uuid: dataset_uuid } })
-                    this._requestLogger.debug('ws send: %s', msg)
-                    ws.send(msg)
-                }
-                this._ws_current_reconnect_delay = WS_INITIAL_RECONNECT_DELAY
-                resolve()
+            ws.onopen = () => {
+                void this.authorizationHeader()
+                    .then(auth_header => {
+                        if (this._ws !== ws) {
+                            this.close_ws(ws, 'unsubscribe')
+                            settle_ok()
+                            return
+                        }
+                        let msg = JSON.stringify({ authorization: auth_header })
+                        this._requestLogger.debug('ws send: %s', msg)
+                        ws.send(msg)
+                        msg = JSON.stringify({ subscribe: { account_uuid: this._accountId } })
+                        this._requestLogger.debug('ws send: %s', msg)
+                        ws.send(msg)
+                        for (const dataset_uuid of this._dataset_uuid_to_event_handlers.keys()) {
+                            const msg = JSON.stringify({ subscribe: { dataset_uuid: dataset_uuid } })
+                            this._requestLogger.debug('ws send: %s', msg)
+                            ws.send(msg)
+                        }
+                        this._ws_current_reconnect_delay = WS_INITIAL_RECONNECT_DELAY
+                        // enabling here rather than before connecting keeps a rejected connect()
+                        // from leaving a reconnect timer behind for a caller that already gave up
+                        this._ws_reconnect_enabled = true
+                        settle_ok()
+                    })
+                    .catch(error => {
+                        this.close_ws(ws, 'authorization failed', 1011)
+                        settle_err(error)
+                    })
             }
 
             ws.onmessage = event => {
@@ -234,25 +312,58 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
             ws.onclose = (event: CloseEvent) => {
                 const { code, reason } = event
                 this._requestLogger.debug('ws closed: %d %s', code, reason)
-
-                if (reason !== 'unsubscribe') {
-                    if (!this._ws_current_reconnect_delay) {
-                        this._ws_current_reconnect_delay = WS_INITIAL_RECONNECT_DELAY
-                    } else if (this._ws_current_reconnect_delay < WS_MAX_RECONNECT_DELAY) {
-                        this._ws_current_reconnect_delay *= 1.5
-                    }
-                    setTimeout(async () => {
-                        await this.reconnect_ws()
-                    }, this._ws_current_reconnect_delay)
+                if (!settled) {
+                    settle_err(new EyePopDataWebSocketError(ws_url, new Error(`closed before the connection was established: ${code} ${reason}`)))
                 }
+                if (this._ws !== ws) {
+                    return
+                }
+                this._ws = null
+                this.schedule_ws_reconnect()
             }
 
             ws.onerror = (event: Event): any => {
-                this._logger.error(event)
-                reject(event)
+                const error = new EyePopDataWebSocketError(ws_url, event)
+                this._logger.error({ err: error }, 'dataset event WebSocket connection failed')
+                settle_err(error)
                 return null
             }
         })
+    }
+
+    private close_ws(ws: WebSocket, reason: string, code: number = 1000): void {
+        try {
+            ws.close(code, reason)
+        } catch (e) {
+            this._logger.warn({ err: e }, 'ignored exception closing the dataset event WebSocket')
+        }
+    }
+
+    private schedule_ws_reconnect(): void {
+        if (!this._ws_reconnect_enabled || this._ws_reconnect_timeout) {
+            return
+        }
+        if (!this._ws_current_reconnect_delay) {
+            this._ws_current_reconnect_delay = WS_INITIAL_RECONNECT_DELAY
+        } else if (this._ws_current_reconnect_delay < WS_MAX_RECONNECT_DELAY) {
+            this._ws_current_reconnect_delay *= 1.5
+        }
+        this._ws_reconnect_timeout = setTimeout(() => {
+            if (!this._ws_reconnect_enabled) {
+                this._ws_reconnect_timeout = null
+                return
+            }
+            void this.reconnect_ws()
+                .catch(error => {
+                    this._requestLogger.debug('dataset event WebSocket reconnect failed: %s', error)
+                })
+                .finally(() => {
+                    this._ws_reconnect_timeout = null
+                    if (!this._ws) {
+                        this.schedule_ws_reconnect()
+                    }
+                })
+        }, this._ws_current_reconnect_delay)
     }
 
     private options(): DataOptions {
@@ -977,16 +1088,16 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
             return this.request(`/vlm_abilities/${vlm_ability_uuid}/refine`, {
                 method: 'POST',
                 body: JSON.stringify(auto_prompt, omit_nulls),
-                headers: {'Content-Type': 'application/json'},
+                headers: { 'Content-Type': 'application/json' },
             })
         } else if (auto_task !== undefined) {
             return this.request(`/vlm_abilities/${vlm_ability_uuid}/refine_task`, {
                 method: 'POST',
                 body: JSON.stringify(auto_task, omit_nulls),
-                headers: {'Content-Type': 'application/json'},
+                headers: { 'Content-Type': 'application/json' },
             })
         } else {
-            return Promise.reject("refine vlm ability requires auto_prompt or auto_config parameter")
+            return Promise.reject('refine vlm ability requires auto_prompt or auto_config parameter')
         }
     }
 
@@ -1004,7 +1115,7 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
             params.set('default_alias_name', default_alias_name)
         }
         return this.request(`/vlm_abilities/${vlm_ability_uuid}/clone?${params.toString()}`, {
-            method: 'POST'
+            method: 'POST',
         })
     }
 

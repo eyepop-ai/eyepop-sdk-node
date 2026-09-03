@@ -11,3 +11,6 @@
 ### Fixed
 
 - Compute session connection errors now preserve structured pipeline failure details from Compute API responses and sessions.
+- Dataset event WebSocket failures now report the structured `EyePopDataWebSocketError` instead of rejecting with a raw browser event, and background reconnect failures no longer surface as unhandled promise rejections.
+- Dataset event subscriptions are replayed after a reconnect; previously a reconnected session received only account-level events.
+- The core package declares its direct `url-join` dependency, which previously reached the build only through workspace hoisting.

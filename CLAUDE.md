@@ -11,8 +11,9 @@ Use npm workspaces (not pnpm/yarn). Install dependencies with `npm install`. Bef
 ## Gotchas
 - Dual node+browser codebase: `build` = `tsup` (CJS+ESM+dts) then `webpack` browser bundle; the `browser` field
   stubs Node built-ins (`fs`, `undici`, `ws` → false). Those overrides are load-bearing — don't assume Node APIs are safe.
-- Jest runs ESM against raw TS `src/` (no build needed), but relative imports must carry a `.js` extension
-  (ESM convention) even though the files are `.ts` — omitting it breaks resolution.
+- Jest runs ESM against raw TS `src/` (no build needed) and relative imports are extensionless; `moduleNameMapper`
+  strips a `.js` suffix if one appears and redirects the `src/eyepop` / `src/eyepop-render-2d` directory imports to
+  `index.ts`, without which their `package.json` `main` resolves to whatever `dist/` was built last.
 - Unit tests are hermetic (mock server / fake HttpClient); the smoke/live tests (`npm run smoke:session`,
   `scripts/session-smoke.mjs`) hit real hosts and need `EYEPOP_API_KEY` — exported, or in a `.env` copied
   from `.env.example`. Its default abilities must stay account-portable; no private fixtures.
