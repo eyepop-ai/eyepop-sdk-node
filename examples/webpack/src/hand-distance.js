@@ -826,6 +826,22 @@ function describeWorldFrame(camera) {
         : 'Camera frame: X right, Y down, Z forward, origin at the lens. Turn on extrinsics for a world frame.'
 }
 
+/*
+ * Give the camera back.
+ *
+ * Shared by the stop button and by a failed start: getUserMedia() can succeed
+ * and everything after it still fail, and the stop button is only enabled once
+ * the stream is running, so leaving the tracks live there strands the camera
+ * with no way to release it short of reloading the page.
+ */
+function releaseCamera() {
+    localVideo.pause()
+    if (localVideo.srcObject) {
+        localVideo.srcObject.getTracks().forEach(track => track.stop())
+        localVideo.srcObject = null
+    }
+}
+
 async function startStream() {
     startButton.disabled = true
     let camera
@@ -855,6 +871,7 @@ async function startStream() {
             .catch(e => setStatus(`Result stream ended: ${e.message}`, true))
             .finally(() => console.log('result stream finished'))
     } catch (e) {
+        releaseCamera()
         setStatus(`Could not start: ${e.message}`, true)
         startButton.disabled = false
     }
@@ -866,11 +883,7 @@ async function stopStream() {
         resultStream.cancel()
         resultStream = undefined
     }
-    localVideo.pause()
-    if (localVideo.srcObject) {
-        localVideo.srcObject.getTracks().forEach(track => track.stop())
-        localVideo.srcObject = null
-    }
+    releaseCamera()
     overlayContext.clearRect(0, 0, overlay.width, overlay.height)
     startButton.disabled = false
     setStatus('Stopped.')

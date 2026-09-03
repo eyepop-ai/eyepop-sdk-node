@@ -448,53 +448,79 @@ function replaceBinaryMembers(key: string, value: any): any {
     return replaced
 }
 
-function list_of_points(arg: string) {
-  const points_as_tuples = eval(`[${arg.replace('(', '[').replace(')', ']')}]`)
-  let points: any[] = [];
-  for (let tuple of points_as_tuples) {
-    points.push({
-      x: tuple[0],
-      y: tuple[1]
-    })
-  }
-  return points
-}
-
-function list_of_boxes(arg: string) {
-  const boxes_as_tuples = eval(`[${arg.replace('(', '[').replace(')', ']')}]`)
-  let boxes: any[] = []
-  for (let tuple of boxes_as_tuples) {
-    boxes.push({
-      topLeft: {
-        x: tuple[0],
-        y: tuple[1],
-      },
-      bottomRight: {
-        x: tuple[2],
-        y: tuple[3],
-      }
-    })
-  }
-  return boxes
-}
-
-function rectangle_roi_area(arg: string): Area {
-    const values = eval(arg.replace('(', '[').replace(')', ']'))
-    return {
-        type: AreaType.RECTANGLE,
-        x: values[0],
-        y: values[1],
-        width: values[2],
-        height: values[3]
+// The numbers in one comma separated group.
+//
+// Parsed rather than eval'd. An argument handed to eval runs as code with the
+// process's own privileges, and an example is the worst place for that pattern:
+// it gets copied into projects whose arguments do not come from the person
+// running them.
+function numbers_in(text: string, option: string): number[] {
+  const values: number[] = []
+  for (const part of text.split(',')) {
+    const trimmed = part.trim()
+    // Number('') is 0, so an empty part would otherwise pass as a number that
+    // was never written
+    if (trimmed === '' || !Number.isFinite(Number(trimmed))) {
+      printHelpAndExit(`--${option} takes numbers, not ${JSON.stringify(text.trim())}`)
+      return []
     }
+    values.push(Number(trimmed))
+  }
+  return values
+}
+
+// One group per parenthesised tuple, or the whole argument as a single group
+// when it has no parentheses.
+function number_groups(arg: string, option: string): number[][] {
+  const groups: number[][] = []
+  for (const match of arg.matchAll(/\(([^()]*)\)/g)) {
+    groups.push(numbers_in(match[1] as string, option))
+  }
+  if (groups.length === 0) {
+    groups.push(numbers_in(arg, option))
+  }
+  return groups
 }
 
 function tuple_of_numbers(arg: string, expected: number, option: string): number[] {
-  const parsed = eval(arg.replace('(', '[').replace(')', ']'))
-  if (!Array.isArray(parsed) || parsed.length !== expected || parsed.some((v) => typeof v !== 'number')) {
+  const groups = number_groups(arg, option)
+  if (groups.length !== 1 || groups[0]?.length !== expected) {
     printHelpAndExit(`--${option} needs ${expected} numbers, like ${'(' + Array(expected).fill('0').join(', ') + ')'}`)
+    return []
   }
-  return parsed as number[]
+  return groups[0] as number[]
+}
+
+function list_of_points(arg: string) {
+  return number_groups(arg, 'points').map(values => {
+    if (values.length !== 2) {
+      printHelpAndExit('--points takes coordinate pairs, like (x1, y1), (x2, y2)')
+    }
+    return { x: values[0], y: values[1] }
+  })
+}
+
+function list_of_boxes(arg: string) {
+  return number_groups(arg, 'boxes').map(values => {
+    if (values.length !== 4) {
+      printHelpAndExit('--boxes takes boxes, like (left1, top1, right1, bottom1), (left2, top2, right2, bottom2)')
+    }
+    return {
+      topLeft: { x: values[0], y: values[1] },
+      bottomRight: { x: values[2], y: values[3] },
+    }
+  })
+}
+
+function rectangle_roi_area(arg: string): Area {
+    const values = tuple_of_numbers(arg, 4, 'roi')
+    return {
+        type: AreaType.RECTANGLE,
+        x: values[0] as number,
+        y: values[1] as number,
+        width: values[2] as number,
+        height: values[3] as number
+    }
 }
 
 function camera_intrinsics(arg: string): CameraIntrinsics {
@@ -536,7 +562,13 @@ function camera_from_args(camera_args: typeof values): Camera | undefined {
     return { intrinsics: camera_intrinsics(camera_args.cameraIntrinsics), ...pose }
   }
   if (camera_args.cameraHfovDegrees !== undefined) {
-    return { hfovDegrees: parseFloat(camera_args.cameraHfovDegrees), ...pose }
+    const hfov = parseFloat(camera_args.cameraHfovDegrees)
+    // the SDK refuses this too, but by throwing; the other camera flags answer
+    // with the usage text, and one flag failing differently is a worse demo
+    if (!(hfov > 0 && hfov < 180)) {
+      printHelpAndExit('--cameraHfovDegrees needs a horizontal field of view in (0, 180) degrees')
+    }
+    return { hfovDegrees: hfov, ...pose }
   }
   return undefined
 }
