@@ -27,7 +27,9 @@ The nested `auth` option is deprecated. Pass the credential at the top level in 
 
 ### Transient and persistent sessions
 
-With no session UUID the SDK creates a **transient** session on the first connect and reuses it on later connects, tearing down only the pipeline it created on disconnect — the right default for building and testing. The session itself idles out server-side once you stop using it.
+With no session UUID the SDK creates a new **transient** session each time it connects, and deletes the pipeline it created on disconnect — the right default for building and testing. It does not delete the session itself.
+
+Connecting without a `pop` behaves differently: the SDK attaches to your first live non-persistent session instead of creating one.
 
 To run against a persistent Deployment, set `EYEPOP_SESSION_UUID` or pass `sessionUuid`. The Pop is fixed when the Deployment is created, so you do not pass one:
 

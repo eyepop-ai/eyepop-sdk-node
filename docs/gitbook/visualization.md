@@ -11,7 +11,7 @@ icon: chart-area
 npm install --save @eyepop.ai/eyepop @eyepop.ai/eyepop-render-2d canvas
 ```
 
-This example runs under Node. In a browser, take the context from a DOM canvas and pass `source: { file }` — resolving a `path` is not supported there.
+This example runs under Node. A browser works at runtime — take the context from a DOM canvas and pass `source: { file }`, since resolving a `path` is not supported there — but `Render2d.renderer` is typed against the node-`canvas` context, so TypeScript needs a cast.
 
 ```typescript
 import { createCanvas, loadImage } from 'canvas'
