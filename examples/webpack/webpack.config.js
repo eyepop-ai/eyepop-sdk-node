@@ -14,7 +14,7 @@ module.exports = {
     entry: {
         upload: './src/upload.js',
         ingress: './src/ingress.js',
-        'hand-distance': './src/hand-distance.js',
+        'world-demo': './src/world-demo.js',
     },
     mode: 'development',
     output: {
@@ -34,9 +34,9 @@ module.exports = {
             chunks: ['ingress'],
         }),
         new HtmlWebpackPlugin({
-            template: './src/hand-distance.html',
-            filename: 'hand-distance.html',
-            chunks: ['hand-distance'],
+            template: './src/world-demo.html',
+            filename: 'world-demo.html',
+            chunks: ['world-demo'],
         }),
         new CopyPlugin({
             patterns: ['static'],

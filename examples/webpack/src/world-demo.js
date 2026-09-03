@@ -35,7 +35,7 @@ let probedSettings = undefined
 let connectButton, startButton, stopButton, deviceSelect, statusLine
 let detectedLine, hfovInput, deriveButton, fxInput, fyInput, cxInput, cyInput
 let extrinsicsSwitch, yawInput, tiltInput, heightInput, quaternionField, worldFrameNote
-let popJsonElement, measurementsList
+let popJsonElement, measurementsList, erodeInput
 let localVideo, overlay, overlayContext
 
 // One colour per series, so the carriers stay apart in the 3D view the way one
@@ -61,7 +61,50 @@ const POINT_SIZE_METRES = 0.06
 const MAX_POINTS = 200000
 const MAX_SEGMENTS = 60000
 
-function handDistancePop() {
+// The body points branch, shared by both features: it is what the hand
+// distance is measured from and what draws a skeleton in the 3D tab.
+function bodyPointsComponent() {
+    return {
+        type: PopComponentType.INFERENCE,
+        model: 'eyepop.person.2d-body-points:latest',
+        categoryName: BODY_POINTS_CATEGORY,
+        confidenceThreshold: 0.25,
+        // this is the component whose points get back-projected; the person box
+        // above has no points to place
+        toWorld: true,
+    }
+}
+
+/*
+ * A segmenter beside the body points, its mask split into pieces.
+ *
+ * toWorld sits on the segmenter rather than on the component finder: only a
+ * component that runs its own inference can carry it, which is what gives it an
+ * id for the worker to select on. The pieces inherit the placement from the
+ * mask they were cut out of.
+ */
+function segmentationComponent(erode) {
+    return {
+        type: PopComponentType.INFERENCE,
+        model: 'eyepop.sam:latest',
+        toWorld: true,
+        forward: {
+            operator: { type: ForwardOperatorType.FULL },
+            targets: [
+                {
+                    type: PopComponentType.COMPONENT_FINDER,
+                    erode: erode,
+                },
+            ],
+        },
+    }
+}
+
+function popForFeature(feature, erode) {
+    const targets = [bodyPointsComponent()]
+    if (feature === 'cloud') {
+        targets.push(segmentationComponent(erode))
+    }
     return {
         components: [
             {
@@ -73,17 +116,7 @@ function handDistancePop() {
                         type: ForwardOperatorType.CROP,
                         crop: { maxItems: 16 },
                     },
-                    targets: [
-                        {
-                            type: PopComponentType.INFERENCE,
-                            model: 'eyepop.person.2d-body-points:latest',
-                            categoryName: BODY_POINTS_CATEGORY,
-                            confidenceThreshold: 0.25,
-                            // this is the component whose points get back-projected;
-                            // the person box above has no points to place
-                            toWorld: true,
-                        },
-                    ],
+                    targets: targets,
                 },
             },
         ],
@@ -92,6 +125,15 @@ function handDistancePop() {
         // between a few key points and a megabyte of base64 per frame
         depthMap: { ability: DEPTH_ABILITY },
     }
+}
+
+function selectedFeature() {
+    return document.querySelector('input[name="feature"]:checked')?.value ?? 'hands'
+}
+
+function currentPop() {
+    const erode = parseFloat(erodeInput.value)
+    return popForFeature(selectedFeature(), Number.isFinite(erode) ? erode : undefined)
 }
 
 /*
@@ -218,7 +260,7 @@ async function setup() {
     overlay = document.getElementById('local-result-overlay')
     overlayContext = overlay.getContext('2d')
 
-    popJsonElement.textContent = JSON.stringify(handDistancePop(), undefined, 2)
+    erodeInput = document.getElementById('erode')
 
     connectButton.addEventListener('click', connect)
     startButton.addEventListener('click', startStream)
@@ -236,9 +278,14 @@ async function setup() {
     for (const header of document.querySelectorAll('.section-header')) {
         header.addEventListener('click', () => toggleSection(header))
     }
+    for (const radio of document.querySelectorAll('input[name="feature"]')) {
+        radio.addEventListener('change', applyFeature)
+    }
+    erodeInput.addEventListener('change', applyFeature)
 
     setupWorldView(document.getElementById('world-canvas'))
     showView('video')
+    await applyFeature()
     updateExtrinsicsEnabled()
     describeWorldFrame(undefined)
 
@@ -360,7 +407,7 @@ async function connect() {
                 console.log(`Endpoint state transition from ${from} to ${to}`)
             })
             await endpoint.connect()
-            await endpoint.changePop(handDistancePop())
+            await endpoint.changePop(currentPop())
         }
         startButton.disabled = false
         setStatus('Connected. Pick a camera and press Start.')
@@ -772,6 +819,28 @@ function updateWorldView(series) {
     world.lines.geometry.setDrawRange(0, vertexCount)
     world.lines.geometry.attributes.position.needsUpdate = true
     world.lines.geometry.attributes.color.needsUpdate = true
+}
+
+/*
+ * Show the Pop the selection describes, and hand it to the worker if one is
+ * already connected.
+ *
+ * changePop is how a Pop is meant to be swapped on a running pipeline, so the
+ * feature can be changed mid-stream rather than only before Start.
+ */
+async function applyFeature() {
+    erodeInput.disabled = selectedFeature() !== 'cloud'
+    const pop = currentPop()
+    popJsonElement.textContent = JSON.stringify(pop, undefined, 2)
+    if (!endpoint) {
+        return
+    }
+    try {
+        await endpoint.changePop(pop)
+        setStatus(`Pop set to ${selectedFeature() === 'cloud' ? 'point cloud' : 'hand distance'}.`)
+    } catch (e) {
+        setStatus(`Could not change the pop: ${e.message}`, true)
+    }
 }
 
 function toggleSection(header) {
