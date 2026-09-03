@@ -1,4 +1,4 @@
-import { Area, BaseComponent, Camera, CameraExtrinsics, CameraIntrinsics, ComponentParams, ContourType, EndpointState, EyePop, ForwardOperatorType, InferenceComponent, MotionDetectConfig, MotionModel, Pop, PointCloud, PopComponent, PopComponentType, PopDepthMap, Quaternion, TrackingComponent, Vector3d, cloudsOfPrediction } from '@eyepop.ai/eyepop'
+import { Area, BaseComponent, Camera, CameraExtrinsics, CameraIntrinsics, ComponentParams, ContourType, EndpointState, EyePop, ForwardOperatorType, InferenceComponent, MotionDetectConfig, MotionModel, Pop, PointCloud, PopComponent, PopComponentType, PopDepthMap, Quaternion, TrackingComponent, Vector3, Vector3d, cloudOfDepth, cloudOfObject } from '@eyepop.ai/eyepop'
 import { Render2d } from "@eyepop.ai/eyepop-render-2d";
 
 import { createCanvas, loadImage } from "canvas";
@@ -416,7 +416,8 @@ function printHelpAndExit(message?: string, exitCode: number = -1) {
             '\n\t   in the world frame - Z up, ground at Z = 0 - instead of the camera frame. Note this is the inverse of what cv2.solvePnP returns' +
             '\n\t--cameraTranslation=(x, y, z) where the camera itself sits in the world, in metres. A camera declared 5 m up reports its scene 5 m up.' +
             '\n\t   Not solvePnP\'s tvec, which is not the camera position' +
-            '\n\t--worldOut=[path.ply] write the world point clouds in the results to an ASCII PLY file, in metres, one colour per cloud.' +
+            '\n\t--worldOut=[path.ply] write everything in the results that carries world coordinates - key points, outlines, contours,' +
+            '\n\t   mask point clouds and the scene cloud - to an ASCII PLY file, in metres, one colour per series.' +
             '\n\t   Open it in MeshLab, CloudCompare or Blender to move around the scene. Needs --toWorld or --depthMapToWorld to fill them' +
             '\n\t-v --visualize to visualize the result' +
             '\n\t-o --output to print the result to stdout' +
@@ -640,12 +641,118 @@ function summarize_world_coordinates(prediction: any): string | undefined {
   return `world coordinates: ${placed} point(s) placed, ${unplaced} not`
 }
 
-// One colour per cloud so the object clouds and the scene stay apart in a
-// viewer, the way one legend entry per carrier does in a plot.
+// One colour per series so the carriers stay apart in a viewer, the way one
+// legend entry per carrier does in a plot.
 const WORLD_PLY_COLOURS: ReadonlyArray<readonly [number, number, number]> = [
   [228, 26, 28], [55, 126, 184], [77, 175, 74], [152, 78, 163],
   [255, 127, 0], [166, 86, 40], [247, 129, 191],
 ]
+
+// One labelled set of world coordinates: a skeleton, an outline, a contour, a
+// mask cloud or the scene.
+interface WorldSeries {
+  label: string
+  points: Vector3[]
+}
+
+// The points of a point bearing carrier that the worker actually placed.
+//
+// An unplaced point carries no world members at all rather than a zero or a
+// NaN - sky, outside the depth map, no usable map - so testing one coordinate
+// for a number is what separates them.
+function placed_points(points: any[] | undefined): Vector3[] {
+  const placed: Vector3[] = []
+  for (const point of points ?? []) {
+    if (Number.isFinite(point?.worldX) && Number.isFinite(point?.worldY) && Number.isFinite(point?.worldZ)) {
+      placed.push({ x: point.worldX, y: point.worldY, z: point.worldZ })
+    }
+  }
+  return placed
+}
+
+// The same, for a dense cloud, where an unplaced point is NaN in all three.
+function placed_cloud_points(cloud: PointCloud): Vector3[] {
+  const placed: Vector3[] = []
+  for (let offset = 0; offset + 2 < cloud.points.length; offset += 3) {
+    const x = cloud.points[offset] as number
+    const y = cloud.points[offset + 1] as number
+    const z = cloud.points[offset + 2] as number
+    if (Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(z)) {
+      placed.push({ x: x, y: y, z: z })
+    }
+  }
+  return placed
+}
+
+// Every set of world coordinates in a prediction, labelled.
+//
+// Covers every carrier the worker enriches - key points, outlines, contours
+// with their cutouts, mask point clouds and the scene cloud a depthMap.toWorld
+// pop returns - rather than only the clouds, so a pop that produces no masks
+// still has something to write. cloudsOfPrediction() finds the clouds alone;
+// the sparse carriers hold worldX/worldY/worldZ on the points themselves.
+//
+// Labelled by class and carrier, and numbered when a class appears more than
+// once, so several objects can be told apart. Nested objects are included.
+function labelled_world_points(prediction: any): WorldSeries[] {
+  const series: WorldSeries[] = []
+  const seen = new Map<string, number>()
+
+  const add = (name: string, carrier: string, points: Vector3[]): void => {
+    if (points.length) {
+      series.push({ label: `${name} ${carrier}`, points: points })
+    }
+  }
+
+  const walk = (objects: any[] | undefined): void => {
+    for (const [index, obj] of (objects ?? []).entries()) {
+      let name: string = obj?.classLabel ?? `object ${index}`
+      const count = (seen.get(name) ?? 0) + 1
+      seen.set(name, count)
+      if (count > 1) {
+        name = `${name} ${count}`
+      }
+
+      for (const group of obj?.keyPoints ?? []) {
+        add(name, 'keypoints', placed_points(group?.points))
+      }
+      add(name, 'outline', placed_points(obj?.outline))
+      for (const contour of obj?.contours ?? []) {
+        add(name, 'contour', placed_points(contour?.points))
+        for (const cutout of contour?.cutouts ?? []) {
+          add(name, 'cutout', placed_points(cutout))
+        }
+      }
+      const cloud = cloudOfObject(obj)
+      if (cloud !== undefined) {
+        add(name, 'mask', placed_cloud_points(cloud))
+      }
+
+      walk(obj?.objects)
+    }
+  }
+
+  // a prediction carries key point groups of its own, for the abilities that
+  // produce them without an enclosing object
+  for (const group of prediction?.keyPoints ?? []) {
+    const points = placed_points(group?.points)
+    if (points.length) {
+      series.push({ label: 'keypoints', points: points })
+    }
+  }
+  walk(prediction?.objects)
+
+  // last, so the objects a viewer came to look at are not buried under a scene
+  // cloud two orders of magnitude larger
+  const scene = cloudOfDepth(prediction?.depth, prediction?.source_width, prediction?.source_height)
+  if (scene !== undefined) {
+    const points = placed_cloud_points(scene)
+    if (points.length) {
+      series.push({ label: 'scene', points: points })
+    }
+  }
+  return series
+}
 
 // A coordinate, rounded to a tenth of a millimetre.
 //
@@ -657,32 +764,31 @@ function metres(value: number): number {
   return Number(value.toFixed(4))
 }
 
-// Write the clouds as one ASCII PLY in metres, returning how many points were
+// Write the series as one ASCII PLY in metres, returning how many points were
 // written.
 //
-// Points the worker could not place are dropped rather than written: they are
-// NaN in all three coordinates, which a viewer reads as a corrupt vertex rather
-// than as a gap. What the NaN meant - sky, off the map, no usable depth - is in
-// the depth map's own values, not recoverable from the cloud, so nothing is
-// lost here that was still available.
-function write_world_ply(clouds: PointCloud[], path: string): number {
+// A PLY has no notion of a series, so the colours alone would say only that the
+// points came from different carriers. The labels go in as header comments,
+// which is the nearest thing the format has to a legend and which every viewer
+// ignores safely.
+function write_world_ply(series: WorldSeries[], path: string): number {
   const vertices: string[] = []
-  clouds.forEach((cloud, index) => {
+  const legend: string[] = []
+  series.forEach((entry, index) => {
     const colour = WORLD_PLY_COLOURS[index % WORLD_PLY_COLOURS.length] as readonly [number, number, number]
-    for (let offset = 0; offset + 2 < cloud.points.length; offset += 3) {
-      const x = cloud.points[offset] as number
-      const y = cloud.points[offset + 1] as number
-      const z = cloud.points[offset + 2] as number
-      if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) {
-        continue
-      }
-      vertices.push(`${metres(x)} ${metres(y)} ${metres(z)} ${colour[0]} ${colour[1]} ${colour[2]}`)
+    // a class label is model supplied text, and a newline in one would end the
+    // comment early and corrupt the header
+    const label = entry.label.replace(/\s+/g, ' ')
+    legend.push(`comment ${label}: ${entry.points.length} point(s), rgb ${colour[0]} ${colour[1]} ${colour[2]}`)
+    for (const point of entry.points) {
+      vertices.push(`${metres(point.x)} ${metres(point.y)} ${metres(point.z)} ${colour[0]} ${colour[1]} ${colour[2]}`)
     }
   })
   const header = [
     'ply',
     'format ascii 1.0',
     'comment EyePop world coordinates, metres',
+    ...legend,
     `element vertex ${vertices.length}`,
     'property float x',
     'property float y',
@@ -910,7 +1016,7 @@ function write_world_ply(clouds: PointCloud[], path: string): number {
     }]
   }
 
-  let worldClouds: PointCloud[] = [];
+  let worldSeries: WorldSeries[] = [];
 
   const canvas = image? createCanvas(image.width, image.height): undefined;
   const context = canvas? canvas.getContext("2d"): undefined;
@@ -947,9 +1053,9 @@ function write_world_ply(clouds: PointCloud[], path: string): number {
         // the last prediction that carried any, rather than every frame merged:
         // a video source moves between frames and supplies no per-frame pose, so
         // stacking them into one static cloud would smear the scene
-        const clouds = cloudsOfPrediction(result);
-        if (clouds.length) {
-          worldClouds = clouds;
+        const series = labelled_world_points(result);
+        if (series.length) {
+          worldSeries = series;
         }
       }
       if (parameters.visualize && canvas && context && image) {
@@ -966,12 +1072,15 @@ function write_world_ply(clouds: PointCloud[], path: string): number {
       }
     }
     if (parameters.worldOut) {
-      if (worldClouds.length === 0) {
-        logger.warn("no point clouds in the results, so %s was not written; a cloud needs --toWorld for "
-          + "the objects or --depthMapToWorld for the scene", parameters.worldOut);
+      if (worldSeries.length === 0) {
+        logger.warn("nothing in the results carries world coordinates, so %s was not written; they need "
+          + "--toWorld for the objects or --depthMapToWorld for the scene", parameters.worldOut);
       } else {
-        const written = write_world_ply(worldClouds, parameters.worldOut);
-        logger.info("wrote %d world point(s) from %d cloud(s) to %s", written, worldClouds.length, parameters.worldOut);
+        const written = write_world_ply(worldSeries, parameters.worldOut);
+        logger.info("wrote %d world point(s) in %d series to %s", written, worldSeries.length, parameters.worldOut);
+        for (const entry of worldSeries) {
+          logger.debug("  %s: %d point(s)", entry.label, entry.points.length);
+        }
       }
     }
     if (parameters.visualize && canvas) {
