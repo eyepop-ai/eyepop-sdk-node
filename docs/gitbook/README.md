@@ -30,12 +30,12 @@ npm install --save @eyepop.ai/react-native-eyepop
 ### Your first prediction
 
 ```typescript
-import { EyePop } from '@eyepop.ai/eyepop'
+import { EyePop, PopComponentType } from '@eyepop.ai/eyepop'
 
 const endpoint = await EyePop.workerEndpoint({
     pop: {
         components: [
-            { type: 'inference', ability: 'eyepop.person:latest' },
+            { type: PopComponentType.INFERENCE, ability: 'eyepop.person:latest' },
         ],
     },
 }).connect()

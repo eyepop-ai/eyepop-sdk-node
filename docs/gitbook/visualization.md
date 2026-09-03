@@ -12,13 +12,13 @@ npm install --save @eyepop.ai/eyepop-render-2d
 ```
 
 ```typescript
-import { EyePop } from '@eyepop.ai/eyepop'
+import { EyePop, PopComponentType } from '@eyepop.ai/eyepop'
 import { Render2d } from '@eyepop.ai/eyepop-render-2d'
 
 const endpoint = await EyePop.workerEndpoint({
     pop: {
         components: [
-            { type: 'inference', ability: 'eyepop.person:latest' },
+            { type: PopComponentType.INFERENCE, ability: 'eyepop.person:latest' },
         ],
     },
 }).connect()

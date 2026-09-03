@@ -8,25 +8,27 @@ icon: diagram-project
 A Pop chains models into a pipeline: detect, crop to each detection, and run another model on the crop. Pass it when you create the endpoint.
 
 ```typescript
+import { EyePop, ForwardOperatorType, PopComponentType } from '@eyepop.ai/eyepop'
+
 const endpoint = await EyePop.workerEndpoint({
     pop: {
         components: [
             {
-                type: 'inference',
+                type: PopComponentType.INFERENCE,
                 ability: 'eyepop.vehicle:latest',
                 categoryName: 'vehicles',
                 confidenceThreshold: 0.8,
                 forward: {
-                    operator: { type: 'crop' },
+                    operator: { type: ForwardOperatorType.CROP },
                     targets: [
                         {
-                            type: 'inference',
+                            type: PopComponentType.INFERENCE,
                             ability: 'eyepop.vehicle.license-plate:latest',
                             forward: {
-                                operator: { type: 'crop' },
+                                operator: { type: ForwardOperatorType.CROP },
                                 targets: [
                                     {
-                                        type: 'inference',
+                                        type: PopComponentType.INFERENCE,
                                         ability: 'eyepop.text.recognize.landscape:latest',
                                         categoryName: 'license-plate',
                                     },
@@ -46,11 +48,13 @@ const endpoint = await EyePop.workerEndpoint({
 A VLM ability takes prompts through `params`.
 
 ```typescript
+import { EyePop, PopComponentType } from '@eyepop.ai/eyepop'
+
 const endpoint = await EyePop.workerEndpoint({
     pop: {
         components: [
             {
-                type: 'inference',
+                type: PopComponentType.INFERENCE,
                 ability: 'eyepop.localize-objects:latest',
                 categoryName: 'objects',
                 params: { prompts: [{ prompt: 'person' }] },
