@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [3.19.1] - 2026-09-03
+
 ### Added
 
 - Frame-level `depth` prediction member (`Depth` type) as produced by depth estimation abilities (e.g. `eyepop.depth.*`): base64 little-endian float32 map with the source frame's aspect ratio, sky pixels as `+Infinity`. `decodeDepthMap()` returns a `DepthMap` with typed values, finite min/max, and proportional source-coordinate sampling (`at()`, `isSky()`).
