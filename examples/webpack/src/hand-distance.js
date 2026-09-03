@@ -53,6 +53,11 @@ const SERIES_COLOURS = [
  * needs the larger number - one point per depth map pixel - even though this
  * one returns only skeletons.
  */
+// Point diameter in metres, since sizeAttenuation is on: a point is a fixed
+// size in the scene rather than on screen, so it shrinks with distance like
+// everything else.
+const POINT_SIZE_METRES = 0.06
+
 const MAX_POINTS = 200000
 const MAX_SEGMENTS = 60000
 
@@ -678,7 +683,7 @@ function setupWorldView(container) {
     pointGeometry.setDrawRange(0, 0)
     world.points = new THREE.Points(
         pointGeometry,
-        new THREE.PointsMaterial({ size: 0.03, vertexColors: true, sizeAttenuation: true }),
+        new THREE.PointsMaterial({ size: POINT_SIZE_METRES, vertexColors: true, sizeAttenuation: true }),
     )
     world.scene.add(world.points)
 
