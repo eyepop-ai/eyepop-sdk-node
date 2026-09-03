@@ -42,5 +42,5 @@ The full renderer list and options live with the package at [`src/eyepop-render-
 
 ### Next steps
 
-* [Processing Media](inference.md) — produce the predictions to draw
+* [Running Inference](inference.md) — produce the predictions to draw
 * [Composable Pops](composable-pops.md) — chain models into a pipeline

@@ -55,5 +55,5 @@ const endpoint = await EyePop.workerEndpoint({ pop, stopJobs: false }).connect()
 
 ### Next steps
 
-* [Processing Media](inference.md) — submit files, streams, and URLs
+* [Running Inference](inference.md) — submit files, streams, and URLs
 * [Composable Pops](composable-pops.md) — chain models into a pipeline
