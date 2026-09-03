@@ -1,11 +1,11 @@
-import { EyePop } from '../../src/eyepop'
+import { EyePop, PopComponentType } from '../../src/eyepop'
 
 async function load_video_from_url(video_url: string, seconds: number) {
     const endpoint = await EyePop.workerEndpoint({
         pop: {
             components: [
                 {
-                    type: 'inference',
+                    type: PopComponentType.INFERENCE,
                     ability: 'eyepop.person:latest',
                     categoryName: 'person',
                 },

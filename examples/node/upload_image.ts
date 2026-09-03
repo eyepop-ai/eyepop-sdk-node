@@ -1,4 +1,4 @@
-import { EyePop, EndpointState } from '@eyepop.ai/eyepop'
+import { EyePop, EndpointState, PopComponentType } from '@eyepop.ai/eyepop'
 import { Render2d } from '@eyepop.ai/eyepop-render-2d'
 
 import { createCanvas, loadImage } from 'canvas'
@@ -24,7 +24,7 @@ const example_image_path = process.argv[2]
         pop: {
             components: [
                 {
-                    type: 'inference',
+                    type: PopComponentType.INFERENCE,
                     ability: 'eyepop.person:latest',
                     categoryName: 'person',
                 },
