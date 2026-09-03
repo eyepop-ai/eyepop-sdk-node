@@ -86,7 +86,7 @@ function bodyPointsComponent() {
 function segmentationComponent(erode) {
     return {
         type: PopComponentType.INFERENCE,
-        model: 'eyepop.sam:latest',
+        model: 'eyepop.sam.small:latest',
         toWorld: true,
         forward: {
             operator: { type: ForwardOperatorType.FULL },
