@@ -138,7 +138,6 @@ coverage/
 .idea/
 
 examples/vite/public
-examples/web/static/env.js
 
 examples/react_native/*/android
 examples/react_native/*/ios

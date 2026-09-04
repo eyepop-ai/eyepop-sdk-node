@@ -108,10 +108,25 @@ export class RenderPose implements Render {
     }
 }
 
-const POSE_2D_CATEGORY = '2d-body-points'
-const POSE_3D_CATEGORY = '3d-body-points'
+/**
+ * The key point categories that carry a skeleton.
+ *
+ * Exported with the tables below because a caller drawing key points anywhere
+ * this renderer cannot reach - a 3D scene, a point cloud export, another canvas
+ * - needs the same joints. The alternative is a second copy of the table, which
+ * is how two drawings of one skeleton come to disagree about where a wrist is.
+ */
+export const POSE_2D_CATEGORY = '2d-body-points'
+export const POSE_3D_CATEGORY = '3d-body-points'
 
-const POSE_2D_CONNECTIONS = [
+/**
+ * Joints as pairs of class labels, not indices.
+ *
+ * The label is what identifies a joint: matching by position would silently
+ * draw the wrong skeleton for a model that emits its points in another order,
+ * and a point the model did not find is absent rather than null.
+ */
+export const POSE_2D_CONNECTIONS = [
     ['left shoulder', 'right shoulder'],
     ['left hip', 'right hip'],
 
@@ -128,7 +143,7 @@ const POSE_2D_CONNECTIONS = [
     ['right knee', 'right ankle'],
 ]
 
-const POSE_3D_CONNECTIONS = [
+export const POSE_3D_CONNECTIONS = [
     ['mouth (right)', 'mouth (left)'],
     ['right ear', 'right eye (outer)'],
     ['right eye (outer)', 'right eye'],
@@ -170,3 +185,9 @@ const POSE_3D_CONNECTIONS = [
     ['left ankle', 'left heel'],
     ['left heel', 'left foot index'],
 ]
+
+/** The skeleton for a key point category, or undefined for one that has none. */
+export const POSE_CONNECTIONS: Record<string, string[][]> = {
+    [POSE_2D_CATEGORY]: POSE_2D_CONNECTIONS,
+    [POSE_3D_CATEGORY]: POSE_3D_CONNECTIONS,
+}

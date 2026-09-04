@@ -32,3 +32,41 @@
     display: flex;
     align-items: center;
 }
+/* the 3D view sizes with its container the way the video preview does: the
+   renderer draws at device resolution and CSS stretches the canvas to fit */
+.world-view {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    position: relative;
+    overflow: hidden;
+    background: #101418;
+    border-radius: 4px;
+}
+
+.world-view canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.section-header {
+    cursor: pointer;
+    user-select: none;
+}
+
+.section-header .twisty {
+    display: inline-block;
+    width: 1em;
+    transition: transform 0.15s ease;
+}
+
+.section-header.open .twisty {
+    transform: rotate(90deg);
+}
+
+/* the 3D view takes keyboard focus so the arrow keys can nudge it, and says so
+   rather than taking them from the page silently */
+.world-view:focus-visible {
+    outline: 2px solid #4daf4a;
+    outline-offset: 2px;
+}

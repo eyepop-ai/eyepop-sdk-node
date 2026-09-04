@@ -22,34 +22,34 @@ export interface StreamTime {
     /**
      * Temporal offset of prediction from start of the media (video or audio) in nano seconds.
      */
-    timestamp?: number;
+    timestamp?: number
     /**
      * Convenience, same vale as 'timestamp' just in seconds.
      */
-    seconds?: number;
+    seconds?: number
     /**
      * Temporal length of the chunk that was the source for this prediction in nano seconds.
      */
-    duration?: number;
+    duration?: number
     /**
      * Real time when the media was captured as epoch timestamp in nano seconds.
      *
      * Only provided if source provides this timestamp e.g. as timestamp/x-ntp in RTSP.
      */
-    captured_at?: number;
+    captured_at?: number
     /**
      * A media specific offset.
      *
      * For video frames, this is the frame number of prediction.
      * For audio samples, this is the offset of the first sample for this prediction.
      */
-    offset?: number;
+    offset?: number
     /**
      * Offset length of the chunk used for this prediction.
      *
      * It has the same format as offset.
      */
-    offset_duration?: number;
+    offset_duration?: number
 }
 
 export interface Prediction extends StreamTime {
@@ -102,11 +102,20 @@ export interface Contour {
     cutouts: Array<Array<Point2d>>
 }
 
+/**
+ * A segmentation mask, optionally with a per-object point cloud.
+ *
+ * `world` is the base64 encoding of three little-endian float32 values per mask
+ * pixel, row-major, exactly width*height triples - so the point for bitmap
+ * pixel (i, j) is at triple index j * width + i. Points the worker could not
+ * place are NaN. Use decodePointCloud() to read it.
+ */
 export interface Mask {
     bitmap: string
     width: number
     height: number
     stride: number
+    world?: string
 }
 
 /**
@@ -118,15 +127,36 @@ export interface Mask {
  * source frame; map a source coordinate (x, y) to the map proportionally:
  * (x * width / source_width, y * height / source_height).
  *
- * Values are canonical metric depth (multiply by the camera's focal length
- * in pixels and divide by 300 for meters). Sky pixels carry +Infinity.
- * Use decodeDepthMap() to access the values.
+ * Sky pixels carry +Infinity. Use decodeDepthMap() to access the values.
+ *
+ * `semantic` says what the values mean, and is always present in prediction v2 -
+ * "unknown" included - so an absent member means a worker that predates the
+ * field rather than a map that declined to say:
+ *
+ * - "canonical_metric" - metres = value * focal_px / 300, with focal_px scaled
+ *   to the map's own resolution
+ * - "metric" - the value is already metres
+ * - "relative" - scale- AND shift-invariant, so ordering is meaningful but
+ *   distance is not. Not back-projectable: recovering a cloud from it yields a
+ *   distorted scene rather than a scaled one
+ * - "unknown" - the ability declared nothing. Not back-projectable
+ *
+ * `world` is the scene point cloud, present when the Pop asked for
+ * `depthMap.toWorld`. Same encoding as `Mask.world` - three little-endian
+ * float32 per pixel, row-major - but on this map's own grid, so the point for
+ * pixel (i, j) is at triple index j * width + i, exactly where that pixel's
+ * value sits in `values`. Points the worker could not place are NaN; the value
+ * at the same index is what says why, which is why both are sent.
  */
 export interface Depth {
     width: number
     height: number
     values: string
+    semantic?: DepthSemantic
+    world?: string
 }
+
+export type DepthSemantic = 'canonical_metric' | 'metric' | 'relative' | 'unknown'
 
 export interface PredictedObject extends PredictedClass {
     trackId?: number
@@ -146,9 +176,29 @@ export interface PredictedObject extends PredictedClass {
     details?: Array<Map<string, any>>
 }
 
+/**
+ * A point in source pixels, optionally placed in 3D.
+ *
+ * `worldX`/`worldY`/`worldZ` are metres, present only when the pipeline was
+ * asked for world coordinates - a Pop with `depthMap` and a component with
+ * `toWorld` - and only in prediction v2. A point the worker could not place -
+ * sky, outside the depth map, no usable map - carries none of the three rather
+ * than a zero or a NaN, so test for undefined.
+ *
+ * Which frame they are in depends on the source's camera: with extrinsics, the
+ * world frame those define (Z up, ground at Z = 0); without them, the camera
+ * frame in the OpenCV convention (X right, Y down, Z forward from the camera).
+ *
+ * Only the carriers the worker enriches ever populate them: key points, outline
+ * points and contour points. Bounding boxes and mesh points do not - a box is
+ * not a point, and any single anchor choice would be arbitrary.
+ */
 export interface Point2d {
     x: number
     y: number
+    worldX?: number
+    worldY?: number
+    worldZ?: number
 }
 
 export interface PredictedMesh {

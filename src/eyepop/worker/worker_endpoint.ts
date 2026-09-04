@@ -21,7 +21,9 @@ import {
     StreamSource,
     UrlSource,
     WorkerSession,
+    validatePop,
 } from '../worker/worker_types'
+import { validateCamera } from '../camera'
 import { Area } from 'EyePop/data/data_types'
 
 interface PopConfig {
@@ -126,6 +128,9 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
     }
 
     public async changePop(pop: Pop): Promise<void> {
+        // locally, so a Pop that cannot mean what it says fails here rather
+        // than as a 400 from the worker that compiles it
+        validatePop(pop)
         if (this.options().popId == TransientPopId.Transient) {
             await this.changeTransientPop(pop)
             return
@@ -224,7 +229,23 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         }
     }
 
+    /**
+     * Reject a source's calibration before any work is started for it.
+     *
+     * Called by every entry point that takes ProcessParams rather than at the
+     * one boundary they share, because they have none: the group methods build
+     * their jobs directly instead of going through processV2. It runs before
+     * the concurrency limit is acquired, so a request that can never be sent
+     * does not hold a slot.
+     */
+    private validateProcessParams(params: ProcessParams): void {
+        if (params.camera !== undefined) {
+            validateCamera(params.camera)
+        }
+    }
+
     private async processV2(request: ProcessRequest): Promise<ResultStream> {
+        this.validateProcessParams(request)
         if ((request.source as FileSource).file !== undefined) {
             return this.uploadFile(request.source as FileSource, request)
         } else if ((request.source as StreamSource).stream !== undefined) {
@@ -246,6 +267,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         if (paths.length === 0) {
             throw new Error('upload group requires at least one path')
         }
+        this.validateProcessParams(params)
         if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
             throw new Error('endpoint not connected, use connect()')
         }
@@ -285,6 +307,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         if (mimeTypes !== undefined && mimeTypes.length !== streams.length) {
             throw new Error('mimeTypes must have the same length as streams')
         }
+        this.validateProcessParams(params)
         if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
             throw new Error('endpoint not connected, use connect()')
         }
@@ -314,6 +337,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         if (urls.length === 0) {
             throw new Error('load from group requires at least one url')
         }
+        this.validateProcessParams(params)
         if (!this._baseUrl || !this._pipelineId || !this._client || !this._limit) {
             throw new Error('endpoint not connected, use connect()')
         }

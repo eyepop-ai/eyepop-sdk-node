@@ -1,5 +1,6 @@
 import { Prediction, Session } from '../types'
 import { Area } from 'EyePop/data/data_types'
+import { Camera, validateCamera } from '../camera'
 
 export enum PredictionVersion {
     V1 = 1,
@@ -102,6 +103,23 @@ export interface BaseComponent {
     type: PopComponentType
     id?: number
     forward?: PopForward
+    /**
+     * Enrich this component's point based predictions with world coordinates,
+     * back-projected through the Pop's `depthMap`.
+     *
+     * Declared here because the instance declares it on one shared component
+     * type, but only a component that runs its own inference can honour it -
+     * inference and tracking - since that is what gives it an id for the worker
+     * to select on. Asking for it on a forward, contour finder or component
+     * finder is rejected when the Pop is compiled. A contour finder's points do
+     * get enriched, but they belong to the object that fed it, so the request
+     * goes on the inference component upstream.
+     *
+     * Enrichment needs a *metric* depth ability. A `relative` map is accepted
+     * and silently produces no world coordinates: its shift is unknown, so a
+     * cloud recovered from it would be distorted rather than merely unscaled.
+     */
+    toWorld?: boolean
 }
 
 export interface ForwardComponent extends BaseComponent {}
@@ -191,9 +209,75 @@ export interface ComponentFinderComponent extends BaseComponent {
 
 export type PopComponent = ForwardComponent | InferenceComponent | TrackingComponent | ContourFinderComponent | ComponentFinderComponent
 
+/**
+ * The depth ability whose frame level map feeds world coordinates.
+ *
+ * `ability` names it by alias and `abilityUuid` by uuid; give exactly one. A
+ * Pop has one depth map because the worker back-projects every prediction
+ * through it, so a second depth source would have nowhere to go. Naming one
+ * makes the converter build the depth branch itself and keep it out of the
+ * response - the caller asked for coordinates, not for a megabyte of base64
+ * depth per frame.
+ *
+ * `toWorld` back-projects the map itself, so the response carries a point cloud
+ * of the whole scene rather than one per segmented object. It is also what
+ * reveals the map: without it the injected branch stays out of the response
+ * entirely. Read the result with cloudOfDepth().
+ *
+ * Use a *metric* depth ability. A `relative` one is accepted and yields no
+ * world coordinates at all.
+ */
+export interface PopDepthMap {
+    ability?: string
+    abilityUuid?: string
+    toWorld?: boolean
+}
+
+/**
+ * Source level parameters a Pop applies to every source it processes, each
+ * overridable per source.
+ *
+ * Merged per field against whatever a source supplies, so a source giving its
+ * own roi but no camera keeps its roi and takes the default camera. Because the
+ * camera merges as one field, a source declaring its own lens replaces a
+ * defaulted one outright rather than mixing the two.
+ */
+export interface SourceDefaults {
+    camera?: Camera
+    roi?: Area
+    fps?: string
+    motionDetect?: boolean
+    motionSensitivity?: number
+    motionThreshold?: number
+    motionGap?: number
+    motionGridX?: number
+    motionGridY?: number
+}
+
 export interface Pop {
     components: PopComponent[]
     postTransform?: string
+    defaults?: SourceDefaults
+    depthMap?: PopDepthMap
+}
+
+/**
+ * Throw if a Pop cannot mean what it says.
+ *
+ * Only the parts a caller can get wrong locally: the worker rejects both of
+ * these too, but as a 400 once the Pop is already in flight.
+ */
+export function validatePop(pop: Pop): void {
+    if (pop.depthMap !== undefined) {
+        // naming no ability is a depth branch that cannot be built, and naming
+        // two is a Pop with no right answer
+        if ((pop.depthMap.ability === undefined) === (pop.depthMap.abilityUuid === undefined)) {
+            throw new Error('depthMap requires exactly one of ability or abilityUuid')
+        }
+    }
+    if (pop.defaults?.camera !== undefined) {
+        validateCamera(pop.defaults.camera)
+    }
 }
 
 export interface MotionDetectConfig {
@@ -215,6 +299,16 @@ export interface ProcessParams {
     motionDetect?: MotionDetectConfig | undefined
     roi?: Area | undefined
     fps?: string | undefined
+    /**
+     * This source's camera calibration, overriding the Pop's `defaults.camera`.
+     *
+     * Without one the worker assumes a 60 degree horizontal field of view,
+     * which is a development scaffold: for canonical metric depth the guess
+     * cancels out of X and Y and survives only in Z, so lateral measurements
+     * stay exact while every distance along the optical axis is wrong by
+     * however wrong the guess was.
+     */
+    camera?: Camera | undefined
 }
 
 export interface ProcessRequest extends ProcessParams {

@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>EyePop.ai World Demo</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="main.css" rel="stylesheet">
+</head>
+
+<body>
+<div class="container" style="max-width: 1200px;">
+    <header class="mt-4">
+        <div class="container-fluid d-flex align-items-center">
+            <img src="images/eyepop-logo.svg" alt="EyePop.ai Logo" class="p-2" style="height: 70px;">
+            <h1 class="p-2">World Demo</h1>
+        </div>
+    </header>
+
+    <div class="container-fluid mt-4">
+        <div class="d-grid d-md-flex">
+            <button disabled class="m-2 form-control" id="connect">Connect</button>
+            <select class="m-2 form-select" style="width:auto;display:inline-block;" id="video-device"></select>
+            <button disabled class="m-2 form-control" id="start-stream">Start</button>
+            <button disabled class="m-2 form-control" id="stop-stream">Stop</button>
+        </div>
+        <div id="status" class="m-2 text-muted"></div>
+    </div>
+
+    <div class="container-fluid mt-3">
+        <div class="card">
+            <div class="card-header section-header" data-section="feature">
+                <span class="twisty">&#9656;</span> Feature
+            </div>
+            <div class="card-body" id="section-feature" hidden>
+                <div class="d-flex flex-wrap align-items-end gap-4">
+                    <div>
+                        <div class="form-check form-check-inline">
+                            <input checked class="form-check-input" type="radio" name="feature" id="feature-hands"
+                                   value="hands">
+                            <label class="form-check-label" for="feature-hands">Hand distance</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="feature" id="feature-cloud"
+                                   value="cloud">
+                            <label class="form-check-label" for="feature-cloud">Point cloud</label>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="form-label mb-1" for="erode">Erode</label>
+                        <input class="form-control" id="erode" type="number" min="0" max="0.5" step="0.005"
+                               value="0.0" style="width:8rem;" disabled>
+                    </div>
+                </div>
+                <p class="text-muted mt-2 mb-0" style="font-size: 0.9rem;">
+                    Point cloud adds a segmenter beside the body points, and a component finder to split its mask
+                    into pieces; erode shrinks each piece before it is split, which is what stops two objects that
+                    touch by a few pixels from being read as one. At 0 the finder is left out altogether and the
+                    mask stays whole. The mask is not drawn over the video in either
+                    mode - the 3D tab is where it becomes a cloud.
+                </p>
+            </div>
+        </div>
+
+        <div class="card mt-2">
+            <div class="card-header section-header" data-section="intrinsics">
+                <span class="twisty">&#9656;</span> Camera intrinsics
+            </div>
+            <div class="card-body" id="section-intrinsics" hidden>
+                <p class="text-muted mb-3" id="detected">No camera opened yet.</p>
+
+                <div class="row g-2 align-items-end">
+                    <div class="col-auto">
+                        <label class="form-label mb-0" for="hfov">Horizontal field of view</label>
+                        <div class="input-group">
+                            <input class="form-control" id="hfov" type="number" min="1" max="179" step="0.5" value="60"
+                                   style="width:7rem;">
+                            <span class="input-group-text">degrees</span>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <button class="btn btn-outline-secondary" id="derive">Recompute fx / fy</button>
+                    </div>
+                </div>
+
+                <div class="row g-2 mt-2">
+                    <div class="col-6 col-md-3">
+                        <label class="form-label mb-0" for="fx">fx</label>
+                        <input class="form-control" id="fx" type="number" step="0.0001">
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label mb-0" for="fy">fy</label>
+                        <input class="form-control" id="fy" type="number" step="0.0001">
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label mb-0" for="cx">cx</label>
+                        <input class="form-control" id="cx" type="number" step="0.0001" value="0.5">
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label mb-0" for="cy">cy</label>
+                        <input class="form-control" id="cy" type="number" step="0.0001" value="0.5">
+                    </div>
+                </div>
+
+                <p class="text-muted mt-3 mb-0" style="font-size: 0.9rem;">
+                    Normalised to the frame rather than given in pixels: <code>fx</code> and <code>fy</code> are the
+                    focal length as a fraction of the frame's width and height, <code>cx</code> and <code>cy</code>
+                    are the principal point in the same units. One calibration then survives a resolution change.
+                </p>
+                <p class="text-muted mb-0" style="font-size: 0.9rem;">
+                    <strong>These are computed, not measured.</strong> A browser reports a camera's resolution but
+                    never its focal length, so the values above come from the field of view assumed at the top - the
+                    frame size only fixes the ratio between fx and fy. For a real measurement, calibrate the lens
+                    (OpenCV's checkerboard) and type the four numbers in. Applied when the stream starts: change them,
+                    then Stop and Start.
+                </p>
+                <p class="text-muted mb-0 mt-2" style="font-size: 0.9rem;">
+                    A wrong field of view mostly cancels out of a hand to hand distance. Canonical metric depth scales
+                    with the focal length, so it cancels from the lateral coordinates and survives only along the
+                    optical axis - two hands held up side by side measure right even with the guess above, while one
+                    hand reached toward the camera does not.
+                </p>
+            </div>
+        </div>
+
+        <div class="card mt-2">
+            <div class="card-header section-header" data-section="extrinsics">
+                <span class="twisty">&#9656;</span> Camera extrinsics
+            </div>
+            <div class="card-body" id="section-extrinsics" hidden>
+                <div class="form-check form-switch mb-2">
+                    <input class="form-check-input" type="checkbox" role="switch" id="extrinsics-on" checked>
+                    <label class="form-check-label" for="extrinsics-on">
+                        Send extrinsics (where the camera sits in the world)
+                    </label>
+                </div>
+
+                <div class="row g-2" id="extrinsics-fields">
+                    <div class="col-6 col-md-3">
+                        <label class="form-label mb-0" for="yaw">Yaw</label>
+                        <div class="input-group">
+                            <input class="form-control" id="yaw" type="number" step="1" value="0">
+                            <span class="input-group-text">deg</span>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label mb-0" for="tilt">Tilt below horizontal</label>
+                        <div class="input-group">
+                            <input class="form-control" id="tilt" type="number" step="1" value="0">
+                            <span class="input-group-text">deg</span>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label mb-0" for="height">Height</label>
+                        <div class="input-group">
+                            <input class="form-control" id="height" type="number" step="0.05" value="1.2">
+                            <span class="input-group-text">m</span>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label mb-0" for="quaternion">Rotation sent</label>
+                        <input class="form-control" id="quaternion" type="text" readonly>
+                    </div>
+                </div>
+
+                <p class="text-muted mt-2 mb-0" style="font-size: 0.9rem;">
+                    A pose is entered as yaw, tilt and height because a unit quaternion is not something to type by
+                    hand; the one actually sent is shown beside them. Yaw turns about the world's up axis,
+                    counter-clockwise seen from above, so +90 degrees points the camera along world -X.
+                    Left off, the worker returns coordinates in the camera's own frame - OpenCV convention, X right,
+                    Y <em>down</em>, Z forward - rather than the world frame with Z up and the ground at Z = 0.
+                </p>
+                <p class="text-muted mb-0 mt-2" style="font-size: 0.9rem;">
+                    A pose moves and turns the whole scene, so it does <strong>not</strong> change the hand to hand
+                    distance: a rigid transform preserves distances. It changes where the points sit in the 3D tab,
+                    and nothing else. Applied when the stream starts, like the intrinsics.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="container-fluid mt-4">
+        <ul class="nav nav-tabs" id="view-tabs">
+            <li class="nav-item"><button class="nav-link active" data-view="video">Video</button></li>
+            <li class="nav-item"><button class="nav-link" data-view="world">3D world</button></li>
+        </ul>
+
+        <div class="pt-3" id="view-video">
+            <div class="preview-wrapper">
+                <video class="local-video" id="local-video" muted autoplay playsinline></video>
+                <canvas class="result-overlay" id="local-result-overlay"></canvas>
+            </div>
+        </div>
+
+        <div class="pt-3" id="view-world" hidden>
+            <div class="d-flex align-items-center justify-content-between mb-2 gap-3">
+                <p class="text-muted mb-0" style="font-size: 0.9rem;">
+                    <strong>Left-drag</strong> turns &middot; <strong>right-drag</strong>, or two fingers, moves the
+                    viewpoint &middot; <strong>scroll</strong> zooms &middot; <strong>arrow keys</strong> nudge it
+                    once the view has focus.
+                </p>
+                <button class="btn btn-outline-secondary btn-sm text-nowrap" id="reset-view">Reset view</button>
+            </div>
+            <div class="world-view" id="world-canvas" tabindex="0"></div>
+            <p class="text-muted mt-2 mb-0" style="font-size: 0.9rem;" id="world-frame-note"></p>
+            <p class="text-muted mb-0" style="font-size: 0.9rem;">
+                Red, green and blue are world X, Y and Z; the grid is the Z = 0 plane. Every carrier the worker
+                placed is drawn - key points joined into skeletons, outlines and contours as closed rings, mask and
+                scene clouds as points - so a Pop richer than this one fills the view without further work here.
+            </p>
+        </div>
+    </div>
+
+    <div class="container-fluid mt-4">
+        <h3>Measurements</h3>
+        <ul class="list-group" id="measurements">
+            <li class="list-group-item text-muted">Nothing yet.</li>
+        </ul>
+    </div>
+
+    <div class="container-fluid mt-4 mb-5">
+        <h3>Pop</h3>
+        <pre id="pop-json" class="form-control"></pre>
+    </div>
+</div>
+</body>
+
+</html>

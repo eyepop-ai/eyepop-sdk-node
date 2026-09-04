@@ -5,7 +5,7 @@ import { DataEndpoint } from './data/data_endpoint'
 
 import { TransientPopId, WorkerOptions } from './worker/worker_options'
 import { DataOptions } from './data/data_options'
-import { WorkerSession } from './worker/worker_types'
+import { WorkerSession, validatePop } from './worker/worker_types'
 import { DataSession } from './data/data_types'
 
 export { WorkerEndpoint } from './worker/worker_endpoint'
@@ -32,6 +32,8 @@ export {
 } from './types'
 
 export { DepthMap, decodeDepthMap } from './depth'
+export { PointCloud, CloudBox, CloudBounds, Vector3, decodePointCloud, cloudOfObject, cloudOfDepth, cloudsOfPrediction } from './point_cloud'
+export { Camera, CameraIntrinsics, CameraDistortion, CameraExtrinsics, Quaternion, Vector3d, QUATERNION_TOLERANCE, validateCamera } from './camera'
 
 export {
     ChangeType,
@@ -127,6 +129,9 @@ export {
     MotionDetectConfig,
     PredictionVersion,
     DEFAULT_PREDICTION_VERSION,
+    PopDepthMap,
+    SourceDefaults,
+    validatePop,
 } from './worker/worker_types'
 
 export { Options, Authentication, SessionAuth, ApiKeyAuth, AccessTokenAuth, OAuth2Auth, Auth0Options, HttpClient, PlatformSupport, LocalAuth } from './options'
@@ -167,6 +172,13 @@ export namespace EyePop {
     export const endpoint = workerEndpoint
 
     export function workerEndpoint(opts: WorkerOptions = {}): WorkerEndpoint {
+        if (opts.pop !== undefined) {
+            // the initial Pop is serialized into the session-creation body, so
+            // changePop()'s check never sees it - and this is the common way to
+            // set one. Synchronous here, so a Pop that cannot mean what it says
+            // fails at construction rather than at connect().
+            validatePop(opts.pop)
+        }
         if (opts.isLocalMode === undefined) {
             opts.isLocalMode = stringToBooleanSafe(readEnv('EYEPOP_LOCAL_MODE'))
         }

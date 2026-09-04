@@ -178,7 +178,7 @@ export class UploadJob extends AbstractJob {
                 }
             }
             const postUrl: string = `${session.baseUrl.replace(/\/+$/, '')}/pipelines/${session.pipelineId}/source?${queryParams.toString()}`
-            if (this._params.componentParams || this._params.roi) {
+            if (this._params.componentParams || this._params.roi || this._params.camera) {
                 const formData = new FormData()
                 if (this._params.componentParams) {
                     const blob = new Blob([JSON.stringify(this._params.componentParams)], { type: 'application/json' })
@@ -191,6 +191,10 @@ export class UploadJob extends AbstractJob {
                 if (this._params.fps) {
                     const blob = new Blob([JSON.stringify(this._params.fps)], { type: 'application/json' })
                     formData.append('fps', blob)
+                }
+                if (this._params.camera) {
+                    const blob = new Blob([JSON.stringify(this._params.camera)], { type: 'application/json' })
+                    formData.append('camera', blob)
                 }
                 const fileBlob = await new Response(await this.uploadBody()).blob()
                 formData.append('file', fileBlob)
@@ -277,7 +281,7 @@ export class UploadJob extends AbstractJob {
                 }
             }
             const postUrl: string = `${session.baseUrl.replace(/\/+$/, '')}/pipelines/${session.pipelineId}/source?${queryParams.toString()}`
-            if (this._params.componentParams || this._params.roi) {
+            if (this._params.componentParams || this._params.roi || this._params.camera) {
                 const formData = new FormData()
                 if (this._params.componentParams) {
                     const blob = new Blob([JSON.stringify(this._params.componentParams)], { type: 'application/json' })
@@ -290,6 +294,10 @@ export class UploadJob extends AbstractJob {
                 if (this._params.fps) {
                     const blob = new Blob([JSON.stringify(this._params.fps)], { type: 'application/json' })
                     formData.append('fps', blob)
+                }
+                if (this._params.camera) {
+                    const blob = new Blob([JSON.stringify(this._params.camera)], { type: 'application/json' })
+                    formData.append('camera', blob)
                 }
                 const fileBlob = await new Response(await this.uploadBody()).blob()
                 formData.append('file', fileBlob)
@@ -353,6 +361,7 @@ export class LoadFromJob extends AbstractJob {
             params: this._params.componentParams,
             roi: this._params.roi,
             fps: this._params.fps,
+            camera: this._params.camera,
             version: this._version,
         }
         if (this._params.motionDetect) {
@@ -424,6 +433,9 @@ export class UploadGroupJob extends AbstractJob {
         if (this._params.fps) {
             parts.push({ name: 'fps', contentType: 'application/json', content: JSON.stringify(this._params.fps) })
         }
+        if (this._params.camera) {
+            parts.push({ name: 'camera', contentType: 'application/json', content: JSON.stringify(this._params.camera) })
+        }
         for (const source of this._sources) {
             parts.push({ name: 'file', contentType: source.mimeType, content: source.stream })
         }
@@ -476,6 +488,9 @@ export class LoadFromGroupJob extends AbstractJob {
         if (this._params.roi) {
             body['roi'] = this._params.roi
         }
+        if (this._params.camera) {
+            body['camera'] = this._params.camera
+        }
         if (this._params.motionDetect) {
             Object.assign(body, this._params.motionDetect)
         }
@@ -519,6 +534,7 @@ export class LoadFromAssetUuidJob extends AbstractJob {
             params: this._params.componentParams,
             roi: this._params.roi,
             fps: this._params.fps,
+            camera: this._params.camera,
             version: this._version,
         }
         if (this._params.motionDetect) {
@@ -583,6 +599,7 @@ export class LoadMediaStreamJob extends AbstractJob {
             params: this._params.componentParams,
             roi: this._params.roi,
             fps: this._params.fps,
+            camera: this._params.camera,
             version: this._version,
         }
         if (this._params.motionDetect) {
