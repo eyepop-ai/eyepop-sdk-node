@@ -23,7 +23,7 @@ npm install --save @eyepop.ai/eyepop
 {% tab title="React Native" %}
 ```shell
 npm install --save @eyepop.ai/react-native-eyepop \
-    react-native-canvas react-native-file-access \
+    react-native-canvas react-native-file-access@3.1.1 \
     react-native-tcp-socket react-native-webrtc
 ```
 {% endtab %}

@@ -29,7 +29,7 @@ The nested `auth` option is deprecated. Pass the credential at the top level in 
 
 With no session UUID and a `pop` — the flow every example here uses — the SDK creates a new **transient** session each time it connects, and deletes the pipeline it created on disconnect. It does not delete the session itself. This is the right default for building and testing.
 
-With no `pop`, the SDK attaches to your first live non-persistent session instead of creating one.
+With no `pop`, the SDK reuses your first live non-persistent session if you have one, and creates a new session otherwise.
 
 To run against a persistent Deployment, set `EYEPOP_SESSION_UUID` or pass `sessionUuid`. The Pop is fixed when the Deployment is created, so you do not pass one:
 
@@ -63,18 +63,6 @@ const endpoint = await EyePop.workerEndpoint({
 `EYEPOP_LOCAL_MODE=true` in the environment selects it without the option. Local mode always uses port `8080`, so leave the instance on its default port when Node clients connect to it.
 
 Connecting creates a pipeline on the instance and disconnecting removes it, so disconnect in a `finally` and reuse one connected endpoint for many images.
-
-### Endpoint options
-
-By default a transient worker starts when needed and queued jobs on that worker are cancelled at connect.
-
-```typescript
-// leave the worker alone
-const endpoint = await EyePop.workerEndpoint({ pop, autoStart: false }).connect()
-
-// keep pending jobs
-const endpoint = await EyePop.workerEndpoint({ pop, stopJobs: false }).connect()
-```
 
 ### Next steps
 

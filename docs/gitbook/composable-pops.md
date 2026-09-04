@@ -45,7 +45,7 @@ const endpoint = await EyePop.workerEndpoint({
 
 ### Open-vocabulary detection
 
-A VLM ability takes prompts through `params`.
+A ModelLess ability takes prompts through `params`.
 
 ```typescript
 import { EyePop, PopComponentType } from '@eyepop.ai/eyepop'
