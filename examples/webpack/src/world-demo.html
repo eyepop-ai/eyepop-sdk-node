@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Hand to hand distance</title>
+    <title>EyePop.ai World Demo</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="main.css" rel="stylesheet">
 </head>
@@ -29,10 +29,12 @@
 
     <div class="container-fluid mt-3">
         <div class="card">
-            <div class="card-body">
+            <div class="card-header section-header" data-section="feature">
+                <span class="twisty">&#9656;</span> Feature
+            </div>
+            <div class="card-body" id="section-feature" hidden>
                 <div class="d-flex flex-wrap align-items-end gap-4">
                     <div>
-                        <div class="form-label mb-1">Feature</div>
                         <div class="form-check form-check-inline">
                             <input checked class="form-check-input" type="radio" name="feature" id="feature-hands"
                                    value="hands">
@@ -47,13 +49,14 @@
                     <div>
                         <label class="form-label mb-1" for="erode">Erode</label>
                         <input class="form-control" id="erode" type="number" min="0" max="0.5" step="0.005"
-                               value="0.025" style="width:8rem;" disabled>
+                               value="0.0" style="width:8rem;" disabled>
                     </div>
                 </div>
                 <p class="text-muted mt-2 mb-0" style="font-size: 0.9rem;">
                     Point cloud adds a segmenter beside the body points, and a component finder to split its mask
                     into pieces; erode shrinks each piece before it is split, which is what stops two objects that
-                    touch by a few pixels from being read as one. The mask is not drawn over the video in either
+                    touch by a few pixels from being read as one. At 0 the finder is left out altogether and the
+                    mask stays whole. The mask is not drawn over the video in either
                     mode - the 3D tab is where it becomes a cloud.
                 </p>
             </div>
@@ -190,13 +193,20 @@
         </div>
 
         <div class="pt-3" id="view-world" hidden>
-            <div class="world-view" id="world-canvas"></div>
+            <div class="d-flex align-items-center justify-content-between mb-2 gap-3">
+                <p class="text-muted mb-0" style="font-size: 0.9rem;">
+                    <strong>Left-drag</strong> turns &middot; <strong>right-drag</strong>, or two fingers, moves the
+                    viewpoint &middot; <strong>scroll</strong> zooms &middot; <strong>arrow keys</strong> nudge it
+                    once the view has focus.
+                </p>
+                <button class="btn btn-outline-secondary btn-sm text-nowrap" id="reset-view">Reset view</button>
+            </div>
+            <div class="world-view" id="world-canvas" tabindex="0"></div>
             <p class="text-muted mt-2 mb-0" style="font-size: 0.9rem;" id="world-frame-note"></p>
             <p class="text-muted mb-0" style="font-size: 0.9rem;">
-                Drag to orbit, scroll to zoom, right-drag to pan. Red, green and blue are world X, Y and Z; the grid
-                is the Z = 0 plane. Every carrier the worker placed is drawn - key points joined into skeletons,
-                outlines and contours as closed rings, mask and scene clouds as points - so a Pop richer than this
-                one fills the view without further work here.
+                Red, green and blue are world X, Y and Z; the grid is the Z = 0 plane. Every carrier the worker
+                placed is drawn - key points joined into skeletons, outlines and contours as closed rings, mask and
+                scene clouds as points - so a Pop richer than this one fills the view without further work here.
             </p>
         </div>
     </div>

@@ -56,9 +56,24 @@ const SERIES_COLOURS = [
 // Point diameter in metres, since sizeAttenuation is on: a point is a fixed
 // size in the scene rather than on screen, so it shrinks with distance like
 // everything else.
-const POINT_SIZE_METRES = 0.06
+//
+// Two sizes because the carriers are two different things. A skeleton is a
+// handful of joints and wants to be seen; a mask or scene cloud is one point
+// per pixel, and at the sparse size those merge into a solid block that hides
+// whatever is behind it.
+const SPARSE_POINT_SIZE_METRES = 0.06
+const CLOUD_POINT_SIZE_METRES = 0.005
 
-const MAX_POINTS = 200000
+// How much lighter a cloud is drawn than its series colour.
+//
+// A 5 mm point covers a handful of pixels, and against the dark ground a small
+// patch of a colour reads dimmer than a line or a fat point of the same one.
+// Lifting the lightness keeps the hue - so a cloud still matches the carrier it
+// belongs to - rather than keeping a second palette in step with the first.
+const CLOUD_LIGHTEN = 0.2
+
+const MAX_SPARSE_POINTS = 20000
+const MAX_CLOUD_POINTS = 200000
 const MAX_SEGMENTS = 60000
 
 // The body points branch, shared by both features: it is what the hand
@@ -84,46 +99,77 @@ function bodyPointsComponent() {
  * mask they were cut out of.
  */
 function segmentationComponent(erode) {
+    const decoder = {
+        type: PopComponentType.INFERENCE,
+        model: 'eyepop.sam2.decoder:latest',
+        toWorld: true,
+    }
+    // At zero the finder has nothing to do, and asking for a split that erodes
+    // by nothing is not the same as not splitting: it still cuts the mask into
+    // whatever pieces touch only at a pixel. Leaving it out keeps the mask
+    // whole, which is the honest reading of an erode of none.
+    if (!(erode > 0)) {
+        return decoder
+    }
+    decoder.forward = {
+        operator: { type: ForwardOperatorType.FULL },
+        targets: [
+            {
+                type: PopComponentType.COMPONENT_FINDER,
+                erode: erode,
+            },
+        ],
+    }
+    return decoder
+}
+
+function personComponent(targets) {
     return {
         type: PopComponentType.INFERENCE,
-        model: 'eyepop.sam.small:latest',
-        toWorld: true,
+        model: 'eyepop.person:latest',
+        categoryName: 'person',
         forward: {
-            operator: { type: ForwardOperatorType.FULL },
-            targets: [
-                {
-                    type: PopComponentType.COMPONENT_FINDER,
-                    erode: erode,
-                },
-            ],
+            operator: {
+                type: ForwardOperatorType.CROP,
+                crop: { maxItems: 16 },
+            },
+            targets: targets,
         },
     }
 }
 
 function popForFeature(feature, erode) {
-    const targets = [bodyPointsComponent()]
-    if (feature === 'cloud') {
-        targets.push(segmentationComponent(erode))
+    // named but not revealed: without toWorld the worker keeps the depth branch
+    // out of the response, which on a live stream is the difference between a
+    // few key points and a megabyte of base64 per frame
+    const depthMap = { ability: DEPTH_ABILITY }
+
+    if (feature !== 'cloud') {
+        return { components: [personComponent([bodyPointsComponent()])], depthMap: depthMap }
     }
+
+    /*
+     * SAM2 comes apart into an encoder and a decoder, and the encoder has to
+     * see the whole frame before anything has been detected in it. So it is the
+     * outermost component and the detector hangs off its forward, rather than
+     * sitting beside the detector the way a one-shot segmenter did.
+     *
+     * Hidden, because an embedding is not a prediction anyone wants back. A
+     * hidden component's forward targets are still walked, which is what makes
+     * the arrangement work.
+     */
     return {
         components: [
             {
                 type: PopComponentType.INFERENCE,
-                model: 'eyepop.person:latest',
-                categoryName: 'person',
+                model: 'eyepop.sam2.encoder.tiny:latest',
+                hidden: true,
                 forward: {
-                    operator: {
-                        type: ForwardOperatorType.CROP,
-                        crop: { maxItems: 16 },
-                    },
-                    targets: targets,
+                    targets: [personComponent([segmentationComponent(erode)])],
                 },
             },
         ],
-        // named but not revealed: without toWorld the worker keeps the depth
-        // branch out of the response, which on a live stream is the difference
-        // between a few key points and a megabyte of base64 per frame
-        depthMap: { ability: DEPTH_ABILITY },
+        depthMap: depthMap,
     }
 }
 
@@ -282,6 +328,7 @@ async function setup() {
         radio.addEventListener('change', applyFeature)
     }
     erodeInput.addEventListener('change', applyFeature)
+    document.getElementById('reset-view').addEventListener('click', resetWorldView)
 
     setupWorldView(document.getElementById('world-canvas'))
     showView('video')
@@ -626,9 +673,11 @@ function labelledWorldPoints(prediction) {
         return segments
     }
 
-    const add = (label, points, segments) => {
+    // dense marks the one-point-per-pixel carriers - a mask or the scene - which
+    // are drawn with the small points and never carry segments
+    const add = (label, points, segments, dense = false) => {
         if (points.length) {
-            series.push({ label: label, points: points, segments: segments })
+            series.push({ label: label, points: points, segments: segments, dense: dense })
         }
     }
 
@@ -657,7 +706,7 @@ function labelledWorldPoints(prediction) {
             }
             const cloud = cloudOfObject(obj)
             if (cloud !== undefined) {
-                add(`${name} mask`, cloudPoints(cloud), [])
+                add(`${name} mask`, cloudPoints(cloud), [], true)
             }
 
             walk(obj?.objects)
@@ -674,7 +723,7 @@ function labelledWorldPoints(prediction) {
     // cloud two orders of magnitude larger
     const scene = cloudOfDepth(prediction?.depth, prediction?.source_width, prediction?.source_height)
     if (scene !== undefined) {
-        add('scene', cloudPoints(scene), [])
+        add('scene', cloudPoints(scene), [], true)
     }
     return series
 }
@@ -688,13 +737,37 @@ const world = {
     scene: undefined,
     camera: undefined,
     controls: undefined,
-    points: undefined,
+    sparse: undefined,
+    cloud: undefined,
     lines: undefined,
-    pointPositions: undefined,
-    pointColours: undefined,
     linePositions: undefined,
     lineColours: undefined,
     visible: false,
+}
+
+// The framing the view opens with, and the way back to it. Losing the scene
+// behind you is easy and there is no other route back short of a reload.
+function resetWorldView() {
+    if (!world.camera || !world.controls) {
+        return
+    }
+    world.camera.position.copy(DEFAULT_TARGET).addScaledVector(DEFAULT_OFFSET, 1 / DEFAULT_ZOOM)
+    world.controls.target.copy(DEFAULT_TARGET)
+    world.controls.update()
+}
+
+function makePoints(size, capacity) {
+    const positions = new Float32Array(capacity * 3)
+    const colours = new Float32Array(capacity * 3)
+    const geometry = new THREE.BufferGeometry()
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+    geometry.setAttribute('color', new THREE.BufferAttribute(colours, 3))
+    geometry.setDrawRange(0, 0)
+    const object = new THREE.Points(
+        geometry,
+        new THREE.PointsMaterial({ size: size, vertexColors: true, sizeAttenuation: true }),
+    )
+    return { object: object, positions: positions, colours: colours, capacity: capacity, count: 0 }
 }
 
 function setupWorldView(container) {
@@ -704,17 +777,31 @@ function setupWorldView(container) {
 
     world.scene = new THREE.Scene()
     world.scene.background = new THREE.Color(0x101418)
+    /*
+     * Distance fog, rather than a light.
+     *
+     * PointsMaterial and LineBasicMaterial are unlit - they ignore every light
+     * in the scene - so a lamp here would change nothing. What does read as
+     * depth is fog: points fade into the background colour as they recede, and
+     * the shader does it for free. Together with sizeAttenuation, which already
+     * shrinks a point with distance, that is the pair of cues a photograph has.
+     */
+    world.scene.fog = new THREE.Fog(0x101418, 0.5, 10)
 
     world.camera = new THREE.PerspectiveCamera(50, 1, 0.01, 500)
     // three.js is Y-up by default and the EyePop world frame is Z-up, so the
     // camera's up axis is set before the controls read it - otherwise orbiting
     // rolls the scene onto its side
     world.camera.up.set(0, 0, 1)
-    world.camera.position.copy(DEFAULT_TARGET).addScaledVector(DEFAULT_OFFSET, 1 / DEFAULT_ZOOM)
-
     world.controls = new OrbitControls(world.camera, world.renderer.domElement)
-    world.controls.target.copy(DEFAULT_TARGET)
     world.controls.enableDamping = true
+    // three wires the arrow keys to panning but listens for them nowhere unless
+    // told to. Bound to the container rather than the window so the view has to
+    // be focused first, which is why it carries a tabindex: arrow keys that
+    // scroll the page one moment and move a camera the next are worse than
+    // arrow keys that do nothing.
+    world.controls.listenToKeyEvents(container)
+    resetWorldView()
 
     world.scene.add(new THREE.AxesHelper(1))
     const grid = new THREE.GridHelper(10, 20, 0x445566, 0x223344)
@@ -722,17 +809,9 @@ function setupWorldView(container) {
     grid.rotation.x = Math.PI / 2
     world.scene.add(grid)
 
-    world.pointPositions = new Float32Array(MAX_POINTS * 3)
-    world.pointColours = new Float32Array(MAX_POINTS * 3)
-    const pointGeometry = new THREE.BufferGeometry()
-    pointGeometry.setAttribute('position', new THREE.BufferAttribute(world.pointPositions, 3))
-    pointGeometry.setAttribute('color', new THREE.BufferAttribute(world.pointColours, 3))
-    pointGeometry.setDrawRange(0, 0)
-    world.points = new THREE.Points(
-        pointGeometry,
-        new THREE.PointsMaterial({ size: POINT_SIZE_METRES, vertexColors: true, sizeAttenuation: true }),
-    )
-    world.scene.add(world.points)
+    world.sparse = makePoints(SPARSE_POINT_SIZE_METRES, MAX_SPARSE_POINTS)
+    world.cloud = makePoints(CLOUD_POINT_SIZE_METRES, MAX_CLOUD_POINTS)
+    world.scene.add(world.sparse.object, world.cloud.object)
 
     world.linePositions = new Float32Array(MAX_SEGMENTS * 2 * 3)
     world.lineColours = new Float32Array(MAX_SEGMENTS * 2 * 3)
@@ -772,28 +851,46 @@ function setupWorldView(container) {
 }
 
 function updateWorldView(series) {
-    if (!world.points) {
+    if (!world.sparse) {
         return
     }
     const colour = new THREE.Color()
-    let pointCount = 0
+    world.sparse.count = 0
+    world.cloud.count = 0
     let vertexCount = 0
+
+    const push = (target, point) => {
+        if (target.count >= target.capacity) {
+            return false
+        }
+        const at = target.count * 3
+        target.positions[at] = point.x
+        target.positions[at + 1] = point.y
+        target.positions[at + 2] = point.z
+        target.colours[at] = colour.r
+        target.colours[at + 1] = colour.g
+        target.colours[at + 2] = colour.b
+        target.count += 1
+        return true
+    }
 
     series.forEach((entry, index) => {
         colour.setHex(SERIES_COLOURS[index % SERIES_COLOURS.length])
-        const base = pointCount
+        if (entry.dense) {
+            colour.offsetHSL(0, 0, CLOUD_LIGHTEN)
+        }
+        // a dense carrier goes in the small-point buffer; the segments below can
+        // only reference the sparse one, which is the buffer the carriers that
+        // have segments write into
+        const target = entry.dense ? world.cloud : world.sparse
+        const base = target.count
         for (const point of entry.points) {
-            if (pointCount >= MAX_POINTS) {
+            if (!push(target, point)) {
                 break
             }
-            const at = pointCount * 3
-            world.pointPositions[at] = point.x
-            world.pointPositions[at + 1] = point.y
-            world.pointPositions[at + 2] = point.z
-            world.pointColours[at] = colour.r
-            world.pointColours[at + 1] = colour.g
-            world.pointColours[at + 2] = colour.b
-            pointCount += 1
+        }
+        if (entry.dense) {
+            return
         }
         for (const segment of entry.segments) {
             if (vertexCount + 2 > MAX_SEGMENTS * 2) {
@@ -802,9 +899,9 @@ function updateWorldView(series) {
             for (const end of segment) {
                 const from = (base + end) * 3
                 const at = vertexCount * 3
-                world.linePositions[at] = world.pointPositions[from]
-                world.linePositions[at + 1] = world.pointPositions[from + 1]
-                world.linePositions[at + 2] = world.pointPositions[from + 2]
+                world.linePositions[at] = world.sparse.positions[from]
+                world.linePositions[at + 1] = world.sparse.positions[from + 1]
+                world.linePositions[at + 2] = world.sparse.positions[from + 2]
                 world.lineColours[at] = colour.r
                 world.lineColours[at + 1] = colour.g
                 world.lineColours[at + 2] = colour.b
@@ -813,9 +910,11 @@ function updateWorldView(series) {
         }
     })
 
-    world.points.geometry.setDrawRange(0, pointCount)
-    world.points.geometry.attributes.position.needsUpdate = true
-    world.points.geometry.attributes.color.needsUpdate = true
+    for (const target of [world.sparse, world.cloud]) {
+        target.object.geometry.setDrawRange(0, target.count)
+        target.object.geometry.attributes.position.needsUpdate = true
+        target.object.geometry.attributes.color.needsUpdate = true
+    }
     world.lines.geometry.setDrawRange(0, vertexCount)
     world.lines.geometry.attributes.position.needsUpdate = true
     world.lines.geometry.attributes.color.needsUpdate = true
