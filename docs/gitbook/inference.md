@@ -46,7 +46,7 @@ A group is a **single** source processed **together** as one inference unit — 
 
 ```typescript
 // local files
-const results = await endpoint.uploadGroup(['a.jpg', 'b.jpg', 'c.jpg'])
+const fileResults = await endpoint.uploadGroup(['a.jpg', 'b.jpg', 'c.jpg'])
 
 // in-memory streams, with optional parallel MIME types
 import fs from 'node:fs'
@@ -54,10 +54,10 @@ import { Readable } from 'node:stream'
 
 const a = Readable.toWeb(fs.createReadStream('a.jpg'))
 const b = Readable.toWeb(fs.createReadStream('b.jpg'))
-const results = await endpoint.uploadStreamGroup([a, b], ['image/jpeg', 'image/jpeg'])
+const streamResults = await endpoint.uploadStreamGroup([a, b], ['image/jpeg', 'image/jpeg'])
 
 // remote URLs
-const results = await endpoint.loadFromGroup([
+const urlResults = await endpoint.loadFromGroup([
     'https://example.com/a.jpg',
     'https://example.com/b.jpg',
 ])
