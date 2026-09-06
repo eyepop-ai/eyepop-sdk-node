@@ -66,10 +66,10 @@ const endpoint = await EyePop.workerEndpoint({
 
 ### Changing a Pop
 
-Pass the Pop at construction whenever you can. `endpoint.changePop(pop)` exists for the case where an already connected transient worker has to switch.
+Pass the Pop at construction whenever you can. `endpoint.changePop(pop)` switches the Pop on an already connected endpoint: it recreates the pipeline on a transient worker, and patches the pipeline's Pop on a persistent Deployment meant to accept runtime changes.
 
 {% hint style="info" %}
-The component reference — every component type, the forward and crop attributes, and worked examples — lives in the package source at [`src/eyepop/composable-pops.md`](https://github.com/eyepop-ai/eyepop-sdk-node/blob/main/src/eyepop/composable-pops.md).
+The component reference — every component type, their attributes, and worked examples — lives in the package source at [`src/eyepop/composable-pops.md`](https://github.com/eyepop-ai/eyepop-sdk-node/blob/main/src/eyepop/composable-pops.md). It spells components with `model`/`modelUuid` rather than the `ability` and `params` used here.
 {% endhint %}
 
 ### Next steps
