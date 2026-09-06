@@ -69,7 +69,7 @@ const endpoint = await EyePop.workerEndpoint({
 Pass the Pop at construction whenever you can. `endpoint.changePop(pop)` exists for the case where an already connected transient worker has to switch.
 
 {% hint style="info" %}
-The complete component reference — every component type, its attributes, and worked examples — lives with the package at [`src/eyepop/composable-pops.md`](https://github.com/eyepop-ai/eyepop-sdk-node/blob/main/src/eyepop/composable-pops.md).
+The component reference — every component type, the forward and crop attributes, and worked examples — lives in the package source at [`src/eyepop/composable-pops.md`](https://github.com/eyepop-ai/eyepop-sdk-node/blob/main/src/eyepop/composable-pops.md).
 {% endhint %}
 
 ### Next steps
