@@ -5,7 +5,7 @@ icon: play
 
 # Running Inference
 
-`endpoint.process()` accepts a source and returns an `AsyncIterable` of predictions.
+`endpoint.process()` accepts a source and resolves to a `ResultStream`, an `AsyncIterable` of predictions.
 
 ### Local files
 
@@ -46,18 +46,18 @@ A group is a **single** source processed **together** as one inference unit — 
 
 ```typescript
 // local files
-const results = await endpoint.uploadGroup(['a.jpg', 'b.jpg', 'c.jpg'])
+const fileGroupResults = await endpoint.uploadGroup(['a.jpg', 'b.jpg', 'c.jpg'])
 
-// in-memory streams, with optional parallel MIME types
+// readable streams, with optional parallel MIME types
 import fs from 'node:fs'
 import { Readable } from 'node:stream'
 
 const a = Readable.toWeb(fs.createReadStream('a.jpg'))
 const b = Readable.toWeb(fs.createReadStream('b.jpg'))
-const results = await endpoint.uploadStreamGroup([a, b], ['image/jpeg', 'image/jpeg'])
+const streamGroupResults = await endpoint.uploadStreamGroup([a, b], ['image/jpeg', 'image/jpeg'])
 
 // remote URLs
-const results = await endpoint.loadFromGroup([
+const urlGroupResults = await endpoint.loadFromGroup([
     'https://example.com/a.jpg',
     'https://example.com/b.jpg',
 ])

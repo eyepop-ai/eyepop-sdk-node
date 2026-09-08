@@ -31,7 +31,7 @@ With no session UUID and a `pop` — the flow every example here uses — the SD
 
 With no `pop`, the SDK reuses your first live non-persistent session if you have one, and creates a new session otherwise.
 
-To run against a persistent Deployment, set `EYEPOP_SESSION_UUID` or pass `sessionUuid`. The Pop is fixed when the Deployment is created, so you do not pass one:
+To run against a persistent Deployment, set `EYEPOP_SESSION_UUID` or pass `sessionUuid`. The Pop normally comes from the Deployment, so you do not pass one:
 
 ```typescript
 const endpoint = await EyePop.workerEndpoint({

@@ -52,7 +52,7 @@ try {
 }
 ```
 
-`process()` returns an `AsyncIterable` of predictions. An image normally produces one; a video or animated container produces one per frame.
+`process()` resolves to a `ResultStream`, an `AsyncIterable` of predictions. An image normally produces one; a video or animated container produces one per frame.
 
 Pass the Pop when you create the endpoint so EyePop can schedule the right compute before any media is processed.
 
