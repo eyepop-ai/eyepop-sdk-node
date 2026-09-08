@@ -84,5 +84,6 @@ for await (const result of results) {
 
 ### Next steps
 
+* [Sources and Options](../../platform/sources-and-options/README.md) — every source type and option, with Python side by side
 * [Composable Pops](composable-pops.md) — chain models into a pipeline
 * [Visualization](visualization.md) — draw predictions on a canvas

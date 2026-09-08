@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- Running Inference links out to the docs site's Sources and Options reference, which covers every source type and per-source option next to the Python SDK's equivalents.
+
 ## [3.20.0] - 2026-09-04
 
 ### Added
