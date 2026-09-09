@@ -2,7 +2,7 @@
 
 Building rich inference pipelines by combining prebuilt abilities with custom trained models.
 
-The complete component reference is published under Platform → Pops: **[Components](https://docs.eyepop.ai/platform/pop-components)** for every component type and its attributes, **[Forwarding](https://docs.eyepop.ai/platform/pop-forwarding)** for how they chain, and **[Examples](https://docs.eyepop.ai/platform/pop-examples)** for worked pipelines.
+The complete component reference is published under Concepts → Pops: **[Components](https://docs.eyepop.ai/platform/pop-components)** for every component type and its attributes, **[Forwarding](https://docs.eyepop.ai/platform/pop-forwarding)** for how they chain, and **[Examples](https://docs.eyepop.ai/platform/pop-examples)** for worked pipelines.
 
 For the Node construction API specifically — the exported types and how to pass a Pop to `EyePop.workerEndpoint()` — see [`docs/gitbook/composable-pops.md`](../../docs/gitbook/composable-pops.md) in this repository.
 
