@@ -69,9 +69,6 @@ export interface ResultStream extends AsyncIterable<Prediction> {
 export enum PopComponentType {
     FORWARD = 'forward',
     INFERENCE = 'inference',
-    // backward compatibility, for serialized pops < 3.0.0
-    TRACING = 'tracing',
-    // since 3.0.0
     TRACKING = 'tracking',
     CONTOUR_FINDER = 'contour_finder',
     COMPONENT_FINDER = 'component_finder',
