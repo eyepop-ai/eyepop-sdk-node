@@ -7,7 +7,7 @@ icon: diagram-project
 
 A Pop chains abilities into a pipeline: detect, crop to each detection, and run another ability on the crop. Pass it when you create the endpoint.
 
-This page is the Node construction API. Every component type, its attributes, and how components chain are covered once in the [Component Reference](../../platform/pop-reference.md), with worked pipelines in [Examples](../../platform/pop-examples.md).
+This page is the Node construction API. Every component type and its attributes are covered once in [Components](../../platform/pop-components.md), how they chain in [Forwarding](../../platform/pop-forwarding.md), and worked pipelines in [Examples](../../platform/pop-examples.md).
 
 ### The types
 
@@ -90,12 +90,13 @@ const endpoint = await EyePop.workerEndpoint({
 Pass the Pop at construction whenever you can. `endpoint.changePop(pop)` switches the Pop on an already connected endpoint: it recreates the pipeline on a transient worker, and patches the pipeline's Pop on a persistent Deployment meant to accept runtime changes.
 
 {% hint style="info" %}
-Three things in the [Component Reference](../../platform/pop-reference.md) are not yet available from Node: the `objectAreaThreshold` and `multiClass` attributes, and the `raw` inference type. `PopComponent` is also a plain union rather than a discriminated one, so TypeScript will not flag an attribute used on the wrong component type. The worker does not reject it either — it ignores what the component type does not define, so a misplaced attribute silently does nothing.
+Three things in [Components](../../platform/pop-components.md) are not yet available from Node: the `objectAreaThreshold` and `multiClass` attributes, and the `raw` inference type. `PopComponent` is also a plain union rather than a discriminated one, so TypeScript will not flag an attribute used on the wrong component type. The worker does not reject it either — it ignores what the component type does not define, so a misplaced attribute silently does nothing.
 {% endhint %}
 
 ### Next steps
 
-* [Component Reference](../../platform/pop-reference.md) — every component type and attribute
+* [Components](../../platform/pop-components.md) — every component type and attribute
+* [Forwarding](../../platform/pop-forwarding.md) — how components chain
 * [Examples](../../platform/pop-examples.md) — worked pipelines end to end
 * [Running Inference](inference.md) — submit media to the Pop you just built
 * [Visualization](visualization.md) — draw the results on a canvas
