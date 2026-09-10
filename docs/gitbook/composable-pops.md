@@ -15,7 +15,7 @@ All exported from `@eyepop.ai/eyepop`.
 
 | Type | Purpose |
 | --- | --- |
-| `Pop` | The pipeline itself: `components`, and optionally `postTransform` and `defaults`. |
+| `Pop` | The pipeline itself: `components`, and optionally `postTransform`, `defaults` and `depthMap`. |
 | `PopComponentType` | Component discriminator: `INFERENCE`, `TRACKING`, `CONTOUR_FINDER`, `COMPONENT_FINDER`, `FORWARD`. |
 | `ForwardOperatorType` | `CROP`, `FULL`, `CROP_WITH_FULL_FALLBACK`. |
 | `InferenceType`, `MotionModel`, `ContourType` | Enums for the corresponding fields. |
@@ -64,6 +64,26 @@ const endpoint = await EyePop.workerEndpoint({
 }).connect()
 ```
 
+### World coordinates
+
+`depthMap` names the depth ability, and `toWorld` on a component asks for its point-based predictions in metres. `defaults.camera` carries a calibration for every source the Pop processes.
+
+```typescript
+const pop = {
+    components: [{
+        type: PopComponentType.INFERENCE,
+        ability: 'eyepop.person:latest',
+        toWorld: true,
+    }],
+    depthMap: { ability: 'eyepop.depth.metric.small:latest' },
+    defaults: { camera: { hfovDegrees: 72 } },
+}
+```
+
+Both the depth map's "exactly one of `ability` / `abilityUuid`" and the camera's "exactly one lens" are checked before the request leaves, so a Pop that cannot mean what it says throws here rather than returning a `400`. Decode the results with `decodeDepthMap()`, `cloudOfObject()`, `cloudOfDepth()` and `cloudsOfPrediction()`.
+
+See [Depth and World Coordinates](../../platform/depth-and-world-coordinates/README.md) for the whole feature.
+
 ### Prompting an ability
 
 Abilities backed by a vision-language model take their instruction through `params`.
@@ -100,3 +120,4 @@ Three things in [Components](../../platform/pop-components.md) are not yet avail
 * [Examples](../../platform/pop-examples.md) — worked pipelines end to end
 * [Running Inference](inference.md) — submit media to the Pop you just built
 * [Visualization](visualization.md) — draw the results on a canvas
+* [Depth and World Coordinates](../../platform/depth-and-world-coordinates/README.md) — predictions positioned in metres

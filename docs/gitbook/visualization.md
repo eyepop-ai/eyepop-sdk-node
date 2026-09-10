@@ -50,6 +50,18 @@ await writeFile('people-annotated.png', canvas.toBuffer('image/png'))
 
 Renderers compose: pass several to `Render2d.renderer()` to draw boxes, poses, and contours over the same prediction.
 
+### Depth maps
+
+`Render2d.renderDepth()` paints a frame's [depth map](../../platform/depth-and-world-coordinates/depth-maps.md) over it as a turbo heatmap — near is warm, far is cool, and sky pixels are left untouched unless `renderSky` is set.
+
+```typescript
+const renderer = Render2d.renderer(context, [
+    Render2d.renderDepth({ opacity: 0.5, renderSky: false }),
+])
+```
+
+The Node SDK draws depth in 2D only; for world coordinates as a 3D scene, `examples/webpack/src/world-demo.html` in this repository does it with three.js.
+
 {% hint style="info" %}
 The full renderer list and options live with the package at [`src/eyepop-render-2d`](https://github.com/eyepop-ai/eyepop-sdk-node/blob/main/src/eyepop-render-2d/README.md).
 {% endhint %}
@@ -58,3 +70,4 @@ The full renderer list and options live with the package at [`src/eyepop-render-
 
 * [Running Inference](inference.md) — produce the predictions to draw
 * [Composable Pops](composable-pops.md) — chain models into a pipeline
+* [Depth and World Coordinates](../../platform/depth-and-world-coordinates/README.md) — depth maps, calibration, and metres

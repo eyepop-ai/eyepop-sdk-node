@@ -17,7 +17,7 @@ import { AreaType } from 'EyePop/data/data_types'
 // metric one: a 'relative' map is accepted and silently yields no coordinates,
 // because relative depth is scale- AND shift-invariant, so a cloud recovered
 // from it would be distorted rather than merely unscaled.
-const DEFAULT_DEPTH_ABILITY = 'eyepop.depth.large:latest'
+const DEFAULT_DEPTH_ABILITY = 'eyepop.depth.metric.small:latest'
 
 const POP_EXAMPLES = {
   "person": { components: [{
@@ -215,7 +215,7 @@ const POP_EXAMPLES = {
   "depth": { components: [{
     type: PopComponentType.INFERENCE,
     id: 1,
-    ability: 'eyepop.depth.large:latest',
+    ability: 'eyepop.depth.metric.small:latest',
   }]},
 }
 const logger = pino({ level: "debug", name: "eyepop-example" });
@@ -385,7 +385,9 @@ function printHelpAndExit(message?: string, exitCode: number = -1) {
             '\n\t-a --abilityUuid=[ability uuid] to run inference using a specific ability uuid' +
             '\n\t--ability=[ability] to run inference using a specific ability alias' +
             '\n\t-1 --sam1 to compose a model given by --model with segmentation using Efficient SAM' +
-            '\n\t   (the depth example defaults to eyepop.depth.large; the small and *-landscape variants trade cost for aspect fit)' +
+            '\n\t   (the depth example defaults to eyepop.depth.metric.small, whose map fits in 280x280;' +
+            '\n\t    .metric.large uses 518x518, and the -landscape variants 504x280 and 924x518, which is' +
+            '\n\t    much denser for landscape media and identical for portrait)' +
             '\n\t-2 --sam2 to compose a model given by --model with segmentation using SAM2' +
             '\n\t--points list of POIs as coordinates like (x1, y1), (x2, y2) in the original image coordinate system' +
             '\n\t--boxes list of POIs as boxes like (left1, top1, right1, bottom1), (left1, top1, right1, bottom1) in the original image coordinate system' +
