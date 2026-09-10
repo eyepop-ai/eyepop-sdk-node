@@ -71,7 +71,7 @@ export interface Prediction extends StreamTime {
     meshs?: Array<PredictedMesh>
     keyPoints?: Array<PredictedKeyPoints>
     embeddings?: Array<PredictedEmbedding>
-    details?: Array<Map<string, any>>
+    details?: Array<Record<string, any>>
     motions?: Array<PredictedMotion>
     depth?: Depth
 }
@@ -173,7 +173,7 @@ export interface PredictedObject extends PredictedClass {
     texts?: Array<PredictedText>
     meshs?: Array<PredictedMesh>
     keyPoints?: Array<PredictedKeyPoints>
-    details?: Array<Map<string, any>>
+    details?: Array<Record<string, any>>
 }
 
 /**

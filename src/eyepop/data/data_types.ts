@@ -1,3 +1,5 @@
+import type { OpenAPIV3_1 } from 'openapi-types'
+
 import { Point2d, Prediction, Session } from '../types'
 
 export enum DataApiType {
@@ -98,19 +100,19 @@ export enum AutoAnnotateStatus {
 
 export interface DatasetAutoAnnotateCreate {
     auto_annotate: string
-    auto_annotate_params?: Map<string, any>
+    auto_annotate_params?: Record<string, any>
     source_model_uuid?: string
     status?: AutoAnnotateStatus
     status_message?: string
     source?: string
-    metrics?: Map<string, any>
+    metrics?: Record<string, any>
 }
 
 
 export interface DatasetAutoAnnotateUpdate {
     status?: AutoAnnotateStatus
     status_message?: string
-    metrics?: Map<string, any>
+    metrics?: Record<string, any>
 }
 
 export interface DatasetAutoAnnotate {
@@ -121,11 +123,11 @@ export interface DatasetAutoAnnotate {
     source_ability_uuid?: string
     source_model_uuid?: string
     auto_annotate?: string
-    auto_annotate_params?: Map<string, any>
+    auto_annotate_params?: Record<string, any>
     status?: AutoAnnotateStatus
     status_message?: string
     source?: string
-    metrics?: Map<string, any>
+    metrics?: Record<string, any>
 }
 
 export interface AssetImport {
@@ -321,7 +323,7 @@ export interface Model {
     description?: string
     external_id?: string
     pretrained_model_uuid?: string
-    extra_params?: Map<string, any>
+    extra_params?: Record<string, any>
     task?: ModelTask
     classes?: string[]
     type: ModelType
@@ -341,7 +343,7 @@ export interface ModelCreate {
     description: string
     external_id?: string
     pretrained_model_uuid?: string
-    extra_params?: Map<string, any>
+    extra_params?: Record<string, any>
     task?: ModelTask
     classes?: string[]
 }
@@ -499,6 +501,13 @@ export interface InferRuntimeConfig {
     roi?: Area
 }
 
+/**
+ * Schema to constrain a VLM's output. Where one is set, the ability is
+ * guaranteed to return a structured object matching this Open API schema, and
+ * the parsed object arrives on each prediction's `details` attribute.
+ */
+export type ResponseSchema = OpenAPIV3_1.SchemaObject
+
 export interface TransformInto {
     classes?: string[]
 }
@@ -509,6 +518,7 @@ export interface InferRequest {
     config: InferRuntimeConfig
     refresh?: boolean
     transform_into?: TransformInto
+    response_schema?: ResponseSchema
 }
 
 export interface EvaluateFilter {
@@ -550,7 +560,7 @@ export interface EvaluateResponse {
     status: EvaluationStatus
     status_message?: string
     source: string
-    metrics?: Map<string, any>
+    metrics?: Record<string, any>
     run_info: EvaluateRunInfo
 }
 
@@ -568,6 +578,7 @@ export interface AutoPromptConfig {
     num_samples: number
     task_description?: string
     infer: InferRequest
+    response_schema?: ResponseSchema
     evaluate: EvaluateConfig
 }
 
@@ -611,6 +622,7 @@ export interface VlmAbilityCreate {
     worker_release: string
     text_prompt: string
     transform_into: TransformInto
+    response_schema?: ResponseSchema
     config: InferRuntimeConfig
     is_public: boolean
     video_chunk_length_ns?: number
@@ -623,6 +635,7 @@ export interface VlmAbilityUpdate {
     worker_release?: string
     text_prompt?: string
     transform_into?: TransformInto
+    response_schema?: ResponseSchema
     config?: InferRuntimeConfig
     is_public?: boolean
     video_chunk_length_ns?: number
@@ -642,6 +655,7 @@ export interface VlmAbility {
     worker_release?: string
     text_prompt?: string
     transform_into?: TransformInto
+    response_schema?: ResponseSchema
     config?: InferRuntimeConfig
     video_chunk_length_ns?: number
     video_chunk_overlap?: number

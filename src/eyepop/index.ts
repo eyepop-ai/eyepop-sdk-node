@@ -81,6 +81,7 @@ export {
     DatasetAutoAnnotateUpdate,
     InferRuntimeConfig,
     TransformInto,
+    ResponseSchema,
     InferRequest,
     EvaluateFilter,
     EvaluateConfig,

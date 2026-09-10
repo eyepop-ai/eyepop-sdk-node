@@ -4,7 +4,12 @@
 
 ### Added
 
+- `response_schema` on the VLM ability types - `InferRequest`, `AutoPromptConfig`, `VlmAbilityCreate`, `VlmAbilityUpdate` and `VlmAbility`. Set it to constrain a VLM's output to a structured object matching the given Open API schema, which arrives parsed on each prediction's `details`. Typed as the exported `ResponseSchema`, an alias for `OpenAPIV3_1.SchemaObject` from `openapi-types` - a types-only dependency that adds nothing to the runtime bundle, mirroring the python SDK's use of `openapi-pydantic`'s `Schema` rather than leaving callers to hand-build an untyped object.
 - Running Inference links out to the docs site's Sources and Options reference, which covers every source type and per-source option next to the Python SDK's equivalents.
+
+### Fixed
+
+- `Prediction.details` and `PredictedObject.details` are typed `Array<Record<string, any>>` rather than `Array<Map<string, any>>`, as are the `metrics`, `extra_params` and `auto_annotate_params` members of the dataset, model and evaluation types. All of them arrive through `JSON.parse`, which yields plain objects and never a `Map`, so the old declaration typechecked code that could only fail at runtime - `details[0].get('label')` compiled, and threw. Read them with index access instead.
 
 ## [3.20.0] - 2026-09-04
 
