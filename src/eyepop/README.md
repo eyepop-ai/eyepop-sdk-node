@@ -302,6 +302,6 @@ Rendering helpers are provided by [@eyepop.ai/eyepop-render-2d](https://www.npmj
 
 `EyePop.dataEndpoint()` provides preview support for dataset management and model optimization workflows. This API is experimental and subject to change.
 
-## Composable Pops Preview
+## Composable Pops
 
-See [Composable Pops](composable-pops.md) for a preview of client-side Pop composition.
+See [Composable Pops](composable-pops.md) for client-side Pop composition.

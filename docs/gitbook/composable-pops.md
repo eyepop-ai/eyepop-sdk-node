@@ -1,11 +1,28 @@
 ---
-description: Chain models into a multi-stage inference pipeline
+description: Build a Pop with the Node types
 icon: diagram-project
 ---
 
 # Composable Pops
 
-A Pop chains models into a pipeline: detect, crop to each detection, and run another model on the crop. Pass it when you create the endpoint.
+A Pop chains abilities into a pipeline: detect, crop to each detection, and run another ability on the crop. Pass it when you create the endpoint.
+
+This page is the Node construction API. Every component type and its attributes are covered once in [Components](../../platform/pop-components.md), how they chain in [Forwarding](../../platform/pop-forwarding.md), and worked pipelines in [Examples](../../platform/pop-examples.md).
+
+### The types
+
+All exported from `@eyepop.ai/eyepop`.
+
+| Type | Purpose |
+| --- | --- |
+| `Pop` | The pipeline itself: `components`, and optionally `postTransform` and `defaults`. |
+| `PopComponentType` | Component discriminator: `INFERENCE`, `TRACKING`, `CONTOUR_FINDER`, `COMPONENT_FINDER`, `FORWARD`. |
+| `ForwardOperatorType` | `CROP`, `FULL`, `CROP_WITH_FULL_FALLBACK`. |
+| `InferenceType`, `MotionModel`, `ContourType` | Enums for the corresponding fields. |
+
+Components are plain object literals tagged with `type`, so a Pop is ordinary JSON you can build, store, and pass around.
+
+### Building a Pop
 
 ```typescript
 import { EyePop, ForwardOperatorType, PopComponentType } from '@eyepop.ai/eyepop'
@@ -19,11 +36,15 @@ const endpoint = await EyePop.workerEndpoint({
                 categoryName: 'vehicles',
                 confidenceThreshold: 0.8,
                 forward: {
-                    operator: { type: ForwardOperatorType.CROP },
+                    operator: {
+                        type: ForwardOperatorType.CROP,
+                        includeClasses: ['car', 'truck'],
+                    },
                     targets: [
                         {
                             type: PopComponentType.INFERENCE,
                             ability: 'eyepop.vehicle.license-plate:latest',
+                            topK: 1,
                             forward: {
                                 operator: { type: ForwardOperatorType.CROP },
                                 targets: [
@@ -43,9 +64,9 @@ const endpoint = await EyePop.workerEndpoint({
 }).connect()
 ```
 
-### Open-vocabulary detection
+### Prompting an ability
 
-A ModelLess ability takes prompts through `params`.
+Abilities backed by a vision-language model take their instruction through `params`.
 
 ```typescript
 import { EyePop, PopComponentType } from '@eyepop.ai/eyepop'
@@ -69,10 +90,13 @@ const endpoint = await EyePop.workerEndpoint({
 Pass the Pop at construction whenever you can. `endpoint.changePop(pop)` switches the Pop on an already connected endpoint: it recreates the pipeline on a transient worker, and patches the pipeline's Pop on a persistent Deployment meant to accept runtime changes.
 
 {% hint style="info" %}
-The component reference — every component type, their attributes, and worked examples — lives in the package source at [`src/eyepop/composable-pops.md`](https://github.com/eyepop-ai/eyepop-sdk-node/blob/main/src/eyepop/composable-pops.md). It spells components with `model`/`modelUuid` rather than the `ability` and `params` used here.
+Three things in [Components](../../platform/pop-components.md) are not yet available from Node: the `objectAreaThreshold` and `multiClass` attributes, and the `raw` inference type. `PopComponent` is also a plain union rather than a discriminated one, so TypeScript will not flag an attribute used on the wrong component type. The worker does not reject it either — it ignores what the component type does not define, so a misplaced attribute silently does nothing.
 {% endhint %}
 
 ### Next steps
 
+* [Components](../../platform/pop-components.md) — every component type and attribute
+* [Forwarding](../../platform/pop-forwarding.md) — how components chain
+* [Examples](../../platform/pop-examples.md) — worked pipelines end to end
 * [Running Inference](inference.md) — submit media to the Pop you just built
 * [Visualization](visualization.md) — draw the results on a canvas
