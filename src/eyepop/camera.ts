@@ -55,7 +55,7 @@ export interface Quaternion {
     z: number
 }
 
-/** A translation in metres. */
+/** A translation in meters. */
 export interface Vector3d {
     x: number
     y: number

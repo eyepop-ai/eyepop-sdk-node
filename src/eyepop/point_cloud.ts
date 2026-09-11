@@ -49,7 +49,7 @@ export interface CloudBox {
  * A decoded point cloud, per object or per scene.
  *
  * Create with decodePointCloud(), cloudOfObject(), cloudOfDepth() or
- * cloudsOfPrediction(). Coordinates are metres, in the frame the source's
+ * cloudsOfPrediction(). Coordinates are meters, in the frame the source's
  * camera extrinsics define (Z up, ground at Z = 0) or the OpenCV camera frame
  * when it supplied none.
  *
@@ -137,7 +137,7 @@ export class PointCloud {
     }
 
     /**
-     * Per axis (min, max) in metres over the placed points, or undefined if none were.
+     * Per axis (min, max) in meters over the placed points, or undefined if none were.
      *
      * The counterpart to DepthMap's finiteMin/finiteMax, which are one axis
      * because a depth map has one value per pixel.

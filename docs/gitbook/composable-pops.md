@@ -66,7 +66,7 @@ const endpoint = await EyePop.workerEndpoint({
 
 ### World coordinates
 
-`depthMap` names the depth ability, and `toWorld` on a component asks for its point-based predictions in metres. `defaults.camera` carries a calibration for every source the Pop processes.
+`depthMap` names the depth ability, and `toWorld` on a component asks for its point-based predictions in meters. `defaults.camera` carries a calibration for every source the Pop processes.
 
 ```typescript
 const pop = {
@@ -120,4 +120,4 @@ Three things in [Components](../../platform/pop-components.md) are not yet avail
 * [Examples](../../platform/pop-examples.md) — worked pipelines end to end
 * [Running Inference](inference.md) — submit media to the Pop you just built
 * [Visualization](visualization.md) — draw the results on a canvas
-* [Depth and World Coordinates](../../platform/depth-and-world-coordinates/README.md) — predictions positioned in metres
+* [Depth and World Coordinates](../../platform/depth-and-world-coordinates/README.md) — predictions positioned in meters

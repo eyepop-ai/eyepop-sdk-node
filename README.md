@@ -82,7 +82,7 @@ Use `endpoint.changePop(pop)` when an already connected transient worker needs t
 
 ## World Coordinates
 
-Predictions can carry a 3D position in **metres** alongside their 2D one, back-projected through a depth map. Two things have to be true: the Pop must name a depth ability, and the components whose predictions should be translated must opt in.
+Predictions can carry a 3D position in **meters** alongside their 2D one, back-projected through a depth map. Two things have to be true: the Pop must name a depth ability, and the components whose predictions should be translated must opt in.
 
 ```javascript
 const pop = {
@@ -110,7 +110,7 @@ if (cloud) {
     console.log(cloud.at(0, 0)) // by mask pixel, or undefined
     console.log(cloud.atSource(x, y)) // by source coordinate inside the object's box
     console.log(cloud.placedPoints) // just the points that were placed
-    console.log(cloud.bounds) // per-axis min/max in metres, or undefined
+    console.log(cloud.bounds) // per-axis min/max in meters, or undefined
 }
 ```
 

@@ -70,4 +70,4 @@ The full renderer list and options live with the package at [`src/eyepop-render-
 
 * [Running Inference](inference.md) — produce the predictions to draw
 * [Composable Pops](composable-pops.md) — chain models into a pipeline
-* [Depth and World Coordinates](../../platform/depth-and-world-coordinates/README.md) — depth maps, calibration, and metres
+* [Depth and World Coordinates](../../platform/depth-and-world-coordinates/README.md) — depth maps, calibration, and meters
