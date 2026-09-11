@@ -64,14 +64,14 @@ describe('pop world coordinate contract', () => {
     const detector = { type: PopComponentType.INFERENCE, ability: 'eyepop.person:latest' }
 
     test('a component opts in with toWorld', () => {
-        const pop: Pop = { components: [{ ...detector, toWorld: true }], depthMap: { ability: 'eyepop.depth.anything-3:latest' } }
+        const pop: Pop = { components: [{ ...detector, toWorld: true }], depthMap: { ability: 'eyepop.depth.metric.small:latest' } }
         expect(() => validatePop(pop)).not.toThrow()
         expect(JSON.parse(JSON.stringify(pop)).components[0].toWorld).toBe(true)
     })
 
     test('the depth map can ask for the whole scene on its own', () => {
         // it is a consumer in its own right, so no component has to opt in
-        const pop: Pop = { components: [detector], depthMap: { ability: 'eyepop.depth.anything-3:latest', toWorld: true } }
+        const pop: Pop = { components: [detector], depthMap: { ability: 'eyepop.depth.metric.small:latest', toWorld: true } }
         expect(() => validatePop(pop)).not.toThrow()
     })
 
@@ -114,7 +114,7 @@ describe('the initial pop is validated too', () => {
     test('a valid pop builds an endpoint', () => {
         const pop: Pop = {
             components: [{ type: PopComponentType.INFERENCE, ability: 'eyepop.person:latest', toWorld: true }],
-            depthMap: { ability: 'eyepop.depth.anything-3:latest' },
+            depthMap: { ability: 'eyepop.depth.metric.small:latest' },
         }
         expect(() => EyePop.workerEndpoint({ auth: { apiKey: 'k' }, popId: 'transient', pop })).not.toThrow()
     })

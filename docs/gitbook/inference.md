@@ -84,8 +84,22 @@ for await (const result of results) {
 }
 ```
 
+### Camera calibration
+
+`process()` and the group methods take a `camera`, which is what lets a [depth map](../../platform/depth-and-world-coordinates/depth-maps.md) become positions in meters:
+
+```typescript
+const results = await endpoint.process({
+    source: { url: 'rtsp://camera.example.com/stream1' },
+    camera: { hfovDegrees: 72 },
+})
+```
+
+Set it once for every source with `pop.defaults` instead — see [Composable Pops](composable-pops.md#world-coordinates).
+
 ### Next steps
 
 * [Sources and Options](../../platform/sources-and-options/README.md) — every source the platform accepts, and the options that shape processing
 * [Composable Pops](composable-pops.md) — chain models into a pipeline
 * [Visualization](visualization.md) — draw predictions on a canvas
+* [Depth and World Coordinates](../../platform/depth-and-world-coordinates/README.md) — depth maps, calibration, and meters

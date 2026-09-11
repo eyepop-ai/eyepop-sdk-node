@@ -17,7 +17,7 @@ import { AreaType } from 'EyePop/data/data_types'
 // metric one: a 'relative' map is accepted and silently yields no coordinates,
 // because relative depth is scale- AND shift-invariant, so a cloud recovered
 // from it would be distorted rather than merely unscaled.
-const DEFAULT_DEPTH_ABILITY = 'eyepop.depth.large:latest'
+const DEFAULT_DEPTH_ABILITY = 'eyepop.depth.metric.small:latest'
 
 const POP_EXAMPLES = {
   "person": { components: [{
@@ -215,7 +215,7 @@ const POP_EXAMPLES = {
   "depth": { components: [{
     type: PopComponentType.INFERENCE,
     id: 1,
-    ability: 'eyepop.depth.large:latest',
+    ability: 'eyepop.depth.metric.small:latest',
   }]},
 }
 const logger = pino({ level: "debug", name: "eyepop-example" });
@@ -385,7 +385,9 @@ function printHelpAndExit(message?: string, exitCode: number = -1) {
             '\n\t-a --abilityUuid=[ability uuid] to run inference using a specific ability uuid' +
             '\n\t--ability=[ability] to run inference using a specific ability alias' +
             '\n\t-1 --sam1 to compose a model given by --model with segmentation using Efficient SAM' +
-            '\n\t   (the depth example defaults to eyepop.depth.large; the small and *-landscape variants trade cost for aspect fit)' +
+            '\n\t   (the depth example defaults to eyepop.depth.metric.small, whose map fits in 280x280;' +
+            '\n\t    .metric.large uses 518x518, and the -landscape variants 504x280 and 924x518, which is' +
+            '\n\t    much denser for landscape media and identical for portrait)' +
             '\n\t-2 --sam2 to compose a model given by --model with segmentation using SAM2' +
             '\n\t--points list of POIs as coordinates like (x1, y1), (x2, y2) in the original image coordinate system' +
             '\n\t--boxes list of POIs as boxes like (left1, top1, right1, bottom1), (left1, top1, right1, bottom1) in the original image coordinate system' +
@@ -402,7 +404,7 @@ function printHelpAndExit(message?: string, exitCode: number = -1) {
             '\n\t--trackingIoUThreshold=[threshold 0...1] IoU threshold to match tracks' +
             '\n\t--trackingSimThreshold=[threshold 0...1] Similarity threshold to match tracks by re-id' +
             '\n\t--trackingMotionModel=[random_walk|constant_velocity|constant_acceleration] specify which motion model to use in tracking' +
-            '\n\t-w --toWorld translate this pop\'s point based predictions into world coordinates in metres, back-projected through a depth map' +
+            '\n\t-w --toWorld translate this pop\'s point based predictions into world coordinates in meters, back-projected through a depth map' +
             '\n\t--depthMapToWorld back-project the depth map itself, so the results carry a point cloud of the whole scene rather than one per segmented object.' +
             '\n\t   Also what reveals the map: without it the depth branch stays out of the response. Stands on its own, with or without --toWorld' +
             '\n\t--depthMapAbility=[ability] depth ability supplying the map to back-project through, default ' + DEFAULT_DEPTH_ABILITY +
@@ -414,10 +416,10 @@ function printHelpAndExit(message?: string, exitCode: number = -1) {
             '\n\t   Mutually exclusive with --cameraHfovDegrees' +
             '\n\t--cameraRotation=(w, x, y, z) source\'s camera-to-world rotation as a unit quaternion. With extrinsics, world coordinates come back' +
             '\n\t   in the world frame - Z up, ground at Z = 0 - instead of the camera frame. Note this is the inverse of what cv2.solvePnP returns' +
-            '\n\t--cameraTranslation=(x, y, z) where the camera itself sits in the world, in metres. A camera declared 5 m up reports its scene 5 m up.' +
+            '\n\t--cameraTranslation=(x, y, z) where the camera itself sits in the world, in meters. A camera declared 5 m up reports its scene 5 m up.' +
             '\n\t   Not solvePnP\'s tvec, which is not the camera position' +
             '\n\t--worldOut=[path.ply] write everything in the results that carries world coordinates - key points, outlines, contours,' +
-            '\n\t   mask point clouds and the scene cloud - to an ASCII PLY file, in metres, one colour per series.' +
+            '\n\t   mask point clouds and the scene cloud - to an ASCII PLY file, in meters, one colour per series.' +
             '\n\t   Open it in MeshLab, CloudCompare or Blender to move around the scene. Needs --toWorld or --depthMapToWorld to fill them' +
             '\n\t-v --visualize to visualize the result' +
             '\n\t-o --output to print the result to stdout' +
@@ -851,17 +853,17 @@ function labelled_world_points(prediction: any): WorldSeries[] {
   return series
 }
 
-// A coordinate, rounded to a tenth of a millimetre.
+// A coordinate, rounded to a tenth of a millimeter.
 //
 // Two reasons, both about the file rather than the measurement: printing a
 // float32 widened to a double spells 0.1 as 0.10000000149011612, and a scene
 // cloud is one point per depth map pixel, so those extra digits cost megabytes.
 // No depth model resolves anywhere near this finely.
-function metres(value: number): number {
+function meters(value: number): number {
   return Number(value.toFixed(4))
 }
 
-// Write the series as one ASCII PLY in metres, returning how many points were
+// Write the series as one ASCII PLY in meters, returning how many points were
 // written.
 //
 // A PLY has no notion of a series, so the colours alone would say only that the
@@ -882,7 +884,7 @@ function write_world_ply(series: WorldSeries[], path: string): number {
     // from the start of the file
     const base = vertices.length
     for (const point of entry.points) {
-      vertices.push(`${metres(point.x)} ${metres(point.y)} ${metres(point.z)} ${colour[0]} ${colour[1]} ${colour[2]}`)
+      vertices.push(`${meters(point.x)} ${meters(point.y)} ${meters(point.z)} ${colour[0]} ${colour[1]} ${colour[2]}`)
     }
     for (const segment of entry.segments) {
       edges.push(`${base + segment[0]} ${base + segment[1]} ${colour[0]} ${colour[1]} ${colour[2]}`)
@@ -891,7 +893,7 @@ function write_world_ply(series: WorldSeries[], path: string): number {
   const header = [
     'ply',
     'format ascii 1.0',
-    'comment EyePop world coordinates, metres',
+    'comment EyePop world coordinates, meters',
     ...legend,
     `element vertex ${vertices.length}`,
     'property float x',

@@ -2,7 +2,7 @@
  * Measures the distance between a person's hands, live, from a webcam.
  *
  * A 2d-body-points component asks for world coordinates, back-projected
- * through a frame level depth map, and the two wrists come back in metres.
+ * through a frame level depth map, and the two wrists come back in meters.
  * The wrists are the hands here: the 2D body model has no hand point of its
  * own, and a wrist is the closest joint it does place.
  */
@@ -53,7 +53,7 @@ const SERIES_COLOURS = [
  * needs the larger number - one point per depth map pixel - even though this
  * one returns only skeletons.
  */
-// Point diameter in metres, since sizeAttenuation is on: a point is a fixed
+// Point diameter in meters, since sizeAttenuation is on: a point is a fixed
 // size in the scene rather than on screen, so it shrinks with distance like
 // everything else.
 //
@@ -61,8 +61,8 @@ const SERIES_COLOURS = [
 // handful of joints and wants to be seen; a mask or scene cloud is one point
 // per pixel, and at the sparse size those merge into a solid block that hides
 // whatever is behind it.
-const SPARSE_POINT_SIZE_METRES = 0.06
-const CLOUD_POINT_SIZE_METRES = 0.005
+const SPARSE_POINT_SIZE_METERS = 0.06
+const CLOUD_POINT_SIZE_METERS = 0.005
 
 // How much lighter a cloud is drawn than its series colour.
 //
@@ -510,10 +510,10 @@ function handSpans(prediction) {
                     label: obj.classLabel ? `${obj.classLabel} ${index + 1}` : `person ${index + 1}`,
                     from: left.point,
                     to: right.point,
-                    metres: undefined,
+                    meters: undefined,
                 }
                 if (left.placed && right.placed) {
-                    span.metres = Math.hypot(
+                    span.meters = Math.hypot(
                         right.point.worldX - left.point.worldX,
                         right.point.worldY - left.point.worldY,
                         right.point.worldZ - left.point.worldZ,
@@ -530,7 +530,7 @@ function handSpans(prediction) {
 
 function drawSpans(spans) {
     for (const span of spans) {
-        const placed = span.metres !== undefined
+        const placed = span.meters !== undefined
         overlayContext.save()
         overlayContext.lineWidth = 4
         overlayContext.strokeStyle = placed ? '#00d16c' : '#ffa600'
@@ -551,7 +551,7 @@ function drawSpans(spans) {
             overlayContext.fill()
         }
 
-        const text = placed ? `${span.metres.toFixed(2)} m` : 'no depth'
+        const text = placed ? `${span.meters.toFixed(2)} m` : 'no depth'
         const midX = (span.from.x + span.to.x) / 2
         const midY = (span.from.y + span.to.y) / 2
         overlayContext.font = 'bold 28px sans-serif'
@@ -580,8 +580,8 @@ function listSpans(spans) {
         const name = document.createElement('span')
         name.textContent = span.label
         const value = document.createElement('span')
-        if (span.metres !== undefined) {
-            value.textContent = `${span.metres.toFixed(2)} m`
+        if (span.meters !== undefined) {
+            value.textContent = `${span.meters.toFixed(2)} m`
         } else {
             value.textContent = 'wrists found, no depth to place them'
             value.className = 'text-warning'
@@ -809,8 +809,8 @@ function setupWorldView(container) {
     grid.rotation.x = Math.PI / 2
     world.scene.add(grid)
 
-    world.sparse = makePoints(SPARSE_POINT_SIZE_METRES, MAX_SPARSE_POINTS)
-    world.cloud = makePoints(CLOUD_POINT_SIZE_METRES, MAX_CLOUD_POINTS)
+    world.sparse = makePoints(SPARSE_POINT_SIZE_METERS, MAX_SPARSE_POINTS)
+    world.cloud = makePoints(CLOUD_POINT_SIZE_METERS, MAX_CLOUD_POINTS)
     world.scene.add(world.sparse.object, world.cloud.object)
 
     world.linePositions = new Float32Array(MAX_SEGMENTS * 2 * 3)

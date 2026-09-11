@@ -82,17 +82,19 @@ Use `endpoint.changePop(pop)` when an already connected transient worker needs t
 
 ## World Coordinates
 
-Predictions can carry a 3D position in **metres** alongside their 2D one, back-projected through a depth map. Two things have to be true: the Pop must name a depth ability, and the components whose predictions should be translated must opt in.
+Predictions can carry a 3D position in **meters** alongside their 2D one, back-projected through a depth map. Two things have to be true: the Pop must name a depth ability, and the components whose predictions should be translated must opt in.
 
 ```javascript
 const pop = {
     components: [{ type: 'inference', ability: 'eyepop.person:latest', toWorld: true }],
-    depthMap: { ability: 'eyepop.depth.anything-3:latest' },
+    depthMap: { ability: 'eyepop.depth.metric.small:latest' },
     defaults: { camera: { hfovDegrees: 72 } },
 }
 ```
 
 Use a **metric** depth ability. A `relative` one is accepted and silently produces no world coordinates at all: relative depth is scale- _and_ shift-invariant, so a cloud recovered from it would be distorted rather than merely unscaled.
+
+The four metric depth abilities are `eyepop.depth.metric.small`, `eyepop.depth.metric.small-landscape`, `eyepop.depth.metric.large` and `eyepop.depth.metric.large-landscape`. A map keeps the source's aspect ratio; the ability sets the box it fits inside - 280x280 and 518x518 for the plain variants, 504x280 and 924x518 for the `-landscape` ones. Landscape media is therefore much denser from a `-landscape` variant (1280x720 gives 518x291 against 921x518), while portrait and square media get the same grid either way. Smaller maps mean faster responses and higher throughput.
 
 `toWorld` only means something on a component that runs its own inference - inference and tracking. A contour finder's points do get enriched, but they belong to the object that fed it, so the request goes on the inference component upstream.
 
@@ -108,7 +110,7 @@ if (cloud) {
     console.log(cloud.at(0, 0)) // by mask pixel, or undefined
     console.log(cloud.atSource(x, y)) // by source coordinate inside the object's box
     console.log(cloud.placedPoints) // just the points that were placed
-    console.log(cloud.bounds) // per-axis min/max in metres, or undefined
+    console.log(cloud.bounds) // per-axis min/max in meters, or undefined
 }
 ```
 
@@ -119,7 +121,7 @@ if (cloud) {
 ```javascript
 const pop = {
     components: [{ type: 'inference', ability: 'eyepop.person:latest' }],
-    depthMap: { ability: 'eyepop.depth.anything-3:latest', toWorld: true },
+    depthMap: { ability: 'eyepop.depth.metric.small:latest', toWorld: true },
 }
 ```
 
