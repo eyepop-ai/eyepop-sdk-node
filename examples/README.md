@@ -57,13 +57,19 @@ or
 
 open http://localhost:8000/world-demo.html
 
-(live webcam, with a camera selector and a calibration panel. Runs 2d body points back-projected through
-`eyepop.depth.metric.small-landscape`, and overlays the distance in meters between each person's wrists. The intrinsics are
-prefilled from the camera's reported resolution and an assumed field of view, which the page states plainly:
-a browser never reports a focal length, so they are a starting point to be replaced by a real calibration. A second tab
-draws the world coordinates in 3D with three.js - skeletons, contours and point clouds - with controls for the camera's
-pose. A feature switch chooses between the hand distance Pop and one that adds a segmenter and a component finder, whose
-mask becomes a point cloud in the 3D tab.)
+(world coordinates from a live webcam or from a file, with a calibration panel. One control opens and closes the
+camera - a selector of the cameras found while nothing is streaming, a Disconnect button while something is - and
+whenever no stream holds the pipeline the preview itself takes a dropped image or video, run through the same Pop with
+the same overlay and the same 3D tab. A dropped video is stepped by its own results rather than played at real time:
+the preview is seeked to each prediction's timestamp and only then drawn, so the overlay always belongs to the frame
+under it. The intrinsics are prefilled from whatever the source reports as its resolution and an assumed field of
+view, which the page states plainly - neither a browser nor a file reports a focal length, so they are a starting point
+to be replaced by a real calibration. Three features: a point cloud of the whole scene from a Pop with nothing in it
+but `eyepop.depth.metric.large-landscape` asking for `toWorld`; per-person clouds from a segmenter and a component
+finder with its erode exposed; and the distance in meters between each person's wrists, from 2d body points
+back-projected through `eyepop.depth.metric.small-landscape`. A second tab draws the world coordinates in 3D with
+three.js - skeletons, contours and point clouds - with controls for the camera's pose. Either view goes fullscreen from
+a toggle overlaid on it.)
 
 The build mints a worker session from `EYEPOP_API_KEY` and emits it as `eyepop-session.json`, so the key stays
 on the build host and only the short lived session reaches the browser. Never place an EyePop API key in a

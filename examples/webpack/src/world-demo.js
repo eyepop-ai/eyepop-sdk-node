@@ -1,10 +1,15 @@
 /*
- * Measures the distance between a person's hands, live, from a webcam.
+ * World coordinates in the browser, from a webcam or from a dropped file.
  *
- * A 2d-body-points component asks for world coordinates, back-projected
- * through a frame level depth map, and the two wrists come back in meters.
- * The wrists are the hands here: the 2D body model has no hand point of its
+ * Three Pops share one page: the scene's own point cloud, back-projected from
+ * nothing but a depth map; per-person clouds cut out of a segmentation mask;
+ * and the distance between a person's hands, measured through that same map.
+ * The wrists are the hands there: the 2D body model has no hand point of its
  * own, and a wrist is the closest joint it does place.
+ *
+ * A source is either a live webcam or a file dropped on the preview. The same
+ * Pop, the same overlay and the same 3D view serve both - a still is a video of
+ * one frame as far as everything downstream of process() is concerned.
  */
 import { EyePop, ForwardOperatorType, PopComponentType, cloudOfDepth, cloudOfObject, validateCamera } from '@eyepop.ai/eyepop'
 import { POSE_CONNECTIONS, Render2d } from '@eyepop.ai/eyepop-render-2d'
@@ -28,15 +33,36 @@ const BODY_POINTS_CATEGORY = '2d-body-points'
 // aspect rather than paying for a square map to cover it.
 const DEPTH_ABILITY = 'eyepop.depth.metric.small-landscape:latest'
 
+/*
+ * The map read back as the scene cloud is read at its own resolution, so the
+ * ability's grid *is* the resolution of the result: 924x518 for the large
+ * landscape variant against 504x280 for the small one, a cloud three times as
+ * dense over the same frame. It is affordable there because nothing else in
+ * that Pop runs - no encoder, no detector, no segmenter.
+ */
+const SCENE_DEPTH_ABILITY = 'eyepop.depth.metric.large-landscape:latest'
+
 let endpoint = undefined
 let resultStream = undefined
 let probedSettings = undefined
 
-let connectButton, startButton, stopButton, deviceSelect, statusLine
+// The webcam, not the endpoint: true only while a MediaStream is being
+// processed, which is what the drop target and the two webcam controls key off.
+let streaming = false
+
+// The file currently loaded into the preview, kept so a change of feature or of
+// calibration can run it again rather than asking for it to be dropped twice.
+let loadedFile = undefined
+let previewUrl = undefined
+
+let connectButton, connectSpinner, connectLabel, webcamSelect, disconnectButton, statusLine
 let detectedLine, hfovInput, deriveButton, fxInput, fyInput, cxInput, cyInput
 let extrinsicsSwitch, yawInput, tiltInput, heightInput, quaternionField, worldFrameNote
 let popJsonElement, measurementsList, erodeInput
-let localVideo, overlay, overlayContext
+let localVideo, localImage, overlay, overlayContext
+let previewWrapper, previewFrame, dropHint, dropHintTitle, dropHintNote, fileInput, previewNote
+let previewFullscreen, worldFullscreen, worldContainer
+let overlayRenderer
 
 // One colour per series, so the carriers stay apart in the 3D view the way one
 // legend entry per carrier does in a plot.
@@ -73,11 +99,22 @@ const CLOUD_POINT_SIZE_METERS = 0.005
 const CLOUD_LIGHTEN = 0.2
 
 const MAX_SPARSE_POINTS = 20000
-const MAX_CLOUD_POINTS = 200000
+// one point per pixel of the largest map this page asks for - 924 x 518 is
+// 478,632 - and a little over, so the scene cloud arrives whole rather than
+// clipped at a capacity chosen for a smaller one
+const MAX_CLOUD_POINTS = 520000
 const MAX_SEGMENTS = 60000
 
-// The body points branch, shared by both features: it is what the hand
-// distance is measured from and what draws a skeleton in the 3D tab.
+// The three Pops this page offers, in the order the radios list them. Values
+// rather than labels, because the value is what the Pop is chosen by.
+const FEATURES = {
+    scene: 'point cloud',
+    person: 'person point cloud',
+    hands: 'hand distance',
+}
+
+// The body points branch: it is what the hand distance is measured from and
+// what draws a skeleton in the 3D tab.
 function bodyPointsComponent() {
     return {
         type: PopComponentType.INFERENCE,
@@ -139,12 +176,24 @@ function personComponent(targets) {
 }
 
 function popForFeature(feature, erode) {
+    /*
+     * The scene's own cloud: a depth map asking for toWorld, and nothing else.
+     *
+     * A Pop like this is complete - no component has to opt in, because the
+     * thing being back-projected is the map rather than any prediction made
+     * through it. toWorld is also what reveals the map, so the response carries
+     * depth.values as well as depth.world and the video tab can draw it.
+     */
+    if (feature === 'scene') {
+        return { components: [], depthMap: { ability: SCENE_DEPTH_ABILITY, toWorld: true } }
+    }
+
     // named but not revealed: without toWorld the worker keeps the depth branch
     // out of the response, which on a live stream is the difference between a
     // few key points and a megabyte of base64 per frame
     const depthMap = { ability: DEPTH_ABILITY }
 
-    if (feature !== 'cloud') {
+    if (feature !== 'person') {
         return { components: [personComponent([bodyPointsComponent()])], depthMap: depthMap }
     }
 
@@ -174,7 +223,7 @@ function popForFeature(feature, erode) {
 }
 
 function selectedFeature() {
-    return document.querySelector('input[name="feature"]:checked')?.value ?? 'hands'
+    return document.querySelector('input[name="feature"]:checked')?.value ?? 'scene'
 }
 
 function currentPop() {
@@ -283,9 +332,10 @@ function setStatus(message, isError) {
 
 async function setup() {
     connectButton = document.getElementById('connect')
-    startButton = document.getElementById('start-stream')
-    stopButton = document.getElementById('stop-stream')
-    deviceSelect = document.getElementById('video-device')
+    connectSpinner = document.getElementById('connect-spinner')
+    connectLabel = document.getElementById('connect-label')
+    webcamSelect = document.getElementById('webcam-select')
+    disconnectButton = document.getElementById('webcam-disconnect')
     statusLine = document.getElementById('status')
     detectedLine = document.getElementById('detected')
     hfovInput = document.getElementById('hfov')
@@ -303,20 +353,40 @@ async function setup() {
     quaternionField = document.getElementById('quaternion')
     worldFrameNote = document.getElementById('world-frame-note')
     localVideo = document.getElementById('local-video')
+    localImage = document.getElementById('local-image')
     overlay = document.getElementById('local-result-overlay')
     overlayContext = overlay.getContext('2d')
+    previewWrapper = document.getElementById('preview')
+    previewFrame = document.getElementById('preview-frame')
+    previewFullscreen = document.getElementById('preview-fullscreen')
+    worldFullscreen = document.getElementById('world-fullscreen')
+    worldContainer = document.getElementById('world-canvas')
+    dropHint = document.getElementById('drop-hint')
+    dropHintTitle = document.getElementById('drop-hint-title')
+    dropHintNote = document.getElementById('drop-hint-note')
+    fileInput = document.getElementById('file-input')
+    previewNote = document.getElementById('preview-note')
 
     erodeInput = document.getElementById('erode')
 
-    connectButton.addEventListener('click', connect)
-    startButton.addEventListener('click', startStream)
-    stopButton.addEventListener('click', stopStream)
-    deviceSelect.addEventListener('change', probeSelectedDevice)
-    deriveButton.addEventListener('click', deriveIntrinsics)
-    hfovInput.addEventListener('change', deriveIntrinsics)
+    // renderDepth draws nothing unless the prediction carries a depth map, and
+    // only the scene Pop reveals one, so one renderer serves all three features
+    // rather than a set rebuilt whenever the feature changes
+    overlayRenderer = Render2d.renderer(overlayContext, [Render2d.renderPose(), Render2d.renderDepth({ opacity: 0.45 })])
+
+    connectButton.addEventListener('click', toggleConnection)
+    webcamSelect.addEventListener('change', connectWebcam)
+    disconnectButton.addEventListener('click', disconnectWebcam)
+    deriveButton.addEventListener('click', () => deriveIntrinsics(true))
+    hfovInput.addEventListener('change', () => deriveIntrinsics(true))
     extrinsicsSwitch.addEventListener('change', updateExtrinsicsEnabled)
     for (const field of [yawInput, tiltInput, heightInput]) {
         field.addEventListener('change', showQuaternion)
+    }
+    // a calibration only reaches the worker with a source, so changing one is
+    // only visible on the next run: a loaded file is simply run again
+    for (const field of [hfovInput, fxInput, fyInput, cxInput, cyInput, yawInput, tiltInput, heightInput, extrinsicsSwitch]) {
+        field.addEventListener('change', reprocessLoadedFile)
     }
     for (const button of document.querySelectorAll('#view-tabs .nav-link')) {
         button.addEventListener('click', () => showView(button.dataset.view))
@@ -330,13 +400,16 @@ async function setup() {
     erodeInput.addEventListener('change', applyFeature)
     document.getElementById('reset-view').addEventListener('click', resetWorldView)
 
-    setupWorldView(document.getElementById('world-canvas'))
+    setupDropTarget()
+    setupFullscreen()
+    setupWorldView(worldContainer)
     showView('video')
     await applyFeature()
     updateExtrinsicsEnabled()
     describeWorldFrame(undefined)
+    updateSourceControls()
 
-    connectButton.disabled = false
+    showConnectButton(false)
     await populateDevices()
 }
 
@@ -348,36 +421,40 @@ async function populateDevices() {
         const probe = await navigator.mediaDevices.getUserMedia({ video: true })
         probe.getTracks().forEach(track => track.stop())
     } catch (e) {
-        setStatus(`No camera access: ${e.message}`, true)
+        setStatus(`No camera access: ${e.message}. Drop a file on the preview instead.`, true)
         return
     }
 
     const devices = await navigator.mediaDevices.enumerateDevices()
+    let cameras = 0
     for (const device of devices) {
         if (device.kind !== 'videoinput') {
             continue
         }
+        cameras += 1
         const option = document.createElement('option')
         option.value = device.deviceId
-        option.text = device.label || `camera ${deviceSelect.children.length + 1}`
-        deviceSelect.appendChild(option)
+        option.text = device.label || `camera ${cameras}`
+        webcamSelect.appendChild(option)
     }
-    if (deviceSelect.children.length) {
-        await probeSelectedDevice()
-    } else {
-        setStatus('No video input devices found.', true)
+    if (!cameras) {
+        setStatus('No video input devices found. Drop a file on the preview instead.', true)
+        return
     }
+    // the first camera's resolution, so the calibration panel says something
+    // before any camera has been chosen; the selector stays on its placeholder
+    await probeDevice(webcamSelect.children[1].value)
+    updateSourceControls()
 }
 
 /*
- * Open the selected camera briefly to learn what it actually produces.
+ * Open a camera briefly to learn what it actually produces.
  *
- * The resolution is the only thing here a browser will tell us, and it is
- * needed before the stream starts so the intrinsics can be filled in and
- * corrected by hand first.
+ * The resolution is the only thing here a browser will tell us, and it is what
+ * the intrinsics are derived from. Done before the stream rather than from the
+ * stream's own track so a calibration typed by hand survives a reconnect.
  */
-async function probeSelectedDevice() {
-    const deviceId = deviceSelect.value
+async function probeDevice(deviceId) {
     if (!deviceId) {
         return
     }
@@ -397,13 +474,37 @@ async function probeSelectedDevice() {
         return
     }
     const rate = probedSettings.frameRate ? ` at ${Math.round(probedSettings.frameRate)} fps` : ''
-    detectedLine.textContent =
-        `Reported ${probedSettings.width} x ${probedSettings.height}${rate}. ` +
-        'A browser does not report focal length, so the values below are derived from the assumed field of view.'
-    deriveIntrinsics()
+    describeSource(
+        `Camera reported ${probedSettings.width} x ${probedSettings.height}${rate}. ` +
+            'A browser does not report focal length, so the values below are derived from the assumed field of view.',
+    )
 }
 
-function deriveIntrinsics() {
+// What the calibration panel was last derived from, named so a dropped file can
+// replace a camera's numbers and a camera's can replace a file's.
+function describeSource(text) {
+    detectedLine.textContent = text
+    deriveIntrinsics(false)
+}
+
+/*
+ * The last set of values this page computed, so a hand correction is not undone
+ * by the next source that reports a resolution.
+ *
+ * Compared as the strings in the inputs rather than as numbers: those are what
+ * was written, and a value the user retyped identically is one this page is
+ * still free to replace.
+ */
+let derivedIntrinsics = undefined
+
+function intrinsicsWereDerived() {
+    if (!derivedIntrinsics) {
+        return true
+    }
+    return [fxInput, fyInput, cxInput, cyInput].every((field, index) => field.value === derivedIntrinsics[index])
+}
+
+function deriveIntrinsics(force) {
     if (!probedSettings || !probedSettings.width || !probedSettings.height) {
         return
     }
@@ -412,11 +513,17 @@ function deriveIntrinsics() {
         setStatus('Field of view must be between 0 and 180 degrees.', true)
         return
     }
+    // a source change recomputes only what this page put there; the derive
+    // button and the field of view are asked for explicitly and always win
+    if (!force && !intrinsicsWereDerived()) {
+        return
+    }
     const intrinsics = intrinsicsFromHfov(hfov, probedSettings.width, probedSettings.height)
     fxInput.value = intrinsics.fx.toFixed(4)
     fyInput.value = intrinsics.fy.toFixed(4)
     cxInput.value = intrinsics.cx.toFixed(4)
     cyInput.value = intrinsics.cy.toFixed(4)
+    derivedIntrinsics = [fxInput.value, fyInput.value, cxInput.value, cyInput.value]
 }
 
 /*
@@ -441,26 +548,97 @@ function cameraFromInputs() {
     return camera
 }
 
+/*
+ * The button's own state, in the button.
+ *
+ * It is the session's one control, so it says what it will do rather than what
+ * has happened: Connect while there is none, Disconnect while there is. Opening
+ * one takes seconds and disables everything it unlocks, so a spinner in the
+ * label says which of the two it is without a second place to look.
+ */
+function showConnectButton(busy, busyLabel) {
+    connectSpinner.hidden = !busy
+    connectButton.setAttribute('aria-busy', busy ? 'true' : 'false')
+    connectButton.disabled = Boolean(busy)
+    connectLabel.textContent = busy ? busyLabel : endpoint ? 'Disconnect' : 'Connect'
+}
+
+function toggleConnection() {
+    return endpoint ? disconnect() : connect()
+}
+
+// What a source leaves behind, cleared when there is no longer a source that
+// could have produced it.
+function resetResults() {
+    measurementsList.replaceChildren()
+    const empty = document.createElement('li')
+    empty.className = 'list-group-item text-muted'
+    empty.textContent = 'Nothing yet.'
+    measurementsList.appendChild(empty)
+    updateWorldView([])
+    describeWorldFrame(undefined)
+}
+
 async function connect() {
-    connectButton.disabled = true
+    if (endpoint) {
+        return
+    }
+    showConnectButton(true, 'Connecting...')
     setStatus('Connecting...')
     try {
-        if (!endpoint) {
-            // minted by webpack.config.js at build time from EYEPOP_API_KEY and
-            // emitted as an asset: the key stays on the build host, and only the
-            // short lived session reaches the browser
-            const session = await (await fetch('eyepop-session.json')).json()
-            endpoint = await EyePop.workerEndpoint({ auth: { session: session } }).onStateChanged((from, to) => {
-                console.log(`Endpoint state transition from ${from} to ${to}`)
-            })
-            await endpoint.connect()
-            await endpoint.changePop(currentPop())
-        }
-        startButton.disabled = false
-        setStatus('Connected. Pick a camera and press Start.')
+        // minted by webpack.config.js at build time from EYEPOP_API_KEY and
+        // emitted as an asset: the key stays on the build host, and only the
+        // short lived session reaches the browser
+        const session = await (await fetch('eyepop-session.json')).json()
+        endpoint = await EyePop.workerEndpoint({ auth: { session: session } }).onStateChanged((from, to) => {
+            console.log(`Endpoint state transition from ${from} to ${to}`)
+        })
+        await endpoint.connect()
+        await endpoint.changePop(currentPop())
+        setStatus('Connected. Pick a camera, or drop an image or a video on the preview.')
     } catch (e) {
+        // dropped rather than kept: a half opened endpoint would leave the drop
+        // target and the camera selector enabled over a session that is not there
+        endpoint = undefined
         setStatus(`Connect failed: ${e.message}`, true)
-        connectButton.disabled = false
+    } finally {
+        showConnectButton(false)
+        updateSourceControls()
+    }
+}
+
+/*
+ * Give the session back, and everything that was running on it.
+ *
+ * The endpoint is dropped before the await rather than after: a disconnect is
+ * not instant, and until it is done nothing should be able to start a camera or
+ * a file against a session already on its way out.
+ */
+async function disconnect() {
+    const closing = endpoint
+    if (!closing) {
+        return
+    }
+    endpoint = undefined
+    streaming = false
+    sourceToken += 1
+    cancelResultStream()
+    stopPlayback()
+    loadedFile = undefined
+    clearPreview()
+    resetResults()
+    webcamSelect.value = ''
+    showConnectButton(true, 'Disconnecting...')
+    updateSourceControls()
+    setStatus('Disconnecting...')
+    try {
+        await closing.disconnect()
+        setStatus('Disconnected. Press Connect for a new session.')
+    } catch (e) {
+        setStatus(`Disconnect failed: ${e.message}`, true)
+    } finally {
+        showConnectButton(false)
+        updateSourceControls()
     }
 }
 
@@ -589,6 +767,44 @@ function listSpans(spans) {
         item.append(name, value)
         measurementsList.appendChild(item)
     }
+}
+
+/*
+ * What a cloud feature has to report: how much of the frame the worker managed
+ * to place, per carrier.
+ *
+ * A distance is the measurement when there are wrists to measure between. With
+ * nothing but clouds the honest equivalent is the count - an empty list and a
+ * list of half a million points are the two outcomes worth telling apart, and
+ * neither is visible in the video tab.
+ */
+function listSeries(series) {
+    measurementsList.replaceChildren()
+    if (!series.length) {
+        const empty = document.createElement('li')
+        empty.className = 'list-group-item text-muted'
+        empty.textContent = 'Nothing placed yet.'
+        measurementsList.appendChild(empty)
+        return
+    }
+    for (const entry of series) {
+        const item = document.createElement('li')
+        item.className = 'list-group-item d-flex justify-content-between'
+        const name = document.createElement('span')
+        name.textContent = entry.label
+        const value = document.createElement('span')
+        value.textContent = `${entry.points.length.toLocaleString()} points`
+        item.append(name, value)
+        measurementsList.appendChild(item)
+    }
+}
+
+function listMeasurements(spans, series) {
+    if (selectedFeature() === 'hands') {
+        listSpans(spans)
+        return
+    }
+    listSeries(series)
 }
 
 /*
@@ -928,7 +1144,10 @@ function updateWorldView(series) {
  * feature can be changed mid-stream rather than only before Start.
  */
 async function applyFeature() {
-    erodeInput.disabled = selectedFeature() !== 'cloud'
+    const feature = selectedFeature()
+    // the other two Pops have no mask for a component finder to cut up, so
+    // there is nothing for an erode to shrink
+    erodeInput.disabled = feature !== 'person'
     const pop = currentPop()
     popJsonElement.textContent = JSON.stringify(pop, undefined, 2)
     if (!endpoint) {
@@ -936,10 +1155,14 @@ async function applyFeature() {
     }
     try {
         await endpoint.changePop(pop)
-        setStatus(`Pop set to ${selectedFeature() === 'cloud' ? 'point cloud' : 'hand distance'}.`)
+        setStatus(`Pop set to ${FEATURES[feature] ?? feature}.`)
     } catch (e) {
         setStatus(`Could not change the pop: ${e.message}`, true)
+        return
     }
+    // a live stream picks the new Pop up on its next frame; a still has no next
+    // frame, so it is run again
+    await reprocessLoadedFile()
 }
 
 function toggleSection(header) {
@@ -957,23 +1180,34 @@ function showView(name) {
     world.visible = name === 'world'
 }
 
+/*
+ * Everything one prediction changes on the page.
+ *
+ * Shared by the webcam and by a dropped file, because the overlay, the
+ * measurements and the 3D view are downstream of a prediction alone and know
+ * nothing about where it came from.
+ */
+function drawPrediction(result) {
+    // the overlay is stretched over the media by CSS, so drawing in the frame's
+    // own coordinates needs no scaling of its own
+    overlay.width = result.source_width
+    overlay.height = result.source_height
+    overlayContext.clearRect(0, 0, overlay.width, overlay.height)
+    overlayRenderer.draw(result)
+
+    const spans = handSpans(result)
+    drawSpans(spans)
+    const series = labelledWorldPoints(result)
+    listMeasurements(spans, series)
+    updateWorldView(series)
+}
+
 async function renderFromResultStream(results) {
-    const poseRenderer = Render2d.renderer(overlayContext, [Render2d.renderPose()])
     for await (const result of results) {
         if (!localVideo.srcObject) {
             continue
         }
-        // the overlay is stretched over the video by CSS, so drawing in the
-        // frame's own coordinates needs no scaling of its own
-        overlay.width = result.source_width
-        overlay.height = result.source_height
-        overlayContext.clearRect(0, 0, overlay.width, overlay.height)
-        poseRenderer.draw(result)
-
-        const spans = handSpans(result)
-        drawSpans(spans)
-        listSpans(spans)
-        updateWorldView(labelledWorldPoints(result))
+        drawPrediction(result)
     }
 }
 
@@ -986,7 +1220,7 @@ async function renderFromResultStream(results) {
  */
 function describeWorldFrame(camera) {
     if (!camera) {
-        worldFrameNote.textContent = 'Nothing streaming yet.'
+        worldFrameNote.textContent = 'No source processed yet.'
         return
     }
     worldFrameNote.textContent = camera.extrinsics
@@ -995,66 +1229,527 @@ function describeWorldFrame(camera) {
 }
 
 /*
- * Give the camera back.
+ * Give the preview back whatever it is holding.
  *
- * Shared by the stop button and by a failed start: getUserMedia() can succeed
- * and everything after it still fail, and the stop button is only enabled once
- * the stream is running, so leaving the tracks live there strands the camera
- * with no way to release it short of reloading the page.
+ * One function for a camera and a file alike: getUserMedia() can succeed and
+ * everything after it still fail, and an object URL left unrevoked holds the
+ * whole file in memory, so both are released on every path that replaces a
+ * source rather than only on the one that looks like a stop.
  */
-function releaseCamera() {
+function clearPreview() {
     localVideo.pause()
     if (localVideo.srcObject) {
         localVideo.srcObject.getTracks().forEach(track => track.stop())
         localVideo.srcObject = null
     }
+    if (localVideo.getAttribute('src')) {
+        localVideo.removeAttribute('src')
+        // without a reload the element keeps showing the frame it last decoded
+        localVideo.load()
+    }
+    localImage.removeAttribute('src')
+    localImage.hidden = true
+    // hidden rather than left empty: a <video> with no source still occupies its
+    // 300x150 default, drawing a bordered box across the middle of the drop area
+    localVideo.hidden = true
+    if (previewUrl) {
+        URL.revokeObjectURL(previewUrl)
+        previewUrl = undefined
+    }
+    overlayContext.clearRect(0, 0, overlay.width, overlay.height)
 }
 
-async function startStream() {
-    startButton.disabled = true
+function cancelResultStream() {
+    if (resultStream) {
+        resultStream.cancel()
+        resultStream = undefined
+    }
+}
+
+function hasPreviewMedia() {
+    return Boolean(localVideo.srcObject || localVideo.getAttribute('src') || localImage.getAttribute('src'))
+}
+
+/*
+ * Whether the preview will take a file.
+ *
+ * A session, because there is nowhere for a file to go without one - the Pop
+ * runs on the worker, and a drop that quietly opened a session would make
+ * Connect mean nothing. And no live stream, because one pipeline takes one
+ * source.
+ */
+function canAcceptDrop() {
+    return Boolean(endpoint) && !streaming
+}
+
+/*
+ * Which webcam control is showing, and whether the preview takes a drop.
+ *
+ * One control rather than three: while nothing is streaming it is a selector
+ * named for what picking an entry does, and while something is it is a button
+ * named for what pressing it does. The two are never both meaningful, so only
+ * one is ever on the page.
+ *
+ * A live stream is also the one thing a dropped file cannot share - one
+ * pipeline, one source - so the drop target is exactly the complement of it.
+ */
+function updateSourceControls() {
+    webcamSelect.hidden = streaming
+    // like the drop target: a camera has nowhere to stream to without a session
+    webcamSelect.disabled = streaming || !endpoint || webcamSelect.children.length < 2
+    disconnectButton.hidden = !streaming
+
+    const dragging = previewWrapper.classList.contains('dragging')
+    dropHint.classList.toggle('show', !streaming && (dragging || !hasPreviewMedia()))
+    dropHint.classList.toggle('idle', !canAcceptDrop())
+    if (canAcceptDrop()) {
+        dropHintTitle.textContent = 'Drop an image or a video here'
+        dropHintNote.textContent = 'or click to choose one - the same Pop, the same overlay, the same 3D tab'
+    } else {
+        dropHintTitle.textContent = 'Connect first, then drop an image or a video here'
+        dropHintNote.textContent = 'The Pop runs on a worker, so there is nothing to drop a file into until a session is open.'
+    }
+
+    if (streaming) {
+        previewNote.textContent = 'Live webcam. Disconnect it to run a file through the same Pop instead.'
+    } else if (loadedFile) {
+        previewNote.textContent =
+            `${loadedFile.name}. Changing the feature or the calibration runs it again; drop another file to replace it.`
+    } else {
+        previewNote.textContent = ''
+    }
+}
+
+/*
+ * The run a result belongs to.
+ *
+ * A result stream is cancelled but not awaited, so the loop reading it can get
+ * one more turn after its source has been replaced. Drawing that would put the
+ * old source's overlay on the new source's frame, so every loop carries the
+ * token it started with and stops as soon as it is no longer the current one.
+ */
+let sourceToken = 0
+
+/* ---------- files dropped on the preview ---------- */
+
+/* ---------- fullscreen ---------- */
+
+/*
+ * The two views go fullscreen on their own, and say which they are.
+ *
+ * Prefixed fallbacks because a demo gets opened in whatever browser is to hand
+ * and Safari still answers only to the webkit spelling. The button's label says
+ * what pressing it does, like the other two toggles on this page.
+ */
+function fullscreenElement() {
+    return document.fullscreenElement ?? document.webkitFullscreenElement ?? undefined
+}
+
+function requestFullscreen(element) {
+    const request = element.requestFullscreen ?? element.webkitRequestFullscreen
+    if (!request) {
+        return Promise.reject(new Error('this browser has no fullscreen API'))
+    }
+    return Promise.resolve(request.call(element))
+}
+
+function leaveFullscreen() {
+    const exit = document.exitFullscreen ?? document.webkitExitFullscreen
+    return exit ? Promise.resolve(exit.call(document)) : Promise.resolve()
+}
+
+async function toggleFullscreen(element) {
+    try {
+        if (fullscreenElement() === element) {
+            await leaveFullscreen()
+            return
+        }
+        await requestFullscreen(element)
+        // the 3D view takes the arrow keys only while it has focus, and entering
+        // fullscreen is the one moment it is certain to be the thing being used
+        element.focus?.()
+    } catch (e) {
+        setStatus(`Fullscreen refused: ${e.message}`, true)
+    }
+}
+
+function updateFullscreenButtons() {
+    const active = fullscreenElement()
+    for (const [button, element] of [
+        [previewFullscreen, previewWrapper],
+        [worldFullscreen, worldContainer],
+    ]) {
+        const on = active === element
+        button.textContent = on ? '\u26F6 Exit fullscreen' : '\u26F6 Fullscreen'
+        button.title = on ? 'Exit fullscreen' : 'Fullscreen'
+        button.setAttribute('aria-label', button.title)
+    }
+}
+
+function setupFullscreen() {
+    previewFullscreen.addEventListener('click', () => toggleFullscreen(previewWrapper))
+    worldFullscreen.addEventListener('click', () => toggleFullscreen(worldContainer))
+    // Escape and the browser's own chrome leave fullscreen without going through
+    // either button, so the labels follow the event rather than the click
+    for (const type of ['fullscreenchange', 'webkitfullscreenchange']) {
+        document.addEventListener(type, updateFullscreenButtons)
+    }
+    updateFullscreenButtons()
+}
+
+/*
+ * The shape of what the preview is holding.
+ *
+ * Only fullscreen needs it - everywhere else the frame is simply as wide as the
+ * page and as tall as the media makes it - but the overlay is stretched over
+ * the frame, so a frame that is not the media's shape puts the overlay beside
+ * the picture instead of on it.
+ */
+function setPreviewAspect(width, height) {
+    if (width > 0 && height > 0) {
+        previewFrame.style.setProperty('--media-ratio', String(width / height))
+    }
+}
+
+function setupDropTarget() {
+    dropHint.addEventListener('click', () => {
+        if (!canAcceptDrop()) {
+            setStatus(streaming ? 'Disconnect the webcam first - one pipeline takes one source.' : 'Press Connect first.', true)
+            return
+        }
+        fileInput.click()
+    })
+    fileInput.addEventListener('change', () => {
+        const file = fileInput.files?.[0]
+        // cleared so choosing the same file a second time still fires change
+        fileInput.value = ''
+        if (file) {
+            loadFile(file)
+        }
+    })
+
+    // dragover has to be cancelled on every event rather than only the first,
+    // or the browser keeps its own "not here" cursor and never fires drop
+    for (const type of ['dragenter', 'dragover']) {
+        previewWrapper.addEventListener(type, event => {
+            // left uncancelled when there is nowhere to put a file, which is
+            // what makes the browser show its own "not here" cursor
+            if (!canAcceptDrop()) {
+                return
+            }
+            event.preventDefault()
+            event.dataTransfer.dropEffect = 'copy'
+            previewWrapper.classList.add('dragging')
+            updateSourceControls()
+        })
+    }
+    for (const type of ['dragleave', 'dragend']) {
+        previewWrapper.addEventListener(type, event => {
+            // dragleave fires again for every child the pointer crosses; only
+            // the one that leaves the wrapper itself ends the drag
+            if (type === 'dragleave' && previewWrapper.contains(event.relatedTarget)) {
+                return
+            }
+            previewWrapper.classList.remove('dragging')
+            updateSourceControls()
+        })
+    }
+    previewWrapper.addEventListener('drop', event => {
+        event.preventDefault()
+        previewWrapper.classList.remove('dragging')
+        const file = event.dataTransfer?.files?.[0]
+        if (streaming) {
+            setStatus('Disconnect the webcam first - one pipeline takes one source.', true)
+        } else if (!endpoint) {
+            setStatus('Press Connect first - a file needs a worker session to run on.', true)
+        } else if (file) {
+            loadFile(file)
+        }
+        updateSourceControls()
+    })
+
+    /*
+     * A file that misses the target - or lands on a preview already streaming -
+     * would otherwise be opened by the browser, replacing the page with the very
+     * video the user meant to measure.
+     *
+     * Cancelled on the document for both events rather than only outside the
+     * wrapper: cancelling dragover is also what makes a drop fire at all, so
+     * this is what lets the handler above report that a stream is in the way
+     * instead of the page simply navigating out from under it.
+     */
+    for (const type of ['dragover', 'drop']) {
+        document.addEventListener(type, event => event.preventDefault())
+    }
+}
+
+/*
+ * Put a file in the preview and read the one thing a browser will say about it.
+ *
+ * The resolution, like a camera's, because fy/fx is the frame's aspect ratio -
+ * a dropped portrait still is not calibrated by numbers derived for a webcam.
+ */
+function showFileInPreview(file, isVideo) {
+    clearPreview()
+    previewUrl = URL.createObjectURL(file)
+    return new Promise((resolve, reject) => {
+        const element = isVideo ? localVideo : localImage
+        const failed = () => reject(new Error('the browser could not decode it'))
+        const loaded = () =>
+            resolve({
+                width: isVideo ? localVideo.videoWidth : localImage.naturalWidth,
+                height: isVideo ? localVideo.videoHeight : localImage.naturalHeight,
+            })
+        localVideo.hidden = !isVideo
+        localImage.hidden = isVideo
+        element.addEventListener(isVideo ? 'loadedmetadata' : 'load', loaded, { once: true })
+        element.addEventListener('error', failed, { once: true })
+        element.src = previewUrl
+        if (isVideo) {
+            localVideo.load()
+        }
+    })
+}
+
+async function loadFile(file) {
+    const isVideo = file.type.startsWith('video/')
+    const isImage = file.type.startsWith('image/')
+    if (!isVideo && !isImage) {
+        setStatus(`${file.name} is ${file.type || 'of an unknown type'}, not an image or a video.`, true)
+        return
+    }
+    if (!canAcceptDrop()) {
+        setStatus('Press Connect first - a file needs a worker session to run on.', true)
+        return
+    }
+
+    // dropped before the load rather than in the failure path: the preview is
+    // cleared either way, and two files dropped in quick succession would
+    // otherwise let the first one's failure land after the second one's success
+    loadedFile = undefined
+    let size
+    try {
+        size = await showFileInPreview(file, isVideo)
+    } catch (e) {
+        updateSourceControls()
+        setStatus(`Could not read ${file.name}: ${e.message}`, true)
+        return
+    }
+    loadedFile = file
+    updateSourceControls()
+
+    if (size.width && size.height) {
+        setPreviewAspect(size.width, size.height)
+        probedSettings = { width: size.width, height: size.height }
+        describeSource(
+            `${file.name}: ${size.width} x ${size.height}. A file carries no focal length either, so the ` +
+                'values below are derived from the assumed field of view.',
+        )
+    }
+    await processLoadedFile()
+}
+
+// A Pop or a calibration only reaches the worker with a source, so a change to
+// either is only visible on the next run: a live stream gets one on its next
+// frame, a file has to be sent again.
+function reprocessLoadedFile() {
+    return processLoadedFile()
+}
+
+async function processLoadedFile() {
+    if (!loadedFile || !endpoint || streaming) {
+        return
+    }
     let camera
     try {
         camera = cameraFromInputs()
     } catch (e) {
         setStatus(`Calibration rejected: ${e.message}`, true)
-        startButton.disabled = false
         return
     }
     if (!camera) {
         setStatus('No calibration, so the worker assumes a 60 degree field of view.')
     }
 
+    const token = ++sourceToken
+    cancelResultStream()
+    stopPlayback()
+    overlayContext.clearRect(0, 0, overlay.width, overlay.height)
+    describeWorldFrame(camera)
+    setStatus(`Processing ${loadedFile.name}...`)
+
+    const file = loadedFile
+    let results
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-            video: { deviceId: { exact: deviceSelect.value } },
-        })
+        results = await endpoint.process({ source: { file: file }, camera: camera })
+    } catch (e) {
+        setStatus(`Could not process ${file.name}: ${e.message}`, true)
+        return
+    }
+    if (token !== sourceToken) {
+        results.cancel()
+        return
+    }
+    resultStream = results
+    consumeResults(results, token, file, file.type.startsWith('video/'))
+}
+
+/*
+ * Draw a source's results, and for a video move the preview with them.
+ *
+ * The preview is seeked to each prediction's own timestamp and only then drawn,
+ * rather than played at real time with the overlay laid over whatever frame
+ * happens to be showing. A worker is rarely exactly as fast as the media it is
+ * reading, and an overlay half a second out is a measurement of the wrong
+ * frame. It also keeps one prediction in hand rather than all of them: a scene
+ * cloud is megabytes, and a minute of those is not something to buffer.
+ *
+ * A still is the same loop with nothing to seek - one frame, already showing.
+ */
+async function consumeResults(results, token, file, isVideo) {
+    let frames = 0
+    try {
+        for await (const result of results) {
+            if (token !== sourceToken) {
+                return
+            }
+            frames += 1
+            if (isVideo) {
+                await seekPreview(result.seconds ?? 0)
+                if (token !== sourceToken) {
+                    return
+                }
+                setStatus(`${file.name}: frame ${frames} at ${(result.seconds ?? 0).toFixed(2)} s.`)
+            }
+            drawPrediction(result)
+        }
+    } catch (e) {
+        setStatus(`Result stream ended: ${e.message}`, true)
+        return
+    }
+    if (token !== sourceToken) {
+        return
+    }
+    if (!frames) {
+        setStatus(`The worker returned no prediction for ${file.name}.`, true)
+    } else {
+        setStatus(isVideo ? `${file.name} done: ${frames} frames.` : `${file.name} done.`)
+    }
+}
+
+// A seek that never lands would stall the result stream waiting behind it, so
+// the wait is bounded and a frame the browser could not produce is simply drawn
+// over whichever one it is still showing.
+const SEEK_TIMEOUT_MS = 2000
+
+function seekPreview(seconds) {
+    return new Promise(resolve => {
+        const duration = localVideo.duration
+        if (!Number.isFinite(duration) || duration <= 0) {
+            resolve()
+            return
+        }
+        const target = Math.min(Math.max(seconds, 0), duration - 0.001)
+        if (Math.abs(localVideo.currentTime - target) < 0.001) {
+            resolve()
+            return
+        }
+        let timer = undefined
+        const done = () => {
+            clearTimeout(timer)
+            localVideo.removeEventListener('seeked', done)
+            resolve()
+        }
+        localVideo.addEventListener('seeked', done)
+        timer = setTimeout(done, SEEK_TIMEOUT_MS)
+        localVideo.currentTime = target
+    })
+}
+
+// The preview is stepped by the results rather than playing on its own, so
+// there is nothing to stop but a play() the browser started by itself.
+function stopPlayback() {
+    localVideo.pause()
+}
+
+/* ---------- the webcam ---------- */
+
+async function connectWebcam() {
+    const deviceId = webcamSelect.value
+    if (!deviceId) {
+        return
+    }
+    if (!endpoint) {
+        webcamSelect.value = ''
+        setStatus('Press Connect first.', true)
+        return
+    }
+    webcamSelect.disabled = true
+    // the resolution first: it is what fx and fy are derived from, and a stream
+    // cannot be recalibrated once it is already negotiating
+    await probeDevice(deviceId)
+    await startStream(deviceId)
+    updateSourceControls()
+}
+
+async function startStream(deviceId) {
+    let camera
+    try {
+        camera = cameraFromInputs()
+    } catch (e) {
+        setStatus(`Calibration rejected: ${e.message}`, true)
+        return
+    }
+    if (!camera) {
+        setStatus('No calibration, so the worker assumes a 60 degree field of view.')
+    }
+
+    sourceToken += 1
+    cancelResultStream()
+    stopPlayback()
+    loadedFile = undefined
+    clearPreview()
+
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: deviceId } } })
+        localVideo.hidden = false
         localVideo.srcObject = stream
         await localVideo.play()
+        setPreviewAspect(localVideo.videoWidth, localVideo.videoHeight)
 
         resultStream = await endpoint.process({ source: { mediaStream: stream }, camera: camera })
+        streaming = true
         describeWorldFrame(camera)
-        stopButton.disabled = false
-        setStatus('Measuring. Hold both wrists in view.')
+        setStatus(
+            selectedFeature() === 'hands'
+                ? 'Measuring. Hold both wrists in view.'
+                : 'Streaming. The 3D tab is where the cloud appears.',
+        )
         renderFromResultStream(resultStream)
             .catch(e => setStatus(`Result stream ended: ${e.message}`, true))
             .finally(() => console.log('result stream finished'))
     } catch (e) {
-        releaseCamera()
-        setStatus(`Could not start: ${e.message}`, true)
-        startButton.disabled = false
+        clearPreview()
+        // back to the placeholder, so the camera that just failed can be picked
+        // again and still fire a change
+        webcamSelect.value = ''
+        setStatus(`Could not connect the webcam: ${e.message}`, true)
     }
 }
 
-async function stopStream() {
-    stopButton.disabled = true
-    if (resultStream) {
-        resultStream.cancel()
-        resultStream = undefined
-    }
-    releaseCamera()
-    overlayContext.clearRect(0, 0, overlay.width, overlay.height)
-    startButton.disabled = false
-    setStatus('Stopped.')
+async function disconnectWebcam() {
+    disconnectButton.disabled = true
+    sourceToken += 1
+    cancelResultStream()
+    streaming = false
+    clearPreview()
+    // back to the placeholder, so picking the same camera again is still a
+    // change event and still connects it
+    webcamSelect.value = ''
+    disconnectButton.disabled = false
+    resetResults()
+    updateSourceControls()
+    setStatus('Webcam disconnected. Pick a camera again, or drop an image or a video on the preview.')
 }
 
 document.addEventListener('DOMContentLoaded', setup)

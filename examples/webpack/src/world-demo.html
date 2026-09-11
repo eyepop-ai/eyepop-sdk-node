@@ -18,11 +18,18 @@
     </header>
 
     <div class="container-fluid mt-4">
-        <div class="d-grid d-md-flex">
-            <button disabled class="m-2 form-control" id="connect">Connect</button>
-            <select class="m-2 form-select" style="width:auto;display:inline-block;" id="video-device"></select>
-            <button disabled class="m-2 form-control" id="start-stream">Start</button>
-            <button disabled class="m-2 form-control" id="stop-stream">Stop</button>
+        <div class="d-grid d-md-flex align-items-center">
+            <button disabled class="m-2 btn btn-outline-secondary" style="min-width:11rem;" id="connect">
+                <span class="spinner-border spinner-border-sm me-2" id="connect-spinner" role="status"
+                      aria-hidden="true" hidden></span>
+                <span id="connect-label">Connect</span>
+            </button>
+            <select class="m-2 form-select" style="width:auto;display:inline-block;" id="webcam-select" disabled>
+                <option value="" selected>Connect webcam</option>
+            </select>
+            <button class="m-2 btn btn-outline-secondary" style="min-width:11rem;" id="webcam-disconnect" hidden>
+                Disconnect webcam
+            </button>
         </div>
         <div id="status" class="m-2 text-muted"></div>
     </div>
@@ -36,14 +43,19 @@
                 <div class="d-flex flex-wrap align-items-end gap-4">
                     <div>
                         <div class="form-check form-check-inline">
-                            <input checked class="form-check-input" type="radio" name="feature" id="feature-hands"
-                                   value="hands">
-                            <label class="form-check-label" for="feature-hands">Hand distance</label>
+                            <input checked class="form-check-input" type="radio" name="feature" id="feature-scene"
+                                   value="scene">
+                            <label class="form-check-label" for="feature-scene">Point cloud</label>
                         </div>
                         <div class="form-check form-check-inline">
-                            <input class="form-check-input" type="radio" name="feature" id="feature-cloud"
-                                   value="cloud">
-                            <label class="form-check-label" for="feature-cloud">Point cloud</label>
+                            <input class="form-check-input" type="radio" name="feature" id="feature-person"
+                                   value="person">
+                            <label class="form-check-label" for="feature-person">Person point cloud</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="feature" id="feature-hands"
+                                   value="hands">
+                            <label class="form-check-label" for="feature-hands">Hand distance</label>
                         </div>
                     </div>
                     <div>
@@ -53,11 +65,25 @@
                     </div>
                 </div>
                 <p class="text-muted mt-2 mb-0" style="font-size: 0.9rem;">
-                    Point cloud adds a segmenter beside the body points, and a component finder to split its mask
-                    into pieces; erode shrinks each piece before it is split, which is what stops two objects that
-                    touch by a few pixels from being read as one. At 0 the finder is left out altogether and the
-                    mask stays whole. The mask is not drawn over the video in either
-                    mode - the 3D tab is where it becomes a cloud.
+                    <strong>Point cloud</strong> is a Pop with nothing in it but a depth map asking for
+                    <code>toWorld</code>, on the large landscape ability: no detector runs, the map itself is
+                    back-projected, and the whole scene comes back as one cloud. That is also what reveals the map,
+                    so the video tab draws it as a heatmap. It is the heaviest of the three - a 924 x 518 grid is
+                    roughly half a million points per frame, which a still carries comfortably and a live webcam
+                    does not.
+                </p>
+                <p class="text-muted mt-2 mb-0" style="font-size: 0.9rem;">
+                    <strong>Person point cloud</strong> keeps the small landscape map hidden and puts a segmenter
+                    behind a person detector instead, so only the people come back as clouds. A component finder
+                    splits each mask into pieces; <strong>erode</strong> shrinks a mask before it is split, which is
+                    what stops two objects that touch by a few pixels from being read as one. At 0 the finder is
+                    left out altogether and the mask stays whole. Erode applies to this feature alone - the other
+                    two have no mask to shrink.
+                </p>
+                <p class="text-muted mt-2 mb-0" style="font-size: 0.9rem;">
+                    <strong>Hand distance</strong> runs 2d body points behind the same detector and measures
+                    between the two wrists. A mask is not drawn over the video in any mode - the 3D tab is where
+                    it becomes a cloud.
                 </p>
             </div>
         </div>
@@ -67,7 +93,7 @@
                 <span class="twisty">&#9656;</span> Camera intrinsics
             </div>
             <div class="card-body" id="section-intrinsics" hidden>
-                <p class="text-muted mb-3" id="detected">No camera opened yet.</p>
+                <p class="text-muted mb-3" id="detected">No source opened yet.</p>
 
                 <div class="row g-2 align-items-end">
                     <div class="col-auto">
@@ -111,8 +137,10 @@
                     <strong>These are computed, not measured.</strong> A browser reports a camera's resolution but
                     never its focal length, so the values above come from the field of view assumed at the top - the
                     frame size only fixes the ratio between fx and fy. For a real measurement, calibrate the lens
-                    (OpenCV's checkerboard) and type the four numbers in. Applied when the stream starts: change them,
-                    then Stop and Start.
+                    (OpenCV's checkerboard) and type the four numbers in. Applied when a webcam connects or a file is
+                    processed: change them and the loaded file is run again, while a live webcam has to be
+                    disconnected and connected once more. Values typed by hand are left alone when a new source
+                    reports its own resolution - only derived ones are recomputed.
                 </p>
                 <p class="text-muted mb-0 mt-2" style="font-size: 0.9rem;">
                     A wrong field of view mostly cancels out of a hand to hand distance. Canonical metric depth scales
@@ -173,7 +201,7 @@
                 <p class="text-muted mb-0 mt-2" style="font-size: 0.9rem;">
                     A pose moves and turns the whole scene, so it does <strong>not</strong> change the hand to hand
                     distance: a rigid transform preserves distances. It changes where the points sit in the 3D tab,
-                    and nothing else. Applied when the stream starts, like the intrinsics.
+                    and nothing else. Applied like the intrinsics.
                 </p>
             </div>
         </div>
@@ -186,10 +214,24 @@
         </ul>
 
         <div class="pt-3" id="view-video">
-            <div class="preview-wrapper">
-                <video class="local-video" id="local-video" muted autoplay playsinline></video>
-                <canvas class="result-overlay" id="local-result-overlay"></canvas>
+            <div class="preview-wrapper" id="preview">
+                <div class="preview-frame" id="preview-frame">
+                    <video class="local-media" id="local-video" muted playsinline hidden></video>
+                    <img class="local-media" id="local-image" alt="" hidden>
+                    <canvas class="result-overlay" id="local-result-overlay"></canvas>
+                </div>
+                <button type="button" class="view-fullscreen" id="preview-fullscreen">&#9974; Fullscreen</button>
+                <div class="drop-hint" id="drop-hint">
+                    <div>
+                        <div class="fs-5" id="drop-hint-title">Drop an image or a video here</div>
+                        <div class="small" id="drop-hint-note">or click to choose one - the same Pop, the same
+                            overlay, the same 3D tab
+                        </div>
+                    </div>
+                </div>
+                <input type="file" id="file-input" accept="image/*,video/*" hidden>
             </div>
+            <p class="text-muted mt-2 mb-0" style="font-size: 0.9rem;" id="preview-note"></p>
         </div>
 
         <div class="pt-3" id="view-world" hidden>
@@ -201,7 +243,9 @@
                 </p>
                 <button class="btn btn-outline-secondary btn-sm text-nowrap" id="reset-view">Reset view</button>
             </div>
-            <div class="world-view" id="world-canvas" tabindex="0"></div>
+            <div class="world-view" id="world-canvas" tabindex="0">
+                <button type="button" class="view-fullscreen" id="world-fullscreen">&#9974; Fullscreen</button>
+            </div>
             <p class="text-muted mt-2 mb-0" style="font-size: 0.9rem;" id="world-frame-note"></p>
             <p class="text-muted mb-0" style="font-size: 0.9rem;">
                 Red, green and blue are world X, Y and Z; the grid is the Z = 0 plane. Every carrier the worker
