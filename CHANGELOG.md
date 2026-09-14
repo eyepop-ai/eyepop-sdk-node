@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Added
+- `rtspForceNonCompliantUrl` on a process request, for RTSP servers that only answer the pre-RFC-2326 SETUP URL. The worker builds the compliant URL by default, which is what a camera advertising an absolute control attribute needs - Axis does, and concatenating the two gives it a path with the address in twice, which it answers 404. Leave it unset unless a camera will not open without it: unset is not sent, so the worker decides.
+
 ### Fixed
 - Name a real depth ability everywhere. The README examples and camera tests used `eyepop.depth.anything-3:latest`, which does not exist, and both `pop_demo` defaults used `eyepop.depth.large:latest`, which is not one of the four metric abilities and so would be accepted while silently producing no world coordinates. All of them now use `eyepop.depth.metric.small:latest`, and the READMEs name the full set — `eyepop.depth.metric.{small,small-landscape,large,large-landscape}`. The browser world demo keeps `-landscape`, which fits a webcam; the shipped example stills are portrait.
 
