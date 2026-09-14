@@ -363,6 +363,9 @@ export class LoadFromJob extends AbstractJob {
             fps: this._params.fps,
             camera: this._params.camera,
             version: this._version,
+            // undefined is dropped by JSON.stringify, so an unset option leaves
+            // the worker's own default to decide rather than pinning it here.
+            rtspForceNonCompliantUrl: this._params.rtspForceNonCompliantUrl,
         }
         if (this._params.motionDetect) {
             Object.assign(body, this._params.motionDetect)

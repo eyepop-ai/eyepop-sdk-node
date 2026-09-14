@@ -306,6 +306,16 @@ export interface ProcessParams {
      * however wrong the guess was.
      */
     camera?: Camera | undefined
+    /**
+     * Build RTSP SETUP URLs the pre-RFC-2326 way, by appending the SDP control
+     * attribute to the stream URL. Applies to an `rtsp:` source only.
+     *
+     * Leave unset unless a camera will not open without it. The compliant
+     * construction is what a camera advertising an absolute control URL needs -
+     * Axis does - and forcing the old one gives such a camera a URL with the
+     * address in it twice, which it answers 404.
+     */
+    rtspForceNonCompliantUrl?: boolean | undefined
 }
 
 export interface ProcessRequest extends ProcessParams {
