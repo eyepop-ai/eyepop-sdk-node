@@ -8,16 +8,30 @@ on:
                 required: true
                 default: staging
                 type: environment
+    pull_request:
+        branches:
+            - main
+        paths:
+            - 'src/eyepop/**'
+            - 'scripts/session-smoke.mjs'
+            - 'tests/test.jpg'
+            - 'tests/fixtures/pops/**'
+            - 'package.json'
+            - '.github/workflows/integration.yml'
 
+# --cleanup-preexisting deletes every transient session on the account, so runs
+# against one environment queue instead of overlapping across PRs.
 concurrency:
     group: ${{ github.workflow }}-${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'staging' }}
-    cancel-in-progress: true
+    cancel-in-progress: false
 
 permissions:
     contents: read
 
 jobs:
     integration:
+        # Fork PRs get no secrets.
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         name: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'staging' }} integration
         runs-on: ubuntu-latest
         timeout-minutes: 45
