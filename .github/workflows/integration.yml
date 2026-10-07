@@ -56,6 +56,8 @@ jobs:
             - name: Build source SDK
               run: npm run build -w @eyepop.ai/eyepop
 
+            # Staging scales the VLM worker to zero outside 07:00-20:00 Pacific, and a cold
+            # start takes about 10 minutes, so each scenario gets 20 instead of the default 10.
             - name: Run source SDK session e2e
               id: e2e
               env:
@@ -67,6 +69,7 @@ jobs:
                     --cleanup-preexisting \
                     --sdk-module "$GITHUB_WORKSPACE/src/eyepop/dist/eyepop.index.js" \
                     --session-ready-timeout-seconds 180 \
+                    --timeout-seconds 1200 \
                     --gpu-image tests/test.jpg \
                     --gpu-ability eyepop.person:latest \
                     --gpu-expected-class person \
