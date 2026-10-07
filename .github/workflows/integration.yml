@@ -8,16 +8,32 @@ on:
                 required: true
                 default: staging
                 type: environment
+    pull_request:
+        branches:
+            - main
+        paths:
+            - 'src/eyepop/**'
+            - 'scripts/session-smoke.mjs'
+            - 'tests/test.jpg'
+            - 'tests/fixtures/pops/**'
+            - 'package.json'
+            - '.github/workflows/integration.yml'
 
+# A user gets one transient session at a time, and every run against an
+# environment in this repo (this workflow and Node Sessions Smoke) uses the same
+# test account; --cleanup-preexisting also deletes every transient session on it.
+# Runs share one group per environment and queue instead of overlapping.
 concurrency:
-    group: ${{ github.workflow }}-${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'staging' }}
-    cancel-in-progress: true
+    group: eyepop-session-${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'staging' }}
+    cancel-in-progress: false
 
 permissions:
     contents: read
 
 jobs:
     integration:
+        # Fork PRs get no secrets.
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         name: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'staging' }} integration
         runs-on: ubuntu-latest
         timeout-minutes: 45
