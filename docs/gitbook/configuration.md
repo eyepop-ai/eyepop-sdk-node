@@ -31,6 +31,16 @@ With no session UUID and a `pop` — the flow every example here uses — the SD
 
 With no `pop`, the SDK reuses your first live non-persistent session if you have one, and creates a new session otherwise.
 
+### Account
+
+A session runs and is billed under one account. When your credential belongs to more than one account, name the account with `EYEPOP_ACCOUNT_UUID` or the `accountId` option — the same option the data endpoint takes. The SDK sends it as `account_uuid` when it creates a session, and reuses only a live session of that account. Without it, the compute API refuses to create a session it cannot attribute, with `VAL_001: account_uuid is required`.
+
+```typescript
+const endpoint = await EyePop.workerEndpoint({
+    accountId: '<your-account-uuid>',
+}).connect()
+```
+
 To run against a persistent Deployment, set `EYEPOP_SESSION_UUID` or pass `sessionUuid`. The Pop normally comes from the Deployment, so you do not pass one:
 
 ```typescript

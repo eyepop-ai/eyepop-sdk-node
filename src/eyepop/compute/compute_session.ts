@@ -27,6 +27,7 @@ export interface ComputeSession {
     session_message: string
     session_name: string
     user_uuid: string
+    account_uuid?: string
     created_at: string
     uptime: number
     pipeline_ttl?: number | undefined
@@ -55,6 +56,10 @@ export interface ComputeSessionClientOptions {
     authorizationHeader: () => Promise<string>
     sessionUuid?: string | undefined
     sessionName?: string | undefined
+    /**
+     * The account the compute session runs and is billed under, sent as `account_uuid`.
+     */
+    accountId?: string | undefined
     pipelineImage?: string | undefined
     pipelineVersion?: string | undefined
     pop?: Pop | undefined
@@ -79,6 +84,9 @@ export function pipelineIdFromSession(session: ComputeSession): string | null {
 
 function sessionCreateBody(options: ComputeSessionClientOptions): string | undefined {
     const body: any = {}
+    if (options.accountId) {
+        body.account_uuid = options.accountId
+    }
     if (options.sessionName) {
         body.session_name = options.sessionName
     }
@@ -131,6 +139,60 @@ function pipelineErrorMessage(session: ComputeSession): string | null {
         return `Pipeline failed for compute session ${session.session_uuid}`
     }
     return null
+}
+
+/**
+ * A compute-api request that failed. `status` is the HTTP status and `code` the
+ * compute-api error code (for example `VAL_001` when no account can be derived
+ * for a new session), when the response carried one. The message stays the
+ * readable one callers already see.
+ */
+export class ComputeApiError extends Error {
+    readonly status: number
+    readonly code: string | undefined
+
+    constructor(message: string, status: number, code?: string) {
+        super(message)
+        this.name = 'ComputeApiError'
+        this.status = status
+        this.code = code
+    }
+}
+
+/** A compute session picked by uuid runs under another account than the one configured. */
+export class ComputeAccountMismatchError extends Error {
+    readonly sessionUuid: string
+    readonly sessionAccountId: string | undefined
+    readonly accountId: string
+
+    constructor(sessionUuid: string, sessionAccountId: string | undefined, accountId: string) {
+        super(`Compute session ${sessionUuid} runs under account ${sessionAccountId || '(none)'}, not the configured account ${accountId}`)
+        this.name = 'ComputeAccountMismatchError'
+        this.sessionUuid = sessionUuid
+        this.sessionAccountId = sessionAccountId
+        this.accountId = accountId
+    }
+}
+
+async function computeApiError(response: Response, action: string): Promise<ComputeApiError> {
+    const code = await responseErrorCode(response)
+    const message = await responseErrorMessage(response)
+    return new ComputeApiError(`Unexpected status ${response.status} ${action}: ${message}`, response.status, code)
+}
+
+async function responseErrorCode(response: Response): Promise<string | undefined> {
+    try {
+        const parsed = normalizedJsonValue(await response.clone().json())
+        if (!parsed || typeof parsed != 'object') {
+            return undefined
+        }
+        const record = parsed as Record<string, unknown>
+        const nested = normalizedJsonValue(record['error'])
+        const code = nested && typeof nested == 'object' ? (nested as Record<string, unknown>)['code'] : record['code']
+        return typeof code == 'string' && code.length > 0 ? code : undefined
+    } catch (_) {
+        return undefined
+    }
 }
 
 async function responseErrorMessage(response: Response): Promise<string> {
@@ -246,8 +308,7 @@ export class ComputeSessionClient {
             if (response.status == 404) {
                 sessions = []
             } else if (response.status != 200) {
-                const message = await responseErrorMessage(response)
-                throw new Error(`Unexpected status ${response.status} fetching compute sessions: ${message}`)
+                throw await computeApiError(response, 'fetching compute sessions')
             } else {
                 const response_content = await responseJson<ComputeSession[]>(response)
                 sessions = response_content as ComputeSession[]
@@ -255,7 +316,12 @@ export class ComputeSessionClient {
             if (sessions.length > 0) {
                 this.options.logger?.debug(`User has ${sessions.length} sessions, inspecting for usable session`)
                 for (let s of sessions) {
-                    if (!SESSION_DEAD.has(s.session_status) && !s.persistent && (!this.options.sessionName || s.session_name === this.options.sessionName)) {
+                    if (
+                        !SESSION_DEAD.has(s.session_status) &&
+                        !s.persistent &&
+                        (!this.options.sessionName || s.session_name === this.options.sessionName) &&
+                        (!this.options.accountId || s.account_uuid === this.options.accountId)
+                    ) {
                         session = s
                         this.options.logger?.debug(`Use active session ${s.session_uuid} with pipeline ${pipelineIdFromSession(s)}`)
                         break
@@ -280,8 +346,7 @@ export class ComputeSessionClient {
             const query = 'wait=true'
             const response = await this.options.httpClient.fetch(`${sessionsUrl}?${query}`, request)
             if (response.status != 200) {
-                const message = await responseErrorMessage(response)
-                throw new Error(`Unexpected status ${response.status} creating a compute session: ${message}`)
+                throw await computeApiError(response, 'creating a compute session')
             } else {
                 sessions = await responseJson<ComputeSession[]>(response)
             }
@@ -308,13 +373,17 @@ export class ComputeSessionClient {
             headers: headers,
         })
         if (response.status == 404) {
-            throw new Error(`Unexpected status ${response.status} compute sessions ${sessionUuid} not found`)
+            throw new ComputeApiError(`Unexpected status ${response.status} compute sessions ${sessionUuid} not found`, response.status)
         } else if (response.status != 200) {
-            const message = await responseErrorMessage(response)
-            throw new Error(`Unexpected status ${response.status} fetching compute sessions: ${message}`)
+            throw await computeApiError(response, 'fetching compute sessions')
         } else {
             const response_content = await responseJson<ComputeSession>(response)
             session = response_content as ComputeSession
+        }
+        // A session picked by uuid runs under its own account. Attaching to it under
+        // another one would bill and report the session against the wrong account.
+        if (this.options.accountId && session.account_uuid !== this.options.accountId) {
+            throw new ComputeAccountMismatchError(sessionUuid, session.account_uuid, this.options.accountId)
         }
         return session
     }

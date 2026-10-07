@@ -103,6 +103,40 @@ describe('ComputeSessionClient', () => {
         expect(JSON.parse(String(createCall?.init?.body))).toEqual({ pop })
     })
 
+    test('names the account in the session-creation body when accountId is set', async () => {
+        const calls: FetchCall[] = []
+
+        await new ComputeSessionClient({
+            computeUrl,
+            httpClient: createHttpClient(calls),
+            authorizationHeader,
+            readyTimeoutMs,
+            accountId: 'account-uuid',
+        }).resolve()
+
+        const createCall = calls.find(call => call.init?.method === 'POST')
+        expect(createCall?.url).toBe(`${computeUrl}/v1/sessions?wait=true`)
+        expect(createCall?.init?.headers).toMatchObject({ 'Content-Type': 'application/json' })
+        expect(JSON.parse(String(createCall?.init?.body))).toEqual({ account_uuid: 'account-uuid' })
+    })
+
+    test('omits account_uuid from the session-creation body when accountId is not set', async () => {
+        const calls: FetchCall[] = []
+
+        await new ComputeSessionClient({
+            computeUrl,
+            httpClient: createHttpClient(calls),
+            authorizationHeader,
+            readyTimeoutMs,
+            sessionName: 'named-session',
+        }).resolve()
+
+        const createCall = calls.find(call => call.init?.method === 'POST')
+        const body = JSON.parse(String(createCall?.init?.body))
+        expect(body).toEqual({ session_name: 'named-session' })
+        expect(body).not.toHaveProperty('account_uuid')
+    })
+
     test('uses caller authorization when compute session has no access token', async () => {
         const calls: FetchCall[] = []
         const callerAuthorizationHeader = 'Bearer user-jwt'
@@ -121,5 +155,38 @@ describe('ComputeSessionClient', () => {
         })
         expect(resolved.accessToken).toBeNull()
         expect(resolved.accessTokenValidUntil).toBeNull()
+    })
+
+    test('refuses a session picked by uuid that runs under another account', async () => {
+        const httpClient: HttpClient = {
+            async fetch(input: RequestInfo | URL): Promise<Response> {
+                if (input.toString() === `${computeUrl}/v1/sessions/session-uuid`) {
+                    return new Response(JSON.stringify({ ...sessionResponse()[0], account_uuid: 'other-account-uuid' }), {
+                        status: 200,
+                        headers: { 'content-type': 'application/json' },
+                    })
+                }
+                return new Response(`unexpected url ${input.toString()}`, { status: 500 })
+            },
+            async close(): Promise<void> {},
+            isFullDuplex(): boolean {
+                return false
+            },
+        }
+
+        await expect(
+            new ComputeSessionClient({
+                computeUrl,
+                httpClient,
+                authorizationHeader,
+                readyTimeoutMs,
+                sessionUuid: 'session-uuid',
+                accountId: 'account-uuid',
+            }).resolve(),
+        ).rejects.toMatchObject({
+            name: 'ComputeAccountMismatchError',
+            sessionAccountId: 'other-account-uuid',
+            accountId: 'account-uuid',
+        })
     })
 })

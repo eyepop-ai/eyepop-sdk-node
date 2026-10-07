@@ -15,6 +15,11 @@ export interface WorkerSession extends Session {
      * Configure transient sessions with `WorkerOptions.pop`.
      */
     readonly popId: string
+    /**
+     * The account the compute session runs and is billed under. A worker endpoint
+     * created from this session names it when it creates a compute session.
+     */
+    readonly accountId?: string | undefined
     readonly baseUrl: string | undefined
     /**
      * Transient sessions may not have a pipeline until the first source is processed.

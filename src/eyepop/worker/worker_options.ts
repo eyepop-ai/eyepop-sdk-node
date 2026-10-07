@@ -18,6 +18,12 @@ export interface WorkerOptions extends Options {
 
     sessionUuid?: string | undefined
     sessionName?: string | undefined
+    /**
+     * The account the compute session runs and is billed under, sent to compute-api as
+     * `account_uuid`. Required when the credential does not name one account.
+     * Defaults to process.env['EYEPOP_ACCOUNT_UUID'], then the deprecated process.env['EYEPOP_ACCOUNT_ID'].
+     */
+    accountId?: string | undefined
     pipelineImage?: string | undefined
     pipelineVersion?: string | undefined
     pop?: Pop | undefined

@@ -1,3 +1,4 @@
+import { EyePop } from '../../../src/eyepop'
 import { WorkerEndpoint } from '../../../src/eyepop/worker/worker_endpoint'
 import { TransientPopId, type WorkerOptions } from '../../../src/eyepop/worker/worker_options'
 import { PopComponentType, type Pop } from '../../../src/eyepop/worker/worker_types'
@@ -338,6 +339,34 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
         })
 
         await expect(endpoint.connect()).rejects.toThrow('SESS_007: Invalid pipeline configuration: no element "Glasses"')
+    })
+
+    test('EyePopSdk connect transient reports a missing compute account readably', async () => {
+        server.get(`/v1/sessions`).mockImplementationOnce(ctx => {
+            ctx.status = 404
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify('no sessions')
+        })
+
+        server.post(`/v1/sessions`).mockImplementationOnce(ctx => {
+            ctx.status = 400
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify({
+                error: {
+                    code: 'VAL_001',
+                    type: 'validation',
+                    message: "account_uuid is required: it could not be derived from the caller's credential",
+                },
+            })
+        })
+
+        const endpoint = workerEndpoint({
+            eyepopUrl: server.getURL().toString(),
+            popId: test_pop_id,
+            auth: { apiKey: test_api_key },
+        })
+
+        await expect(endpoint.connect()).rejects.toMatchObject({ name: 'ComputeApiError', status: 400, code: 'VAL_001' })
     })
 
     test('EyePopSdk connect transient reports string-wrapped compute pipeline errors', async () => {
@@ -829,6 +858,157 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
             expect(session.pipelineId).toEqual(createdPipelineId)
             expect(listSessionsRoute).toHaveBeenCalledTimes(1)
             expect(createSessionRoute).toHaveBeenCalledTimes(1)
+        } finally {
+            await endpoint.disconnect()
+        }
+    })
+
+    test('EyePopSdk sends the account from EYEPOP_ACCOUNT_UUID when creating a transient session', async () => {
+        const savedAccountUuid = process.env['EYEPOP_ACCOUNT_UUID']
+        process.env['EYEPOP_ACCOUNT_UUID'] = 'env-account-uuid'
+        let createBody: any = undefined
+
+        server.get(`/v1/sessions`).mockImplementationOnce(ctx => {
+            ctx.status = 404
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify('no sessions')
+        })
+
+        const createSessionRoute = server.post(`/v1/sessions`).mockImplementationOnce(ctx => {
+            createBody = ctx.request.body
+            ctx.status = 200
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify([
+                {
+                    session_uuid: test_session_uuid,
+                    session_endpoint: `${server.getURL().toString()}${test_session_uuid}`,
+                    access_token: test_access_token,
+                    access_token_expires_in: long_token_valid_time,
+                    pipelines: [],
+                    session_status: 'running',
+                    session_active: true,
+                    account_uuid: 'env-account-uuid',
+                },
+            ])
+        })
+
+        server.get(`/${test_session_uuid}/health`).mockImplementation(ctx => {
+            ctx.status = 200
+            ctx.response.headers['content-type'] = 'text/plain'
+            ctx.body = "I'm fine"
+        })
+
+        let endpoint: ReturnType<typeof EyePop.workerEndpoint> | undefined
+        try {
+            endpoint = EyePop.workerEndpoint({
+                eyepopUrl: server.getURL().toString(),
+                popId: test_pop_id,
+                apiKey: test_api_key,
+            })
+            const connected = await endpoint.connect()
+            expect(createSessionRoute).toHaveBeenCalledTimes(1)
+            expect(createBody).toMatchObject({ account_uuid: 'env-account-uuid' })
+            expect((await (connected as unknown as WorkerEndpoint).session()).accountId).toEqual('env-account-uuid')
+        } finally {
+            if (savedAccountUuid === undefined) {
+                delete process.env['EYEPOP_ACCOUNT_UUID']
+            } else {
+                process.env['EYEPOP_ACCOUNT_UUID'] = savedAccountUuid
+            }
+            await endpoint?.disconnect()
+        }
+    })
+
+    test('EyePop.workerEndpoint leaves the caller options untouched', () => {
+        const savedAccountUuid = process.env['EYEPOP_ACCOUNT_UUID']
+        process.env['EYEPOP_ACCOUNT_UUID'] = 'first-account-uuid'
+        try {
+            const options: WorkerOptions = { eyepopUrl: server.getURL().toString(), auth: { apiKey: test_api_key } }
+            EyePop.workerEndpoint(options)
+            expect(options.accountId).toBeUndefined()
+
+            process.env['EYEPOP_ACCOUNT_UUID'] = 'second-account-uuid'
+            const second = EyePop.workerEndpoint(options) as unknown as { _options: WorkerOptions }
+            expect(second._options.accountId).toBe('second-account-uuid')
+        } finally {
+            if (savedAccountUuid === undefined) {
+                delete process.env['EYEPOP_ACCOUNT_UUID']
+            } else {
+                process.env['EYEPOP_ACCOUNT_UUID'] = savedAccountUuid
+            }
+        }
+    })
+
+    test('EyePopSdk only reuses a transient session of the configured account', async () => {
+        const existingSessionUuid = uuidv4().toString()
+        const createdSessionUuid = uuidv4().toString()
+        const createdPipelineId = uuidv4()
+        let createBody: any = undefined
+
+        const listSessionsRoute = server.get(`/v1/sessions`).mockImplementationOnce(ctx => {
+            ctx.status = 200
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify([
+                {
+                    session_uuid: existingSessionUuid,
+                    session_endpoint: `${server.getURL().toString()}${existingSessionUuid}`,
+                    access_token: test_access_token,
+                    access_token_expires_in: long_token_valid_time,
+                    pipeline_uuid: uuidv4(),
+                    session_status: 'running',
+                    session_active: true,
+                    session_name: 'target-smoke-scenario',
+                    account_uuid: 'other-account-uuid',
+                    persistent: false,
+                },
+            ])
+        })
+
+        const createSessionRoute = server.post(`/v1/sessions`).mockImplementationOnce(ctx => {
+            createBody = ctx.request.body
+            ctx.status = 200
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify([
+                {
+                    session_uuid: createdSessionUuid,
+                    session_endpoint: `${server.getURL().toString()}${createdSessionUuid}`,
+                    access_token: test_access_token,
+                    access_token_expires_in: long_token_valid_time,
+                    pipeline_uuid: createdPipelineId,
+                    session_status: 'running',
+                    session_active: true,
+                    session_name: 'target-smoke-scenario',
+                    account_uuid: 'target-account-uuid',
+                    persistent: false,
+                },
+            ])
+        })
+
+        server.get(`/${createdSessionUuid}/health`).mockImplementation(ctx => {
+            ctx.status = 200
+            ctx.response.headers['content-type'] = 'text/plain'
+            ctx.body = "I'm fine"
+        })
+
+        server.delete(`/${createdSessionUuid}/pipelines/${createdPipelineId}`).mockImplementationOnce(ctx => {
+            ctx.status = 204
+        })
+
+        const endpoint = workerEndpoint({
+            eyepopUrl: server.getURL().toString(),
+            popId: test_pop_id,
+            sessionName: 'target-smoke-scenario',
+            accountId: 'target-account-uuid',
+            auth: { apiKey: test_api_key },
+        })
+
+        try {
+            await endpoint.connect()
+            const session = await endpoint.session()
+            expect(session.pipelineId).toEqual(createdPipelineId)
+            expect(listSessionsRoute).toHaveBeenCalledTimes(1)
+            expect(createSessionRoute).toHaveBeenCalledTimes(1)
+            expect(createBody).toEqual({ account_uuid: 'target-account-uuid', session_name: 'target-smoke-scenario' })
         } finally {
             await endpoint.disconnect()
         }
