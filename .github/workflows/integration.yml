@@ -19,10 +19,12 @@ on:
             - 'package.json'
             - '.github/workflows/integration.yml'
 
-# A user gets one transient session at a time, and every run against an
-# environment in this repo (this workflow and Node Sessions Smoke) uses the same
-# test account; --cleanup-preexisting also deletes every transient session on it.
-# Runs share one group per environment and queue instead of overlapping.
+# Every run against an environment in this repo (this workflow and Node Sessions
+# Smoke) uses the same test account, and compute-api reuses only the user's most
+# recent transient session, so overlapping runs could move a scenario to a new
+# session between steps. Runs share one group per environment and queue instead
+# of overlapping. Other repos' CI uses the same fixture users at the same time, so
+# the smoke deletes only the sessions it created; never add --cleanup-preexisting.
 concurrency:
     group: eyepop-session-${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'staging' }}
     cancel-in-progress: false
@@ -66,7 +68,6 @@ jobs:
                   node scripts/session-smoke.mjs \
                     --environment "$SMOKE_ENVIRONMENT" \
                     --scenario all-transient \
-                    --cleanup-preexisting \
                     --sdk-module "$GITHUB_WORKSPACE/src/eyepop/dist/eyepop.index.js" \
                     --session-ready-timeout-seconds 180 \
                     --gpu-image tests/test.jpg \
