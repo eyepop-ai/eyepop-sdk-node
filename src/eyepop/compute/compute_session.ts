@@ -27,6 +27,7 @@ export interface ComputeSession {
     session_message: string
     session_name: string
     user_uuid: string
+    account_uuid?: string
     created_at: string
     uptime: number
     pipeline_ttl?: number | undefined
@@ -55,6 +56,10 @@ export interface ComputeSessionClientOptions {
     authorizationHeader: () => Promise<string>
     sessionUuid?: string | undefined
     sessionName?: string | undefined
+    /**
+     * The account the compute session runs and is billed under, sent as `account_uuid`.
+     */
+    accountId?: string | undefined
     pipelineImage?: string | undefined
     pipelineVersion?: string | undefined
     pop?: Pop | undefined
@@ -79,6 +84,9 @@ export function pipelineIdFromSession(session: ComputeSession): string | null {
 
 function sessionCreateBody(options: ComputeSessionClientOptions): string | undefined {
     const body: any = {}
+    if (options.accountId) {
+        body.account_uuid = options.accountId
+    }
     if (options.sessionName) {
         body.session_name = options.sessionName
     }
@@ -255,7 +263,12 @@ export class ComputeSessionClient {
             if (sessions.length > 0) {
                 this.options.logger?.debug(`User has ${sessions.length} sessions, inspecting for usable session`)
                 for (let s of sessions) {
-                    if (!SESSION_DEAD.has(s.session_status) && !s.persistent && (!this.options.sessionName || s.session_name === this.options.sessionName)) {
+                    if (
+                        !SESSION_DEAD.has(s.session_status) &&
+                        !s.persistent &&
+                        (!this.options.sessionName || s.session_name === this.options.sessionName) &&
+                        (!this.options.accountId || s.account_uuid === this.options.accountId)
+                    ) {
                         session = s
                         this.options.logger?.debug(`Use active session ${s.session_uuid} with pipeline ${pipelineIdFromSession(s)}`)
                         break

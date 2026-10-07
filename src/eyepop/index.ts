@@ -216,6 +216,9 @@ export namespace EyePop {
         if (opts.sessionName === undefined) {
             opts.sessionName = readEnv('EYEPOP_SESSION_NAME')
         }
+        if (opts.accountId === undefined) {
+            opts.accountId = readAccountUuidEnv()
+        }
         if (opts.pipelineImage === undefined) {
             opts.pipelineImage = readEnv('EYEPOP_PIPELINE_IMAGE')
         }
@@ -242,6 +245,9 @@ export namespace EyePop {
                 if (((auth as SessionAuth).session as WorkerSession) !== undefined) {
                     if (((auth as SessionAuth).session as WorkerSession).popId) {
                         opts.popId = ((auth as SessionAuth).session as WorkerSession).popId
+                    }
+                    if (((auth as SessionAuth).session as WorkerSession).accountId) {
+                        opts.accountId = ((auth as SessionAuth).session as WorkerSession).accountId
                     }
                 }
             }

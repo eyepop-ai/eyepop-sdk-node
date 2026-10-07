@@ -163,6 +163,10 @@ const endpoint = await EyePop.workerEndpoint().connect()
 
 When `EYEPOP_SESSION_UUID` is set, `EyePop.workerEndpoint()` connects to that persistent session. Persistent deployments are normally created outside the SDK through the compute API or EyePop tooling.
 
+## Accounts
+
+A worker session runs and is billed under one account. If your credential belongs to more than one account, name it with `EYEPOP_ACCOUNT_UUID` or the `accountId` option, which `EyePop.workerEndpoint()` and `EyePop.dataEndpoint()` both take. A worker endpoint sends it as `account_uuid` when it creates a session and reuses only a live session of that account; without it, the compute API refuses a session it cannot attribute to an account.
+
 ## Documentation
 
 Customer documentation lives in [docs/gitbook](docs/gitbook/README.md) and is published at [docs.eyepop.ai](https://docs.eyepop.ai).
