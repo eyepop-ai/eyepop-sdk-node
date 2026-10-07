@@ -19,10 +19,12 @@ on:
             - 'package.json'
             - '.github/workflows/integration.yml'
 
-# --cleanup-preexisting deletes every transient session on the account, so runs
-# against one environment queue instead of overlapping across PRs.
+# A user gets one transient session at a time, and every run against an
+# environment in this repo (this workflow and Node Sessions Smoke) uses the same
+# test account; --cleanup-preexisting also deletes every transient session on it.
+# Runs share one group per environment and queue instead of overlapping.
 concurrency:
-    group: ${{ github.workflow }}-${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'staging' }}
+    group: eyepop-session-${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'staging' }}
     cancel-in-progress: false
 
 permissions:

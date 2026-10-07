@@ -2,8 +2,9 @@ name: Node Sessions Smoke
 
 on:
     schedule:
-        # Run at 10:00 and 21:00 Pacific against production with the latest released SDK.
-        - cron: '0 10,21 * * *'
+        # Run at 10:30 and 21:30 Pacific against production with the latest released SDK,
+        # half an hour after the Python SDK smoke.
+        - cron: '30 10,21 * * *'
           timezone: 'America/Los_Angeles'
     workflow_dispatch:
         inputs:
@@ -38,9 +39,11 @@ on:
                 default: eyepop.person:latest
                 type: string
 
+# Shared with SDK Integration: one test account, one transient session, so runs
+# against an environment queue rather than overlap.
 concurrency:
-    group: ${{ github.workflow }}-${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'production' }}
-    cancel-in-progress: true
+    group: eyepop-session-${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'production' }}
+    cancel-in-progress: false
 
 permissions:
     contents: read
