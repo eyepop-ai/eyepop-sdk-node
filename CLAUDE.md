@@ -16,7 +16,9 @@ Use npm workspaces (not pnpm/yarn). Install dependencies with `npm install`. Bef
   `index.ts`, without which their `package.json` `main` resolves to whatever `dist/` was built last.
 - Unit tests are hermetic (mock server / fake HttpClient); the smoke/live tests (`npm run smoke:session`,
   `scripts/session-smoke.mjs`) hit real hosts and need `EYEPOP_API_KEY` — exported, or in a `.env` copied
-  from `.env.example`. Its default abilities must stay account-portable; no private fixtures.
+  from `.env.example`. Its default abilities must stay account-portable; no private fixtures. The smoke deletes
+  only sessions its own creates returned. `--cleanup-preexisting` deletes every transient session of the user,
+  including other repos' CI on the shared `basic`/`pro` fixtures: manual use on a private account only, never in CI.
 - Publish is GitHub-Release-triggered and idempotent (skips any `name@version` already on npm). All three
   workspaces share one version with exact inter-pins — bump them in lockstep; `react-native-eyepop` has its own `release-it` path.
 - The supported runtime floor is Node.js 18. CI validates Node.js 22 and the publish workflow uses Node.js 24.

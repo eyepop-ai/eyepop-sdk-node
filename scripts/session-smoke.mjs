@@ -13,6 +13,50 @@ const ENV_URLS = {
     staging: 'https://compute.staging.eyepop.xyz',
 }
 
+const USAGE = `Usage: node scripts/session-smoke.mjs [options]
+
+Connects transient worker sessions through the SDK, runs inference on each, checks
+the results, and writes a JSON summary. A value in parentheses is the environment
+variable read when the option is not passed; a repo .env is loaded first.
+
+Target:
+  --environment <name>        production or staging (EYEPOP_ENV, default production)
+  --eyepop-url <url>          compute URL, overriding the environment's (EYEPOP_URL)
+  --api-key <key>             (EYEPOP_API_KEY)
+  --session-name <prefix>     each scenario requests <prefix>-<scenario> (EYEPOP_SESSION_NAME)
+  --sdk-module <path>         SDK build to load (EYEPOP_SMOKE_SDK_MODULE,
+                              default ./src/eyepop/dist/eyepop.index.js)
+
+Scenarios:
+  --scenario <name>           gpu-direct, cpu-direct, vlm-direct, cpu-then-gpu-upgrade,
+                              gpu-then-cpu-downgrade, legacy-change-pop, or all-transient
+                              (EYEPOP_SMOKE_SCENARIO, default gpu-direct)
+  --{gpu,cpu,vlm}-image <path>, --{gpu,cpu,vlm}-pop-file <path>, --{gpu,cpu,vlm}-ability <alias>,
+  --{gpu,cpu,vlm}-expected-class <class>, --{gpu,cpu,vlm}-min-objects <n>,
+  --{gpu,cpu,vlm}-min-confidence <0-1>, --vlm-min-texts <n>
+                              what each step runs and must return
+  --image, --pop-file, --ability, --expected-class, --min-objects, --min-confidence
+                              defaults for the GPU step
+
+Timing and output:
+  --session-ready-timeout-seconds <s>   (default 60)
+  --timeout-seconds <s>       deadline for each scenario (default 600)
+  --summary-json <path>       (default session-smoke-summary.json)
+
+Cleanup:
+  After its scenarios, the smoke deletes only the transient sessions that its own
+  POST /v1/sessions calls returned and that were not listed before the scenario
+  connected. A session it reused is left alone.
+  --no-cleanup                delete nothing; cannot be combined with --cleanup-preexisting
+  --cleanup-preexisting       before each scenario, delete EVERY transient session of the
+                              user, including sessions other clients are using right now
+                              (EYEPOP_SMOKE_CLEANUP_PREEXISTING=true). Run it by hand only,
+                              on an account nobody else uses. Never pass it in CI or with a
+                              shared fixture user such as eyepop-testing basic or pro; the
+                              script refuses to run it when CI=true.
+  -h, --help                  print this help
+`
+
 function loadDotEnv(path = '.env') {
     if (!existsSync(path)) {
         return
@@ -72,6 +116,7 @@ function parseArgs(argv) {
         sdkModule: process.env.EYEPOP_SMOKE_SDK_MODULE || './src/eyepop/dist/eyepop.index.js',
         noCleanup: false,
         cleanupPreexisting: process.env.EYEPOP_SMOKE_CLEANUP_PREEXISTING === 'true',
+        help: false,
     }
 
     for (let index = 0; index < argv.length; index += 1) {
@@ -193,6 +238,10 @@ function parseArgs(argv) {
             case '--cleanup-preexisting':
                 args.cleanupPreexisting = true
                 break
+            case '-h':
+            case '--help':
+                args.help = true
+                break
             default:
                 throw new Error(`Unknown argument: ${arg}`)
         }
@@ -207,6 +256,12 @@ function requireInputs(args) {
     }
     if (!args.apiKey) {
         throw new Error('Missing EYEPOP_API_KEY; load an eyepop-testing fixture or fill out repo .env from .env.example')
+    }
+    if (args.cleanupPreexisting && args.noCleanup) {
+        throw new Error('--no-cleanup promises to delete nothing, so it cannot be combined with --cleanup-preexisting (or EYEPOP_SMOKE_CLEANUP_PREEXISTING=true)')
+    }
+    if (args.cleanupPreexisting && process.env.CI === 'true') {
+        throw new Error('--cleanup-preexisting deletes every transient session of the user, including other CI runs on a shared fixture; it is for manual use only')
     }
     if (!Number.isFinite(args.minObjects) || args.minObjects < 0) {
         throw new Error('--min-objects must be at least 0')
@@ -498,6 +553,72 @@ async function deleteTransientSession(apiKey, eyepopUrl, sessionUuid) {
     }
 }
 
+// The undici the SDK under test resolves, so the recording client below sends
+// requests the same way the SDK's own Node HTTP client would.
+function loadSdkUndici(sdkModule) {
+    return createRequire(require.resolve(resolveImportSpecifier(sdkModule)))('undici')
+}
+
+// The SDK's Node HTTP client (src/eyepop/shims/http_client.ts) with the same undici
+// agent, except that it hands the session UUID of every successful POST /v1/sessions
+// to onCreated. Cleanup trusts only these UUIDs: the fixture users are shared with
+// other CI, and compute-api names a new transient eyepop-b-<uuid> rather than the
+// requested session name, so a name never proves a session is this run's.
+function sessionRecordingPlatformSupport(undici, { onCreated, onRecordError }) {
+    return {
+        createHttpClient: async () => {
+            const agent = new undici.Agent({ keepAliveTimeout: 10000, connections: 5, pipelining: 0 })
+            return {
+                async fetch(input, init) {
+                    const response = await undici.fetch(input, { ...init, dispatcher: agent })
+                    const request = typeof input === 'object' && 'method' in input ? input : null
+                    const method = (request?.method || init?.method || 'GET').toUpperCase()
+                    const url = new URL(request ? request.url : `${input}`)
+                    if (response.status === 200 && method === 'POST' && url.pathname.replace(/\/+$/, '').endsWith('/v1/sessions')) {
+                        let sessions = []
+                        try {
+                            sessions = await response.clone().json()
+                        } catch (error) {
+                            // Tolerated: a create whose UUID cannot be read is never
+                            // deleted, so the worst case is a leaked session, which the
+                            // scenario summary then names.
+                            onRecordError(`reading session UUIDs from POST ${url.pathname}: ${errorSummary(error)}`)
+                        }
+                        for (const session of Array.isArray(sessions) ? sessions : [sessions]) {
+                            if (typeof session?.session_uuid === 'string' && session.session_uuid) {
+                                onCreated(session.session_uuid)
+                            }
+                        }
+                    }
+                    return response
+                },
+                close: () => agent.close(),
+                isFullDuplex: () => false,
+            }
+        },
+    }
+}
+
+async function deleteCreatedSessions(apiKey, eyepopUrl, sessionUuids) {
+    const deletions = []
+    for (const sessionUuid of sessionUuids) {
+        try {
+            deletions.push({
+                session_uuid: sessionUuid,
+                ...(await withDeadline(deleteTransientSession(apiKey, eyepopUrl, sessionUuid), Date.now() + 30 * 1000, `deleting transient session ${sessionUuid}`)),
+            })
+        } catch (error) {
+            deletions.push({
+                session_uuid: sessionUuid,
+                ok: false,
+                result: 'error',
+                error: errorSummary(error),
+            })
+        }
+    }
+    return deletions
+}
+
 async function collectInference(endpoint, step, deadline) {
     let stream
     try {
@@ -562,10 +683,16 @@ async function captureSession(endpoint, args, eyepopUrl, preexistingTransientSes
     }
 }
 
-async function runScenario(args, sdk, eyepopUrl, scenario) {
+async function runScenario(args, sdk, undici, eyepopUrl, scenario) {
     const started = Date.now()
     const deadline = started + args.timeoutSeconds * 1000
     let preexistingTransientSessionUuids = new Set()
+    const createdSessionUuids = new Set()
+    const createRecordErrors = []
+    const platformSupport = sessionRecordingPlatformSupport(undici, {
+        onCreated: sessionUuid => createdSessionUuids.add(sessionUuid),
+        onRecordError: message => createRecordErrors.push(message),
+    })
     const firstStep = scenario.steps[0]
     const sessionName = args.sessionName ? `${args.sessionName}-${scenario.name}` : `node-session-smoke-${Date.now()}-${scenario.name}`
     const summary = {
@@ -593,6 +720,7 @@ async function runScenario(args, sdk, eyepopUrl, scenario) {
         preexisting_transient_sessions: preexistingTransientSessionUuids.size,
         preexisting_transient_sessions_deleted: 0,
         session_reused: false,
+        created_session_uuids: [],
         cleanup: { ok: true, result: 'not_started' },
     }
 
@@ -606,7 +734,6 @@ async function runScenario(args, sdk, eyepopUrl, scenario) {
                 await withDeadline(deleteTransientSession(args.apiKey, eyepopUrl, existingSessionUuid), deadline, `deleting preexisting session ${existingSessionUuid}`)
                 summary.preexisting_transient_sessions_deleted += 1
             }
-            preexistingTransientSessionUuids = new Set()
         }
 
         const connectOptions = {
@@ -614,6 +741,7 @@ async function runScenario(args, sdk, eyepopUrl, scenario) {
             eyepopUrl,
             sessionName,
             sessionReadyTimeoutSeconds: args.sessionReadyTimeoutSeconds,
+            platformSupport,
         }
         if (scenario.startMode === 'constructor-pop') {
             connectOptions.pop = buildPop(firstStep, sdk)
@@ -672,6 +800,7 @@ async function runScenario(args, sdk, eyepopUrl, scenario) {
                     sessionName,
                     sessionReadyTimeoutSeconds: args.sessionReadyTimeoutSeconds,
                     pop: buildPop(step, sdk),
+                    platformSupport,
                 }
                 endpoint = await withDeadline(
                     sdk.EyePop.workerEndpoint(reconnectOptions).connect(),
@@ -762,20 +891,32 @@ async function runScenario(args, sdk, eyepopUrl, scenario) {
             }
         }
 
-        if (sessionUuid && summary.session_reused) {
-            summary.cleanup = { ok: true, result: 'skipped_preexisting' }
-        } else if (sessionUuid && !args.noCleanup) {
-            try {
-                summary.cleanup = await withDeadline(deleteTransientSession(args.apiKey, eyepopUrl, sessionUuid), Date.now() + 30 * 1000, 'deleting transient session')
-            } catch (error) {
-                summary.cleanup = {
-                    ok: false,
-                    result: 'error',
-                    error: errorSummary(error),
-                }
+        // Only a session this scenario's own create returned, and that did not
+        // exist before it connected, is this run's to delete.
+        summary.created_session_uuids = [...createdSessionUuids].filter(uuid => !preexistingTransientSessionUuids.has(uuid))
+        if (createRecordErrors.length > 0) {
+            summary.create_record_errors = createRecordErrors
+        }
+        const deletions = args.noCleanup ? [] : await deleteCreatedSessions(args.apiKey, eyepopUrl, summary.created_session_uuids)
+        const failedDeletion = deletions.find(deletion => !deletion.ok)
+        // Checked even with noCleanup, which all-transient sets on every scenario:
+        // a final session that is neither preexisting nor recorded is one nobody
+        // will delete.
+        if (sessionUuid && !summary.session_reused && !createdSessionUuids.has(sessionUuid)) {
+            summary.cleanup = {
+                ok: false,
+                result: 'skipped_not_created',
+                error: `session ${sessionUuid} was neither listed before this scenario connected nor returned by its own create; left in place`,
+                sessions: deletions,
             }
+        } else if (failedDeletion) {
+            summary.cleanup = { ok: false, result: 'error', error: failedDeletion.error || failedDeletion.body, sessions: deletions }
+        } else if (deletions.length > 0) {
+            summary.cleanup = { ok: true, result: 'deleted', sessions: deletions }
         } else if (args.noCleanup) {
             summary.cleanup = { ok: true, result: 'skipped' }
+        } else if (summary.session_reused) {
+            summary.cleanup = { ok: true, result: 'skipped_preexisting' }
         } else {
             summary.cleanup = { ok: false, result: 'missing_session_uuid' }
         }
@@ -791,45 +932,21 @@ async function runSmoke(args) {
 
     const eyepopUrl = args.eyepopUrl || ENV_URLS[args.environment]
     const sdk = await importSdk(args.sdkModule)
+    const undici = loadSdkUndici(args.sdkModule)
     const scenarios = selectedScenarioDefinitions(args)
     if (scenarios.length === 1) {
-        return runScenario(args, sdk, eyepopUrl, scenarios[0])
+        return runScenario(args, sdk, undici, eyepopUrl, scenarios[0])
     }
 
     const started = Date.now()
-    const preexistingTransientSessionUuids = await fetchTransientSessionUuids(args.apiKey, eyepopUrl)
     const summaries = []
     for (const scenario of scenarios) {
-        summaries.push(await runScenario({ ...args, noCleanup: true }, sdk, eyepopUrl, scenario))
+        summaries.push(await runScenario({ ...args, noCleanup: true }, sdk, undici, eyepopUrl, scenario))
     }
 
-    const suiteCleanup = []
-    if (!args.noCleanup) {
-        const createdSessionUuids = new Set(
-            summaries
-                .map(summary => summary.session_uuid)
-                .filter(sessionUuid => sessionUuid && !preexistingTransientSessionUuids.has(sessionUuid)),
-        )
-        for (const sessionUuid of createdSessionUuids) {
-            try {
-                suiteCleanup.push({
-                    session_uuid: sessionUuid,
-                    ...(await withDeadline(
-                        deleteTransientSession(args.apiKey, eyepopUrl, sessionUuid),
-                        Date.now() + 30 * 1000,
-                        `deleting transient session ${sessionUuid}`,
-                    )),
-                })
-            } catch (error) {
-                suiteCleanup.push({
-                    session_uuid: sessionUuid,
-                    ok: false,
-                    result: 'error',
-                    error: errorSummary(error),
-                })
-            }
-        }
-    }
+    const suiteCleanup = args.noCleanup
+        ? []
+        : await deleteCreatedSessions(args.apiKey, eyepopUrl, new Set(summaries.flatMap(summary => summary.created_session_uuids || [])))
     const failedCleanup = suiteCleanup.find(cleanup => !cleanup.ok)
     return {
         ok: summaries.every(summary => summary.ok) && suiteCleanup.every(cleanup => cleanup.ok),
@@ -856,6 +973,10 @@ function writeSummary(path, summary) {
 async function main() {
     loadDotEnv()
     const args = parseArgs(process.argv.slice(2))
+    if (args.help) {
+        console.log(USAGE)
+        process.exit(0)
+    }
     let summary
     try {
         summary = await runSmoke(args)

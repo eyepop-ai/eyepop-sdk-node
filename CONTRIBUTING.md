@@ -16,7 +16,6 @@ Run the session matrix locally before dispatching the `SDK Integration` workflow
 ```shell
 node scripts/session-smoke.mjs \
   --scenario all-transient \
-  --cleanup-preexisting \
   --sdk-module ./src/eyepop/dist/eyepop.index.js \
   --session-name "node-local-$(date +%s)" \
   --session-ready-timeout-seconds 180 \
@@ -39,6 +38,8 @@ node scripts/session-smoke.mjs \
   --summary-json /tmp/node-sdk-integration.json
 ```
 
-For the VLM-only slice, change `--scenario all-transient` to `--scenario vlm-direct`. Add `--environment staging` to target staging instead of the default.
+For the VLM-only slice, change `--scenario all-transient` to `--scenario vlm-direct`. Add `--environment staging` to target staging instead of the default. `node scripts/session-smoke.mjs --help` lists every option.
+
+The smoke deletes only the transient sessions its own `POST /v1/sessions` calls returned and that did not exist before each scenario connected; a session it reused stays. `--cleanup-preexisting` is different: it deletes every transient session of the user before each scenario, including sessions other clients are using at that moment. The staging fixture users (`basic`, `pro`) are shared with eyepop-sdk-python CI, the VLM smokes and agent runs, so use the flag only by hand, on an account nobody else uses, and never in CI. The script refuses it when `CI=true`.
 
 Pops that depend on account-private abilities are not documented here — point the `--*-ability` and `--*-pop-file` flags at fixtures your own account owns.
