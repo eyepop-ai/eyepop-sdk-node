@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [3.21.0] - 2026-10-07
+
 ### Changed
 
 - `EyePop.dataEndpoint()` reads the account from `EYEPOP_ACCOUNT_UUID`, the name every other EyePop tool uses. It used to read only `EYEPOP_ACCOUNT_ID`, so an environment set up for the CLI or the `eyepop-testing` fixtures gave the SDK no account.
