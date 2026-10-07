@@ -366,7 +366,7 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
             auth: { apiKey: test_api_key },
         })
 
-        await expect(endpoint.connect()).rejects.toThrow("Unexpected status 400 creating a compute session: VAL_001: account_uuid is required: it could not be derived from the caller's credential")
+        await expect(endpoint.connect()).rejects.toMatchObject({ name: 'ComputeApiError', status: 400, code: 'VAL_001' })
     })
 
     test('EyePopSdk connect transient reports string-wrapped compute pipeline errors', async () => {
@@ -916,6 +916,26 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
                 process.env['EYEPOP_ACCOUNT_UUID'] = savedAccountUuid
             }
             await endpoint?.disconnect()
+        }
+    })
+
+    test('EyePop.workerEndpoint leaves the caller options untouched', () => {
+        const savedAccountUuid = process.env['EYEPOP_ACCOUNT_UUID']
+        process.env['EYEPOP_ACCOUNT_UUID'] = 'first-account-uuid'
+        try {
+            const options: WorkerOptions = { eyepopUrl: server.getURL().toString(), auth: { apiKey: test_api_key } }
+            EyePop.workerEndpoint(options)
+            expect(options.accountId).toBeUndefined()
+
+            process.env['EYEPOP_ACCOUNT_UUID'] = 'second-account-uuid'
+            const second = EyePop.workerEndpoint(options) as unknown as { _options: WorkerOptions }
+            expect(second._options.accountId).toBe('second-account-uuid')
+        } finally {
+            if (savedAccountUuid === undefined) {
+                delete process.env['EYEPOP_ACCOUNT_UUID']
+            } else {
+                process.env['EYEPOP_ACCOUNT_UUID'] = savedAccountUuid
+            }
         }
     })
 

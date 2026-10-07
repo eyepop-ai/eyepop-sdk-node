@@ -156,4 +156,37 @@ describe('ComputeSessionClient', () => {
         expect(resolved.accessToken).toBeNull()
         expect(resolved.accessTokenValidUntil).toBeNull()
     })
+
+    test('refuses a session picked by uuid that runs under another account', async () => {
+        const httpClient: HttpClient = {
+            async fetch(input: RequestInfo | URL): Promise<Response> {
+                if (input.toString() === `${computeUrl}/v1/sessions/session-uuid`) {
+                    return new Response(JSON.stringify({ ...sessionResponse()[0], account_uuid: 'other-account-uuid' }), {
+                        status: 200,
+                        headers: { 'content-type': 'application/json' },
+                    })
+                }
+                return new Response(`unexpected url ${input.toString()}`, { status: 500 })
+            },
+            async close(): Promise<void> {},
+            isFullDuplex(): boolean {
+                return false
+            },
+        }
+
+        await expect(
+            new ComputeSessionClient({
+                computeUrl,
+                httpClient,
+                authorizationHeader,
+                readyTimeoutMs,
+                sessionUuid: 'session-uuid',
+                accountId: 'account-uuid',
+            }).resolve(),
+        ).rejects.toMatchObject({
+            name: 'ComputeAccountMismatchError',
+            sessionAccountId: 'other-account-uuid',
+            accountId: 'account-uuid',
+        })
+    })
 })

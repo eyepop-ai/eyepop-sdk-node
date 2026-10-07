@@ -187,7 +187,10 @@ export namespace EyePop {
      */
     export const endpoint = workerEndpoint
 
-    export function workerEndpoint(opts: WorkerOptions = {}): WorkerEndpoint {
+    export function workerEndpoint(options: WorkerOptions = {}): WorkerEndpoint {
+        // Defaults are filled into a copy, so a caller who reuses one options object
+        // gets each endpoint resolved afresh, the account included.
+        const opts: WorkerOptions = { ...options }
         if (opts.pop !== undefined) {
             // the initial Pop is serialized into the session-creation body, so
             // changePop()'s check never sees it - and this is the common way to
@@ -337,6 +340,7 @@ export * from './data/data_options'
 export * from './data/data_endpoint'
 export * from './worker/worker_types'
 export * from './worker/worker_options'
+export { ComputeAccountMismatchError, ComputeApiError } from './compute/compute_session'
 export * from './worker/worker_endpoint'
 export * from './worker/jobs'
 export * from './worker/webrtc_base'

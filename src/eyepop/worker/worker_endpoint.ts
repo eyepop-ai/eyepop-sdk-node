@@ -45,6 +45,8 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
     private _popName: string | null
     private _sessionAccessToken: string | null
     private _sessionAccessTokenValidUntil: number | null
+    // The account the connected compute session runs under, as compute-api reports it.
+    private _accountId: string | undefined
 
     private _pipeline: Pipeline | null
     private _pipelineCreatePromise: Promise<string> | null
@@ -57,6 +59,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         this._popName = null
         this._sessionAccessToken = null
         this._sessionAccessTokenValidUntil = null
+        this._accountId = undefined
         this._pipeline = null
         this._pipelineCreatePromise = null
     }
@@ -110,7 +113,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             accessToken: session.accessToken,
             validUntil: session.validUntil,
             popId: this.options().popId as string,
-            accountId: this.options().accountId,
+            accountId: this._accountId ?? this.options().accountId,
             baseUrl: this._baseUrl as string,
             pipelineId: this._pipelineId || undefined,
             authenticationHeaders: () => this._authenticationHeaders(session),
@@ -744,6 +747,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         this._sessionAccessToken = resolved.accessToken
         this._sessionAccessTokenValidUntil = resolved.accessTokenValidUntil
         this._baseUrl = resolved.session.session_endpoint
+        this._accountId = resolved.session.account_uuid || undefined
         this._pipeline = null
         this._pipelineId = resolved.pipelineId
         if (this.options().pop) {
