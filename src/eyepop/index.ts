@@ -150,6 +150,21 @@ const readEnv = (env: string): string | undefined => {
     return undefined
 }
 
+let warnedAccountIdEnv = false
+
+const readAccountUuidEnv = (): string | undefined => {
+    const accountUuid = readEnv('EYEPOP_ACCOUNT_UUID')
+    if (accountUuid !== undefined) {
+        return accountUuid
+    }
+    const accountId = readEnv('EYEPOP_ACCOUNT_ID')
+    if (accountId !== undefined && !warnedAccountIdEnv) {
+        warnedAccountIdEnv = true
+        console.warn('EYEPOP_ACCOUNT_ID is deprecated, use EYEPOP_ACCOUNT_UUID instead')
+    }
+    return accountId
+}
+
 const stringToBooleanSafe = (str?: string): boolean => {
     if (typeof str == 'undefined') {
         return false
@@ -241,7 +256,7 @@ export namespace EyePop {
             throw new Error('apiKey/accessToken/session/oAuth2 option or EYEPOP_API_KEY environment variable is required')
         }
         if (opts.accountId === undefined) {
-            opts.accountId = readEnv('EYEPOP_ACCOUNT_ID')
+            opts.accountId = readAccountUuidEnv()
         }
         if ((auth as SessionAuth).session !== undefined) {
             if (((auth as SessionAuth).session as DataSession) !== undefined) {
