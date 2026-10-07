@@ -155,9 +155,10 @@ jobs:
               run: |
                   set -euo pipefail
 
+                  # Alerts stay off until the repo has a SLACK_WEBHOOK_URL secret.
                   if [[ -z "${SLACK_WEBHOOK_URL:-}" ]]; then
-                    echo "::error::SLACK_WEBHOOK_URL is not set; no Slack alert was sent for this failure"
-                    exit 1
+                    echo "::notice::SLACK_WEBHOOK_URL is not set; Slack alert skipped"
+                    exit 0
                   fi
 
                   session_uuid="n/a"
