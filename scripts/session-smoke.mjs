@@ -47,7 +47,7 @@ Cleanup:
   After its scenarios, the smoke deletes only the transient sessions that its own
   POST /v1/sessions calls returned and that were not listed before the scenario
   connected. A session it reused is left alone.
-  --no-cleanup                delete nothing
+  --no-cleanup                delete nothing; cannot be combined with --cleanup-preexisting
   --cleanup-preexisting       before each scenario, delete EVERY transient session of the
                               user, including sessions other clients are using right now
                               (EYEPOP_SMOKE_CLEANUP_PREEXISTING=true). Run it by hand only,
@@ -256,6 +256,9 @@ function requireInputs(args) {
     }
     if (!args.apiKey) {
         throw new Error('Missing EYEPOP_API_KEY; load an eyepop-testing fixture or fill out repo .env from .env.example')
+    }
+    if (args.cleanupPreexisting && args.noCleanup) {
+        throw new Error('--no-cleanup promises to delete nothing, so it cannot be combined with --cleanup-preexisting (or EYEPOP_SMOKE_CLEANUP_PREEXISTING=true)')
     }
     if (args.cleanupPreexisting && process.env.CI === 'true') {
         throw new Error('--cleanup-preexisting deletes every transient session of the user, including other CI runs on a shared fixture; it is for manual use only')
@@ -550,13 +553,18 @@ async function deleteTransientSession(apiKey, eyepopUrl, sessionUuid) {
     }
 }
 
+// The undici the SDK under test resolves, so the recording client below sends
+// requests the same way the SDK's own Node HTTP client would.
+function loadSdkUndici(sdkModule) {
+    return createRequire(require.resolve(resolveImportSpecifier(sdkModule)))('undici')
+}
+
 // The SDK's Node HTTP client (src/eyepop/shims/http_client.ts) with the same undici
-// agent, except that it adds the session UUID of every successful POST /v1/sessions
-// to createdSessionUuids. Cleanup trusts only these UUIDs: the fixture users are
-// shared with other CI, and compute-api names a new transient eyepop-b-<uuid> rather
-// than the requested session name, so a name never proves a session is this run's.
-function sessionRecordingPlatformSupport(sdkModule, createdSessionUuids) {
-    const undici = createRequire(require.resolve(resolveImportSpecifier(sdkModule)))('undici')
+// agent, except that it hands the session UUID of every successful POST /v1/sessions
+// to onCreated. Cleanup trusts only these UUIDs: the fixture users are shared with
+// other CI, and compute-api names a new transient eyepop-b-<uuid> rather than the
+// requested session name, so a name never proves a session is this run's.
+function sessionRecordingPlatformSupport(undici, { onCreated, onRecordError }) {
     return {
         createHttpClient: async () => {
             const agent = new undici.Agent({ keepAliveTimeout: 10000, connections: 5, pipelining: 0 })
@@ -571,11 +579,14 @@ function sessionRecordingPlatformSupport(sdkModule, createdSessionUuids) {
                         try {
                             sessions = await response.clone().json()
                         } catch (error) {
-                            void error
+                            // Tolerated: a create whose UUID cannot be read is never
+                            // deleted, so the worst case is a leaked session, which the
+                            // scenario summary then names.
+                            onRecordError(`reading session UUIDs from POST ${url.pathname}: ${errorSummary(error)}`)
                         }
                         for (const session of Array.isArray(sessions) ? sessions : [sessions]) {
                             if (typeof session?.session_uuid === 'string' && session.session_uuid) {
-                                createdSessionUuids.add(session.session_uuid)
+                                onCreated(session.session_uuid)
                             }
                         }
                     }
@@ -672,12 +683,16 @@ async function captureSession(endpoint, args, eyepopUrl, preexistingTransientSes
     }
 }
 
-async function runScenario(args, sdk, eyepopUrl, scenario) {
+async function runScenario(args, sdk, undici, eyepopUrl, scenario) {
     const started = Date.now()
     const deadline = started + args.timeoutSeconds * 1000
     let preexistingTransientSessionUuids = new Set()
     const createdSessionUuids = new Set()
-    const platformSupport = sessionRecordingPlatformSupport(args.sdkModule, createdSessionUuids)
+    const createRecordErrors = []
+    const platformSupport = sessionRecordingPlatformSupport(undici, {
+        onCreated: sessionUuid => createdSessionUuids.add(sessionUuid),
+        onRecordError: message => createRecordErrors.push(message),
+    })
     const firstStep = scenario.steps[0]
     const sessionName = args.sessionName ? `${args.sessionName}-${scenario.name}` : `node-session-smoke-${Date.now()}-${scenario.name}`
     const summary = {
@@ -879,16 +894,29 @@ async function runScenario(args, sdk, eyepopUrl, scenario) {
         // Only a session this scenario's own create returned, and that did not
         // exist before it connected, is this run's to delete.
         summary.created_session_uuids = [...createdSessionUuids].filter(uuid => !preexistingTransientSessionUuids.has(uuid))
-        if (args.noCleanup) {
+        if (createRecordErrors.length > 0) {
+            summary.create_record_errors = createRecordErrors
+        }
+        const deletions = args.noCleanup ? [] : await deleteCreatedSessions(args.apiKey, eyepopUrl, summary.created_session_uuids)
+        const failedDeletion = deletions.find(deletion => !deletion.ok)
+        // Checked even with noCleanup, which all-transient sets on every scenario:
+        // a final session that is neither preexisting nor recorded is one nobody
+        // will delete.
+        if (sessionUuid && !summary.session_reused && !createdSessionUuids.has(sessionUuid)) {
+            summary.cleanup = {
+                ok: false,
+                result: 'skipped_not_created',
+                error: `session ${sessionUuid} was neither listed before this scenario connected nor returned by its own create; left in place`,
+                sessions: deletions,
+            }
+        } else if (failedDeletion) {
+            summary.cleanup = { ok: false, result: 'error', error: failedDeletion.error || failedDeletion.body, sessions: deletions }
+        } else if (deletions.length > 0) {
+            summary.cleanup = { ok: true, result: 'deleted', sessions: deletions }
+        } else if (args.noCleanup) {
             summary.cleanup = { ok: true, result: 'skipped' }
-        } else if (summary.created_session_uuids.length > 0) {
-            const deletions = await deleteCreatedSessions(args.apiKey, eyepopUrl, summary.created_session_uuids)
-            const failed = deletions.find(deletion => !deletion.ok)
-            summary.cleanup = { ok: !failed, result: failed ? 'error' : 'deleted', error: failed?.error || failed?.body, sessions: deletions }
         } else if (summary.session_reused) {
             summary.cleanup = { ok: true, result: 'skipped_preexisting' }
-        } else if (sessionUuid) {
-            summary.cleanup = { ok: false, result: 'skipped_not_created', error: `session ${sessionUuid} was not created by this scenario; left in place` }
         } else {
             summary.cleanup = { ok: false, result: 'missing_session_uuid' }
         }
@@ -904,15 +932,16 @@ async function runSmoke(args) {
 
     const eyepopUrl = args.eyepopUrl || ENV_URLS[args.environment]
     const sdk = await importSdk(args.sdkModule)
+    const undici = loadSdkUndici(args.sdkModule)
     const scenarios = selectedScenarioDefinitions(args)
     if (scenarios.length === 1) {
-        return runScenario(args, sdk, eyepopUrl, scenarios[0])
+        return runScenario(args, sdk, undici, eyepopUrl, scenarios[0])
     }
 
     const started = Date.now()
     const summaries = []
     for (const scenario of scenarios) {
-        summaries.push(await runScenario({ ...args, noCleanup: true }, sdk, eyepopUrl, scenario))
+        summaries.push(await runScenario({ ...args, noCleanup: true }, sdk, undici, eyepopUrl, scenario))
     }
 
     const suiteCleanup = args.noCleanup
