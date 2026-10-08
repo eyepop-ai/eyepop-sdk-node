@@ -198,15 +198,6 @@
     font-size: 0.9rem;
 }
 
-.track-thumbnail {
-    width: auto;
-    height: auto;
-    max-width: 72px;
-    max-height: 72px;
-    vertical-align: middle;
-    border-radius: 3px;
-}
-
 .track-line {
     max-height: 20rem;
     max-width: 40rem;

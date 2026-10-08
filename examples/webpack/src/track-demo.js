@@ -26,9 +26,6 @@ const NANOS_PER_SECOND = 1e9
 // shown as out of view: the tracker keeps it a while in case it comes back.
 const UNSEEN_AFTER_NANOS = 1 * NANOS_PER_SECOND
 
-// The edge of a thumbnail, in pixels. A selected crop is scaled to fit it.
-const THUMBNAIL_SIZE = 72
-
 let endpoint = undefined
 let resultStream = undefined
 
@@ -193,7 +190,6 @@ function trackFor(trackId) {
             selectedAts: [],
             result: undefined,
             line: undefined,
-            thumbnail: undefined,
             // bumped whenever the result cell has something new to show, so
             // the cell is rebuilt only then and an opened line stays open
             version: 0,
@@ -321,7 +317,7 @@ function percent(confidence) {
  * that belong to the frame rather than the object - anything else on the
  * prediction - and those are described after it.
  */
-function noteSelectedPrediction(prediction, isFile) {
+function noteSelectedPrediction(prediction) {
     const [selected] = trackedObjects(prediction.objects)
     if (!selected) {
         return
@@ -345,9 +341,6 @@ function noteSelectedPrediction(prediction, isFile) {
     track.line = JSON.stringify(prediction, withoutBinary, 2)
     track.version += 1
     track.flash = true
-    if (isFile && previewUrl && prediction.timestamp !== undefined) {
-        queueThumbnail(track, prediction, selected)
-    }
     scheduleTableUpdate()
 }
 
@@ -508,20 +501,10 @@ function fillSelections(cell, track) {
 
 function fillResult(cell, track) {
     cell.replaceChildren()
-    const summary = document.createElement('div')
-    summary.className = 'd-flex align-items-center'
-    if (track.thumbnail) {
-        const image = document.createElement('img')
-        image.src = track.thumbnail
-        image.alt = `track ${track.id} as selected`
-        image.className = 'track-thumbnail me-2'
-        summary.appendChild(image)
-    }
-    const text = document.createElement('span')
+    const text = document.createElement('div')
     text.textContent = track.result ?? 'waiting for a selection'
     text.classList.toggle('text-muted', !track.result)
-    summary.appendChild(text)
-    cell.appendChild(summary)
+    cell.appendChild(text)
     // the selected prediction as it arrived: what the summary was read from,
     // and what to look at when the summary says less than expected
     if (track.line) {
@@ -562,99 +545,7 @@ function orderRows() {
 function resetTracks() {
     tracks.clear()
     streamNow = undefined
-    thumbnailQueue.length = 0
     updateTable()
-}
-
-/*
- * A picture of what was selected, for a video file.
- *
- * The file is still at hand, so the selected frame can be found again: a second,
- * hidden video element seeks to the selection's timestamp and the selected box
- * is cut out of it - the whole frame with the box drawn on it for a whole-frame
- * selection. A webcam frame is gone by the time its selection arrives, so a
- * live stream gets the text alone. One seek at a time, since they share the one
- * element.
- */
-let thumbnailVideo = undefined
-const thumbnailQueue = []
-let thumbnailBusy = false
-
-function queueThumbnail(track, prediction, selected) {
-    thumbnailQueue.push({ track: track, prediction: prediction, selected: selected, url: previewUrl, token: sourceToken })
-    drainThumbnails()
-}
-
-async function drainThumbnails() {
-    if (thumbnailBusy) {
-        return
-    }
-    thumbnailBusy = true
-    try {
-        while (thumbnailQueue.length) {
-            const job = thumbnailQueue.shift()
-            if (job.token !== sourceToken) {
-                continue
-            }
-            try {
-                const thumbnail = await cutThumbnail(job)
-                if (thumbnail && job.token === sourceToken) {
-                    job.track.thumbnail = thumbnail
-                    job.track.version += 1
-                    scheduleTableUpdate()
-                }
-            } catch (e) {
-                console.log(`no thumbnail for track ${job.track.id}: ${e.message}`)
-            }
-        }
-    } finally {
-        thumbnailBusy = false
-    }
-}
-
-async function cutThumbnail(job) {
-    if (!thumbnailVideo) {
-        thumbnailVideo = document.createElement('video')
-        thumbnailVideo.muted = true
-        thumbnailVideo.playsInline = true
-        thumbnailVideo.preload = 'auto'
-    }
-    if (thumbnailVideo.getAttribute('src') !== job.url) {
-        thumbnailVideo.src = job.url
-        await new Promise((resolve, reject) => {
-            thumbnailVideo.addEventListener('loadeddata', resolve, { once: true })
-            thumbnailVideo.addEventListener('error', () => reject(new Error('the browser could not decode it')), { once: true })
-        })
-    }
-    await seekVideo(thumbnailVideo, job.prediction.timestamp / NANOS_PER_SECOND)
-
-    // prediction coordinates are in the source's pixels, which for a file is
-    // the video's own resolution
-    const scaleX = thumbnailVideo.videoWidth / (job.prediction.source_width || thumbnailVideo.videoWidth)
-    const scaleY = thumbnailVideo.videoHeight / (job.prediction.source_height || thumbnailVideo.videoHeight)
-    const box = job.selected
-    // which operator a selection came from is not on the prediction, so it is
-    // the one the page last sent; a Pop change restarts the file, so they agree
-    const whole = selectedOperator() === ForwardOperatorType.SELECT_FULL
-    const sx = whole ? 0 : box.x * scaleX
-    const sy = whole ? 0 : box.y * scaleY
-    const sw = whole ? thumbnailVideo.videoWidth : box.width * scaleX
-    const sh = whole ? thumbnailVideo.videoHeight : box.height * scaleY
-    if (!(sw > 0 && sh > 0)) {
-        return undefined
-    }
-    const scale = THUMBNAIL_SIZE / Math.max(sw, sh)
-    const canvas = document.createElement('canvas')
-    canvas.width = Math.max(1, Math.round(sw * scale))
-    canvas.height = Math.max(1, Math.round(sh * scale))
-    const context = canvas.getContext('2d')
-    context.drawImage(thumbnailVideo, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height)
-    if (whole) {
-        context.strokeStyle = '#4daf4a'
-        context.lineWidth = 2
-        context.strokeRect(box.x * scaleX * scale, box.y * scaleY * scale, box.width * scaleX * scale, box.height * scaleY * scale)
-    }
-    return canvas.toDataURL('image/jpeg', 0.8)
 }
 
 /* ---------- predictions ---------- */
@@ -676,7 +567,7 @@ async function renderFromResultStream(results, token) {
         // a selection is about a frame long gone: the list takes it, the
         // live video does not
         if (result.selected) {
-            noteSelectedPrediction(result, false)
+            noteSelectedPrediction(result)
             continue
         }
         if (!localVideo.srcObject) {
@@ -891,10 +782,6 @@ function clearPreview() {
     // hidden rather than left empty: a <video> with no source still occupies its
     // 300x150 default, drawing a bordered box across the middle of the drop area
     localVideo.hidden = true
-    if (thumbnailVideo) {
-        thumbnailVideo.removeAttribute('src')
-        thumbnailVideo.load()
-    }
     if (previewUrl) {
         URL.revokeObjectURL(previewUrl)
         previewUrl = undefined
@@ -1167,7 +1054,7 @@ async function consumeResults(results, token, file) {
             }
             if (result.selected) {
                 selections += 1
-                noteSelectedPrediction(result, true)
+                noteSelectedPrediction(result)
                 continue
             }
             frames += 1
