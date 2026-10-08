@@ -256,8 +256,10 @@ function noteLivePrediction(prediction) {
  * What an ability's results say, short enough for a table cell.
  *
  * Generic on purpose, since the ability is whatever was typed in: classes with
- * their confidence, texts, key point and embedding groups by size, and nested
- * objects with what is nested in them.
+ * their confidence, texts, key point and embedding groups by size, details as
+ * their members, and nested objects with what is nested in them. Details carry
+ * the results here as often as the rest: an ability that describes what it
+ * sees (age, clothing, a caption) reports them on the object it looked at.
  */
 function describe(node) {
     const parts = []
@@ -275,6 +277,14 @@ function describe(node) {
     }
     for (const mesh of node?.meshs || []) {
         parts.push(mesh.category ?? 'mesh')
+    }
+    // free-form records, which is how an ability describing what it sees -
+    // age, clothing, a caption - reports: every member, as it came
+    for (const detail of node?.details || []) {
+        const fields = Object.entries(detail ?? {}).map(([key, value]) => `${key}: ${typeof value === 'object' ? JSON.stringify(value) : value}`)
+        if (fields.length) {
+            parts.push(fields.join(', '))
+        }
     }
     for (const object of node?.objects || []) {
         const inner = describe(object)
