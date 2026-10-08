@@ -189,7 +189,8 @@ function trackFor(trackId) {
             ended: false,
             endedAt: undefined,
             selections: 0,
-            selectedAt: undefined,
+            // the timestamps of the frames selected, oldest first
+            selectedAts: [],
             result: undefined,
             line: undefined,
             thumbnail: undefined,
@@ -328,7 +329,9 @@ function noteSelectedPrediction(prediction, isFile) {
     const track = trackFor(selected.trackId)
     track.classLabel = track.classLabel ?? selected.classLabel
     track.selections += 1
-    track.selectedAt = prediction.timestamp
+    if (prediction.timestamp !== undefined) {
+        track.selectedAts.push(prediction.timestamp)
+    }
     const frame = {
         objects: (prediction.objects || []).filter(object => object !== selected),
         classes: prediction.classes,
@@ -444,7 +447,7 @@ function updateTable() {
         badge.className = `badge ${state.className}`
         badge.textContent = state.label
 
-        cells[5].textContent = track.selections ? `${track.selections}x, frame at ${formatTime(track.selectedAt)}` : '-'
+        fillSelections(cells[5], track)
 
         const result = cells[6]
         if (result.dataset.version !== String(track.version)) {
@@ -462,6 +465,45 @@ function updateTable() {
         }
     }
     orderRows()
+}
+
+// Up to this many selections are listed; past it, the most recent few and a
+// count of the rest.
+const LISTED_SELECTIONS = 4
+const RECENT_SELECTIONS = 3
+
+/*
+ * Each selection as the track's age at the frame it picked, the same scale as
+ * the age column, the most recent first. Rebuilt only when that list changes,
+ * which is a new selection or an earlier start the tracker reported.
+ */
+function fillSelections(cell, track) {
+    const key = `${track.selectedAts.length}:${track.firstSeen}`
+    if (cell.dataset.key === key) {
+        return
+    }
+    cell.dataset.key = key
+    cell.replaceChildren()
+    if (!track.selectedAts.length) {
+        cell.textContent = '-'
+        return
+    }
+    const recent = [...track.selectedAts].reverse()
+    const shown = recent.length > LISTED_SELECTIONS ? recent.slice(0, RECENT_SELECTIONS) : recent
+    const list = document.createElement('ul')
+    list.className = 'mb-0 ps-3'
+    for (const timestamp of shown) {
+        const item = document.createElement('li')
+        item.textContent = track.firstSeen === undefined ? formatTime(timestamp) : formatDuration(timestamp - track.firstSeen)
+        list.appendChild(item)
+    }
+    cell.appendChild(list)
+    if (shown.length < recent.length) {
+        const more = document.createElement('div')
+        more.className = 'text-muted small'
+        more.textContent = `(${recent.length - shown.length} more)`
+        cell.appendChild(more)
+    }
 }
 
 function fillResult(cell, track) {
