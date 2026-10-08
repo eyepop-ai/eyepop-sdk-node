@@ -103,12 +103,14 @@ function currentPop() {
                 type: PopComponentType.INFERENCE,
                 ability: PERSON_ABILITY,
                 categoryName: 'person',
+                threshold: 0.8,
                 forward: {
                     operator: { type: ForwardOperatorType.CROP },
                     targets: [
                         {
                             type: PopComponentType.TRACKING,
                             reidModel: REID_ABILITY,
+                            maxAgeSeconds: 2.0,
                             forward: {
                                 operator: operator,
                                 targets: [{ type: PopComponentType.INFERENCE, ability: ability }],
@@ -364,13 +366,15 @@ function formatDuration(nanos) {
 }
 
 function stateOf(track) {
+    // rank orders the table: active tracks on top, then those out of view,
+    // which may still come back, then those the tracker ended
     if (track.ended) {
-        return { label: 'ended', className: 'text-bg-secondary' }
+        return { label: 'ended', className: 'text-bg-secondary', rank: 2 }
     }
     if (streamNow !== undefined && track.lastSeen !== undefined && streamNow - track.lastSeen > UNSEEN_AFTER_NANOS) {
-        return { label: 'out of view', className: 'text-bg-warning' }
+        return { label: 'out of view', className: 'text-bg-warning', rank: 1 }
     }
-    return { label: 'active', className: 'text-bg-success' }
+    return { label: 'active', className: 'text-bg-success', rank: 0 }
 }
 
 /*
@@ -422,8 +426,7 @@ function updateTable() {
     for (const track of tracks.values()) {
         if (!track.row) {
             track.row = makeRow()
-            // newest on top: a new track is what a viewer is looking for
-            tracksBody.prepend(track.row)
+            tracksBody.appendChild(track.row)
         }
         const cells = track.row.cells
         cells[0].textContent = String(track.id)
@@ -458,6 +461,7 @@ function updateTable() {
             track.row.classList.add('flash')
         }
     }
+    orderRows()
 }
 
 function fillResult(cell, track) {
@@ -489,6 +493,28 @@ function fillResult(cell, track) {
         details.append(label, pre)
         cell.appendChild(details)
     }
+}
+
+/*
+ * Active tracks on top, then those out of view, then the ended ones; within
+ * each, the newest first, since a new track is what a viewer looks for.
+ *
+ * A row is moved only when it is out of place: moving a row restarts its
+ * flash, and most updates change no track's place.
+ */
+function orderRows() {
+    const ordered = [...tracks.values()].sort((a, b) => {
+        const byState = stateOf(a).rank - stateOf(b).rank
+        if (byState !== 0) {
+            return byState
+        }
+        return (b.firstSeen ?? 0) - (a.firstSeen ?? 0) || b.id - a.id
+    })
+    ordered.forEach((track, index) => {
+        if (tracksBody.children[index] !== track.row) {
+            tracksBody.insertBefore(track.row, tracksBody.children[index] ?? null)
+        }
+    })
 }
 
 function resetTracks() {
