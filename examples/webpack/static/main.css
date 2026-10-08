@@ -206,3 +206,11 @@
     vertical-align: middle;
     border-radius: 3px;
 }
+
+.track-line {
+    max-height: 20rem;
+    max-width: 40rem;
+    overflow: auto;
+    font-size: 0.75rem;
+    margin: 0.25rem 0 0;
+}

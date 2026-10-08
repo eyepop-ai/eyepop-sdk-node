@@ -189,7 +189,11 @@ function trackFor(trackId) {
             selections: 0,
             selectedAt: undefined,
             result: undefined,
+            line: undefined,
             thumbnail: undefined,
+            // bumped whenever the result cell has something new to show, so
+            // the cell is rebuilt only then and an opened line stays open
+            version: 0,
             row: undefined,
             flash: false,
         }
@@ -280,6 +284,18 @@ function describe(node) {
     return parts
 }
 
+// a mask, a depth map or an embedding can be megabytes of base64 or numbers,
+// none of it worth reading in a table cell
+function withoutBinary(key, value) {
+    if (typeof value === 'string' && value.length > 200) {
+        return `<${value.length} characters>`
+    }
+    if (Array.isArray(value) && value.length > 32 && typeof value[0] === 'number') {
+        return `<${value.length} numbers>`
+    }
+    return value
+}
+
 function percent(confidence) {
     return typeof confidence === 'number' ? ` ${Math.round(confidence * 100)}%` : ''
 }
@@ -311,6 +327,8 @@ function noteSelectedPrediction(prediction, isFile) {
     }
     const parts = describe(selected).concat(describe(frame))
     track.result = parts.length ? parts.join(' · ') : 'nothing found'
+    track.line = JSON.stringify(prediction, withoutBinary, 2)
+    track.version += 1
     track.flash = true
     if (isFile && previewUrl && prediction.timestamp !== undefined) {
         queueThumbnail(track, prediction, selected)
@@ -416,16 +434,10 @@ function updateTable() {
         cells[5].textContent = track.selections ? `${track.selections}x, frame at ${formatTime(track.selectedAt)}` : '-'
 
         const result = cells[6]
-        result.replaceChildren()
-        if (track.thumbnail) {
-            const image = document.createElement('img')
-            image.src = track.thumbnail
-            image.alt = `track ${track.id} as selected`
-            image.className = 'track-thumbnail me-2'
-            result.appendChild(image)
+        if (result.dataset.version !== String(track.version)) {
+            result.dataset.version = String(track.version)
+            fillResult(result, track)
         }
-        result.appendChild(document.createTextNode(track.result ?? (track.selections ? '' : 'waiting for a selection')))
-        result.classList.toggle('text-muted', !track.result)
 
         if (track.flash) {
             track.flash = false
@@ -435,6 +447,37 @@ function updateTable() {
             void track.row.offsetWidth
             track.row.classList.add('flash')
         }
+    }
+}
+
+function fillResult(cell, track) {
+    cell.replaceChildren()
+    const summary = document.createElement('div')
+    summary.className = 'd-flex align-items-center'
+    if (track.thumbnail) {
+        const image = document.createElement('img')
+        image.src = track.thumbnail
+        image.alt = `track ${track.id} as selected`
+        image.className = 'track-thumbnail me-2'
+        summary.appendChild(image)
+    }
+    const text = document.createElement('span')
+    text.textContent = track.result ?? 'waiting for a selection'
+    text.classList.toggle('text-muted', !track.result)
+    summary.appendChild(text)
+    cell.appendChild(summary)
+    // the selected prediction as it arrived: what the summary was read from,
+    // and what to look at when the summary says less than expected
+    if (track.line) {
+        const details = document.createElement('details')
+        const label = document.createElement('summary')
+        label.textContent = 'line'
+        label.className = 'text-muted small'
+        const pre = document.createElement('pre')
+        pre.className = 'track-line'
+        pre.textContent = track.line
+        details.append(label, pre)
+        cell.appendChild(details)
     }
 }
 
@@ -479,6 +522,7 @@ async function drainThumbnails() {
                 const thumbnail = await cutThumbnail(job)
                 if (thumbnail && job.token === sourceToken) {
                     job.track.thumbnail = thumbnail
+                    job.track.version += 1
                     scheduleTableUpdate()
                 }
             } catch (e) {
