@@ -9,11 +9,13 @@ import { TransientPopId, WorkerOptions } from '../worker/worker_options'
 import {
     AssetUuidSource,
     ComponentParams,
+    DEFAULT_PREDICTION_VERSION,
     FileSource,
     MediaStreamSource,
     MotionDetectConfig,
     PathSource,
     Pop,
+    PredictionVersion,
     ProcessParams,
     ProcessRequest,
     ResultStream,
@@ -21,6 +23,7 @@ import {
     StreamSource,
     UrlSource,
     WorkerSession,
+    popSelects,
     validatePop,
 } from '../worker/worker_types'
 import { validateCamera } from '../camera'
@@ -129,6 +132,15 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             return this._pipeline.pop || null
         }
         return this.options().pop || null
+    }
+
+    /**
+     * A select forward's results come only at V3. Only a Pop that selects asks
+     * for it, so a worker too old to know V3 - which also rejects that Pop - is
+     * never sent a version it would not accept.
+     */
+    private predictionVersion(): PredictionVersion {
+        return popSelects(this.pop()) ? PredictionVersion.V3 : DEFAULT_PREDICTION_VERSION
     }
 
     public async changePop(pop: Pop): Promise<void> {
@@ -289,7 +301,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
                     return { stream: streamSource.stream, mimeType: streamSource.mimeType }
                 }),
             )
-            const job = new UploadGroupJob(sources, params, async () => this.session(), this._client, this._requestLogger)
+            const job = new UploadGroupJob(sources, params, async () => this.session(), this._client, this._requestLogger, this.predictionVersion())
             return job.start(
                 () => {
                     this.jobDone(job)
@@ -322,7 +334,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
                 stream,
                 mimeType: mimeTypes?.[i] ?? null,
             }))
-            const job = new UploadGroupJob(sources, params, async () => this.session(), this._client, this._requestLogger)
+            const job = new UploadGroupJob(sources, params, async () => this.session(), this._client, this._requestLogger, this.predictionVersion())
             return job.start(
                 () => {
                     this.jobDone(job)
@@ -348,7 +360,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         await this._limit.acquire()
         try {
             this.updateState()
-            const job = new LoadFromGroupJob(urls, params, async () => this.session(), this._client, this._requestLogger)
+            const job = new LoadFromGroupJob(urls, params, async () => this.session(), this._client, this._requestLogger, this.predictionVersion())
             return job.start(
                 () => {
                     this.jobDone(job)
@@ -382,6 +394,8 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
                 },
                 this._client,
                 this._requestLogger,
+                undefined,
+                this.predictionVersion(),
             )
             return job.start(
                 () => {
@@ -417,6 +431,8 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
                 },
                 this._client,
                 this._requestLogger,
+                undefined,
+                this.predictionVersion(),
             )
             return job.start(
                 () => {
@@ -468,6 +484,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
                 this._client,
                 this._requestLogger,
                 uploadBodyFactory,
+                this.predictionVersion(),
             )
             return job.start(
                 () => {
@@ -508,6 +525,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
                 },
                 this._client,
                 this._requestLogger,
+                this.predictionVersion(),
             )
             return job.start(
                 () => {
@@ -540,6 +558,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
                 },
                 this._client,
                 this._requestLogger,
+                this.predictionVersion(),
             )
             return job.start(
                 () => {
@@ -572,6 +591,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
                 },
                 this._client,
                 this._requestLogger,
+                this.predictionVersion(),
             )
             return job.start(
                 () => {

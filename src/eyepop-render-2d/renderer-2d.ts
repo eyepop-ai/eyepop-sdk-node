@@ -40,7 +40,17 @@ export class Renderer2d implements Renderer {
         }
     }
 
+    /**
+     * Draw a prediction over the frame it was made on.
+     *
+     * A selected prediction (`p.selected`) is skipped: it belongs to a past
+     * frame, so drawn over the current one its boxes land where the object no
+     * longer is, and its past timestamp would rewind the trails.
+     */
     public draw(p: Prediction, color?: string) {
+        if (p.selected) {
+            return
+        }
         const x_scale = this.context.canvas.width / p.source_width
         const y_scale = this.context.canvas.height / p.source_height
         const streamTime = p as StreamTime

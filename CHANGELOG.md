@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### Added
+- The `SELECT_CROP` and `SELECT_FULL` forward operators (AWSU-245), with `PopSelect`, `SelectMode` and the `select` member of `PopForwardOperator`. On a tracking component's forward they pick each track's most relevant detection and run the targets once on the past frame it was seen in: on a crop of it, or on that whole frame. `relevancyModel`, `minTrackLengthSeconds` and `intervalSeconds` decide what is relevant and when a selection is reported. `validatePop` checks the rules the worker applies (a `select` block for a select operator and only there, `crop` only on `SELECT_CROP` and without `maxItems`), and `popSelects` tells whether a Pop has a select forward.
+- `Prediction.selected`, set on a selected prediction: the targets' results for one selection. It arrives late, carries the past frame's `timestamp`, and its object's `trackId` links it to that track's live predictions.
+- `PredictionVersion.V3`, the prediction version that carries selected predictions. An endpoint asks for it whenever its Pop has a select forward and keeps asking for `V2` otherwise, so a worker that does not know `V3` is never sent it.
+- `pop_demo --pop face-select`, one face per person track.
+
+### Fixed
+- Every job now sends the endpoint's prediction version. The job classes accepted one but none passed it on, so every request asked for the default.
+- `Renderer2d` skips a selected prediction rather than drawing a past frame's boxes over the current one, and `renderTrail` ignores an object older than its track's newest entry, which would otherwise have aged the whole trail.
+- `renderTrail` drops expired tracks every ten seconds as intended. It never recorded when it last did, so once ten seconds of stream had passed it scanned every track on every draw.
+
 ## [3.21.0] - 2026-10-07
 
 ### Changed

@@ -74,6 +74,15 @@ export interface Prediction extends StreamTime {
     details?: Array<Record<string, any>>
     motions?: Array<PredictedMotion>
     depth?: Depth
+    /**
+     * Set on a selected prediction: the results of a `select_crop` or
+     * `select_full` forward for one track. It arrives after later predictions,
+     * carries the `timestamp` of the past frame that was selected, and its
+     * selected object's `trackId` links it to that track's live predictions.
+     * It is not the stream's progress: skip it where frames are drawn or
+     * counted.
+     */
+    selected?: boolean
 }
 
 export interface PredictedClass {

@@ -137,8 +137,9 @@ export class UploadJob extends AbstractJob {
         client: HttpClient,
         requestLogger: Logger,
         uploadBodyFactory?: () => Promise<UploadBody>,
+        version: PredictionVersion = DEFAULT_PREDICTION_VERSION,
     ) {
-        super(params, getSession, client, requestLogger)
+        super(params, getSession, client, requestLogger, version)
         this._uploadStream = stream
         this._uploadBodyFactory = uploadBodyFactory
         this._mimeType = mimeType
@@ -341,8 +342,8 @@ export class UploadJob extends AbstractJob {
 export class LoadFromJob extends AbstractJob {
     private readonly _location: string
 
-    constructor(location: string, params: ProcessParams, getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger) {
-        super(params, getSession, client, requestLogger)
+    constructor(location: string, params: ProcessParams, getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger, version: PredictionVersion = DEFAULT_PREDICTION_VERSION) {
+        super(params, getSession, client, requestLogger, version)
         this._location = location
     }
 
@@ -399,8 +400,8 @@ export class UploadGroupJob extends AbstractJob {
         return 'uploadGroupJob'
     }
 
-    constructor(sources: UploadSource[], params: ProcessParams, getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger) {
-        super(params, getSession, client, requestLogger)
+    constructor(sources: UploadSource[], params: ProcessParams, getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger, version: PredictionVersion = DEFAULT_PREDICTION_VERSION) {
+        super(params, getSession, client, requestLogger, version)
         if (sources.length === 0) {
             throw new Error('upload group requires at least one source')
         }
@@ -467,8 +468,8 @@ export class LoadFromGroupJob extends AbstractJob {
         return 'loadFromGroupJob'
     }
 
-    constructor(urls: string[], params: ProcessParams, getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger) {
-        super(params, getSession, client, requestLogger)
+    constructor(urls: string[], params: ProcessParams, getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger, version: PredictionVersion = DEFAULT_PREDICTION_VERSION) {
+        super(params, getSession, client, requestLogger, version)
         if (urls.length === 0) {
             throw new Error('load from group requires at least one url')
         }
@@ -517,8 +518,8 @@ export class LoadFromGroupJob extends AbstractJob {
 export class LoadFromAssetUuidJob extends AbstractJob {
     private readonly _assetUuid: string
 
-    constructor(assetUuid: string, params: ProcessParams, getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger) {
-        super(params, getSession, client, requestLogger)
+    constructor(assetUuid: string, params: ProcessParams, getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger, version: PredictionVersion = DEFAULT_PREDICTION_VERSION) {
+        super(params, getSession, client, requestLogger, version)
         this._assetUuid = assetUuid
     }
 
@@ -563,8 +564,8 @@ export class LoadFromAssetUuidJob extends AbstractJob {
 export class LoadMediaStreamJob extends AbstractJob {
     private readonly _mediaStream: MediaStream
 
-    constructor(mediaStream: MediaStream, params: ProcessParams, getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger) {
-        super(params, getSession, client, requestLogger)
+    constructor(mediaStream: MediaStream, params: ProcessParams, getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger, version: PredictionVersion = DEFAULT_PREDICTION_VERSION) {
+        super(params, getSession, client, requestLogger, version)
         this._mediaStream = mediaStream
     }
 
