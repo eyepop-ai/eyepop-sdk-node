@@ -361,9 +361,26 @@ function formatDuration(nanos) {
     return `${(nanos / NANOS_PER_SECOND).toFixed(1)} s`
 }
 
+// How long a track has lasted: to its end, or to when it was last seen.
+function ageOf(track) {
+    const until = track.ended ? track.endedAt ?? track.lastSeen : track.lastSeen
+    return track.firstSeen === undefined || until === undefined ? undefined : until - track.firstSeen
+}
+
+// An ended track shorter than the min track length, which is never selected.
+function endedTooShort(track) {
+    const minSeconds = optionalNumber(minTrackLengthInput)
+    const age = ageOf(track)
+    return track.ended && minSeconds !== undefined && age !== undefined && age < minSeconds * NANOS_PER_SECOND
+}
+
 function stateOf(track) {
     // rank orders the table: active tracks on top, then those out of view,
-    // which may still come back, then those the tracker ended
+    // which may still come back, then those the tracker ended, and last the
+    // ended ones too short to be selected
+    if (endedTooShort(track)) {
+        return { label: 'too short', className: 'text-bg-light border', rank: 3 }
+    }
     if (track.ended) {
         return { label: 'ended', className: 'text-bg-secondary', rank: 2 }
     }
@@ -428,8 +445,8 @@ function updateTable() {
         cells[0].textContent = String(track.id)
         cells[1].textContent = track.classLabel ?? '-'
         cells[2].textContent = formatTime(track.firstSeen)
-        const until = track.ended ? track.endedAt ?? track.lastSeen : track.lastSeen
-        cells[3].textContent = track.firstSeen === undefined || until === undefined ? '-' : formatDuration(until - track.firstSeen)
+        const age = ageOf(track)
+        cells[3].textContent = age === undefined ? '-' : formatDuration(age)
 
         const state = stateOf(track)
         let badge = cells[4].firstElementChild
@@ -521,8 +538,9 @@ function fillResult(cell, track) {
 }
 
 /*
- * Active tracks on top, then those out of view, then the ended ones; within
- * each, the newest first, since a new track is what a viewer looks for.
+ * Active tracks on top, then those out of view, then the ended ones, and at
+ * the bottom the ended ones too short to be selected; within each, the newest
+ * first, since a new track is what a viewer looks for.
  *
  * A row is moved only when it is out of place: moving a row restarts its
  * flash, and most updates change no track's place.
