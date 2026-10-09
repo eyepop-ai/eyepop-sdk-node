@@ -5,6 +5,12 @@ import { Camera, validateCamera } from '../camera'
 export enum PredictionVersion {
     V1 = 1,
     V2 = 2,
+    /**
+     * Adds selected predictions: a `select_crop` or `select_full` forward
+     * reports each selection on a prediction of its own, `selected` set and
+     * timed by the past frame it selected. Nothing else differs from V2.
+     */
+    V3 = 3,
 }
 
 export const DEFAULT_PREDICTION_VERSION: PredictionVersion = PredictionVersion.V2
@@ -83,6 +89,39 @@ export enum ForwardOperatorType {
     FULL = 'full',
     CROP = 'crop',
     CROP_WITH_FULL_FALLBACK = 'crop_with_full_fallback',
+    /**
+     * `SELECT_CROP` and `SELECT_FULL` forward one past frame per track, the one
+     * of its most relevant detection, and their targets' results arrive late as
+     * selected predictions. Only a tracking component's forward can select.
+     */
+    SELECT_CROP = 'select_crop',
+    SELECT_FULL = 'select_full',
+}
+
+export enum SelectMode {
+    MOST_RELEVANT = 'most_relevant',
+}
+
+/**
+ * How a `select_crop` or `select_full` forward picks one frame per track.
+ *
+ * `relevancyModel` (by alias) or `relevancyModelUuid` names an ability that
+ * runs on every tracked object of every frame; a detection it finds nothing on
+ * is never selected. Without one, relevance comes from the detection's box
+ * alone.
+ *
+ * A track shorter than `minTrackLengthSeconds` is never selected. With
+ * `intervalSeconds` the first selection comes that long after the track
+ * starts, then at most one per interval and only when a more relevant
+ * detection turned up; the track's end reports a final one if it improved
+ * since. Without it, a track is selected once, when it ends.
+ */
+export interface PopSelect {
+    mode?: SelectMode
+    relevancyModelUuid?: string
+    relevancyModel?: string
+    minTrackLengthSeconds?: number
+    intervalSeconds?: number
 }
 
 export interface PopCrop {
@@ -95,6 +134,11 @@ export interface PopForwardOperator {
     type: ForwardOperatorType
     includeClasses?: string[]
     crop?: PopCrop
+    select?: PopSelect
+}
+
+export function isSelectOperator(operator: PopForwardOperator | undefined): boolean {
+    return operator?.type === ForwardOperatorType.SELECT_CROP || operator?.type === ForwardOperatorType.SELECT_FULL
 }
 
 export interface PopForward {
@@ -279,6 +323,61 @@ export function validatePop(pop: Pop): void {
     }
     if (pop.defaults?.camera !== undefined) {
         validateCamera(pop.defaults.camera)
+    }
+    validateForwards(pop.components)
+}
+
+/**
+ * Whether any forward of the Pop is a `select_crop` or `select_full`.
+ */
+export function popSelects(pop: Pop | null | undefined): boolean {
+    const selects = (components: PopComponent[] | undefined): boolean =>
+        (components ?? []).some((component) => isSelectOperator(component.forward?.operator) || selects(component.forward?.targets))
+    return selects(pop?.components)
+}
+
+// the same select rules the worker applies when it compiles the Pop; that a
+// select sits on a tracking component's forward is left to the worker
+function validateForwards(components: PopComponent[] | undefined): void {
+    for (const component of components ?? []) {
+        const operator = component.forward?.operator
+        if (operator !== undefined) {
+            validateSelectOperator(operator)
+        }
+        validateForwards(component.forward?.targets)
+    }
+}
+
+function validateSelectOperator(operator: PopForwardOperator): void {
+    if (!isSelectOperator(operator)) {
+        if (operator.select !== undefined) {
+            throw new Error('select is only valid with the select_crop or select_full operator')
+        }
+        return
+    }
+    const select = operator.select
+    if (select === undefined) {
+        throw new Error(`${operator.type} requires a select block`)
+    }
+    if (select.mode !== undefined && select.mode !== SelectMode.MOST_RELEVANT) {
+        throw new Error(`select mode ${select.mode} is not supported, the only mode is ${SelectMode.MOST_RELEVANT}`)
+    }
+    if (select.relevancyModel !== undefined && select.relevancyModelUuid !== undefined) {
+        throw new Error('select can only have one of relevancyModelUuid or relevancyModel')
+    }
+    if (select.minTrackLengthSeconds !== undefined && select.minTrackLengthSeconds < 0) {
+        throw new Error('select minTrackLengthSeconds cannot be negative')
+    }
+    if (select.intervalSeconds !== undefined && select.intervalSeconds <= 0) {
+        throw new Error('select intervalSeconds must be positive')
+    }
+    if (operator.crop !== undefined) {
+        if (operator.type !== ForwardOperatorType.SELECT_CROP) {
+            throw new Error(`crop options are only valid with select_crop, not ${operator.type}`)
+        }
+        if (operator.crop.maxItems !== undefined) {
+            throw new Error('select_crop forwards one detection per selection, maxItems does not apply')
+        }
     }
 }
 

@@ -180,3 +180,38 @@
     outline: 2px solid #4daf4a;
     outline-offset: 2px;
 }
+
+/* The track demo's list. A row flashes when a selected prediction fills it in:
+   those arrive late and out of order, and without a cue a viewer would not
+   know which row just changed. On the cells, because Bootstrap paints a table's
+   background there rather than on the row. */
+.track-table tr.flash > td {
+    animation: track-flash 1.6s ease-out;
+}
+
+@keyframes track-flash {
+    from { background-color: #c8f0cf; }
+    to { background-color: transparent; }
+}
+
+.track-result {
+    font-size: 0.9rem;
+}
+
+.track-line {
+    max-height: 20rem;
+    max-width: 40rem;
+    overflow: auto;
+    font-size: 0.75rem;
+    margin: 0.25rem 0 0;
+}
+
+/* the track demo's Pop: read-only until Edit, so it should not look editable */
+.pop-editor {
+    font-size: 0.85rem;
+    resize: vertical;
+}
+
+.pop-editor[readonly] {
+    background-color: var(--bs-tertiary-bg, #f8f9fa);
+}

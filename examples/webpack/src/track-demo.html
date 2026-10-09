@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>EyePop.ai Track Demo</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="main.css" rel="stylesheet">
+</head>
+
+<body>
+<div class="container" style="max-width: 1200px;">
+    <header class="mt-4">
+        <div class="container-fluid d-flex align-items-center">
+            <img src="images/eyepop-logo.svg" alt="EyePop.ai Logo" class="p-2" style="height: 70px;">
+            <h1 class="p-2">Track Demo</h1>
+        </div>
+    </header>
+
+    <div class="container-fluid mt-4">
+        <div class="d-grid d-md-flex align-items-center">
+            <button disabled class="m-2 btn btn-outline-secondary" style="min-width:11rem;" id="connect">
+                <span class="spinner-border spinner-border-sm me-2" id="connect-spinner" role="status"
+                      aria-hidden="true" hidden></span>
+                <span id="connect-label">Connect</span>
+            </button>
+            <select class="m-2 form-select" style="width:auto;display:inline-block;" id="webcam-select" disabled>
+                <option value="" selected>Connect webcam</option>
+            </select>
+            <button class="m-2 btn btn-outline-secondary" style="min-width:11rem;" id="webcam-disconnect" hidden>
+                Disconnect webcam
+            </button>
+        </div>
+        <div id="status" class="m-2 text-muted"></div>
+    </div>
+
+    <div class="container-fluid mt-3">
+        <div class="card">
+            <div class="card-header section-header open" data-section="pop">
+                <span class="twisty">&#9656;</span> Pop
+            </div>
+            <div class="card-body" id="section-pop">
+                <p class="text-muted mb-3" style="font-size: 0.9rem;">
+                    Always <strong>person</strong> &rarr; <strong>tracking</strong> (with re-identification)
+                    &rarr; a select forward &rarr; <strong>the ability below</strong>. The ability does not run on
+                    every frame: per track, the most relevant detection is picked and the ability runs once on the
+                    past frame it was seen in. Its results arrive late, as selected predictions, and fill in the
+                    track list below.
+                </p>
+                <div class="row g-3 align-items-end">
+                    <div class="col-12 col-md-6">
+                        <label class="form-label mb-1" for="ability">Ability alias</label>
+                        <input class="form-control" id="ability" type="text" spellcheck="false"
+                               placeholder="the ability to run on each selection">
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label mb-1" for="relevancy">Relevancy model alias (optional)</label>
+                        <input class="form-control" id="relevancy" type="text" spellcheck="false"
+                               value="eyepop.person.face.short-range:latest"
+                               placeholder="none: the most confident, largest box not cut off by the edge">
+                    </div>
+                    <div class="col-auto">
+                        <div class="form-check form-check-inline">
+                            <input checked class="form-check-input" type="radio" name="operator" id="operator-crop"
+                                   value="select_crop">
+                            <label class="form-check-label" for="operator-crop">Crop of the person</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="operator" id="operator-full"
+                                   value="select_full">
+                            <label class="form-check-label" for="operator-full">Whole frame</label>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <label class="form-label mb-1" for="min-track-length">Min track length</label>
+                        <div class="input-group">
+                            <input class="form-control" id="min-track-length" type="number" min="0" step="0.5"
+                                   value="1" style="width:6rem;">
+                            <span class="input-group-text">s</span>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <label class="form-label mb-1" for="interval">Interval</label>
+                        <div class="input-group">
+                            <input class="form-control" id="interval" type="number" min="0" step="1" value="10"
+                                   style="width:6rem;" placeholder="end only">
+                            <span class="input-group-text">s</span>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-muted mt-3 mb-0" style="font-size: 0.9rem;">
+                    A track shorter than the <strong>min track length</strong> is never selected. With an
+                    <strong>interval</strong>, the first selection comes that long after the track starts, then at
+                    most one per interval and only when a more relevant detection turned up; the track's end reports
+                    a final one if it improved since. Leave the interval empty to select each track once, when it
+                    ends.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="container-fluid mt-4">
+        <div class="preview-wrapper" id="preview">
+            <div class="preview-frame" id="preview-frame">
+                <video class="local-media" id="local-video" muted playsinline hidden></video>
+                <canvas class="result-overlay" id="local-result-overlay"></canvas>
+            </div>
+            <button type="button" class="view-fullscreen" id="preview-fullscreen">&#9974; Fullscreen</button>
+            <div class="drop-hint" id="drop-hint">
+                <div>
+                    <div class="fs-5" id="drop-hint-title">Drop a video here</div>
+                    <div class="small" id="drop-hint-note">or click to choose one</div>
+                </div>
+            </div>
+            <input type="file" id="file-input" accept="video/*" hidden>
+        </div>
+        <p class="text-muted mt-2 mb-0" style="font-size: 0.9rem;" id="preview-note"></p>
+    </div>
+
+    <div class="container-fluid mt-4">
+        <div class="card">
+            <div class="card-header section-header open" data-section="tracks">
+                <span class="twisty">&#9656;</span> Observed tracks
+                <span class="badge text-bg-secondary ms-2" id="track-count">0</span>
+            </div>
+            <div class="card-body p-0" id="section-tracks">
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0 track-table">
+                        <thead>
+                        <tr>
+                            <th scope="col">Track</th>
+                            <th scope="col">Class</th>
+                            <th scope="col">First seen</th>
+                            <th scope="col">Age</th>
+                            <th scope="col">State</th>
+                            <th scope="col">Selected</th>
+                            <th scope="col">Result</th>
+                        </tr>
+                        </thead>
+                        <tbody id="tracks">
+                        <tr>
+                            <td colspan="7" class="text-muted">Nothing tracked yet.</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-muted m-3" style="font-size: 0.9rem;">
+                    Times are stream time. <strong>First seen</strong> and <strong>age</strong> come from every live
+                    prediction; <strong>selected</strong> and <strong>result</strong> only from selected predictions,
+                    which arrive late and carry the time of the frame that was picked. <strong>Selected</strong> lists
+                    each pick as the track's age at that frame, the most recent first. A row flashes when one
+                    arrives. An ended track shorter than the min track length is never selected; it is marked
+                    <strong>too short</strong> and kept at the bottom.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="container-fluid mt-4 mb-5">
+        <div class="d-flex align-items-center gap-2 mb-2">
+            <h3 class="mb-0 me-auto">Pop</h3>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="pop-edit">Edit</button>
+            <button type="button" class="btn btn-sm btn-primary" id="pop-save" hidden>Save</button>
+        </div>
+        <div class="alert alert-danger py-2 mb-2" id="pop-error" role="alert" hidden></div>
+        <textarea id="pop-json" class="form-control font-monospace pop-editor" rows="24" spellcheck="false"
+                  readonly></textarea>
+    </div>
+</div>
+</body>
+
+</html>

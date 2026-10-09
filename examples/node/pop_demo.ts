@@ -1,4 +1,4 @@
-import { Area, BaseComponent, Camera, CameraExtrinsics, CameraIntrinsics, ComponentParams, ContourType, EndpointState, EyePop, ForwardOperatorType, InferenceComponent, MotionDetectConfig, MotionModel, Pop, PointCloud, PopComponent, PopComponentType, PopDepthMap, Quaternion, TrackingComponent, Vector3, Vector3d, cloudOfDepth, cloudOfObject } from '@eyepop.ai/eyepop'
+import { Area, BaseComponent, Camera, CameraExtrinsics, CameraIntrinsics, ComponentParams, ContourType, EndpointState, EyePop, ForwardOperatorType, InferenceComponent, MotionDetectConfig, MotionModel, Pop, PointCloud, PopComponent, PopComponentType, PopDepthMap, Quaternion, SelectMode, TrackingComponent, Vector3, Vector3d, cloudOfDepth, cloudOfObject } from '@eyepop.ai/eyepop'
 import { POSE_CONNECTIONS, Render2d } from "@eyepop.ai/eyepop-render-2d";
 
 import { createCanvas, loadImage } from "canvas";
@@ -73,6 +73,38 @@ const POP_EXAMPLES = {
             type: PopComponentType.INFERENCE,
             model: 'eyepop.person.face-mesh:latest',
             categoryName: '3d-face-mesh'
+          }]
+        }
+      }]
+    }
+  }]},
+
+  // One face per person track, from the frame where it is seen best, and
+  // reported late as a selected prediction (see composable-pops.md).
+  "face-select": { components: [{
+    type: PopComponentType.INFERENCE,
+    ability: 'eyepop.person:latest',
+    categoryName: 'person',
+    forward: {
+      operator: { type: ForwardOperatorType.CROP },
+      targets: [{
+        type: PopComponentType.TRACKING,
+        reidModel: 'eyepop.person.reid:latest',
+        forward: {
+          operator: {
+            type: ForwardOperatorType.SELECT_CROP,
+            select: {
+              mode: SelectMode.MOST_RELEVANT,
+              relevancyModel: 'eyepop.person.face.short-range:latest',
+              minTrackLengthSeconds: 1.0,
+              intervalSeconds: 10.0,
+            },
+            crop: { boxPadding: 1.1 },
+          },
+          targets: [{
+            type: PopComponentType.INFERENCE,
+            ability: 'eyepop.person.face.short-range:latest',
+            categoryName: '2d-face-points',
           }]
         }
       }]

@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### Added
+- The `SELECT_CROP` and `SELECT_FULL` forward operators (AWSU-245), with `PopSelect`, `SelectMode` and the `select` member of `PopForwardOperator`. On a tracking component's forward they pick each track's most relevant detection and run the targets once on the past frame it was seen in: on a crop of it, or on that whole frame. `relevancyModel`, `minTrackLengthSeconds` and `intervalSeconds` decide what is relevant and when a selection is reported. `validatePop` checks the rules the worker applies (a `select` block for a select operator and only there, `crop` only on `SELECT_CROP` and without `maxItems`), and `popSelects` tells whether a Pop has a select forward.
+- `Prediction.selected`, set on a selected prediction: the targets' results for one selection. It arrives late, carries the past frame's `timestamp`, and its object's `trackId` links it to that track's live predictions.
+- `PredictionVersion.V3`, the prediction version that carries selected predictions. An endpoint asks for it whenever its Pop has a select forward and keeps asking for `V2` otherwise, so a worker that does not know `V3` is never sent it.
+- `pop_demo --pop face-select`, one face per person track.
+- `examples/webpack/src/track-demo.html`, a browser demo of selected predictions. Its Pop is always person, then tracking with re-identification, then a select forward to an ability typed into the page, which has no default; crop or whole frame, the relevancy model (by default `eyepop.person.face.short-range:latest`), the minimum track length and the interval are inputs too. The Pop they describe is shown read-only; Edit opens it for editing and Save parses, validates and applies it, keeping the editor open with the error above it when that fails. A saved Pop is used until an input changes. A webcam or a dropped video is the source; a still has no tracks to select from, so images are not taken. An observed-tracks table updates live. Each row is one track with its id, class, when it was first seen, its age and its state (active, out of view, ended, or too short for an ended track shorter than the minimum track length, which is listed last), all from the live predictions and their `track_events`. The selections and the ability's result come from the selected predictions, and a row flashes when one arrives. Selected predictions never move the video, which is stepped by the live ones alone.
+
+### Fixed
+- Every job now sends the endpoint's prediction version. The job classes accepted one but none passed it on, so every request asked for the default.
+- `Renderer2d` skips a selected prediction rather than drawing a past frame's boxes over the current one, and `renderTrail` ignores an object older than its track's newest entry, which would otherwise have aged the whole trail.
+- `renderTrail` drops expired tracks every ten seconds as intended. It never recorded when it last did, so once ten seconds of stream had passed it scanned every track on every draw.
+
 ## [3.21.0] - 2026-10-07
 
 ### Changed
