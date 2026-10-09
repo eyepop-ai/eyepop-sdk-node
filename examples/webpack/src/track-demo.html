@@ -72,11 +72,6 @@
                         </div>
                     </div>
                     <div class="col-auto">
-                        <label class="form-label mb-1" for="box-padding">Box padding</label>
-                        <input class="form-control" id="box-padding" type="number" min="0" step="0.05" value="1.1"
-                               style="width:7rem;">
-                    </div>
-                    <div class="col-auto">
                         <label class="form-label mb-1" for="min-track-length">Min track length</label>
                         <div class="input-group">
                             <input class="form-control" id="min-track-length" type="number" min="0" step="0.5"
@@ -98,7 +93,7 @@
                     <strong>interval</strong>, the first selection comes that long after the track starts, then at
                     most one per interval and only when a more relevant detection turned up; the track's end reports
                     a final one if it improved since. Leave the interval empty to select each track once, when it
-                    ends. <strong>Box padding</strong> applies to a crop only.
+                    ends.
                 </p>
             </div>
         </div>
@@ -162,8 +157,14 @@
     </div>
 
     <div class="container-fluid mt-4 mb-5">
-        <h3>Pop</h3>
-        <pre id="pop-json" class="form-control"></pre>
+        <div class="d-flex align-items-center gap-2 mb-2">
+            <h3 class="mb-0 me-auto">Pop</h3>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="pop-edit">Edit</button>
+            <button type="button" class="btn btn-sm btn-primary" id="pop-save" hidden>Save</button>
+        </div>
+        <div class="alert alert-danger py-2 mb-2" id="pop-error" role="alert" hidden></div>
+        <textarea id="pop-json" class="form-control font-monospace pop-editor" rows="24" spellcheck="false"
+                  readonly></textarea>
     </div>
 </div>
 </body>

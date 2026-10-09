@@ -205,3 +205,13 @@
     font-size: 0.75rem;
     margin: 0.25rem 0 0;
 }
+
+/* the track demo's Pop: read-only until Edit, so it should not look editable */
+.pop-editor {
+    font-size: 0.85rem;
+    resize: vertical;
+}
+
+.pop-editor[readonly] {
+    background-color: var(--bs-tertiary-bg, #f8f9fa);
+}

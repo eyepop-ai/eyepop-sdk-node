@@ -39,8 +39,12 @@ let loadedFile = undefined
 let previewUrl = undefined
 
 let connectButton, connectSpinner, connectLabel, webcamSelect, disconnectButton, statusLine
-let abilityInput, relevancyInput, boxPaddingInput, minTrackLengthInput, intervalInput
-let popJsonElement, tracksBody, trackCount
+let abilityInput, relevancyInput, minTrackLengthInput, intervalInput
+let popJsonElement, popEditButton, popSaveButton, popError, tracksBody, trackCount
+// a Pop saved from the editor, which takes the place of the one the inputs
+// describe until an input changes again
+let savedPop = undefined
+let editingPop = false
 let localVideo, overlay, overlayContext
 let previewWrapper, previewFrame, dropHint, dropHintTitle, dropHintNote, fileInput, previewNote
 let previewFullscreen
@@ -80,19 +84,14 @@ function currentPop() {
     if (!ability) {
         throw new Error('name an ability to run on the selected detections')
     }
-    const operatorType = selectedOperator()
     const operator = {
-        type: operatorType,
+        type: selectedOperator(),
         select: {
             mode: SelectMode.MOST_RELEVANT,
             relevancyModel: optionalText(relevancyInput),
             minTrackLengthSeconds: optionalNumber(minTrackLengthInput),
             intervalSeconds: optionalNumber(intervalInput),
         },
-    }
-    const boxPadding = optionalNumber(boxPaddingInput)
-    if (operatorType === ForwardOperatorType.SELECT_CROP && boxPadding !== undefined) {
-        operator.crop = { boxPadding: boxPadding }
     }
     const pop = {
         components: [
@@ -135,11 +134,12 @@ function currentPop() {
  * whenever its Pop has a select forward, so nothing else has to opt in.
  */
 async function applyPop() {
-    boxPaddingInput.disabled = selectedOperator() !== ForwardOperatorType.SELECT_CROP
+    // the inputs describe a new Pop, which replaces one saved from the editor
+    savedPop = undefined
     // there is no default ability: until one is named there is no Pop, which
     // is a prompt rather than an error
     if (!optionalText(abilityInput)) {
-        popJsonElement.textContent = ''
+        showPop(undefined)
         setStatus('Name an ability to run on the selected detections.')
         return
     }
@@ -150,7 +150,7 @@ async function applyPop() {
         setStatus(`Pop rejected: ${e.message}`, true)
         return
     }
-    popJsonElement.textContent = JSON.stringify(pop, undefined, 2)
+    showPop(pop)
     if (!endpoint) {
         return
     }
@@ -164,6 +164,77 @@ async function applyPop() {
     // a live stream picks the new Pop up on its next frame; a file is run again,
     // and its tracks start over with it
     await processLoadedFile()
+}
+
+/* ---------- editing the Pop ---------- */
+
+// The Pop below the inputs, unless it is being edited: an input changed while
+// editing must not throw the edit away.
+function showPop(pop) {
+    if (!editingPop) {
+        popJsonElement.value = pop ? JSON.stringify(pop, undefined, 2) : ''
+    }
+}
+
+function showPopError(message) {
+    popError.textContent = message ?? ''
+    popError.hidden = !message
+}
+
+function setEditingPop(editing) {
+    editingPop = editing
+    popJsonElement.readOnly = !editing
+    popEditButton.hidden = editing
+    popSaveButton.hidden = !editing
+    if (editing) {
+        popJsonElement.focus()
+    } else {
+        showPopError(undefined)
+    }
+}
+
+/*
+ * Save what the editor holds as the Pop: parse it, validate it and, when
+ * connected, hand it to the worker. Any of the three failing keeps the editor
+ * open, with the error above it, so the Pop can be fixed and saved again.
+ */
+async function savePop() {
+    popSaveButton.disabled = true
+    try {
+        let pop
+        try {
+            pop = JSON.parse(popJsonElement.value)
+        } catch (e) {
+            showPopError(`Not valid JSON: ${e.message}`)
+            return
+        }
+        try {
+            validatePop(pop)
+        } catch (e) {
+            showPopError(`Pop rejected: ${e.message}`)
+            return
+        }
+        if (endpoint) {
+            try {
+                await endpoint.changePop(pop)
+            } catch (e) {
+                showPopError(`Could not change the pop: ${e.message}`)
+                return
+            }
+        }
+        savedPop = pop
+        setEditingPop(false)
+        popJsonElement.value = JSON.stringify(pop, undefined, 2)
+        if (endpoint) {
+            setStatus('Pop changed.')
+            // as for a Pop from the inputs: a file is run again with it
+            await processLoadedFile()
+        } else {
+            setStatus('Pop saved; it is used when you connect.')
+        }
+    } finally {
+        popSaveButton.disabled = false
+    }
 }
 
 /* ---------- the track list ---------- */
@@ -614,10 +685,12 @@ async function setup() {
     statusLine = document.getElementById('status')
     abilityInput = document.getElementById('ability')
     relevancyInput = document.getElementById('relevancy')
-    boxPaddingInput = document.getElementById('box-padding')
     minTrackLengthInput = document.getElementById('min-track-length')
     intervalInput = document.getElementById('interval')
     popJsonElement = document.getElementById('pop-json')
+    popEditButton = document.getElementById('pop-edit')
+    popSaveButton = document.getElementById('pop-save')
+    popError = document.getElementById('pop-error')
     tracksBody = document.getElementById('tracks')
     trackCount = document.getElementById('track-count')
     localVideo = document.getElementById('local-video')
@@ -642,10 +715,12 @@ async function setup() {
     connectButton.addEventListener('click', toggleConnection)
     webcamSelect.addEventListener('change', connectWebcam)
     disconnectButton.addEventListener('click', disconnectWebcam)
+    popEditButton.addEventListener('click', () => setEditingPop(true))
+    popSaveButton.addEventListener('click', savePop)
     for (const header of document.querySelectorAll('.section-header')) {
         header.addEventListener('click', () => toggleSection(header))
     }
-    for (const field of [abilityInput, relevancyInput, boxPaddingInput, minTrackLengthInput, intervalInput]) {
+    for (const field of [abilityInput, relevancyInput, minTrackLengthInput, intervalInput]) {
         field.addEventListener('change', applyPop)
     }
     for (const radio of document.querySelectorAll('input[name="operator"]')) {
@@ -716,12 +791,14 @@ async function connect() {
     if (endpoint) {
         return
     }
-    let pop
-    try {
-        pop = currentPop()
-    } catch (e) {
-        setStatus(`Pop rejected: ${e.message}`, true)
-        return
+    let pop = savedPop
+    if (!pop) {
+        try {
+            pop = currentPop()
+        } catch (e) {
+            setStatus(`Pop rejected: ${e.message}`, true)
+            return
+        }
     }
     showConnectButton(true, 'Connecting...')
     setStatus('Connecting...')
