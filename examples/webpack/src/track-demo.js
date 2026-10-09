@@ -136,6 +136,13 @@ function currentPop() {
  */
 async function applyPop() {
     boxPaddingInput.disabled = selectedOperator() !== ForwardOperatorType.SELECT_CROP
+    // there is no default ability: until one is named there is no Pop, which
+    // is a prompt rather than an error
+    if (!optionalText(abilityInput)) {
+        popJsonElement.textContent = ''
+        setStatus('Name an ability to run on the selected detections.')
+        return
+    }
     let pop
     try {
         pop = currentPop()
