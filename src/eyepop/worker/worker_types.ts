@@ -192,6 +192,7 @@ export interface InferenceComponent extends BaseComponent {
     confidenceThreshold?: number
     topK?: number
     topKClasses?: number
+    classes?: string[]
     targetFps?: string
     videoChunkLengthSeconds?: number
     videoChunkOverlap?: number

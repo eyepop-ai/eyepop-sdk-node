@@ -14,6 +14,12 @@
 - `Renderer2d` skips a selected prediction rather than drawing a past frame's boxes over the current one, and `renderTrail` ignores an object older than its track's newest entry, which would otherwise have aged the whole trail.
 - `renderTrail` drops expired tracks every ten seconds as intended. It never recorded when it last did, so once ten seconds of stream had passed it scanned every track on every draw.
 
+## [3.22.0] - 2026-10-12
+
+### Added
+
+- `classes` on `InferenceComponent` (AWSU-310, inference component `classes` attribute): the class labels to restrict the component's predictions to, e.g. `{ type: PopComponentType.INFERENCE, ability: 'eyepop.common-objects:latest', classes: ['person', 'car'] }`. The worker drops every other class before `topK`. A label the ability does not have makes the Pop invalid.
+
 ## [3.21.0] - 2026-10-07
 
 ### Changed
