@@ -53,6 +53,13 @@ export class RenderTrail implements Render {
             throw new Error('render() called before start()')
         }
 
+        const previous = this.traces.get(element.trackId)
+        if (previous !== undefined && streamTime.timestamp < previous.timestamp) {
+            // a past frame's object, such as a selected prediction's, would
+            // put an older entry at the head and age the whole trail
+            return
+        }
+
         const points: Point2d[] = []
 
         if (this.traceDetails) {
@@ -85,7 +92,7 @@ export class RenderTrail implements Render {
         const head: TraceEntry = {
             points: points,
             timestamp: streamTime.timestamp,
-            next: this.traces.get(element.trackId) ?? null,
+            next: previous ?? null,
         }
         this.traces.set(element.trackId, head)
 
@@ -103,6 +110,7 @@ export class RenderTrail implements Render {
         }
 
         if (streamTime.timestamp - this.lastTrim > TRIM_INTERVAL) {
+            this.lastTrim = streamTime.timestamp
             this.traces.forEach((traceEntry: TraceEntry, trackId: number) => {
                 // @ts-ignore
                 const age = streamTime.timestamp - traceEntry.timestamp

@@ -15,6 +15,7 @@ module.exports = {
         upload: './src/upload.js',
         ingress: './src/ingress.js',
         'world-demo': './src/world-demo.js',
+        'track-demo': './src/track-demo.js',
     },
     mode: 'development',
     output: {
@@ -37,6 +38,11 @@ module.exports = {
             template: './src/world-demo.html',
             filename: 'world-demo.html',
             chunks: ['world-demo'],
+        }),
+        new HtmlWebpackPlugin({
+            template: './src/track-demo.html',
+            filename: 'track-demo.html',
+            chunks: ['track-demo'],
         }),
         new CopyPlugin({
             patterns: ['static'],
