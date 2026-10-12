@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- `classes` on `InferenceComponent` (AWSU-310, inference component `classes` attribute): the class labels to restrict the component's predictions to, e.g. `{ type: PopComponentType.INFERENCE, ability: 'eyepop.common-objects:latest', classes: ['person', 'car'] }`. The worker drops every other class before `topK`. A label the ability does not have makes the Pop invalid.
+
 ## [3.21.0] - 2026-10-07
 
 ### Changed
