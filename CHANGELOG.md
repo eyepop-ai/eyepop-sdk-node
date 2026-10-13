@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [3.23.0] - 2026-10-12
+
 ### Added
 - The `SELECT_CROP` and `SELECT_FULL` forward operators (AWSU-245), with `PopSelect`, `SelectMode` and the `select` member of `PopForwardOperator`. On a tracking component's forward they pick each track's most relevant detection and run the targets once on the past frame it was seen in: on a crop of it, or on that whole frame. `relevancyModel`, `minTrackLengthSeconds` and `intervalSeconds` decide what is relevant and when a selection is reported. `validatePop` checks the rules the worker applies (a `select` block for a select operator and only there, `crop` only on `SELECT_CROP` and without `maxItems`), and `popSelects` tells whether a Pop has a select forward.
 - `Prediction.selected`, set on a selected prediction: the targets' results for one selection. It arrives late, carries the past frame's `timestamp`, and its object's `trackId` links it to that track's live predictions.
