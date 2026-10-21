@@ -1,4 +1,16 @@
-import { EyePop, PipelineBackend, PipelineCommandError, PipelineSocketClosedError, PipelineSourceError, Pop, Prediction, ResultStream, SessionBackend, WorkerEndpoint } from '../../../src/eyepop'
+import {
+    EyePop,
+    PipelineBackend,
+    PipelineCommandError,
+    PipelineConfigurationError,
+    PipelineSocketClosedError,
+    PipelineSourceError,
+    Pop,
+    Prediction,
+    ResultStream,
+    SessionBackend,
+    WorkerEndpoint,
+} from '../../../src/eyepop'
 import { afterEach, beforeEach, describe, expect, jest, test } from '@jest/globals'
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -17,6 +29,15 @@ async function all(stream: ResultStream): Promise<Prediction[]> {
         results.push(result)
     }
     return results
+}
+
+function refusal(construct: () => unknown): unknown {
+    try {
+        construct()
+    } catch (error) {
+        return error
+    }
+    throw new Error('constructed without a refusal')
 }
 
 async function eventually(check: () => boolean, ms: number = 2000): Promise<void> {
@@ -80,13 +101,21 @@ describe('pipeline mode (SDK-27)', () => {
     test.each([{ popId: 'a-named-pop' }, { sessionUuid: 'a-session' }, { sessionName: 'a-name' }, { pipelineImage: 'an-image' }, { pipelineVersion: '4.8.0' }, { jobQueueLength: 257 }])(
         'refuses %p, which only a worker session has',
         option => {
-            expect(() => EyePop.workerEndpoint({ apiKey: 'k', isPipelineMode: true, ...option })).toThrow()
+            expect(() => EyePop.workerEndpoint({ apiKey: 'k', isPipelineMode: true, ...option })).toThrow(PipelineConfigurationError)
         },
     )
 
+    test('a pipeline mode endpoint built directly holds 256 jobs and leaves the options as they were', () => {
+        const options = { eyepopUrl: fake.url, accessToken: 't', isPipelineMode: true }
+        const direct = new WorkerEndpoint(options)
+        expect(direct.pendingJobs()).toBe(0)
+        expect((direct as any)._limit.getPermits()).toBe(256)
+        expect(options).toEqual({ eyepopUrl: fake.url, accessToken: 't', isPipelineMode: true })
+    })
+
     test('refuses a session named by the environment', () => {
         process.env['EYEPOP_SESSION_UUID'] = 'a-session'
-        expect(() => EyePop.workerEndpoint({ apiKey: 'k', isPipelineMode: true })).toThrow(/sessionUuid/)
+        expect(refusal(() => EyePop.workerEndpoint({ apiKey: 'k', isPipelineMode: true }))).toMatchObject({ problem: 'session_options', options: ['sessionUuid'] })
     })
 
     test('takes the pipeline API url from the compute API configs', async () => {
@@ -100,12 +129,12 @@ describe('pipeline mode (SDK-27)', () => {
 
     test('a compute API without a pipeline API fails the connect naming the key', async () => {
         fake.pipelineApiUrl = null
-        await expect(endpoint().connect()).rejects.toThrow(/pipeline_api_url/)
+        await expect(endpoint().connect()).rejects.toMatchObject({ problem: 'no_pipeline_api_url' })
     })
 
     test('plain http to a pipeline API off loopback is refused', async () => {
         fake.pipelineApiUrl = 'http://pipeline.example'
-        await expect(endpoint().connect()).rejects.toThrow(/https/)
+        await expect(endpoint().connect()).rejects.toMatchObject({ problem: 'insecure_url' })
     })
 
     test('local mode takes eyepopUrl as the pipeline API and sends no credential', async () => {
@@ -148,7 +177,7 @@ describe('pipeline mode (SDK-27)', () => {
         await ep.changePop(VEHICLE)
         expect(ep.pop()).toEqual(VEHICLE)
         fake.popError = 'invalid_request'
-        await expect(ep.changePop(PERSON)).rejects.toThrow(/invalid_request/)
+        await expect(ep.changePop(PERSON)).rejects.toMatchObject({ error: 'invalid_request' })
         expect(ep.pop()).toEqual(VEHICLE)
         await ep.disconnect()
     })
@@ -234,6 +263,20 @@ describe('pipeline mode (SDK-27)', () => {
         await new Promise(resolve => setTimeout(resolve, 1000))
         expect(fake.sockets).toHaveLength(3)
         await ep.disconnect()
+    })
+
+    test('a job cancelled before its turn never sends its setSource', async () => {
+        const ep = endpoint()
+        await ep.connect()
+        // the setPop holds the line until it is answered; the job submitted after it waits its turn
+        fake.popDelayMs = 200
+        const changing = ep.changePop(PERSON)
+        const job = await ep.process({ source: { url: 'https://images.example/never.jpg' } })
+        job.cancel()
+        await changing
+        expect(await all(job)).toEqual([])
+        await ep.disconnect()
+        expect(sources(only())).toEqual([])
     })
 
     test('a source that ends with an error rejects', async () => {
@@ -337,7 +380,9 @@ describe('pipeline mode (SDK-27)', () => {
         fake.refusals.push('queue_full')
         const ep = endpoint()
         await ep.connect()
-        await expect(all(await ep.process({ source: { url: 'https://images.example/a.jpg' } }))).rejects.toThrow(/queue_full/)
+        const refused = await all(await ep.process({ source: { url: 'https://images.example/a.jpg' } })).catch(e => e)
+        expect(refused).toBeInstanceOf(PipelineCommandError)
+        expect(refused.error).toBe('queue_full')
         await ep.disconnect()
     })
 

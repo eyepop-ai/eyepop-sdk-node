@@ -31,6 +31,22 @@ const RECONNECT_AT_ONCE = new Set(['1008 credential_expired', '1011 overloaded',
 // The longest wait before such a reconnect, when one close follows another with no source played between.
 const MAX_RECONNECT_DELAY_MS = 30 * 1000
 
+/** Why pipeline mode refused its configuration. */
+export type PipelineConfigurationProblem = 'session_options' | 'job_queue_length' | 'no_pipeline_api_url' | 'insecure_url'
+
+/** Pipeline mode cannot run as configured; `options` names the refused options for `session_options`. */
+export class PipelineConfigurationError extends Error {
+    readonly problem: PipelineConfigurationProblem
+    readonly options: string[]
+
+    constructor(problem: PipelineConfigurationProblem, message: string, options: string[] = []) {
+        super(message)
+        this.name = 'PipelineConfigurationError'
+        this.problem = problem
+        this.options = options
+    }
+}
+
 /** A job in flight when the pipeline API's socket closed; the job is not sent again. */
 export class PipelineSocketClosedError extends Error {
     readonly code: number | undefined
@@ -408,7 +424,7 @@ export class PipelineBackend implements WorkerBackend {
         const config = await response.json()
         const url = config?.['pipeline_api_url']
         if (!url) {
-            throw new Error(`${configUrl} has no pipeline_api_url: this compute API serves no pipeline API`)
+            throw new PipelineConfigurationError('no_pipeline_api_url', `${configUrl} has no pipeline_api_url: this compute API serves no pipeline API`)
         }
         return url
     }
@@ -656,7 +672,11 @@ export class PipelineBackend implements WorkerBackend {
     private async run(job: PipelineJob): Promise<void> {
         let retried = false
         while (true) {
-            const { socket, source } = await this.inOrder(() => this.setSource(job))
+            const sent = await this.inOrder(() => this.setSource(job))
+            if (sent === null) {
+                return
+            }
+            const { socket, source } = sent
             const uploading = source.uploads.size > 0 ? this.upload(socket, source, job) : Promise.resolve()
             let whip: SocketWhip | null = null
             let overloaded: boolean
@@ -686,7 +706,11 @@ export class PipelineBackend implements WorkerBackend {
     }
 
     /** Send the job's setSource; the caller runs it in submission order. */
-    private async setSource(job: PipelineJob): Promise<{ socket: PipelineSocket; source: OpenSource }> {
+    private async setSource(job: PipelineJob): Promise<{ socket: PipelineSocket; source: OpenSource } | null> {
+        if (job.cancelled) {
+            // Cancelled before its turn: never sent, so it takes no source on the pipeline.
+            return null
+        }
         const combined = await combinedMedia(job)
         const socket = await this.ensureSocket()
         const source = new OpenSource(this.newId('source'))
@@ -854,10 +878,10 @@ class SocketWhip {
 function checkedUrl(url: string): string {
     const parsed = new URL(url)
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-        throw new Error(`the pipeline API url ${url} must be an http or https url`)
+        throw new PipelineConfigurationError('insecure_url', `the pipeline API url ${url} must be an http or https url`)
     }
     if (parsed.protocol === 'http:' && !isLoopback(parsed.hostname)) {
-        throw new Error(`the pipeline API url ${url} must use https unless its host is a loopback address`)
+        throw new PipelineConfigurationError('insecure_url', `the pipeline API url ${url} must use https unless its host is a loopback address`)
     }
     return url.replace(/\/+$/, '')
 }

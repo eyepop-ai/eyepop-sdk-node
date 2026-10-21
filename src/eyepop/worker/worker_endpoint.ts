@@ -4,7 +4,7 @@ import { ComponentParams, Pop, ProcessParams, ProcessRequest, ResultStream, Sour
 import { validateCamera } from '../camera'
 import { WorkerBackend, WorkerContext, WorkerWork } from './worker_backend'
 import { SessionBackend } from './session_backend'
-import { MAX_OPEN_SOURCES, PipelineBackend } from './pipeline_backend'
+import { MAX_OPEN_SOURCES, PipelineBackend, PipelineConfigurationError } from './pipeline_backend'
 
 /**
  * Endpoint to an EyePop.ai worker. Its jobs run on a backend: a worker session by default, or with
@@ -15,8 +15,13 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
     private readonly _backend: WorkerBackend
 
     constructor(options: WorkerOptions) {
-        if (options.isPipelineMode && (options.jobQueueLength ?? MAX_OPEN_SOURCES) > MAX_OPEN_SOURCES) {
-            throw new Error(`jobQueueLength ${options.jobQueueLength} exceeds ${MAX_OPEN_SOURCES}, the open sources a pipeline API socket takes`)
+        if (options.isPipelineMode) {
+            // A socket takes 256 open sources, so that is the most jobs a pipeline mode endpoint holds;
+            // a copy, so that the caller's options are left as they were.
+            options = { ...options, jobQueueLength: options.jobQueueLength || MAX_OPEN_SOURCES }
+            if ((options.jobQueueLength as number) > MAX_OPEN_SOURCES) {
+                throw new PipelineConfigurationError('job_queue_length', `jobQueueLength ${options.jobQueueLength} exceeds ${MAX_OPEN_SOURCES}, the open sources a pipeline API socket takes`)
+            }
         }
         super(options)
         const context: WorkerContext = {

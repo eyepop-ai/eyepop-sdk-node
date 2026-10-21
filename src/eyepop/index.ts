@@ -1,7 +1,7 @@
 import { AccessTokenAuth, ApiKeyAuth, LocalAuth, OAuth2Auth, Options, SessionAuth, resolveAuth } from './options'
 
 import { WorkerEndpoint } from './worker/worker_endpoint'
-import { MAX_OPEN_SOURCES } from './worker/pipeline_backend'
+import { MAX_OPEN_SOURCES, PipelineConfigurationError } from './worker/pipeline_backend'
 import { DataEndpoint } from './data/data_endpoint'
 
 import { TransientPopId, WorkerOptions } from './worker/worker_options'
@@ -279,7 +279,7 @@ export namespace EyePop {
             .filter(([, value]) => value)
             .map(([name]) => name)
         if (named.length > 0) {
-            throw new Error(`pipeline mode runs no worker session; it takes no ${named.join(', ')}`)
+            throw new PipelineConfigurationError('session_options', `pipeline mode runs no worker session; it takes no ${named.join(', ')}`, named)
         }
         if (opts.isLocalMode && !opts.eyepopUrl) {
             // Local mode talks to the pipeline API itself, on its default listener.

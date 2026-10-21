@@ -39,7 +39,8 @@ export function pops(socket: FakeSocket): unknown[] {
  * upgrades first, `refusals` answer setSources with an error, `closes` close a socket after that
  * many of its setSources were answered, `idleAfterDone` closes it `1000 idle` once it has no open
  * source, `overloadedLive` refuses that many live setSources `overloaded` and closes
- * `1011 overloaded`, and `closeOnOpen` closes every socket as soon as it opens.
+ * `1011 overloaded`, `closeOnOpen` closes every socket as soon as it opens, and `popDelayMs` holds
+ * each setPop's answer that long.
  */
 export class FakePipelineApi {
     frames = 2
@@ -52,6 +53,7 @@ export class FakePipelineApi {
     idleAfterDone = false
     overloadedLive = 0
     closeOnOpen: [number, string] | null = null
+    popDelayMs = 0
     pipelineApiUrl: string | null | undefined = undefined
     exchanges: Array<string | undefined> = []
     configAuthorizations: Array<string | undefined> = []
@@ -174,13 +176,21 @@ class Run {
         this._socket.commands.push(command)
         const id = command['id']
         switch (command['type']) {
-            case 'setPop':
-                if (this._fake.popError) {
-                    this.send({ type: 'error', id, error: this._fake.popError, message: 'no such ability' })
+            case 'setPop': {
+                const answer = () => {
+                    if (this._fake.popError) {
+                        this.send({ type: 'error', id, error: this._fake.popError, message: 'no such ability' })
+                    } else {
+                        this.send({ type: 'result', id })
+                    }
+                }
+                if (this._fake.popDelayMs > 0) {
+                    setTimeout(answer, this._fake.popDelayMs)
                 } else {
-                    this.send({ type: 'result', id })
+                    answer()
                 }
                 break
+            }
             case 'setSource':
                 this.setSource(command, null)
                 break
