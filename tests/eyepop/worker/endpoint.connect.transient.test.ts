@@ -753,16 +753,16 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
 
         try {
             await endpoint.connect()
-            expect((endpoint as any)._pipelineId).toEqual(initialPipelineId)
-            expect((endpoint as any)._sessionAccessToken).toEqual(initialAccessToken)
+            expect((endpoint.backend() as any)._pipelineId).toEqual(initialPipelineId)
+            expect((endpoint.backend() as any)._sessionAccessToken).toEqual(initialAccessToken)
 
             await expect(endpoint.changePop(replacementPop)).rejects.toThrow(`Created session ${replacementSessionUuid} did not become healthy after 0.001 seconds`)
 
             expect(endpoint.pop()).toEqual(test_transient_pop)
-            expect((endpoint as any)._baseUrl).toBeNull()
-            expect((endpoint as any)._pipeline).toBeNull()
-            expect((endpoint as any)._pipelineId).toBeNull()
-            expect((endpoint as any)._sessionAccessToken).toEqual(initialAccessToken)
+            expect((endpoint.backend() as any)._baseUrl).toBeNull()
+            expect((endpoint.backend() as any)._pipeline).toBeNull()
+            expect((endpoint.backend() as any)._pipelineId).toBeNull()
+            expect((endpoint.backend() as any)._sessionAccessToken).toEqual(initialAccessToken)
             expect(deleteInitialPipelineRoute).toHaveBeenCalledTimes(1)
             expect(createSessionRoute).toHaveBeenCalledTimes(2)
             expect(replacementHealthRoute).toHaveBeenCalled()
@@ -774,8 +774,8 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
             }
 
             expect(predictions).toHaveLength(1)
-            expect((endpoint as any)._baseUrl).toEqual(`${server.getURL().toString()}${initialSessionUuid}`)
-            expect((endpoint as any)._pipelineId).toEqual(recoveryPipelineId)
+            expect((endpoint.backend() as any)._baseUrl).toEqual(`${server.getURL().toString()}${initialSessionUuid}`)
+            expect((endpoint.backend() as any)._pipelineId).toEqual(recoveryPipelineId)
             expect(createSessionRoute).toHaveBeenCalledTimes(3)
             expect(startPipelineRoute).toHaveBeenCalledTimes(0)
             expect(sourceRoute).toHaveBeenCalledTimes(1)

@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### Added
+- Pipeline mode (SDK-27, the Node side of SDK-24): `isPipelineMode: true` on `EyePop.workerEndpoint()`, or `EYEPOP_IS_PIPELINE_MODE=true`, runs a worker endpoint's jobs on the pipeline API's socket (eyepop-instance spec 019) instead of a worker session, The endpoint is the same `WorkerEndpoint` with the same methods; only its backend differs. The compute API's `/v1/configs` names the pipeline API (`pipeline_api_url`). One socket per endpoint: the pop goes as `setPop`, each job as one `setSource` in submission order, uploads of known size up to 8 MiB in one message and others in chunks under the server's credit, groups as one `group` source, and a `mediaStream` as a WHIP ingress signalled with `whipIceServers`, `whipOffer` and `whipIce` on the socket. Node sends the token as `Authorization: Bearer`, a browser as the `eyepop.bearer.<jwt>` subprotocol; an API key never reaches the pipeline API. The README's "Pipeline Mode" section lists what the mode supports, and what it refuses or does not send yet (AWSU-317). `examples/node/pipeline_mode.ts` runs it.
+- `WorkerEndpoint.backend()`, what runs the endpoint's jobs: a `SessionBackend` (a worker session, as before) or a `PipelineBackend` (the pipeline API), behind the `WorkerBackend` interface.
+- `PipelineSocketClosedError`, `PipelineCommandError` and `PipelineSourceError`.
+
+### Changed
+- `WorkerEndpoint` keeps the public methods and their checks and hands each job to its backend as a `WorkerWork`. The worker session code (the compute session, the transient pipeline, the pop config and how each job is started) moved into `SessionBackend` unchanged; the job classes in `worker/jobs.ts` are the session backend's and stay exported.
+- A `path` source resolved in Node now carries its file's `size`.
+
 ## [3.23.0] - 2026-10-12
 
 ### Added

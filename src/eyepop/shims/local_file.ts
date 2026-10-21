@@ -43,6 +43,7 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
         const mime = require('mime-types')
         const filehandle = require('node:fs/promises')
         const fd = await filehandle.open(source.path, 'r')
+        const size = (await fd.stat()).size
         const stream = fd.createReadStream()
         const iterator = nodeStreamToIterator(stream as AsyncIterable<Uint8Array>)
         const webStream = iteratorToStream(iterator)
@@ -51,6 +52,7 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
         return {
             stream: webStream,
             mimeType: mimeType,
+            size: size,
         }
     }
 }
