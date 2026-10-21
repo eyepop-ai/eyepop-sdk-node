@@ -38,8 +38,8 @@ export function pops(socket: FakeSocket): unknown[] {
  * live source predicts until the socket closes. Scripted behaviour: `upgradeAnswers` refuse
  * upgrades first, `refusals` answer setSources with an error, `closes` close a socket after that
  * many of its setSources were answered, `idleAfterDone` closes it `1000 idle` once it has no open
- * source, and `overloadedLive` refuses that many live setSources `overloaded` and closes
- * `1011 overloaded`.
+ * source, `overloadedLive` refuses that many live setSources `overloaded` and closes
+ * `1011 overloaded`, and `closeOnOpen` closes every socket as soon as it opens.
  */
 export class FakePipelineApi {
     frames = 2
@@ -51,6 +51,7 @@ export class FakePipelineApi {
     closes = new Map<number, [number, string]>()
     idleAfterDone = false
     overloadedLive = 0
+    closeOnOpen: [number, string] | null = null
     pipelineApiUrl: string | null | undefined = undefined
     exchanges: Array<string | undefined> = []
     configAuthorizations: Array<string | undefined> = []
@@ -84,6 +85,10 @@ export class FakePipelineApi {
                 this.sockets.push(fake)
                 this._open.add(ws)
                 ws.on('close', () => this._open.delete(ws))
+                if (this.closeOnOpen !== null) {
+                    ws.close(...this.closeOnOpen)
+                    return
+                }
                 new Run(this, fake, ws)
             })
         })
@@ -339,4 +344,3 @@ function uploadMembers(command: Message): Array<[number | null, number | undefin
         (member, i): Array<[number | null, number | undefined]> => (member['upload'] !== undefined ? [[i, member['upload']['bytes']]] : []),
     )
 }
-

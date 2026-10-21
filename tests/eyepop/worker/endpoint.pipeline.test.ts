@@ -221,6 +221,21 @@ describe('pipeline mode (SDK-27)', () => {
         await ep.disconnect()
     })
 
+    test('closes one after another wait longer before each reconnect', async () => {
+        // Every socket is closed 1001 shutting_down as it opens: the first reconnect is at once, the
+        // next waits a second, the one after two
+        fake.closeOnOpen = [1001, 'shutting_down']
+        const ep = endpoint()
+        await ep.connect()
+        await new Promise(resolve => setTimeout(resolve, 500))
+        expect(fake.sockets).toHaveLength(2)
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        expect(fake.sockets).toHaveLength(3)
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        expect(fake.sockets).toHaveLength(3)
+        await ep.disconnect()
+    })
+
     test('a source that ends with an error rejects', async () => {
         const ep = endpoint()
         await ep.connect()

@@ -28,6 +28,8 @@ const MAX_RETRY_MS = 30 * 1000
 // The closes after which the endpoint opens a new socket at once; after any other close it opens
 // one when the next job or changePop needs it.
 const RECONNECT_AT_ONCE = new Set(['1008 credential_expired', '1011 overloaded', '1001 shutting_down'])
+// The longest wait before such a reconnect, when one close follows another with no source played between.
+const MAX_RECONNECT_DELAY_MS = 30 * 1000
 
 /** A job in flight when the pipeline API's socket closed; the job is not sent again. */
 export class PipelineSocketClosedError extends Error {
@@ -275,6 +277,8 @@ export class PipelineBackend implements WorkerBackend {
     private _currentPop: Pop | null
     private readonly _warned = new Set<string>()
     private _heartbeat: ReturnType<typeof setInterval> | null = null
+    // Reconnects at once since a source last played.
+    private _reconnects = 0
 
     constructor(private readonly ctx: WorkerContext) {
         this._currentPop = ctx.options.pop ?? null
@@ -461,10 +465,17 @@ export class PipelineBackend implements WorkerBackend {
             if (reason === 'credential_expired') {
                 this.ctx.forgetCredential()
             }
-            this.inOrder(() => this.ensureSocket()).catch(error => {
-                // The next job or changePop tries again and reports what fails.
-                this.ctx.requestLogger.info('could not reopen the pipeline API socket: %s', error)
-            })
+            // The first reconnect is at once. Should the new socket be closed the same way before a
+            // source plays on it, each next one waits twice as long, so a pipeline API that keeps
+            // closing is not reconnected to in a loop.
+            const delay = this._reconnects === 0 ? 0 : Math.min(1000 * 2 ** (this._reconnects - 1), MAX_RECONNECT_DELAY_MS)
+            this._reconnects += 1
+            new Promise(resolve => setTimeout(resolve, delay))
+                .then(() => (this._disconnecting ? undefined : this.inOrder(() => this.ensureSocket())))
+                .catch(error => {
+                    // The next job or changePop tries again and reports what fails.
+                    this.ctx.requestLogger.info('could not reopen the pipeline API socket: %s', error)
+                })
         }
     }
 
@@ -488,6 +499,9 @@ export class PipelineBackend implements WorkerBackend {
             return
         }
         if (source !== undefined) {
+            if (type === 'start') {
+                this._reconnects = 0
+            }
             if (type === 'end') {
                 source.uploads.forEach(upload => upload.end())
             }
