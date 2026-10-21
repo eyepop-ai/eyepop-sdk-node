@@ -35,7 +35,7 @@ export interface WorkerOptions extends Options {
      * Run the endpoint's jobs on the pipeline API's socket instead of a worker session. The
      * compute API at `eyepopUrl` names the pipeline API in its `/v1/configs`; with `isLocalMode`,
      * `eyepopUrl` is the pipeline API itself. Takes no option that names a session or a pop id.
-     * Defaults to process.env['EYEPOP_IS_PIPELINE_MODE'].
+     * Defaults to process.env['EYEPOP_PIPELINE_MODE'].
      */
     isPipelineMode?: boolean
 }

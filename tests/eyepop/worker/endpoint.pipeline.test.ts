@@ -9,7 +9,7 @@ import { FakePipelineApi, FakeSocket, pops, prediction, sources } from './pipeli
 const PERSON: Pop = { components: [{ type: 'inference', ability: 'eyepop.person:latest' } as any] }
 const VEHICLE: Pop = { components: [{ type: 'inference', ability: 'eyepop.vehicle:latest' } as any] }
 
-const ENV = ['EYEPOP_URL', 'EYEPOP_API_KEY', 'EYEPOP_POP_ID', 'EYEPOP_SESSION_UUID', 'EYEPOP_IS_PIPELINE_MODE', 'EYEPOP_LOCAL_MODE']
+const ENV = ['EYEPOP_URL', 'EYEPOP_API_KEY', 'EYEPOP_POP_ID', 'EYEPOP_SESSION_UUID', 'EYEPOP_PIPELINE_MODE', 'EYEPOP_LOCAL_MODE']
 
 async function all(stream: ResultStream): Promise<Prediction[]> {
     const results: Prediction[] = []
@@ -70,7 +70,7 @@ describe('pipeline mode (SDK-27)', () => {
 
     test('is selected by the option or the environment', () => {
         expect(inPipelineMode(EyePop.workerEndpoint({ accessToken: 't', isPipelineMode: true }))).toBe(true)
-        process.env['EYEPOP_IS_PIPELINE_MODE'] = 'true'
+        process.env['EYEPOP_PIPELINE_MODE'] = 'true'
         expect(inPipelineMode(EyePop.workerEndpoint({ accessToken: 't' }))).toBe(true)
         const session = EyePop.workerEndpoint({ accessToken: 't', isPipelineMode: false })
         expect(inPipelineMode(session)).toBe(false)

@@ -203,7 +203,7 @@ export namespace EyePop {
             opts.isLocalMode = stringToBooleanSafe(readEnv('EYEPOP_LOCAL_MODE'))
         }
         if (opts.isPipelineMode === undefined) {
-            opts.isPipelineMode = stringToBooleanSafe(readEnv('EYEPOP_IS_PIPELINE_MODE'))
+            opts.isPipelineMode = stringToBooleanSafe(readEnv('EYEPOP_PIPELINE_MODE'))
         }
         if (opts.isPipelineMode) {
             return pipelineEndpoint(opts)

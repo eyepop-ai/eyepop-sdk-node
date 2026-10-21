@@ -165,7 +165,7 @@ When `EYEPOP_SESSION_UUID` is set, `EyePop.workerEndpoint()` connects to that pe
 
 ## Pipeline Mode
 
-With `isPipelineMode: true`, or `EYEPOP_IS_PIPELINE_MODE=true`, a worker endpoint runs its jobs on the pipeline API instead of a worker session. The code that uses the endpoint stays the same:
+With `isPipelineMode: true`, or `EYEPOP_PIPELINE_MODE=true`, a worker endpoint runs its jobs on the pipeline API instead of a worker session. The code that uses the endpoint stays the same:
 
 ```javascript
 const endpoint = await EyePop.workerEndpoint({ isPipelineMode: true, pop }).connect()
