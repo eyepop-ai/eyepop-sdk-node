@@ -31,6 +31,11 @@ export interface WorkerSession extends Session {
      * Transient sessions may not have a pipeline until the first source is processed.
      */
     readonly pipelineId: string | undefined
+    /**
+     * If this session was created in pipeline mode w/0 session
+     */
+    readonly isPipelineMode: boolean | undefined
+
     authenticationHeaders(): any
 }
 

@@ -804,6 +804,7 @@ export class PipelineBackend implements WorkerBackend {
             accountId: this.ctx.options.accountId,
             baseUrl: this._pipelineApiUrl ?? undefined,
             pipelineId: undefined,
+            isPipelineMode: true,
             authenticationHeaders: () => (token === undefined ? {} : { Authorization: `Bearer ${token}` }),
         }
     }
