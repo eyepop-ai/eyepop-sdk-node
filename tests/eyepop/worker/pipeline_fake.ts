@@ -54,6 +54,8 @@ export class FakePipelineApi {
     overloadedLive = 0
     closeOnOpen: [number, string] | null = null
     popDelayMs = 0
+    // False plays a pipeline API from before stopSource, which answers it unknown_command.
+    knowsStopSource = true
     pipelineApiUrl: string | null | undefined = undefined
     exchanges: Array<string | undefined> = []
     configAuthorizations: Array<string | undefined> = []
@@ -147,6 +149,9 @@ class Run {
     private readonly _uploads: Array<[string, number | null]> = []
     private readonly _missing = new Map<string, number>()
     private readonly _commands = new Map<string, Message>()
+    // Sources the client stopped, and the live one playing, which ends at its next frame once stopped.
+    private readonly _stopped = new Set<string>()
+    private _live: string | null = null
 
     constructor(
         private readonly _fake: FakePipelineApi,
@@ -215,6 +220,13 @@ class Run {
                 break
             case 'whipIce':
                 this.send({ type: 'result', id })
+                break
+            case 'stopSource':
+                if (!this._fake.knowsStopSource) {
+                    this.send({ type: 'error', id, error: 'unknown_command', message: 'stopSource' })
+                } else {
+                    this.stopSource(id)
+                }
                 break
             case 'quit':
                 this._ws.close()
@@ -299,6 +311,19 @@ class Run {
         }
     }
 
+    /** End a source at the client's word: a playing live one at its next frame, any other at once. */
+    private stopSource(id: string): void {
+        if (!this._open.includes(id) || this._stopped.has(id)) {
+            this.send({ type: 'error', id, error: 'invalid_request', message: 'no open source' })
+            return
+        }
+        this._stopped.add(id)
+        if (this._live !== id) {
+            this._uploads.splice(0, this._uploads.length, ...this._uploads.filter(([upload]) => upload !== id))
+            this.end(id, 'stopped')
+        }
+    }
+
     private playNext(): void {
         const next = this._queue.shift()
         if (next === undefined) {
@@ -306,12 +331,24 @@ class Run {
             return
         }
         const [id, command] = next
+        if (this._stopped.has(id)) {
+            setImmediate(() => this.playNext())
+            return
+        }
         this.send({ type: 'start', id })
         if (isLive(command)) {
             let n = 0
+            this._live = id
             const timer = setInterval(() => {
                 if (this._ws.readyState !== WebSocket.OPEN) {
                     clearInterval(timer)
+                    return
+                }
+                if (this._stopped.has(id)) {
+                    clearInterval(timer)
+                    this._live = null
+                    this.end(id, 'stopped')
+                    this.playNext()
                     return
                 }
                 this.send({ type: 'prediction', id, prediction: prediction(n++) })

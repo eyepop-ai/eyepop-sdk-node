@@ -211,6 +211,8 @@ export class PipelineJob implements ResultStream {
     private _consumed = false
     private _cancelled = false
     openSource: OpenSource | null = null
+    // Stops the job's source on the pipeline, once it was sent.
+    stopOnPipeline: (() => void) | null = null
 
     constructor(
         readonly source: Message,
@@ -261,6 +263,8 @@ export class PipelineJob implements ResultStream {
         this._cancelled = true
         this._results.push(null)
         this.openSource?.inbox.push(CANCELLED)
+        // So that a cancelled live source stops on the pipeline instead of running until the socket closes.
+        this.stopOnPipeline?.()
     }
 
     async *[Symbol.asyncIterator](): AsyncIterator<Prediction> {
@@ -523,7 +527,13 @@ export class PipelineBackend implements WorkerBackend {
             }
             source.inbox.push(message)
         } else if (type === 'error') {
-            this.ctx.logger.warn('the pipeline API refused a message: %s %s', message['error'], message['message'])
+            if (id === undefined) {
+                this.ctx.logger.warn('the pipeline API refused a message: %s %s', message['error'], message['message'])
+            } else {
+                // A stopSource for a source that ended meanwhile, or one a pipeline API without
+                // stopSource does not know: the job ended either way.
+                this.ctx.requestLogger.debug('the pipeline API refused a command for %s: %s %s', id, message['error'], message['message'])
+            }
         }
     }
 
@@ -689,6 +699,7 @@ export class PipelineBackend implements WorkerBackend {
                 })
             } finally {
                 job.openSource = null
+                job.stopOnPipeline = null
                 socket.sources.delete(source.id)
                 source.uploads.forEach(upload => upload.end())
                 await uploading
@@ -719,6 +730,11 @@ export class PipelineBackend implements WorkerBackend {
         }
         socket.sources.set(source.id, source)
         job.openSource = source
+        job.stopOnPipeline = () => {
+            if (socket.open) {
+                socket.sendJson({ type: 'stopSource', id: source.id })
+            }
+        }
         const command = job.command(source.id)
         if (combined === null) {
             socket.sendJson(command)

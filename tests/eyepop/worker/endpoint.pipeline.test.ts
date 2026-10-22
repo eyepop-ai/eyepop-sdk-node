@@ -279,6 +279,30 @@ describe('pipeline mode (SDK-27)', () => {
         expect(sources(only())).toEqual([])
     })
 
+    test('a cancelled live job stops its source on the pipeline, and the next job plays', async () => {
+        const ep = endpoint()
+        await ep.connect()
+        const live = await ep.process({ source: { url: 'rtsp://camera.example/stream' } })
+        expect((await live[Symbol.asyncIterator]().next()).value).toEqual(prediction(0))
+        live.cancel()
+        // the live source no longer holds the pipeline's queue
+        expect(await all(await ep.process({ source: { url: 'https://images.example/a.jpg' } }))).toEqual([prediction(0), prediction(1)])
+        await ep.disconnect()
+        expect(only().commands).toContainEqual({ type: 'stopSource', id: sources(only())[0]?.['id'] })
+    })
+
+    test('cancelling against a pipeline API without stopSource still ends the job', async () => {
+        fake.knowsStopSource = false
+        const ep = endpoint()
+        await ep.connect()
+        const live = await ep.process({ source: { url: 'rtsp://camera.example/stream' } })
+        const iterator = live[Symbol.asyncIterator]()
+        expect((await iterator.next()).value).toEqual(prediction(0))
+        live.cancel()
+        expect((await iterator.next()).done).toBe(true)
+        await ep.disconnect()
+    })
+
     test('a source that ends with an error rejects', async () => {
         const ep = endpoint()
         await ep.connect()
