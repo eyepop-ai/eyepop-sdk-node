@@ -693,8 +693,14 @@ export class PipelineBackend implements WorkerBackend {
             try {
                 overloaded = await this.follow(job, source, () => {
                     if (job.mediaStream !== undefined) {
-                        whip = new SocketWhip(job.mediaStream, job.source['whip']['ingressId'], message => this.command(socket, message), this.ctx.requestLogger)
-                        whip.start().catch(error => source.inbox.push(error instanceof Error ? error : new Error(String(error))))
+                        // A WHIP that fails leaves the live source waiting for media it never gets, so the
+                        // failure stops it on the pipeline as well as ending the job.
+                        const fail = (error: unknown) => {
+                            job.stopOnPipeline?.()
+                            source.inbox.push(error instanceof Error ? error : new Error(String(error)))
+                        }
+                        whip = new SocketWhip(job.mediaStream, job.source['whip']['ingressId'], message => this.command(socket, message), fail, this.ctx.requestLogger)
+                        whip.start().catch(fail)
                     }
                 })
             } finally {
@@ -832,6 +838,7 @@ export class PipelineBackend implements WorkerBackend {
 /**
  * WHIP signalled over the socket (spec 019): ICE servers, the offer and each local candidate go
  * as `whipIceServers`, `whipOffer` and `whipIce` for the source's ingress; the media goes over WebRTC.
+ * A connection that fails is reported through `fail`, since the pipeline only hears no media.
  */
 class SocketWhip {
     private _pc: RTCPeerConnection | null = null
@@ -843,13 +850,28 @@ class SocketWhip {
         private readonly _stream: MediaStream,
         private readonly _ingressId: string,
         private readonly _command: (message: Message) => Promise<Message>,
+        private readonly _fail: (error: Error) => void,
         private readonly _logger: { debug: (...args: any[]) => void },
     ) {}
 
     async start(): Promise<void> {
         const servers = await this._command({ type: 'whipIceServers', ingressId: this._ingressId })
-        const pc = new RTCPeerConnection({ iceServers: WebrtcBase.linkToIceServers(((servers['iceServers'] as string[] | undefined) ?? []).join(', ') || null) })
+        const iceServers = (servers['iceServers'] as string[] | undefined) ?? []
+        // Only the urls: a TURN server's entry carries its credential.
+        this._logger.debug('whip %s: ice servers %j', this._ingressId, iceServers.map(server => server.split(';')[0]))
+        const pc = new RTCPeerConnection({ iceServers: WebrtcBase.linkToIceServers(iceServers.join(', ') || null) })
         this._pc = pc
+        pc.oniceconnectionstatechange = () => {
+            this._logger.debug('whip %s: ice connection %s', this._ingressId, pc.iceConnectionState)
+            if (pc.iceConnectionState === 'failed' && this._pc === pc) {
+                this._fail(
+                    new Error(
+                        `the WebRTC connection of whip ingress ${this._ingressId} failed: no candidate pair connected, ` +
+                            `so the pipeline API is likely reachable through no STUN or TURN server (ice servers: ${iceServers.length})`,
+                    ),
+                )
+            }
+        }
         pc.onicecandidate = evt => {
             if (evt.candidate !== null) {
                 this.candidate(evt.candidate).catch(error => this._logger.debug('whipIce failed: %s', error))

@@ -8,6 +8,7 @@
 - `WorkerSession.isPipelineMode`: a session from a pipeline mode endpoint says so, and `EyePop.workerEndpoint({ session })` then runs in pipeline mode too, so a server can hand its pipeline mode session to a client (#237). An explicit `isPipelineMode` wins over the session, and the session over `EYEPOP_PIPELINE_MODE`. The session carries its token's real `validUntil`. A worker session's `isPipelineMode` is `false`.
 - `PipelineSocketClosedError`, `PipelineCommandError` and `PipelineSourceError`.
 - In pipeline mode, cancelling a job sends `stopSource` for its source (eyepop-instance spec 019 User Story 7, stop one source), so a cancelled live source stops on the pipeline instead of running until the socket closes. A pipeline API from before `stopSource` answers it `unknown_command`, which is logged at debug and changes nothing else.
+- In pipeline mode, a WHIP source whose WebRTC connection fails ends its job with an error saying so, and sends `stopSource` for it, instead of waiting for predictions that never come. The ICE server urls the pipeline API returns and each ICE connection state are logged at debug.
 
 ### Changed
 - `WorkerEndpoint` keeps the public methods and their checks and hands each job to its backend as a `WorkerWork`. The worker session code (the compute session, the transient pipeline, the pop config and how each job is started) moved into `SessionBackend` unchanged; the job classes in `worker/jobs.ts` are the session backend's and stay exported.

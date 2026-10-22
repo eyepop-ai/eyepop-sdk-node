@@ -505,6 +505,48 @@ describe('pipeline mode (SDK-27)', () => {
         expect(peers[0].remote.sdp).toMatch(/^answer to v=0/)
         expect(stopped).toEqual(['track'])
     })
+
+    test('a whip whose WebRTC connection fails ends the job with the failure and stops its source', async () => {
+        const mediaStream = { getTracks: () => [{ stop: () => {} }] } as unknown as MediaStream
+        class FailingPeerConnection {
+            onicecandidate: ((evt: any) => void) | null = null
+            oniceconnectionstatechange: (() => void) | null = null
+            iceConnectionState = 'new'
+            constructor(readonly config: any) {}
+            addTrack() {}
+            async createOffer() {
+                return { type: 'offer', sdp: 'v=0\r\na=ice-ufrag:u\r\na=ice-pwd:p\r\nm=video 9 UDP/TLS/RTP/SAVPF 96\r\n' }
+            }
+            async setLocalDescription() {}
+            async setRemoteDescription() {
+                // As a browser does once no candidate pair connects.
+                setTimeout(() => {
+                    this.iceConnectionState = 'failed'
+                    this.oniceconnectionstatechange?.()
+                }, 10)
+            }
+            close() {}
+        }
+        ;(globalThis as any).RTCPeerConnection = FailingPeerConnection
+        let failure: unknown = null
+        try {
+            const ep = endpoint()
+            await ep.connect()
+            const live = await ep.process({ source: { mediaStream } })
+            try {
+                for await (const _ of live) {
+                    // the fake's predictions until the failure
+                }
+            } catch (error) {
+                failure = error
+            }
+            await ep.disconnect()
+        } finally {
+            delete (globalThis as any).RTCPeerConnection
+        }
+        expect(String(failure)).toMatch(/WebRTC connection of whip ingress .* failed/)
+        expect(only().commands).toContainEqual({ type: 'stopSource', id: sources(only())[0]?.['id'] })
+    })
 })
 
 jest.setTimeout(20000)
