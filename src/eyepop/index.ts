@@ -1,6 +1,7 @@
 import { AccessTokenAuth, ApiKeyAuth, LocalAuth, OAuth2Auth, Options, SessionAuth, resolveAuth } from './options'
 
 import { WorkerEndpoint } from './worker/worker_endpoint'
+import { MAX_OPEN_SOURCES, PipelineConfigurationError } from './worker/pipeline_backend'
 import { DataEndpoint } from './data/data_endpoint'
 
 import { TransientPopId, WorkerOptions } from './worker/worker_options'
@@ -201,6 +202,15 @@ export namespace EyePop {
         if (opts.isLocalMode === undefined) {
             opts.isLocalMode = stringToBooleanSafe(readEnv('EYEPOP_LOCAL_MODE'))
         }
+        if (opts.isPipelineMode === undefined) {
+            // A session handed over from a pipeline mode endpoint carries a token for the pipeline
+            // API, so its mode wins over the environment; an explicit isPipelineMode wins over both.
+            const shared = (resolveAuth(opts) as SessionAuth | undefined)?.session as WorkerSession | undefined
+            opts.isPipelineMode = shared?.isPipelineMode ?? stringToBooleanSafe(readEnv('EYEPOP_PIPELINE_MODE'))
+        }
+        if (opts.isPipelineMode) {
+            return pipelineEndpoint(opts)
+        }
         if (opts.isLocalMode) {
             opts.eyepopUrl = 'http://127.0.0.1:8080'
         }
@@ -254,6 +264,43 @@ export namespace EyePop {
                     }
                 }
             }
+        }
+        return new WorkerEndpoint(opts)
+    }
+
+    /** A worker endpoint on the pipeline API (SDK-27), refusing what only a worker session has. */
+    function pipelineEndpoint(opts: WorkerOptions): WorkerEndpoint {
+        const popId = opts.popId ?? readEnv('EYEPOP_POP_ID')
+        const sessionOnly: Record<string, unknown> = {
+            popId: popId === TransientPopId.Transient ? undefined : popId,
+            sessionUuid: opts.sessionUuid ?? readEnv('EYEPOP_SESSION_UUID'),
+            sessionName: opts.sessionName,
+            pipelineImage: opts.pipelineImage,
+            pipelineVersion: opts.pipelineVersion,
+        }
+        const named = Object.entries(sessionOnly)
+            .filter(([, value]) => value)
+            .map(([name]) => name)
+        if (named.length > 0) {
+            throw new PipelineConfigurationError('session_options', `pipeline mode runs no worker session; it takes no ${named.join(', ')}`, named)
+        }
+        if (opts.isLocalMode && !opts.eyepopUrl) {
+            // Local mode talks to the pipeline API itself, on its default listener.
+            opts.eyepopUrl = readEnv('EYEPOP_URL') || 'http://127.0.0.1:9002'
+        }
+        if (!opts.jobQueueLength) {
+            opts.jobQueueLength = MAX_OPEN_SOURCES
+        }
+        _fill_default_options(opts)
+        if (resolveAuth(opts) === undefined) {
+            if (opts.isLocalMode) {
+                opts.auth = { isLocal: true } as LocalAuth
+            } else {
+                throw new Error('apiKey/accessToken/session/oAuth2 option or EYEPOP_API_KEY environment variable is required')
+            }
+        }
+        if (opts.accountId === undefined) {
+            opts.accountId = ((resolveAuth(opts) as SessionAuth | undefined)?.session as WorkerSession | undefined)?.accountId ?? readAccountUuidEnv()
         }
         return new WorkerEndpoint(opts)
     }
@@ -342,6 +389,9 @@ export * from './worker/worker_types'
 export * from './worker/worker_options'
 export { ComputeAccountMismatchError, ComputeApiError } from './compute/compute_session'
 export * from './worker/worker_endpoint'
+export * from './worker/worker_backend'
+export * from './worker/session_backend'
+export * from './worker/pipeline_backend'
 export * from './worker/jobs'
 export * from './worker/webrtc_base'
 export * from './worker/webrtc_whep'

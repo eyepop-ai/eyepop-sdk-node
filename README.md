@@ -163,6 +163,36 @@ const endpoint = await EyePop.workerEndpoint().connect()
 
 When `EYEPOP_SESSION_UUID` is set, `EyePop.workerEndpoint()` connects to that persistent session. Persistent deployments are normally created outside the SDK through the compute API or EyePop tooling.
 
+## Pipeline Mode
+
+With `isPipelineMode: true`, or `EYEPOP_PIPELINE_MODE=true`, a worker endpoint runs its jobs on the pipeline API instead of a worker session. The code that uses the endpoint stays the same:
+
+```javascript
+const endpoint = await EyePop.workerEndpoint({ isPipelineMode: true, pop }).connect()
+for await (const prediction of await endpoint.process({ source: { path: 'photo.jpg' } })) {
+    console.log(prediction)
+}
+await endpoint.disconnect()
+```
+
+The endpoint opens one socket to the pipeline API at `connect()` and sets its pop there. The compute API at `eyepopUrl` names the pipeline API in its `/v1/configs` (`pipeline_api_url`); with `isLocalMode`, `eyepopUrl` is the pipeline API itself (default `http://127.0.0.1:9002`). Jobs go out in the order they are submitted, each queued behind the ones before it; `jobQueueLength` may not exceed 256.
+
+| | Pipeline mode |
+|---|---|
+| `path`, `file`, `stream` sources, `uploadGroup`, `uploadStreamGroup` | Uploads of known size up to 8 MiB go in one message, others in chunks as the pipeline reads them. |
+| `url`, `assetUuid` sources, `loadFromGroup` | Supported. An `rtsp://` or `rtmp://` url is live. |
+| `mediaStream` source | A WHIP ingress, signalled on the socket; the media goes over WebRTC. |
+| `componentParams`, `roi`, `camera`, `fps` | Supported. |
+| `videoMode`, `motionDetect` | Not sent yet; a warning names each once per endpoint (AWSU-317). |
+| `rtspForceNonCompliantUrl` | Not sent; a warning names it once per endpoint. |
+| `changePop`, `pop()` | Supported. A pop the pipeline refuses rejects, and the last pop it took stays. |
+| `session()` | Its `baseUrl` is the pipeline API's url, there is no `pipelineId`, and `isPipelineMode` is `true`: an endpoint created from it with `session` runs in pipeline mode too, with the token's own `validUntil`. |
+| `apiKey`, `accessToken`, `session`, `oAuth2` | An API key is exchanged at the compute API and never sent to the pipeline API. Node sends the token as `Authorization: Bearer`; a browser, which cannot set headers on a WebSocket, as the `eyepop.bearer.<jwt>` subprotocol. |
+| `popId`, `sessionUuid`, `sessionName`, `pipelineImage`, `pipelineVersion` | Throw at construction. |
+| Prediction version | The pipeline API's own (V3); none is sent. |
+
+**Errors.** A source that ends with an error rejects with `PipelineSourceError`. A command the pipeline API refuses, `queue_full` among them, rejects with `PipelineCommandError`. When the socket closes under a job, the job rejects with `PipelineSocketClosedError`, which carries the close's code and reason, and is not sent again; jobs not yet sent go out on a new socket. After the pipeline stops itself when idle, the next job opens a new socket and sets the pop again; after `credential_expired`, `overloaded` or `shutting_down`, a new socket is opened at once. A live source refused `overloaded` is sent once more on the new socket. Cancelling a job stops its source on the pipeline with `stopSource`, queued or playing, so a cancelled live source frees its place; a pipeline API from before `stopSource` lets the source run until it ends or the endpoint disconnects.
+
 ## Accounts
 
 A worker session runs and is billed under one account. If your credential belongs to more than one account, name it with `EYEPOP_ACCOUNT_UUID` or the `accountId` option, which `EyePop.workerEndpoint()` and `EyePop.dataEndpoint()` both take. A worker endpoint sends it as `account_uuid` when it creates a session and reuses only a live session of that account; without it, the compute API refuses a session it cannot attribute to an account.

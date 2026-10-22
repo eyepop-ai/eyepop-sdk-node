@@ -31,6 +31,12 @@ export interface WorkerSession extends Session {
      * Transient sessions may not have a pipeline until the first source is processed.
      */
     readonly pipelineId: string | undefined
+    /**
+     * Whether this session's endpoint runs in pipeline mode, without a worker session. A worker
+     * endpoint created from this session runs in pipeline mode too.
+     */
+    readonly isPipelineMode?: boolean | undefined
+
     authenticationHeaders(): any
 }
 
