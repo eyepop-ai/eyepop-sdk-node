@@ -32,9 +32,10 @@ export interface WorkerSession extends Session {
      */
     readonly pipelineId: string | undefined
     /**
-     * If this session was created in pipeline mode w/0 session
+     * Whether this session's endpoint runs in pipeline mode, without a worker session. A worker
+     * endpoint created from this session runs in pipeline mode too.
      */
-    readonly isPipelineMode: boolean | undefined
+    readonly isPipelineMode?: boolean | undefined
 
     authenticationHeaders(): any
 }

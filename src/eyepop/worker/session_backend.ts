@@ -106,7 +106,7 @@ export class SessionBackend implements WorkerBackend {
             accountId: this._accountId ?? this.ctx.options.accountId,
             baseUrl: this._baseUrl as string,
             pipelineId: this._pipelineId || undefined,
-            isPipelineMode: true,
+            isPipelineMode: false,
             authenticationHeaders: () => this._authenticationHeaders(session),
         }
     }

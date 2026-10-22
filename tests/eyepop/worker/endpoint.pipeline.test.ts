@@ -410,6 +410,53 @@ describe('pipeline mode (SDK-27)', () => {
         await ep.disconnect()
     })
 
+    // Handing a session to another endpoint
+
+    test('a client built from a pipeline mode session runs in pipeline mode with the session token', async () => {
+        const server = endpoint()
+        await server.connect()
+        const shared = JSON.parse(JSON.stringify(await server.session()))
+        expect(shared.isPipelineMode).toBe(true)
+        // the token's own expiry: the fake mints tokens for an hour, less the minute the SDK keeps in hand
+        expect(shared.validUntil).toBeGreaterThan(Date.now() + 58 * 60 * 1000)
+        expect(shared.validUntil).toBeLessThan(Date.now() + 60 * 60 * 1000)
+
+        const client = EyePop.workerEndpoint({ session: shared, logger: pino({ level: 'silent' }) })
+        expect(inPipelineMode(client)).toBe(true)
+        expect((client as any)._limit.getPermits()).toBe(256)
+        await client.connect()
+        expect(await all(await client.process({ source: { url: 'https://images.example/a.jpg' } }))).toEqual([prediction(0), prediction(1)])
+        await client.disconnect()
+        await server.disconnect()
+        expect(fake.sockets.map(s => s.authorization)).toEqual(['Bearer minted-1', 'Bearer minted-1'])
+        expect(fake.exchanges).toHaveLength(1)
+    })
+
+    test('a client built from a worker session stays in session mode', () => {
+        const session = { eyepopUrl: fake.url, accessToken: 't', validUntil: Date.now() + 60000, popId: 'transient', baseUrl: fake.url, pipelineId: 'p', isPipelineMode: false }
+        expect(EyePop.workerEndpoint({ session: session as any }).backend()).toBeInstanceOf(SessionBackend)
+    })
+
+    test('an explicit isPipelineMode wins over the session it is built from', () => {
+        const session = { eyepopUrl: fake.url, accessToken: 't', validUntil: Date.now() + 60000, popId: 'transient', baseUrl: fake.url, pipelineId: undefined, isPipelineMode: true }
+        expect(EyePop.workerEndpoint({ session: session as any, isPipelineMode: false }).backend()).toBeInstanceOf(SessionBackend)
+    })
+
+    test('a client built from a pipeline mode session refuses a worker session named by the environment', () => {
+        process.env['EYEPOP_SESSION_UUID'] = 'a-session'
+        const session = { eyepopUrl: fake.url, accessToken: 't', validUntil: Date.now() + 60000, popId: 'transient', baseUrl: fake.url, pipelineId: undefined, isPipelineMode: true }
+        expect(refusal(() => EyePop.workerEndpoint({ session: session as any }))).toMatchObject({ problem: 'session_options', options: ['sessionUuid'] })
+    })
+
+    test('a worker session says it is not in pipeline mode', async () => {
+        const backend = new SessionBackend({
+            options: { popId: 'transient' },
+            credentialSession: async () => ({ eyepopUrl: fake.url, accessToken: 't', validUntil: 1 }),
+        } as any)
+        ;(backend as any)._baseUrl = fake.url
+        expect((await backend.session()).isPipelineMode).toBe(false)
+    })
+
     // WHIP over the socket
 
     test('a media stream is a whip source signalled with whipIceServers, whipOffer and whipIce', async () => {

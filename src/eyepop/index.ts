@@ -203,7 +203,10 @@ export namespace EyePop {
             opts.isLocalMode = stringToBooleanSafe(readEnv('EYEPOP_LOCAL_MODE'))
         }
         if (opts.isPipelineMode === undefined) {
-            opts.isPipelineMode = stringToBooleanSafe(readEnv('EYEPOP_PIPELINE_MODE'))
+            // A session handed over from a pipeline mode endpoint carries a token for the pipeline
+            // API, so its mode wins over the environment; an explicit isPipelineMode wins over both.
+            const shared = (resolveAuth(opts) as SessionAuth | undefined)?.session as WorkerSession | undefined
+            opts.isPipelineMode = shared?.isPipelineMode ?? stringToBooleanSafe(readEnv('EYEPOP_PIPELINE_MODE'))
         }
         if (opts.isPipelineMode) {
             return pipelineEndpoint(opts)
@@ -253,9 +256,6 @@ export namespace EyePop {
         if (auth !== undefined) {
             if ((auth as SessionAuth).session !== undefined) {
                 if (((auth as SessionAuth).session as WorkerSession) !== undefined) {
-                    if (((auth as SessionAuth).session as WorkerSession).isPipelineMode) {
-                        opts.isPipelineMode = true
-                    }
                     if (((auth as SessionAuth).session as WorkerSession).popId) {
                         opts.popId = ((auth as SessionAuth).session as WorkerSession).popId
                     }
@@ -300,7 +300,7 @@ export namespace EyePop {
             }
         }
         if (opts.accountId === undefined) {
-            opts.accountId = readAccountUuidEnv()
+            opts.accountId = ((resolveAuth(opts) as SessionAuth | undefined)?.session as WorkerSession | undefined)?.accountId ?? readAccountUuidEnv()
         }
         return new WorkerEndpoint(opts)
     }

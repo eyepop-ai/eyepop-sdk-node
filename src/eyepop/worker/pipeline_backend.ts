@@ -812,10 +812,13 @@ export class PipelineBackend implements WorkerBackend {
 
     public async session(): Promise<WorkerSession> {
         const token = await this.token()
+        // The token's own expiry, so that a client handed this session knows when it runs out; a
+        // local pipeline API takes no token, and an access token given as is has no known expiry.
+        const validUntil = token === undefined ? Number.MAX_VALUE : Math.min((await this.ctx.credentialSession()).validUntil, Number.MAX_VALUE)
         return {
             eyepopUrl: this.ctx.eyepopUrl(),
             accessToken: token ?? '',
-            validUntil: Number.MAX_VALUE,
+            validUntil,
             popId: 'transient',
             accountId: this.ctx.options.accountId,
             baseUrl: this._pipelineApiUrl ?? undefined,
