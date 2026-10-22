@@ -253,6 +253,9 @@ export namespace EyePop {
         if (auth !== undefined) {
             if ((auth as SessionAuth).session !== undefined) {
                 if (((auth as SessionAuth).session as WorkerSession) !== undefined) {
+                    if (((auth as SessionAuth).session as WorkerSession).isPipelineMode) {
+                        opts.isPipelineMode = true
+                    }
                     if (((auth as SessionAuth).session as WorkerSession).popId) {
                         opts.popId = ((auth as SessionAuth).session as WorkerSession).popId
                     }

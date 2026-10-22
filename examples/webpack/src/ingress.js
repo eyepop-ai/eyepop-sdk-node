@@ -1,8 +1,6 @@
 import { AreaType, EyePop, PopComponentType } from '@eyepop.ai/eyepop'
 import { Render2d } from '@eyepop.ai/eyepop-render-2d'
 
-console.log('Hello EyePop Demo')
-
 let endpoint = undefined
 let popNameElement = undefined
 let connectButton = undefined

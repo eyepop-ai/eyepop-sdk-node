@@ -36,6 +36,7 @@ if ('document' in globalThis && 'implementation' in globalThis.document) {
                 popId: workerOptions.popId,
                 baseUrl: undefined,
                 pipelineId: undefined,
+                isPipelineMode: workerOptions.isPipelineMode,
                 authenticationHeaders: () => {
                     return { Authorization: `Bearer ${accessToken}` }
                 }
