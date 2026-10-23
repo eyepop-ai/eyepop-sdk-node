@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>1 Upload an Image To Get Raw EyePop.ai Results</title>
+    <title>Upload an Image or a Video To Get Raw EyePop.ai Results</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="main.css" rel="stylesheet">
 </head>
@@ -14,29 +14,62 @@
         <header class="mt-4">
             <div class="container-fluid d-flex align-items-center">
 
-                <a href="1_upload_image.html"><img src="images/eyepop-logo.svg" alt="EyePop.ai Logo" class="p-2"
-                                                   style="height: 70px;"></a>
+                <a href="upload.html"><img src="images/eyepop-logo.svg" alt="EyePop.ai Logo" class="p-2"
+                                           style="height: 70px;"></a>
                 <h1 class="p-2">TypeScript/JavaScript SDK Demo: <span id="pop-name">...</span></h1>
 
             </div>
         </header>
 
-        <!-- FORM UPLOAD ELEMENT: Centered, Full Width Row -->
-        <div class="container-fluid mt-4">
-            <div class="row justify-content-center">
-                <div id="drop-area" class="col-12">
-                    <form>
-                        <input disabled type="file" class="form-control" id="file-upload">
-                    </form>
+        <div class="container-fluid mt-2">
+            <div id="status" class="m-2 text-muted">Connecting...</div>
+        </div>
+
+        <!-- POP AND PARAMS EDITORS: collapsed until opened -->
+        <div class="container-fluid mt-3">
+            <div class="card">
+                <div class="card-header section-header" data-section="pop">
+                    <span class="twisty">&#9656;</span> Pop
+                </div>
+                <div class="card-body" id="section-pop" hidden>
+                    <div class="alert alert-danger py-2 mb-2" id="pop-error" role="alert" hidden></div>
+                    <textarea id="pop-json" class="form-control font-monospace pop-editor" rows="16"
+                              spellcheck="false"></textarea>
+                    <div class="d-flex gap-2 mt-2">
+                        <button type="button" class="btn btn-sm btn-primary" id="pop-apply" disabled>Apply</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="pop-revert">Revert</button>
+                    </div>
+                    <p class="text-muted mt-2 mb-0" style="font-size: 0.9rem;">
+                        Applied with <code>changePop</code>; a loaded file is run again with it.
+                    </p>
+                </div>
+            </div>
+
+            <div class="card mt-2">
+                <div class="card-header section-header" data-section="params">
+                    <span class="twisty">&#9656;</span> Params
+                </div>
+                <div class="card-body" id="section-params" hidden>
+                    <div class="alert alert-danger py-2 mb-2" id="params-error" role="alert" hidden></div>
+                    <textarea id="params-json" class="form-control font-monospace pop-editor" rows="10"
+                              spellcheck="false">{}</textarea>
+                    <div class="d-flex gap-2 mt-2">
+                        <button type="button" class="btn btn-sm btn-primary" id="params-apply">Apply</button>
+                    </div>
+                    <p class="text-muted mt-2 mb-0" style="font-size: 0.9rem;">
+                        Sent with every source as the <code>ProcessParams</code> beside it, e.g.
+                        <code>{"roi": {...}, "fps": "5", "componentParams": [{"componentId": 1, "values": {...}}]}</code>.
+                        Applying runs a loaded file again.
+                    </p>
                 </div>
             </div>
         </div>
 
-        <!-- IMAGE PREVIEW AND TEXT AREA: Half and Half -->
+        <!-- PREVIEW AND RESULTS: Half and Half -->
         <div class="container-fluid mt-4">
             <div class="row">
                 <div class="col-md-6 d-flex">
-                    Preview image:<h3 id="title" class="ms-auto"></h3>
+                    Preview:<h3 id="title" class="ms-auto"></h3>
                 </div>
                 <div class="col-md-6 d-flex">
                     EyePop.ai Results: <h3 id="timing" class="ms-auto">0ms</h3>
@@ -44,14 +77,25 @@
             </div>
             <div class="row">
                 <div class="col-md-6">
-                    <div class="preview-wrapper">
-                        <img id="image-preview" class="image-preview" src="images/empty.png" alt="Image Preview">
-                        <canvas class="result-overlay" id="result-overlay"></canvas>
+                    <div class="preview-wrapper" id="preview">
+                        <div class="preview-frame" id="preview-frame">
+                            <video class="local-media" id="local-video" muted playsinline hidden></video>
+                            <img class="local-media" id="local-image" alt="" hidden>
+                            <canvas class="result-overlay" id="result-overlay"></canvas>
+                        </div>
+                        <button type="button" class="view-fullscreen" id="preview-fullscreen">&#9974; Fullscreen</button>
+                        <div class="drop-hint show idle" id="drop-hint">
+                            <div>
+                                <div class="fs-5" id="drop-hint-title">Connecting...</div>
+                                <div class="small" id="drop-hint-note"></div>
+                            </div>
+                        </div>
+                        <input type="file" id="file-input" accept="image/*,video/*" hidden>
                     </div>
+                    <p class="text-muted mt-2 mb-0" style="font-size: 0.9rem;" id="preview-note"></p>
                 </div>
                 <div class="col-md-6">
-                    <pre id="txt_json"
-                        class="form-control h-100"><span class="text-muted">{<br/> ...JSON Will appear Here...<br/>}</span></pre>
+                    <pre id="txt_json" class="form-control h-100 results-json"><span class="text-muted">{<br/> ...JSON Will appear Here...<br/>}</span></pre>
                 </div>
             </div>
         </div>
