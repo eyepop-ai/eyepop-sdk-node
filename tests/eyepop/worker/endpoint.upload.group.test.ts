@@ -15,6 +15,11 @@ function countMultipartParts(rawBody: string, name: string): number {
     return (rawBody.match(new RegExp(`name="${name}"`, 'g')) ?? []).length
 }
 
+// the worker's Go ReadForm only puts a part with a filename into form.File (BUG-310)
+function countMultipartFileParts(rawBody: string, name: string): number {
+    return (rawBody.match(new RegExp(`name="${name}"; filename="[^"]+"`, 'g')) ?? []).length
+}
+
 function prepMockServer(server: MockServer, test_pop_id: string, test_pipeline_id: string) {
     const test_access_token = uuidv4()
     const token_valid_time = 1000 * 1000
@@ -65,7 +70,7 @@ describe('EyePopSdk endpoint module uploadGroup', () => {
             expect(ctx.request.query['processing']).toBe('sync')
             expect(ctx.headers['content-type']).toMatch(/multipart\/form-data/)
             const rawBody = await readMultipartBody(ctx)
-            expect(countMultipartParts(rawBody, 'file')).toBe(2)
+            expect(countMultipartFileParts(rawBody, 'file')).toBe(2)
             ctx.status = 200
             ctx.response.headers['content-type'] = 'application/json'
             ctx.body = JSON.stringify({ timestamp: fake_timestamp })
@@ -108,7 +113,7 @@ describe('EyePopSdk endpoint module uploadGroup', () => {
             expect(ctx.request.query['motionDetect']).toBe('true')
             expect(ctx.request.query['motionSensitivity']).toBe('0.5')
             const rawBody = await readMultipartBody(ctx)
-            expect(countMultipartParts(rawBody, 'file')).toBe(2)
+            expect(countMultipartFileParts(rawBody, 'file')).toBe(2)
             expect(countMultipartParts(rawBody, 'fps')).toBe(1)
             ctx.status = 200
             ctx.response.headers['content-type'] = 'application/json'

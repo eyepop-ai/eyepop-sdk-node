@@ -441,7 +441,8 @@ export class UploadGroupJob extends AbstractJob {
             parts.push({ name: 'camera', contentType: 'application/json', content: JSON.stringify(this._params.camera) })
         }
         for (const source of this._sources) {
-            parts.push({ name: 'file', contentType: source.mimeType, content: source.stream })
+            // the worker only finds a file part that has a filename, the same "blob" FormData gives a single upload
+            parts.push({ name: 'file', filename: 'blob', contentType: source.mimeType, content: source.stream })
         }
         const boundary = randomMultipartBoundary()
         const headers = {
