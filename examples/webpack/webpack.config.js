@@ -30,8 +30,8 @@ module.exports = {
             chunks: ['upload'],
         }),
         new HtmlWebpackPlugin({
-            template: './src/ingress.html',
-            filename: 'ingress.html',
+            template: './src/index.html',
+            filename: 'index.html',
             chunks: ['ingress'],
         }),
         new HtmlWebpackPlugin({
