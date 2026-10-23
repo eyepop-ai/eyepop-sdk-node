@@ -215,3 +215,11 @@
 .pop-editor[readonly] {
     background-color: var(--bs-tertiary-bg, #f8f9fa);
 }
+
+/* the upload demo's raw results: a video's frames can be long, so the panel
+   scrolls rather than pushing the page */
+.results-json {
+    max-height: 40rem;
+    overflow: auto;
+    font-size: 0.8rem;
+}
