@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [3.25.1] - 2026-10-23
+
+### Fixed
+- `uploadGroup` and `uploadStreamGroup` on a worker session no longer fail with `400 missing file part` (BUG-310, #239). They had failed this way since 3.17.0. The cause was that their file parts carried no `filename`, so the worker read them as form values rather than files. Each file part now carries `filename="blob"`, as the single-file `upload` and the Python SDK's `upload_group` do. Pipeline mode was not affected.
+- `encodeMultipartFormData` escapes `"`, CR and LF in a part's `name` and `filename` as `%22`, `%0D` and `%0A`, as the HTML multipart/form-data encoding does, so a caller's value can't break the `Content-Disposition` header.
+
 ## [3.25.0] - 2026-10-21
 
 ### Added
