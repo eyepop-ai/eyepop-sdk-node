@@ -249,12 +249,19 @@ export type MultipartContent = ReadableStream<Uint8Array> | Blob | BufferSource 
 
 export interface MultipartPart {
     name: string
+    /** Marks the part as a file; servers such as Go's `ReadForm` treat a part without one as a text field. */
+    filename?: string
     contentType?: string | null
     content: MultipartContent
 }
 
 export function randomMultipartBoundary(): string {
     return `----formdata-boundary-${uuidv4()}`
+}
+
+/** Escapes a Content-Disposition value the way the HTML spec's multipart/form-data encoding does. */
+function escapeDispositionValue(value: string): string {
+    return value.replace(/"/g, '%22').replace(/\r/g, '%0D').replace(/\n/g, '%0A')
 }
 
 function toPartStream(content: Exclude<MultipartContent, string>): ReadableStream<Uint8Array> {
@@ -306,7 +313,11 @@ export function encodeMultipartFormData(parts: MultipartPart[], boundary: string
                 return
             }
             const part = parts[partIndex]!
-            let header = `--${boundary}\r\nContent-Disposition: form-data; name="${part.name}"\r\n`
+            let header = `--${boundary}\r\nContent-Disposition: form-data; name="${escapeDispositionValue(part.name)}"`
+            if (part.filename !== undefined) {
+                header += `; filename="${escapeDispositionValue(part.filename)}"`
+            }
+            header += '\r\n'
             if (part.contentType) {
                 header += `Content-Type: ${part.contentType}\r\n`
             }
