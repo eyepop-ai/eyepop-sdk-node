@@ -256,9 +256,14 @@ function setupDropTarget() {
         }
         updateSourceControls()
     })
-    // a file that misses the target would otherwise be opened by the browser
+    // a file that misses the target would otherwise be opened by the browser;
+    // only file drags, so text can still be dragged within the editors
     for (const type of ['dragover', 'drop']) {
-        document.addEventListener(type, event => event.preventDefault())
+        document.addEventListener(type, event => {
+            if (event.dataTransfer?.types?.includes('Files')) {
+                event.preventDefault()
+            }
+        })
     }
 }
 
@@ -312,13 +317,24 @@ async function loadFile(file) {
         setStatus(`${file.name} is ${file.type || 'of an unknown type'}, not an image or a video.`, true)
         return
     }
+    // supersede the running stream and any load still decoding, so neither
+    // draws on or claims the preview this file is about to take
+    const token = ++sourceToken
+    cancelResultStream()
     loadedFile = undefined
     let size
     try {
         size = await showFileInPreview(file, isVideo)
     } catch (e) {
+        if (token !== sourceToken) {
+            return
+        }
+        clearPreview()
         updateSourceControls()
         setStatus(`Could not read ${file.name}: ${e.message}`, true)
+        return
+    }
+    if (token !== sourceToken) {
         return
     }
     loadedFile = file
@@ -352,8 +368,10 @@ async function processLoadedFile() {
     try {
         results = await endpoint.process({ ...appliedParams, source: { file: file } })
     } catch (e) {
-        setStatus(`Could not process ${file.name}: ${e.message}`, true)
-        resultSpan.textContent = ''
+        if (token === sourceToken) {
+            setStatus(`Could not process ${file.name}: ${e.message}`, true)
+            resultSpan.textContent = ''
+        }
         return
     }
     if (token !== sourceToken) {
