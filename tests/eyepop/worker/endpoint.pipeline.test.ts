@@ -463,6 +463,27 @@ describe('pipeline mode (SDK-27)', () => {
         expect(sources(only()).map(s => s['url'])).toEqual(['rtsp://camera.example/stream', 'https://images.example/a.jpg'])
     })
 
+    test('a source cancelled before its queue_full refusal arrives is not counted as open', async () => {
+        fake.queueFullAt = 1
+        fake.queueFullDelayMs = 50
+        fake.sourceDelayMs = 100
+        const ep = endpoint()
+        await ep.connect()
+        const slow = await ep.process({ source: { url: 'https://images.example/slow.jpg' } })
+        const image = await ep.process({ source: { url: 'https://images.example/a.jpg' } })
+        await eventually(() => sources(only()).length === 2)
+        image.cancel()
+        expect(await all(image)).toEqual([])
+        // The refusal arrives after the cancel, before the slow source ends.
+        expect(await all(slow)).toEqual([prediction(0), prediction(1)])
+        // With none of the endpoint's sources open, the refusal rejects instead of waiting for room.
+        fake.refusals.push('queue_full')
+        const refused = await all(await ep.process({ source: { url: 'https://images.example/b.jpg' } })).catch(e => e)
+        expect(refused).toBeInstanceOf(PipelineCommandError)
+        expect(refused.error).toBe('queue_full')
+        await ep.disconnect()
+    })
+
     test('an upload from a stream refused queue_full rejects', async () => {
         fake.queueFullAt = 1
         const ep = endpoint()

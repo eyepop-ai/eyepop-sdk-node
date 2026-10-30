@@ -41,8 +41,8 @@ export function pops(socket: FakeSocket): unknown[] {
  * source, `overloadedLive` refuses that many live setSources `overloaded` and closes
  * `1011 overloaded`, `closeOnOpen` closes every socket as soon as it opens, `popDelayMs` holds
  * each setPop's answer that long, `queueFullAt` refuses a setSource `queue_full` while the socket
- * has that many open sources (counted in `queueFullRefused`), and `sourceDelayMs` holds each source
- * that long before its predictions.
+ * has that many open sources (counted in `queueFullRefused`), `queueFullDelayMs` holds that refusal
+ * that long, and `sourceDelayMs` holds each source that long before its predictions.
  */
 export class FakePipelineApi {
     frames = 2
@@ -58,6 +58,7 @@ export class FakePipelineApi {
     popDelayMs = 0
     queueFullAt: number | null = null
     queueFullRefused = 0
+    queueFullDelayMs = 0
     sourceDelayMs = 0
     // False plays a pipeline API from before stopSource, which answers it unknown_command.
     knowsStopSource = true
@@ -265,7 +266,12 @@ class Run {
         }
         if (this._fake.queueFullAt !== null && this._open.length >= this._fake.queueFullAt) {
             this._fake.queueFullRefused += 1
-            this.send({ type: 'error', id, error: 'queue_full', message: 'socket full' })
+            const refuse = () => this.send({ type: 'error', id, error: 'queue_full', message: 'socket full' })
+            if (this._fake.queueFullDelayMs > 0) {
+                setTimeout(refuse, this._fake.queueFullDelayMs)
+            } else {
+                refuse()
+            }
             return
         }
         if (isLive(command) && this._fake.overloadedLive > 0) {
