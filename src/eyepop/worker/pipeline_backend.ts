@@ -159,6 +159,8 @@ class Credit {
 class OpenSource {
     readonly inbox = new Inbox<InboxItem>()
     readonly uploads = new Map<number | null, Credit>()
+    // The socket's ended count when the setSource went out.
+    endedBefore = 0
 
     constructor(readonly id: string) {}
 
@@ -175,9 +177,27 @@ class PipelineSocket {
     readonly closed: Promise<void>
     private _closed = false
     private _markClosed!: () => void
+    // Sources that ended on this socket; a source refused queue_full waits for the next end.
+    ended = 0
+    private _roomWaiters: (() => void)[] = []
 
     constructor(readonly ws: WebSocket) {
         this.closed = new Promise(resolve => (this._markClosed = resolve))
+    }
+
+    /** A source ended or the socket closed: wake the sources waiting for room. */
+    freed(): void {
+        this.ended += 1
+        const waiters = this._roomWaiters
+        this._roomWaiters = []
+        waiters.forEach(wake => wake())
+    }
+
+    /** Wait until a source ended on this socket after `since` ends, or the socket closed. */
+    async room(since: number): Promise<void> {
+        while (this.ended === since && this.open) {
+            await new Promise<void>(resolve => this._roomWaiters.push(resolve))
+        }
     }
 
     get open(): boolean {
@@ -187,6 +207,7 @@ class PipelineSocket {
     markClosed(): void {
         this._closed = true
         this._markClosed()
+        this.freed()
     }
 
     sendJson(message: Message): void {
@@ -524,6 +545,7 @@ export class PipelineBackend implements WorkerBackend {
             }
             if (type === 'end') {
                 source.uploads.forEach(upload => upload.end())
+                socket.freed()
             }
             source.inbox.push(message)
         } else if (type === 'error') {
@@ -678,7 +700,11 @@ export class PipelineBackend implements WorkerBackend {
         }
     }
 
-    /** Run the job's source to its end; a live source refused overloaded goes once more on a new socket. */
+    /**
+     * Run the job's source to its end. A live source refused overloaded goes once more on a new socket.
+     * A source refused queue_full goes again once another source on the socket ended, so it may go after
+     * jobs submitted later; with none of the endpoint's other sources open there, the refusal stands.
+     */
     private async run(job: PipelineJob): Promise<void> {
         let retried = false
         while (true) {
@@ -689,9 +715,9 @@ export class PipelineBackend implements WorkerBackend {
             const { socket, source } = sent
             const uploading = source.uploads.size > 0 ? this.upload(socket, source, job) : Promise.resolve()
             let whip: SocketWhip | null = null
-            let overloaded: boolean
+            let refused: string | null
             try {
-                overloaded = await this.follow(job, source, () => {
+                refused = await this.follow(job, source, () => {
                     if (job.mediaStream !== undefined) {
                         // A WHIP that fails leaves the live source waiting for media it never gets, so the
                         // failure stops it on the pipeline as well as ending the job.
@@ -711,8 +737,15 @@ export class PipelineBackend implements WorkerBackend {
                 await uploading
                 await (whip as SocketWhip | null)?.close()
             }
-            if (!overloaded) {
+            if (refused === null) {
                 return
+            }
+            if (refused === 'queue_full') {
+                if (socket.sources.size === 0) {
+                    throw new PipelineCommandError('queue_full', 'the socket refused the source with none of its own open')
+                }
+                await socket.room(source.endedBefore)
+                continue
             }
             if (retried || !job.live) {
                 throw new PipelineCommandError('overloaded', 'the pipeline API has no capacity for another live source')
@@ -735,6 +768,7 @@ export class PipelineBackend implements WorkerBackend {
             uploadKeys(job).forEach(key => source.uploads.set(key, new Credit()))
         }
         socket.sources.set(source.id, source)
+        source.endedBefore = socket.ended
         job.openSource = source
         job.stopOnPipeline = () => {
             if (socket.open) {
@@ -750,15 +784,15 @@ export class PipelineBackend implements WorkerBackend {
         return { socket, source }
     }
 
-    /** Hand the source's predictions to the job until it ends; true when the pipeline API was overloaded. */
-    private async follow(job: PipelineJob, source: OpenSource, onResult: () => void): Promise<boolean> {
+    /** Hand the source's predictions to the job until it ends; the refusal to retry on, overloaded or queue_full. */
+    private async follow(job: PipelineJob, source: OpenSource, onResult: () => void): Promise<string | null> {
         while (true) {
             if (job.cancelled) {
-                return false
+                return null
             }
             const message = await source.inbox.next()
             if (message === CANCELLED) {
-                return false
+                return null
             }
             if (message instanceof Error) {
                 throw message
@@ -772,12 +806,12 @@ export class PipelineBackend implements WorkerBackend {
                     break
                 case 'end':
                     if (message['reason'] === 'eos') {
-                        return false
+                        return null
                     }
                     throw new PipelineSourceError(source.id, message['reason'] ?? '', message['message'] ?? '')
                 case 'error':
-                    if (message['error'] === 'overloaded') {
-                        return true
+                    if (message['error'] === 'overloaded' || message['error'] === 'queue_full') {
+                        return message['error']
                     }
                     throw new PipelineCommandError(message['error'] ?? '', message['message'] ?? '')
                 case 'dropped':

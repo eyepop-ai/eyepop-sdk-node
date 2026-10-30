@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Fixed
+- In pipeline mode, a source the pipeline API refuses `queue_full` goes again once another source on the socket ended, instead of rejecting its job. The socket holds at most 256 open sources and 32 MiB of uploads sent in one message (eyepop-instance `image-max-bytes`); with images of about 600 KiB, about 53 fit, so a batch of 500 images on one endpoint lost many of them to `queue_full` (seen with the Python SDK on staging, 2026-10-29, which had the same behaviour). A refused source may now go after jobs submitted later. A `queue_full` refusal with none of the endpoint's other sources open on the socket still rejects the job, since no end would make room.
+
 ## [3.25.1] - 2026-10-23
 
 ### Fixed

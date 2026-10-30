@@ -400,7 +400,7 @@ describe('pipeline mode (SDK-27)', () => {
         expect(sources(only()).map(s => s['url'])).toEqual([undefined, ...urls])
     })
 
-    test('queue_full rejects', async () => {
+    test('queue_full with no other source open rejects', async () => {
         fake.refusals.push('queue_full')
         const ep = endpoint()
         await ep.connect()
@@ -408,6 +408,26 @@ describe('pipeline mode (SDK-27)', () => {
         expect(refused).toBeInstanceOf(PipelineCommandError)
         expect(refused.error).toBe('queue_full')
         await ep.disconnect()
+    })
+
+    test('a source refused queue_full goes again once another ended', async () => {
+        fake.queueFullAt = 2
+        fake.sourceDelayMs = 20
+        const urls = [0, 1, 2, 3, 4, 5, 6, 7].map(n => `https://images.example/${n}.jpg`)
+        const ep = endpoint()
+        await ep.connect()
+        const jobs = []
+        for (const url of urls) {
+            jobs.push(await ep.process({ source: { url } }))
+        }
+        const results = await Promise.all(jobs.map(all))
+        await ep.disconnect()
+        expect(results.every(r => r.length === 2)).toBe(true)
+        expect(fake.queueFullRefused).toBeGreaterThan(0)
+        expect(fake.sockets).toHaveLength(1)
+        const sent = sources(only()).map(s => s['url'])
+        expect([...new Set(sent)].sort()).toEqual([...urls].sort())
+        expect(sent).toHaveLength(urls.length + fake.queueFullRefused)
     })
 
     // Handing a session to another endpoint

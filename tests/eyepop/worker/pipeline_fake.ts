@@ -39,8 +39,10 @@ export function pops(socket: FakeSocket): unknown[] {
  * upgrades first, `refusals` answer setSources with an error, `closes` close a socket after that
  * many of its setSources were answered, `idleAfterDone` closes it `1000 idle` once it has no open
  * source, `overloadedLive` refuses that many live setSources `overloaded` and closes
- * `1011 overloaded`, `closeOnOpen` closes every socket as soon as it opens, and `popDelayMs` holds
- * each setPop's answer that long.
+ * `1011 overloaded`, `closeOnOpen` closes every socket as soon as it opens, `popDelayMs` holds
+ * each setPop's answer that long, `queueFullAt` refuses a setSource `queue_full` while the socket
+ * has that many open sources (counted in `queueFullRefused`), and `sourceDelayMs` holds each source
+ * that long before its predictions.
  */
 export class FakePipelineApi {
     frames = 2
@@ -54,6 +56,9 @@ export class FakePipelineApi {
     overloadedLive = 0
     closeOnOpen: [number, string] | null = null
     popDelayMs = 0
+    queueFullAt: number | null = null
+    queueFullRefused = 0
+    sourceDelayMs = 0
     // False plays a pipeline API from before stopSource, which answers it unknown_command.
     knowsStopSource = true
     pipelineApiUrl: string | null | undefined = undefined
@@ -258,6 +263,11 @@ class Run {
             this.send({ type: 'error', id, error: refusal, message: 'refused' })
             return
         }
+        if (this._fake.queueFullAt !== null && this._open.length >= this._fake.queueFullAt) {
+            this._fake.queueFullRefused += 1
+            this.send({ type: 'error', id, error: 'queue_full', message: 'socket full' })
+            return
+        }
         if (isLive(command) && this._fake.overloadedLive > 0) {
             this._fake.overloadedLive -= 1
             this.send({ type: 'error', id, error: 'overloaded', message: 'max-live' })
@@ -355,15 +365,22 @@ class Run {
             }, 5)
             return
         }
-        if (String(command['url'] ?? '').includes('bad')) {
-            this.end(id, 'error', 'bad media')
-        } else {
-            for (let n = 0; n < this._fake.frames; n++) {
-                this.send({ type: 'prediction', id, prediction: prediction(n) })
+        const finish = () => {
+            if (String(command['url'] ?? '').includes('bad')) {
+                this.end(id, 'error', 'bad media')
+            } else {
+                for (let n = 0; n < this._fake.frames; n++) {
+                    this.send({ type: 'prediction', id, prediction: prediction(n) })
+                }
+                this.end(id, 'eos')
             }
-            this.end(id, 'eos')
+            setImmediate(() => this.playNext())
         }
-        setImmediate(() => this.playNext())
+        if (this._fake.sourceDelayMs > 0) {
+            setTimeout(finish, this._fake.sourceDelayMs)
+        } else {
+            finish()
+        }
     }
 
     private end(id: string, reason: string, message: string = ''): void {
