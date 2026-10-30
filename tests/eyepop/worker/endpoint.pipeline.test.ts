@@ -466,7 +466,8 @@ describe('pipeline mode (SDK-27)', () => {
     test('a source cancelled before its queue_full refusal arrives is not counted as open', async () => {
         fake.queueFullAt = 1
         fake.queueFullDelayMs = 50
-        fake.sourceDelayMs = 100
+        // Far longer than the refusal's delay, so the refusal arrives before the slow source ends.
+        fake.sourceDelayMs = 500
         const ep = endpoint()
         await ep.connect()
         const slow = await ep.process({ source: { url: 'https://images.example/slow.jpg' } })
