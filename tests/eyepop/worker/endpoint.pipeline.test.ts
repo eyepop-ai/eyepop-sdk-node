@@ -564,7 +564,8 @@ describe('pipeline mode (SDK-27)', () => {
         expect(fake.sockets).toHaveLength(PIPELINE_SOCKETS)
         expect(PIPELINE_SOCKETS).toBe(4)
         expect(fake.sockets.every(socket => JSON.stringify(pops(socket)) === JSON.stringify([PERSON]))).toBe(true)
-        expect(fake.sockets.every(socket => sources(socket).length > 0)).toBe(true)
+        // Each job went on the socket with the fewest open sources, and none ended meanwhile.
+        expect(fake.sockets.map(socket => sources(socket).length)).toEqual([3, 3, 3, 3])
         expect(fake.sockets.flatMap(socket => sources(socket).map(s => s['url'])).sort()).toEqual([...urls].sort())
     })
 
