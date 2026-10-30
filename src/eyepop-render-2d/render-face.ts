@@ -24,9 +24,9 @@ export class RenderFace implements Render {
     }
 
     public draw(element: PredictedObject, xOffset: number, yOffset: number, xScale: number, yScale: number, streamTime: StreamTime): void {
-        if (element.meshs) {
-            for (let i = 0; i < element.meshs.length; i++) {
-                const mesh = element.meshs[i]
+        if (element.meshes) {
+            for (let i = 0; i < element.meshes.length; i++) {
+                const mesh = element.meshes[i]
                 if (mesh.category == '3d-face-mesh') {
                     this.render3dFaceMesh(mesh, xOffset, yOffset, xScale, yScale)
                 }

@@ -68,7 +68,7 @@ export interface Prediction extends StreamTime {
     objects?: Array<PredictedObject>
     classes?: Array<PredictedClass>
     texts?: Array<PredictedText>
-    meshs?: Array<PredictedMesh>
+    meshes?: Array<PredictedMesh>
     keyPoints?: Array<PredictedKeyPoints>
     embeddings?: Array<PredictedEmbedding>
     details?: Array<Record<string, any>>
@@ -180,7 +180,7 @@ export interface PredictedObject extends PredictedClass {
     objects?: Array<PredictedObject>
     classes?: Array<PredictedClass>
     texts?: Array<PredictedText>
-    meshs?: Array<PredictedMesh>
+    meshes?: Array<PredictedMesh>
     keyPoints?: Array<PredictedKeyPoints>
     details?: Array<Record<string, any>>
 }

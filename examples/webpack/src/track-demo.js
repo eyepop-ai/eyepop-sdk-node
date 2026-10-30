@@ -352,7 +352,7 @@ function describe(node) {
     for (const embedding of node?.embeddings || []) {
         parts.push(`${embedding.category ?? 'embedding'} (${embedding.embedding?.length ?? 0} values)`)
     }
-    for (const mesh of node?.meshs || []) {
+    for (const mesh of node?.meshes || []) {
         parts.push(mesh.category ?? 'mesh')
     }
     // free-form records, which is how an ability describing what it sees -
@@ -412,7 +412,7 @@ function noteSelectedPrediction(prediction) {
         texts: prediction.texts,
         keyPoints: prediction.keyPoints,
         embeddings: prediction.embeddings,
-        meshs: prediction.meshs,
+        meshes: prediction.meshes,
     }
     const parts = describe(selected).concat(describe(frame))
     track.result = parts.length ? parts.join(' · ') : 'nothing found'
