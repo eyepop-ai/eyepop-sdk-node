@@ -55,7 +55,7 @@ Never ship an API key in client code. Create the session on a trusted backend an
 
 ### Local mode
 
-An [on-premise instance](https://docs.eyepop.ai/deploying/on-premise) serves the EyePop runtime on your own machine. **Local mode** points the SDK at `http://127.0.0.1:8080` instead of the cloud and needs no account credentials — the instance is already registered to your account, and reaching the loopback port is what authorizes the client. An `EYEPOP_API_KEY` in the environment is still sent if it is set; unset it to connect anonymously.
+An [on-premise instance](https://docs.eyepop.ai/developer-documentation/cli/on-premise) serves the EyePop runtime on your own machine. **Local mode** points the SDK at `http://127.0.0.1:8080` instead of the cloud and needs no account credentials — the instance is already registered to your account, and reaching the loopback port is what authorizes the client. An `EYEPOP_API_KEY` in the environment is still sent if it is set; unset it to connect anonymously.
 
 ```typescript
 import { EyePop, PopComponentType } from '@eyepop.ai/eyepop'
@@ -78,4 +78,4 @@ Connecting creates a pipeline on the instance and disconnecting removes it, so d
 
 * [Running Inference](inference.md) — submit files, streams, and URLs
 * [Composable Pops](composable-pops.md) — chain models into a pipeline
-* [On-Premise](https://docs.eyepop.ai/deploying/on-premise) — create an instance to run local mode against
+* [On-Premise Instances](https://docs.eyepop.ai/developer-documentation/cli/on-premise) — set up an instance with the CLI to run local mode against
