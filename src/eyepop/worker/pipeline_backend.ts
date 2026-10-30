@@ -194,6 +194,11 @@ class PipelineSocket {
     /** A source ended or the socket closed: wake the send waiting for room. */
     freed(): void {
         this.ended += 1
+        this.wake()
+    }
+
+    /** A held source ended or was refused: wake the send waiting for room. */
+    wake(): void {
         if (this.held.size === 0) {
             this.cap = null
         }
@@ -551,9 +556,11 @@ export class PipelineBackend implements WorkerBackend {
             // Also the end of a source its job already let go, a cancelled one: it frees room all the same.
             socket.held.delete(id)
             socket.freed()
-        } else if (type === 'error' && (message['error'] === 'queue_full' || message['error'] === 'overloaded')) {
+        } else if (type === 'error' && message['error'] !== 'unknown_command') {
             // A refused setSource, also one whose job was cancelled before the refusal arrived: no end follows.
+            // unknown_command answers a stopSource on a pipeline API from before it, for a source still open.
             socket.held.delete(id)
+            socket.wake()
         }
         if (type === 'send' || type === 'credit') {
             const upload = source?.uploads.get(message['member'] ?? null)

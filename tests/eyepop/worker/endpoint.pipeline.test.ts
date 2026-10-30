@@ -484,6 +484,28 @@ describe('pipeline mode (SDK-27)', () => {
         await ep.disconnect()
     })
 
+    test('a send waiting for room goes once the last held source is refused too', async () => {
+        fake.refusals.push('queue_full')
+        fake.queueFullAt = 0
+        fake.queueFullDelayMs = 50
+        const ep = endpoint()
+        await ep.connect()
+        const jobs = await Promise.all(['a', 'b'].map(name => ep.process({ source: { url: `https://images.example/${name}.jpg` } })))
+        const refused = await Promise.all(jobs.map(job => all(job).catch(e => e)))
+        expect(refused.map(e => e.error)).toEqual(['queue_full', 'queue_full'])
+        await ep.disconnect()
+    })
+
+    test('a source refused for another reason is not counted as open', async () => {
+        fake.refusals.push('invalid_request')
+        const ep = endpoint()
+        await ep.connect()
+        expect((await all(await ep.process({ source: { url: 'https://images.example/a.jpg' } })).catch(e => e)).error).toBe('invalid_request')
+        fake.refusals.push('queue_full')
+        expect((await all(await ep.process({ source: { url: 'https://images.example/b.jpg' } })).catch(e => e)).error).toBe('queue_full')
+        await ep.disconnect()
+    })
+
     test('an upload from a stream refused queue_full rejects', async () => {
         fake.queueFullAt = 1
         const ep = endpoint()
