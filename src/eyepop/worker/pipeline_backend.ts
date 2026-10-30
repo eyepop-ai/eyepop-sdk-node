@@ -19,6 +19,8 @@ export const SUBPROTOCOL = 'eyepop.v1'
 export const MAX_OPEN_SOURCES = 256
 /** The most sockets an endpoint opens unless `pipelineSockets` says otherwise. */
 export const PIPELINE_SOCKETS = 4
+// After the pipeline API refused another socket, the endpoint tries again only this much later.
+const EXTRA_SOCKET_RETRY_MS = 10 * 1000
 /** Uploads up to this size go as one combined message, larger ones in chunks. */
 export const COMBINED_UPLOAD_MAX_BYTES = 8 * 1024 * 1024
 
@@ -182,6 +184,8 @@ class PipelineSocket {
     // The ids of sources sent on this socket that have neither ended nor been refused, as the
     // pipeline API counts them, cancelled ones included.
     readonly held = new Set<string>()
+    // The held sources that are live. A live source never ends, so nothing queued behind it plays.
+    readonly lives = new Set<string>()
     // The ends on this socket so far.
     ended = 0
     // How many sources were open when the socket last refused queue_full: while as many are open,
@@ -352,6 +356,7 @@ export class PipelineBackend implements WorkerBackend {
     private _nextId = 0
     private _currentPop: Pop | null
     private readonly _warned = new Set<string>()
+    private _noExtraSocketUntil = 0
     // Reconnects at once since a source last played.
     private _reconnects = 0
 
@@ -412,20 +417,26 @@ export class PipelineBackend implements WorkerBackend {
     }
 
     /**
-     * The socket for the next job: a new one while every open socket has a source and fewer than
-     * `pipelineSockets` are open, else the open one with room and the fewest sources. The caller
-     * runs it in submission order.
+     * The socket for the next job; the caller runs it in submission order. A live job goes on a socket
+     * of its own, an idle one or a new one, which `pipelineSockets` does not count. Any other job skips
+     * the sockets with a live source: a new one while every other socket has a source and fewer than
+     * `pipelineSockets` are open, else the one with room and the fewest sources.
      */
-    private async socketForJob(): Promise<PipelineSocket> {
-        const sockets = this.openSockets()
-        if (sockets.length === 0) {
-            return await this.ensureSocket()
+    private async socketForJob(job: PipelineJob): Promise<PipelineSocket> {
+        if (job.live) {
+            return this.openSockets().find(socket => socket.held.size === 0) ?? (await this.openSocket(true))
         }
-        if (sockets.length < (this.ctx.options.pipelineSockets ?? PIPELINE_SOCKETS) && sockets.every(socket => socket.held.size > 0)) {
+        const sockets = this.openSockets().filter(socket => socket.lives.size === 0)
+        if (sockets.length === 0) {
+            return await this.openSocket(true)
+        }
+        if (sockets.length < (this.ctx.options.pipelineSockets ?? PIPELINE_SOCKETS) && sockets.every(socket => socket.held.size > 0) && Date.now() >= this._noExtraSocketUntil) {
             try {
                 return await this.openSocket(false)
             } catch (error) {
-                // The open sockets take the job; the next job tries again.
+                // The open sockets take the job, and the jobs after it until the wait is over, so a
+                // full pipeline API is not asked for a socket once per job.
+                this._noExtraSocketUntil = Date.now() + EXTRA_SOCKET_RETRY_MS
                 this.ctx.requestLogger.info('could not open another pipeline API socket: %s', error)
             }
         }
@@ -581,6 +592,7 @@ export class PipelineBackend implements WorkerBackend {
         if (type === 'end') {
             // Also the end of a source its job already let go, a cancelled one: it frees room all the same.
             socket.held.delete(id)
+            socket.lives.delete(id)
             socket.freed()
         }
         if (type === 'send' || type === 'credit') {
@@ -807,6 +819,7 @@ export class PipelineBackend implements WorkerBackend {
                 return
             }
             socket.held.delete(source.id)
+            socket.lives.delete(source.id)
             if (refused === 'queue_full') {
                 if (socket.held.size === 0 && socket.ended === source.endedBefore) {
                     throw new PipelineCommandError('queue_full', 'the socket refused the source with none of its own open')
@@ -832,15 +845,18 @@ export class PipelineBackend implements WorkerBackend {
             // Cancelled before its turn: never sent, so it takes no source on the pipeline.
             return null
         }
-        let socket = await this.socketForJob()
-        await socket.room(job)
-        if (job.cancelled) {
-            return null
-        }
         const combined = await combinedMedia(job)
-        if (!socket.open) {
-            // It closed while the send waited for room.
-            socket = await this.socketForJob()
+        let socket: PipelineSocket
+        while (true) {
+            socket = await this.socketForJob(job)
+            await socket.room(job)
+            if (job.cancelled) {
+                return null
+            }
+            if (socket.open) {
+                break
+            }
+            // It closed while the send waited for room: pick again.
         }
         const source = new OpenSource(this.newId('source'))
         if (combined === null) {
@@ -848,6 +864,9 @@ export class PipelineBackend implements WorkerBackend {
         }
         socket.sources.set(source.id, source)
         socket.held.add(source.id)
+        if (job.live) {
+            socket.lives.add(source.id)
+        }
         source.endedBefore = socket.ended
         job.openSource = source
         job.stopOnPipeline = () => {

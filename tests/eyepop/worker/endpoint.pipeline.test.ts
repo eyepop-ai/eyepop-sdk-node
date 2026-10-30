@@ -435,41 +435,41 @@ describe('pipeline mode (SDK-27)', () => {
 
     test('the end of a cancelled source lets a source refused queue_full go', async () => {
         fake.queueFullAt = 1
+        fake.sourceDelayMs = 300
         const ep = endpoint({ pipelineSockets: 1 })
         await ep.connect()
-        const live = await ep.process({ source: { url: 'rtsp://camera.example/stream' } })
-        expect((await live[Symbol.asyncIterator]().next()).value).toEqual(prediction(0))
+        const slow = await ep.process({ source: { url: 'https://images.example/slow.jpg' } })
         const image = await ep.process({ source: { url: 'https://images.example/a.jpg' } })
         await eventually(() => fake.queueFullRefused === 1)
-        live.cancel()
+        slow.cancel()
         expect(await all(image)).toEqual([prediction(0), prediction(1)])
         await ep.disconnect()
     })
 
     test('a job cancelled while it waits for room ends at once', async () => {
         fake.queueFullAt = 1
+        fake.sourceDelayMs = 300
         const ep = endpoint({ pipelineSockets: 1 })
         await ep.connect()
-        const live = await ep.process({ source: { url: 'rtsp://camera.example/stream' } })
-        expect((await live[Symbol.asyncIterator]().next()).value).toEqual(prediction(0))
+        const slow = await ep.process({ source: { url: 'https://images.example/slow.jpg' } })
         const image = await ep.process({ source: { url: 'https://images.example/a.jpg' } })
         await eventually(() => fake.queueFullRefused === 1)
         image.cancel()
         expect(await all(image)).toEqual([])
-        // only the live job runs on
+        // only the slow job runs on
         await eventually(() => ep.pendingJobs() === 1)
-        live.cancel()
+        expect(await all(slow)).toEqual([prediction(0), prediction(1)])
         await ep.disconnect()
         expect(fake.queueFullRefused).toBe(1)
-        expect(sources(only()).map(s => s['url'])).toEqual(['rtsp://camera.example/stream', 'https://images.example/a.jpg'])
+        expect(sources(only()).map(s => s['url'])).toEqual(['https://images.example/slow.jpg', 'https://images.example/a.jpg'])
     })
 
     test('an upload from a stream refused queue_full rejects', async () => {
         fake.queueFullAt = 1
+        fake.sourceDelayMs = 300
         const ep = endpoint({ pipelineSockets: 1 })
         await ep.connect()
-        const live = await ep.process({ source: { url: 'rtsp://camera.example/stream' } })
-        expect((await live[Symbol.asyncIterator]().next()).value).toEqual(prediction(0))
+        const slow = await ep.process({ source: { url: 'https://images.example/slow.jpg' } })
         const stream = new ReadableStream<Uint8Array>({
             start(controller) {
                 controller.enqueue(new TextEncoder().encode('jpeg bytes'))
@@ -480,7 +480,7 @@ describe('pipeline mode (SDK-27)', () => {
         const refused = await all(await ep.process({ source: { stream, mimeType: 'image/jpeg' } })).catch(e => e)
         expect(refused).toBeInstanceOf(PipelineCommandError)
         expect(refused.error).toBe('queue_full')
-        live.cancel()
+        await all(slow)
         await ep.disconnect()
     })
 
@@ -544,6 +544,40 @@ describe('pipeline mode (SDK-27)', () => {
         // the second job went on the open socket instead of waiting 5 s
         expect(Date.now() - started).toBeLessThan(2000)
         expect(fake.sockets).toHaveLength(1)
+    })
+
+    test('after the pipeline API refused another socket, the next jobs do not ask again at once', async () => {
+        fake.sourceDelayMs = 50
+        const ep = endpoint()
+        await ep.connect()
+        fake.upgradeAnswers.push({ status: 503 }, { status: 503 }, { status: 503 })
+        const jobs = []
+        for (const n of [0, 1, 2, 3, 4, 5, 6, 7]) {
+            jobs.push(await ep.process({ source: { url: `https://images.example/${n}.jpg` } }))
+        }
+        const results = await Promise.all(jobs.map(all))
+        await ep.disconnect()
+        expect(results.every(r => r.length === 2)).toBe(true)
+        expect(fake.upgradeAnswers).toHaveLength(2)
+        expect(fake.sockets).toHaveLength(1)
+    })
+
+    test('a camera gets a socket of its own, and no image of a batch queues behind it', async () => {
+        fake.sourceDelayMs = 50
+        const ep = endpoint()
+        await ep.connect()
+        const live = await ep.process({ source: { url: 'rtsp://camera.example/stream' } })
+        expect((await live[Symbol.asyncIterator]().next()).value).toEqual(prediction(0))
+        const jobs = []
+        for (const n of [0, 1, 2, 3, 4, 5, 6, 7]) {
+            jobs.push(await ep.process({ source: { url: `https://images.example/${n}.jpg` } }))
+        }
+        const results = await Promise.all(jobs.map(all))
+        live.cancel()
+        await ep.disconnect()
+        expect(results.every(r => r.length === 2)).toBe(true)
+        expect(sources(only()).map(s => s['url'])).toEqual(['rtsp://camera.example/stream'])
+        expect(fake.sockets).toHaveLength(1 + PIPELINE_SOCKETS)
     })
 
     // Handing a session to another endpoint

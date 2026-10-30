@@ -366,6 +366,11 @@ class Run {
             return
         }
         const finish = () => {
+            if (this._stopped.has(id)) {
+                // stopSource ended it already
+                setImmediate(() => this.playNext())
+                return
+            }
             if (String(command['url'] ?? '').includes('bad')) {
                 this.end(id, 'error', 'bad media')
             } else {
