@@ -639,12 +639,11 @@ describe('pipeline mode (SDK-27)', () => {
         await ep.connect()
         fake.upgradeDelayMs = 300
         // The close reopens the socket at once; disconnect starts while that upgrade is held.
-        await all(await ep.process({ source: { url: 'https://images.example/0.jpg' } })).catch(() => undefined)
-        await eventually(() => fake.sockets.length === 1 && fake.openSockets === 0)
-        await new Promise(resolve => setTimeout(resolve, 50))
+        const closed = await all(await ep.process({ source: { url: 'https://images.example/0.jpg' } })).catch(e => e)
+        expect(closed).toBeInstanceOf(PipelineSocketClosedError)
+        await eventually(() => fake.upgrades === 2)
         await ep.disconnect()
         await new Promise(resolve => setTimeout(resolve, 500))
-        expect(fake.sockets).toHaveLength(2)
         expect(fake.openSockets).toBe(0)
     })
 

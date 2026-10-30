@@ -64,13 +64,18 @@ async function images(ep: any, count: number) {
     // Every upload goes out at once on the one socket, as account.py does.
     const results = await Promise.allSettled(batch.map(async path => {
         let took: number | undefined
-        for await (const _ of await ep.process({ source: { path } })) took ??= (performance.now() - t0) / 1000
+        try {
+            for await (const _ of await ep.process({ source: { path } })) took ??= (performance.now() - t0) / 1000
+        } catch (e) {
+            // Counted as it fails, in case the batch never settles before --for ends the run.
+            failures += 1
+            throw e
+        }
         return took
     }))
     for (const r of results) if (r.status === 'rejected') errors[errorKind(r.reason)] = (errors[errorKind(r.reason)] ?? 0) + 1
     const firsts = results.flatMap(r => (r.status === 'fulfilled' && r.value !== undefined ? [r.value] : [])).sort((a, b) => a - b)
     const failed = Object.values(errors).reduce((a, b) => a + b, 0)
-    failures += failed
     let line = `${hms()} ${account}: batch of ${count} images on ${popName} took ${((performance.now() - t0) / 1000).toFixed(1)} s`
     line += firsts.length ? `; ${firsts.length} predicted, ${count - firsts.length - failed} without a prediction, first after ${firsts[0].toFixed(1)} s, median ${firsts[firsts.length >> 1].toFixed(1)} s` : '; none predicted'
     console.log(line + (failed ? `; ${failed} failed: ${JSON.stringify(errors)}` : ''))
