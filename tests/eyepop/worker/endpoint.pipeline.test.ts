@@ -413,7 +413,7 @@ describe('pipeline mode (SDK-27)', () => {
     test('a source refused queue_full goes again once another ended', async () => {
         fake.queueFullAt = 2
         fake.sourceDelayMs = 20
-        const urls = [0, 1, 2, 3, 4, 5, 6, 7].map(n => `https://images.example/${n}.jpg`)
+        const urls = Array.from({ length: 30 }, (_, n) => `https://images.example/${n}.jpg`)
         const ep = endpoint()
         await ep.connect()
         const jobs = []
@@ -424,10 +424,63 @@ describe('pipeline mode (SDK-27)', () => {
         await ep.disconnect()
         expect(results.every(r => r.length === 2)).toBe(true)
         expect(fake.queueFullRefused).toBeGreaterThan(0)
+        // While the socket is full each end lets one send go, so no source is refused twice.
+        expect(fake.queueFullRefused).toBeLessThanOrEqual(urls.length)
         expect(fake.sockets).toHaveLength(1)
         const sent = sources(only()).map(s => s['url'])
         expect([...new Set(sent)].sort()).toEqual([...urls].sort())
         expect(sent).toHaveLength(urls.length + fake.queueFullRefused)
+    })
+
+    test('the end of a cancelled source lets a source refused queue_full go', async () => {
+        fake.queueFullAt = 1
+        const ep = endpoint()
+        await ep.connect()
+        const live = await ep.process({ source: { url: 'rtsp://camera.example/stream' } })
+        expect((await live[Symbol.asyncIterator]().next()).value).toEqual(prediction(0))
+        const image = await ep.process({ source: { url: 'https://images.example/a.jpg' } })
+        await eventually(() => fake.queueFullRefused === 1)
+        live.cancel()
+        expect(await all(image)).toEqual([prediction(0), prediction(1)])
+        await ep.disconnect()
+    })
+
+    test('a job cancelled while it waits for room ends at once', async () => {
+        fake.queueFullAt = 1
+        const ep = endpoint()
+        await ep.connect()
+        const live = await ep.process({ source: { url: 'rtsp://camera.example/stream' } })
+        expect((await live[Symbol.asyncIterator]().next()).value).toEqual(prediction(0))
+        const image = await ep.process({ source: { url: 'https://images.example/a.jpg' } })
+        await eventually(() => fake.queueFullRefused === 1)
+        image.cancel()
+        expect(await all(image)).toEqual([])
+        // only the live job runs on
+        await eventually(() => ep.pendingJobs() === 1)
+        live.cancel()
+        await ep.disconnect()
+        expect(fake.queueFullRefused).toBe(1)
+        expect(sources(only()).map(s => s['url'])).toEqual(['rtsp://camera.example/stream', 'https://images.example/a.jpg'])
+    })
+
+    test('an upload from a stream refused queue_full rejects', async () => {
+        fake.queueFullAt = 1
+        const ep = endpoint()
+        await ep.connect()
+        const live = await ep.process({ source: { url: 'rtsp://camera.example/stream' } })
+        expect((await live[Symbol.asyncIterator]().next()).value).toEqual(prediction(0))
+        const stream = new ReadableStream<Uint8Array>({
+            start(controller) {
+                controller.enqueue(new TextEncoder().encode('jpeg bytes'))
+                controller.close()
+            },
+        })
+        // Its first bytes were read for the refused send; it cannot be sent again whole.
+        const refused = await all(await ep.process({ source: { stream, mimeType: 'image/jpeg' } })).catch(e => e)
+        expect(refused).toBeInstanceOf(PipelineCommandError)
+        expect(refused.error).toBe('queue_full')
+        live.cancel()
+        await ep.disconnect()
     })
 
     // Handing a session to another endpoint

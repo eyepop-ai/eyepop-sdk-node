@@ -177,26 +177,43 @@ class PipelineSocket {
     readonly closed: Promise<void>
     private _closed = false
     private _markClosed!: () => void
-    // Sources that ended on this socket; a source refused queue_full waits for the next end.
+    // The ids of sources sent on this socket that have neither ended nor been refused, as the
+    // pipeline API counts them, cancelled ones included.
+    readonly held = new Set<string>()
+    // The ends on this socket so far.
     ended = 0
+    // How many sources were open when the socket last refused queue_full: while as many are open,
+    // the next send waits. Null once none is open.
+    cap: number | null = null
     private _roomWaiters: (() => void)[] = []
 
     constructor(readonly ws: WebSocket) {
         this.closed = new Promise(resolve => (this._markClosed = resolve))
     }
 
-    /** A source ended or the socket closed: wake the sources waiting for room. */
+    /** A source ended or the socket closed: wake the send waiting for room. */
     freed(): void {
         this.ended += 1
+        if (this.held.size === 0) {
+            this.cap = null
+        }
         const waiters = this._roomWaiters
         this._roomWaiters = []
         waiters.forEach(wake => wake())
     }
 
-    /** Wait until a source ended on this socket after `since` ends, or the socket closed. */
-    async room(since: number): Promise<void> {
-        while (this.ended === since && this.open) {
-            await new Promise<void>(resolve => this._roomWaiters.push(resolve))
+    get hasRoom(): boolean {
+        return this.cap === null || this.held.size < this.cap
+    }
+
+    /**
+     * Wait, while the socket is full, until a source ends, it closes or the job is cancelled. The
+     * caller sends in order, so one send waits here and each end lets one go, instead of every
+     * refused source sending its media again at once.
+     */
+    async room(job: PipelineJob): Promise<void> {
+        while (!this.hasRoom && this.open && !job.cancelled) {
+            await Promise.race([new Promise<void>(resolve => this._roomWaiters.push(resolve)), job.whenCancelled])
         }
     }
 
@@ -224,6 +241,8 @@ interface Media {
     readonly open: () => Promise<UploadBody>
     readonly contentType: string
     readonly size: number | undefined
+    // A stream of the caller's, which can be read only once.
+    readonly once?: boolean
 }
 
 /** A job: one source on the endpoint's socket, its predictions read as an async iterable. */
@@ -231,6 +250,9 @@ export class PipelineJob implements ResultStream {
     private readonly _results = new Inbox<Prediction | Error | null>()
     private _consumed = false
     private _cancelled = false
+    private _markCancelled!: () => void
+    // Settles when the job is cancelled, so that a send waiting for room ends at once.
+    readonly whenCancelled = new Promise<void>(resolve => (this._markCancelled = resolve))
     openSource: OpenSource | null = null
     // Stops the job's source on the pipeline, once it was sent.
     stopOnPipeline: (() => void) | null = null
@@ -282,6 +304,7 @@ export class PipelineJob implements ResultStream {
             return
         }
         this._cancelled = true
+        this._markCancelled()
         this._results.push(null)
         this.openSource?.inbox.push(CANCELLED)
         // So that a cancelled live source stops on the pipeline instead of running until the socket closes.
@@ -524,6 +547,11 @@ export class PipelineBackend implements WorkerBackend {
         const type = message['type']
         const id = message['id']
         const source = typeof id === 'string' ? socket.sources.get(id) : undefined
+        if (type === 'end') {
+            // Also the end of a source its job already let go, a cancelled one: it frees room all the same.
+            socket.held.delete(id)
+            socket.freed()
+        }
         if (type === 'send' || type === 'credit') {
             const upload = source?.uploads.get(message['member'] ?? null)
             upload?.grant(Number(type === 'send' ? message['credit'] : message['bytes']))
@@ -545,7 +573,6 @@ export class PipelineBackend implements WorkerBackend {
             }
             if (type === 'end') {
                 source.uploads.forEach(upload => upload.end())
-                socket.freed()
             }
             source.inbox.push(message)
         } else if (type === 'error') {
@@ -703,7 +730,8 @@ export class PipelineBackend implements WorkerBackend {
     /**
      * Run the job's source to its end. A live source refused overloaded goes once more on a new socket.
      * A source refused queue_full goes again once another source on the socket ended, so it may go after
-     * jobs submitted later; with none of the endpoint's other sources open there, the refusal stands.
+     * jobs submitted later; with none of the endpoint's other sources open there, or with an upload from
+     * the caller's own stream, which cannot be read twice, the refusal stands.
      */
     private async run(job: PipelineJob): Promise<void> {
         let retried = false
@@ -740,11 +768,16 @@ export class PipelineBackend implements WorkerBackend {
             if (refused === null) {
                 return
             }
+            socket.held.delete(source.id)
             if (refused === 'queue_full') {
-                if (socket.sources.size === 0) {
+                if (socket.held.size === 0 && socket.ended === source.endedBefore) {
                     throw new PipelineCommandError('queue_full', 'the socket refused the source with none of its own open')
                 }
-                await socket.room(source.endedBefore)
+                if (job.media.some(media => media.once)) {
+                    throw new PipelineCommandError('queue_full', 'the socket refused an upload from a stream, which cannot be sent again')
+                }
+                // Sources whose refusal is still on its way count too, until it arrives.
+                socket.cap = Math.min(socket.held.size, socket.cap ?? socket.held.size) || null
                 continue
             }
             if (retried || !job.live) {
@@ -761,13 +794,20 @@ export class PipelineBackend implements WorkerBackend {
             // Cancelled before its turn: never sent, so it takes no source on the pipeline.
             return null
         }
+        let socket = await this.ensureSocket()
+        await socket.room(job)
+        if (job.cancelled) {
+            return null
+        }
         const combined = await combinedMedia(job)
-        const socket = await this.ensureSocket()
+        // It may have closed while the send waited for room.
+        socket = await this.ensureSocket()
         const source = new OpenSource(this.newId('source'))
         if (combined === null) {
             uploadKeys(job).forEach(key => source.uploads.set(key, new Credit()))
         }
         socket.sources.set(source.id, source)
+        socket.held.add(source.id)
         source.endedBefore = socket.ended
         job.openSource = source
         job.stopOnPipeline = () => {
@@ -977,7 +1017,8 @@ function knownSize(body: UploadBody): number | undefined {
 }
 
 function bodyMedia(body: UploadBody, contentType: string, size: number | undefined): Media {
-    return { open: async () => body, contentType, size: size ?? knownSize(body) }
+    const once = !(typeof Blob !== 'undefined' && body instanceof Blob) && !(body instanceof ArrayBuffer) && !ArrayBuffer.isView(body)
+    return { open: async () => body, contentType, size: size ?? knownSize(body), once }
 }
 
 function uploadGroup(media: Media[]): Message {
