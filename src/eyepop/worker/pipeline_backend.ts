@@ -159,6 +159,8 @@ class Credit {
 class OpenSource {
     readonly inbox = new Inbox<InboxItem>()
     readonly uploads = new Map<number | null, Credit>()
+    // The socket's ended count when the setSource went out.
+    endedBefore = 0
 
     constructor(readonly id: string) {}
 
@@ -175,9 +177,51 @@ class PipelineSocket {
     readonly closed: Promise<void>
     private _closed = false
     private _markClosed!: () => void
+    // The ids of sources sent on this socket that have neither ended nor been refused, as the
+    // pipeline API counts them, cancelled ones included.
+    readonly held = new Set<string>()
+    // The held sources the pipeline API took: only these end, so only these make room.
+    readonly accepted = new Set<string>()
+    // The ends on this socket so far.
+    ended = 0
+    // How many sources the socket had taken when it last refused queue_full: while as many are held,
+    // the next send waits. Null once none is held.
+    cap: number | null = null
+    private _roomWaiters: (() => void)[] = []
 
     constructor(readonly ws: WebSocket) {
         this.closed = new Promise(resolve => (this._markClosed = resolve))
+    }
+
+    /** A source ended or the socket closed: wake the send waiting for room. */
+    freed(): void {
+        this.ended += 1
+        this.wake()
+    }
+
+    /** A held source ended or was refused: wake the send waiting for room. */
+    wake(): void {
+        if (this.held.size === 0) {
+            this.cap = null
+        }
+        const waiters = this._roomWaiters
+        this._roomWaiters = []
+        waiters.forEach(wake => wake())
+    }
+
+    get hasRoom(): boolean {
+        return this.cap === null || this.held.size < this.cap
+    }
+
+    /**
+     * Wait, while the socket is full, until a source ends, it closes or the job is cancelled. The
+     * caller sends in order, so one send waits here and each end lets one go, instead of every
+     * refused source sending its media again at once.
+     */
+    async room(job: PipelineJob): Promise<void> {
+        while (!this.hasRoom && this.open && !job.cancelled) {
+            await Promise.race([new Promise<void>(resolve => this._roomWaiters.push(resolve)), job.whenCancelled])
+        }
     }
 
     get open(): boolean {
@@ -187,6 +231,7 @@ class PipelineSocket {
     markClosed(): void {
         this._closed = true
         this._markClosed()
+        this.freed()
     }
 
     sendJson(message: Message): void {
@@ -203,6 +248,8 @@ interface Media {
     readonly open: () => Promise<UploadBody>
     readonly contentType: string
     readonly size: number | undefined
+    // A stream of the caller's, which can be read only once.
+    readonly once?: boolean
 }
 
 /** A job: one source on the endpoint's socket, its predictions read as an async iterable. */
@@ -210,6 +257,9 @@ export class PipelineJob implements ResultStream {
     private readonly _results = new Inbox<Prediction | Error | null>()
     private _consumed = false
     private _cancelled = false
+    private _markCancelled!: () => void
+    // Settles when the job is cancelled, so that a send waiting for room ends at once.
+    readonly whenCancelled = new Promise<void>(resolve => (this._markCancelled = resolve))
     openSource: OpenSource | null = null
     // Stops the job's source on the pipeline, once it was sent.
     stopOnPipeline: (() => void) | null = null
@@ -261,6 +311,7 @@ export class PipelineJob implements ResultStream {
             return
         }
         this._cancelled = true
+        this._markCancelled()
         this._results.push(null)
         this.openSource?.inbox.push(CANCELLED)
         // So that a cancelled live source stops on the pipeline instead of running until the socket closes.
@@ -503,6 +554,19 @@ export class PipelineBackend implements WorkerBackend {
         const type = message['type']
         const id = message['id']
         const source = typeof id === 'string' ? socket.sources.get(id) : undefined
+        if (type === 'end') {
+            // Also the end of a source its job already let go, a cancelled one: it frees room all the same.
+            socket.held.delete(id)
+            socket.accepted.delete(id)
+            socket.freed()
+        } else if (type === 'result' && socket.held.has(id)) {
+            socket.accepted.add(id)
+        } else if (type === 'error' && message['error'] !== 'unknown_command') {
+            // A refused setSource, also one whose job was cancelled before the refusal arrived: no end follows.
+            // unknown_command answers a stopSource on a pipeline API from before it, for a source still open.
+            socket.held.delete(id)
+            socket.wake()
+        }
         if (type === 'send' || type === 'credit') {
             const upload = source?.uploads.get(message['member'] ?? null)
             upload?.grant(Number(type === 'send' ? message['credit'] : message['bytes']))
@@ -678,7 +742,12 @@ export class PipelineBackend implements WorkerBackend {
         }
     }
 
-    /** Run the job's source to its end; a live source refused overloaded goes once more on a new socket. */
+    /**
+     * Run the job's source to its end. A live source refused overloaded goes once more on a new socket.
+     * A source refused queue_full goes again once another source on the socket ended, so it may go after
+     * jobs submitted later; with none of the endpoint's other sources open there, or with an upload from
+     * the caller's own stream, which cannot be read twice, the refusal stands.
+     */
     private async run(job: PipelineJob): Promise<void> {
         let retried = false
         while (true) {
@@ -689,9 +758,9 @@ export class PipelineBackend implements WorkerBackend {
             const { socket, source } = sent
             const uploading = source.uploads.size > 0 ? this.upload(socket, source, job) : Promise.resolve()
             let whip: SocketWhip | null = null
-            let overloaded: boolean
+            let refused: string | null
             try {
-                overloaded = await this.follow(job, source, () => {
+                refused = await this.follow(job, source, () => {
                     if (job.mediaStream !== undefined) {
                         // A WHIP that fails leaves the live source waiting for media it never gets, so the
                         // failure stops it on the pipeline as well as ending the job.
@@ -711,8 +780,19 @@ export class PipelineBackend implements WorkerBackend {
                 await uploading
                 await (whip as SocketWhip | null)?.close()
             }
-            if (!overloaded) {
+            if (refused === null) {
                 return
+            }
+            if (refused === 'queue_full') {
+                if (socket.accepted.size === 0 && socket.ended === source.endedBefore) {
+                    throw new PipelineCommandError('queue_full', 'the socket refused the source with none of its own open')
+                }
+                if (job.media.some(media => media.once)) {
+                    throw new PipelineCommandError('queue_full', 'the socket refused an upload from a stream, which cannot be sent again')
+                }
+                // Sources still on their way count against the cap too, until they are taken or refused.
+                socket.cap = Math.min(socket.accepted.size, socket.cap ?? socket.accepted.size) || null
+                continue
             }
             if (retried || !job.live) {
                 throw new PipelineCommandError('overloaded', 'the pipeline API has no capacity for another live source')
@@ -728,13 +808,21 @@ export class PipelineBackend implements WorkerBackend {
             // Cancelled before its turn: never sent, so it takes no source on the pipeline.
             return null
         }
+        let socket = await this.ensureSocket()
+        await socket.room(job)
+        if (job.cancelled) {
+            return null
+        }
         const combined = await combinedMedia(job)
-        const socket = await this.ensureSocket()
+        // It may have closed while the send waited for room.
+        socket = await this.ensureSocket()
         const source = new OpenSource(this.newId('source'))
         if (combined === null) {
             uploadKeys(job).forEach(key => source.uploads.set(key, new Credit()))
         }
         socket.sources.set(source.id, source)
+        socket.held.add(source.id)
+        source.endedBefore = socket.ended
         job.openSource = source
         job.stopOnPipeline = () => {
             if (socket.open) {
@@ -750,15 +838,15 @@ export class PipelineBackend implements WorkerBackend {
         return { socket, source }
     }
 
-    /** Hand the source's predictions to the job until it ends; true when the pipeline API was overloaded. */
-    private async follow(job: PipelineJob, source: OpenSource, onResult: () => void): Promise<boolean> {
+    /** Hand the source's predictions to the job until it ends; the refusal to retry on, overloaded or queue_full. */
+    private async follow(job: PipelineJob, source: OpenSource, onResult: () => void): Promise<string | null> {
         while (true) {
             if (job.cancelled) {
-                return false
+                return null
             }
             const message = await source.inbox.next()
             if (message === CANCELLED) {
-                return false
+                return null
             }
             if (message instanceof Error) {
                 throw message
@@ -772,12 +860,12 @@ export class PipelineBackend implements WorkerBackend {
                     break
                 case 'end':
                     if (message['reason'] === 'eos') {
-                        return false
+                        return null
                     }
                     throw new PipelineSourceError(source.id, message['reason'] ?? '', message['message'] ?? '')
                 case 'error':
-                    if (message['error'] === 'overloaded') {
-                        return true
+                    if (message['error'] === 'overloaded' || message['error'] === 'queue_full') {
+                        return message['error']
                     }
                     throw new PipelineCommandError(message['error'] ?? '', message['message'] ?? '')
                 case 'dropped':
@@ -943,7 +1031,8 @@ function knownSize(body: UploadBody): number | undefined {
 }
 
 function bodyMedia(body: UploadBody, contentType: string, size: number | undefined): Media {
-    return { open: async () => body, contentType, size: size ?? knownSize(body) }
+    const once = !(typeof Blob !== 'undefined' && body instanceof Blob) && !(body instanceof ArrayBuffer) && !ArrayBuffer.isView(body)
+    return { open: async () => body, contentType, size: size ?? knownSize(body), once }
 }
 
 function uploadGroup(media: Media[]): Message {
