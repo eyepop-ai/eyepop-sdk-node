@@ -594,6 +594,10 @@ export class PipelineBackend implements WorkerBackend {
             socket.held.delete(id)
             socket.lives.delete(id)
             socket.freed()
+        } else if (type === 'error' && (message['error'] === 'queue_full' || message['error'] === 'overloaded')) {
+            // A refused setSource, also one whose job was cancelled before the refusal arrived: no end follows.
+            socket.held.delete(id)
+            socket.lives.delete(id)
         }
         if (type === 'send' || type === 'credit') {
             const upload = source?.uploads.get(message['member'] ?? null)
@@ -818,8 +822,6 @@ export class PipelineBackend implements WorkerBackend {
             if (refused === null) {
                 return
             }
-            socket.held.delete(source.id)
-            socket.lives.delete(source.id)
             if (refused === 'queue_full') {
                 if (socket.held.size === 0 && socket.ended === source.endedBefore) {
                     throw new PipelineCommandError('queue_full', 'the socket refused the source with none of its own open')
