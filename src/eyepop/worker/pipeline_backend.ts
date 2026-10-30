@@ -180,10 +180,12 @@ class PipelineSocket {
     // The ids of sources sent on this socket that have neither ended nor been refused, as the
     // pipeline API counts them, cancelled ones included.
     readonly held = new Set<string>()
+    // The held sources the pipeline API took: only these end, so only these make room.
+    readonly accepted = new Set<string>()
     // The ends on this socket so far.
     ended = 0
-    // How many sources were open when the socket last refused queue_full: while as many are open,
-    // the next send waits. Null once none is open.
+    // How many sources the socket had taken when it last refused queue_full: while as many are held,
+    // the next send waits. Null once none is held.
     cap: number | null = null
     private _roomWaiters: (() => void)[] = []
 
@@ -555,7 +557,10 @@ export class PipelineBackend implements WorkerBackend {
         if (type === 'end') {
             // Also the end of a source its job already let go, a cancelled one: it frees room all the same.
             socket.held.delete(id)
+            socket.accepted.delete(id)
             socket.freed()
+        } else if (type === 'result' && socket.held.has(id)) {
+            socket.accepted.add(id)
         } else if (type === 'error' && message['error'] !== 'unknown_command') {
             // A refused setSource, also one whose job was cancelled before the refusal arrived: no end follows.
             // unknown_command answers a stopSource on a pipeline API from before it, for a source still open.
@@ -779,14 +784,14 @@ export class PipelineBackend implements WorkerBackend {
                 return
             }
             if (refused === 'queue_full') {
-                if (socket.held.size === 0 && socket.ended === source.endedBefore) {
+                if (socket.accepted.size === 0 && socket.ended === source.endedBefore) {
                     throw new PipelineCommandError('queue_full', 'the socket refused the source with none of its own open')
                 }
                 if (job.media.some(media => media.once)) {
                     throw new PipelineCommandError('queue_full', 'the socket refused an upload from a stream, which cannot be sent again')
                 }
-                // Sources whose refusal is still on its way count too, until it arrives.
-                socket.cap = Math.min(socket.held.size, socket.cap ?? socket.held.size) || null
+                // Sources still on their way count against the cap too, until they are taken or refused.
+                socket.cap = Math.min(socket.accepted.size, socket.cap ?? socket.accepted.size) || null
                 continue
             }
             if (retried || !job.live) {
