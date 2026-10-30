@@ -42,7 +42,8 @@ export function pops(socket: FakeSocket): unknown[] {
  * `1011 overloaded`, `closeOnOpen` closes every socket as soon as it opens, `popDelayMs` holds
  * each setPop's answer that long, `queueFullAt` refuses a setSource `queue_full` while the socket
  * has that many open sources (counted in `queueFullRefused`), `queueFullDelayMs` holds that refusal
- * that long, and `sourceDelayMs` holds each source that long before its predictions.
+ * that long, `sourceDelayMs` holds each source that long before its predictions, and `closeOnPop`
+ * closes the socket at that index `1000 idle` instead of answering its next setPop.
  */
 export class FakePipelineApi {
     frames = 2
@@ -59,6 +60,7 @@ export class FakePipelineApi {
     queueFullAt: number | null = null
     queueFullRefused = 0
     queueFullDelayMs = 0
+    closeOnPop: number | null = null
     sourceDelayMs = 0
     // False plays a pipeline API from before stopSource, which answers it unknown_command.
     knowsStopSource = true
@@ -188,6 +190,11 @@ class Run {
         const id = command['id']
         switch (command['type']) {
             case 'setPop': {
+                if (this._fake.closeOnPop !== null && this._fake.sockets.indexOf(this._socket) === this._fake.closeOnPop) {
+                    this._fake.closeOnPop = null
+                    this.close(1000, 'idle')
+                    break
+                }
                 const answer = () => {
                     if (this._fake.popError) {
                         this.send({ type: 'error', id, error: this._fake.popError, message: 'no such ability' })

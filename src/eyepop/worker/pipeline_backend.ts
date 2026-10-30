@@ -667,7 +667,14 @@ export class PipelineBackend implements WorkerBackend {
             const sockets = this.openSockets()
             if (sockets.length > 0) {
                 for (const socket of sockets) {
-                    await this.setPopOn(socket, pop)
+                    try {
+                        await this.setPopOn(socket, pop)
+                    } catch (error) {
+                        // A socket that closed meanwhile gets the pop when one opens in its place.
+                        if (!(error instanceof PipelineSocketClosedError)) {
+                            throw error
+                        }
+                    }
                 }
                 this._currentPop = pop
                 return

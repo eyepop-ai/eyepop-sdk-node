@@ -549,6 +549,28 @@ describe('pipeline mode (SDK-27)', () => {
         expect(fake.sockets.every(socket => JSON.stringify(pops(socket)) === JSON.stringify([PERSON, VEHICLE]))).toBe(true)
     })
 
+    test('changePop goes on to the other sockets when one closes under it', async () => {
+        fake.sourceDelayMs = 200
+        const ep = endpoint({ pop: PERSON })
+        await ep.connect()
+        const batch = async () => {
+            const jobs = []
+            for (const n of [0, 1, 2, 3]) {
+                jobs.push(await ep.process({ source: { url: `https://images.example/${n}.jpg` } }))
+            }
+            await Promise.all(jobs.map(all))
+        }
+        await batch()
+        fake.closeOnPop = 1
+        await ep.changePop(VEHICLE)
+        await batch()
+        await ep.disconnect()
+        expect(fake.sockets).toHaveLength(5)
+        expect(ep.pop()).toEqual(VEHICLE)
+        // The sockets after the closed one get the new pop, and so does the one opened in its place.
+        expect(fake.sockets.map(socket => pops(socket).slice(-1)[0])).toEqual([VEHICLE, VEHICLE, VEHICLE, VEHICLE, VEHICLE])
+    })
+
     test('another socket the pipeline API refuses does not hold up the job', async () => {
         fake.sourceDelayMs = 200
         const ep = endpoint()
