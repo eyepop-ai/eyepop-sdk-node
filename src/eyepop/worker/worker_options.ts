@@ -38,4 +38,9 @@ export interface WorkerOptions extends Options {
      * Defaults to process.env['EYEPOP_PIPELINE_MODE'].
      */
     isPipelineMode?: boolean
+    /**
+     * In pipeline mode, the most sockets the endpoint opens. Each runs its own pipeline, which plays its
+     * sources one after another; a new one opens only while every open one has a source. Defaults to 4.
+     */
+    pipelineSockets?: number
 }

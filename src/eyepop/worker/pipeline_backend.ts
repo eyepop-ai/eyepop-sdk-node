@@ -1,5 +1,5 @@
 /**
- * Runs a WorkerEndpoint's jobs on the pipeline API's socket (SDK-27, the Node side of SDK-24).
+ * Runs a WorkerEndpoint's jobs on the pipeline API's sockets (SDK-27, the Node side of SDK-24).
  *
  * The socket protocol is eyepop-instance spec 019, `contracts/socket.md`: one socket runs its
  * own pipeline and takes commands, `setPop` and `setSource` among them, and streams every
@@ -17,6 +17,8 @@ export const PIPELINE_PATH = '/api/v1/pipeline'
 export const SUBPROTOCOL = 'eyepop.v1'
 /** A socket may have this many open sources; one more is answered `queue_full`. */
 export const MAX_OPEN_SOURCES = 256
+/** The most sockets an endpoint opens unless `pipelineSockets` says otherwise. */
+export const PIPELINE_SOCKETS = 4
 /** Uploads up to this size go as one combined message, larger ones in chunks. */
 export const COMBINED_UPLOAD_MAX_BYTES = 8 * 1024 * 1024
 
@@ -186,6 +188,7 @@ class PipelineSocket {
     // the next send waits. Null once none is open.
     cap: number | null = null
     private _roomWaiters: (() => void)[] = []
+    heartbeat: ReturnType<typeof setInterval> | null = null
 
     constructor(readonly ws: WebSocket) {
         this.closed = new Promise(resolve => (this._markClosed = resolve))
@@ -222,6 +225,10 @@ class PipelineSocket {
     }
 
     markClosed(): void {
+        if (this.heartbeat !== null) {
+            clearInterval(this.heartbeat)
+            this.heartbeat = null
+        }
         this._closed = true
         this._markClosed()
         this.freed()
@@ -329,10 +336,15 @@ export class PipelineJob implements ResultStream {
     }
 }
 
-/** Runs jobs on one socket to the pipeline API, opened when the endpoint connects. */
+/**
+ * Runs jobs on up to `pipelineSockets` sockets to the pipeline API; connecting opens the first. A
+ * socket's pipeline plays its sources one after another, so a batch on one socket leaves the GPU
+ * mostly idle. While every open socket has a source and fewer than `pipelineSockets` are open, the next
+ * job opens another; each job goes on the socket that has room and the fewest open sources.
+ */
 export class PipelineBackend implements WorkerBackend {
     private _pipelineApiUrl: string | null = null
-    private _socket: PipelineSocket | null = null
+    private _sockets: PipelineSocket[] = []
     private _connecting: Promise<PipelineSocket> | null = null
     // Every job's setSource and every changePop goes out through this chain, in the order submitted.
     private _sendChain: Promise<unknown> = Promise.resolve()
@@ -340,7 +352,6 @@ export class PipelineBackend implements WorkerBackend {
     private _nextId = 0
     private _currentPop: Pop | null
     private readonly _warned = new Set<string>()
-    private _heartbeat: ReturnType<typeof setInterval> | null = null
     // Reconnects at once since a source last played.
     private _reconnects = 0
 
@@ -360,13 +371,9 @@ export class PipelineBackend implements WorkerBackend {
         // The endpoint's jobs end first; then the socket, which stops whatever still runs on it.
         await closeEndpoint()
         this._disconnecting = true
-        if (this._heartbeat !== null) {
-            clearInterval(this._heartbeat)
-            this._heartbeat = null
-        }
-        const socket = this._socket
-        this._socket = null
-        if (socket !== null) {
+        const sockets = this._sockets
+        this._sockets = []
+        for (const socket of sockets) {
             socket.ws.close(1000)
             await socket.closed
         }
@@ -388,22 +395,50 @@ export class PipelineBackend implements WorkerBackend {
         return result
     }
 
-    /** The open socket, or a new one with the last pop set on it. */
+    private openSockets(): PipelineSocket[] {
+        return this._sockets.filter(socket => socket.open)
+    }
+
+    /** An open socket, or a new one with the last pop set on it. */
     private async ensureSocket(): Promise<PipelineSocket> {
-        if (this._socket !== null && this._socket.open) {
-            return this._socket
+        const open = this.openSockets()[0]
+        if (open !== undefined) {
+            return open
         }
         if (this._connecting === null) {
-            this._connecting = this.openSocket().finally(() => (this._connecting = null))
+            this._connecting = this.openSocket(true).finally(() => (this._connecting = null))
         }
         return await this._connecting
     }
 
-    private async openSocket(): Promise<PipelineSocket> {
+    /**
+     * The socket for the next job: a new one while every open socket has a source and fewer than
+     * `pipelineSockets` are open, else the open one with room and the fewest sources. The caller
+     * runs it in submission order.
+     */
+    private async socketForJob(): Promise<PipelineSocket> {
+        const sockets = this.openSockets()
+        if (sockets.length === 0) {
+            return await this.ensureSocket()
+        }
+        if (sockets.length < (this.ctx.options.pipelineSockets ?? PIPELINE_SOCKETS) && sockets.every(socket => socket.held.size > 0)) {
+            try {
+                return await this.openSocket(false)
+            } catch (error) {
+                // The open sockets take the job; the next job tries again.
+                this.ctx.requestLogger.info('could not open another pipeline API socket: %s', error)
+            }
+        }
+        const rank = (socket: PipelineSocket) => (socket.hasRoom ? 0 : MAX_OPEN_SOURCES + 1) + socket.held.size
+        return sockets.reduce((best, socket) => (rank(socket) < rank(best) ? socket : best))
+    }
+
+    /** A new socket with the last pop set on it; `patient` waits through 503 with Retry-After. */
+    private async openSocket(patient: boolean): Promise<PipelineSocket> {
         if (this.ctx.client() === null) {
             throw new PipelineSocketClosedError(undefined, 'the endpoint is not connected')
         }
-        const ws = await this.upgrade(await this.socketUrl())
+        const ws = await this.upgrade(await this.socketUrl(), patient)
         const socket = new PipelineSocket(ws)
         ws.onmessage = (event: MessageEvent) => {
             if (typeof event.data === 'string') {
@@ -416,14 +451,14 @@ export class PipelineBackend implements WorkerBackend {
         }
         ws.onerror = () => {}
         ws.onclose = (event: CloseEvent) => this.closed(socket, event.code, event.reason)
-        this._socket = socket
-        this.startHeartbeat(ws)
+        this._sockets.push(socket)
+        this.startHeartbeat(socket)
         if (this._currentPop !== null) {
             try {
                 await this.setPopOn(socket, this._currentPop)
             } catch (error) {
                 // A socket whose pipeline does not run the pop runs no job.
-                this._socket = null
+                this._sockets = this._sockets.filter(other => other !== socket)
                 ws.close(1000)
                 throw error
             }
@@ -431,19 +466,17 @@ export class PipelineBackend implements WorkerBackend {
         return socket
     }
 
-    private startHeartbeat(ws: WebSocket): void {
-        if (this._heartbeat !== null) {
-            clearInterval(this._heartbeat)
-        }
+    private startHeartbeat(socket: PipelineSocket): void {
         // A ping keeps the connection alive, nothing else; only Node's ws can send one.
+        const ws = socket.ws
         const ping = (ws as any).ping
         if (typeof ping === 'function') {
-            this._heartbeat = setInterval(() => {
+            socket.heartbeat = setInterval(() => {
                 if (ws.readyState === 1) {
                     ping.call(ws)
                 }
             }, HEARTBEAT_MS)
-            ;(this._heartbeat as any).unref?.()
+            ;(socket.heartbeat as any).unref?.()
         }
     }
 
@@ -485,7 +518,7 @@ export class PipelineBackend implements WorkerBackend {
     }
 
     /** Open the socket, waiting through 503 with Retry-After and exchanging the API key again after a 401. */
-    private async upgrade(url: string): Promise<WebSocket> {
+    private async upgrade(url: string, patient: boolean): Promise<WebSocket> {
         const deadline = Date.now() + MAX_RETRY_MS
         let rejected = false
         while (true) {
@@ -503,7 +536,7 @@ export class PipelineBackend implements WorkerBackend {
                     continue
                 }
                 const wait = error.status === 503 && error.retryAfter !== undefined ? Math.max(error.retryAfter, 1) * 1000 : undefined
-                if (wait === undefined || Date.now() + wait > deadline) {
+                if (!patient || wait === undefined || Date.now() + wait > deadline) {
                     throw error
                 }
                 this.ctx.requestLogger.info('the pipeline API answered 503, retrying in %d ms', wait)
@@ -514,9 +547,7 @@ export class PipelineBackend implements WorkerBackend {
 
     private closed(socket: PipelineSocket, code: number | undefined, reason: string): void {
         socket.markClosed()
-        if (this._socket === socket) {
-            this._socket = null
-        }
+        this._sockets = this._sockets.filter(other => other !== socket)
         const error = new PipelineSocketClosedError(code, reason)
         socket.sources.forEach(source => source.close(error))
         socket.commands.forEach(command => command.reject(error))
@@ -606,15 +637,22 @@ export class PipelineBackend implements WorkerBackend {
         return this._currentPop
     }
 
-    /** Set the pop on the socket's pipeline; a pop it refuses rejects, and the last pop it took stays. */
+    /**
+     * Set the pop on every open socket's pipeline; a pop the first refuses rejects, and the last pop it
+     * took stays. shortcut: a refusal from a later socket, which the first took, leaves the earlier ones
+     * on the new pop; a refusal is the pop's own fault, so every socket answers it alike.
+     */
     public async changePop(pop: Pop): Promise<void> {
         if (this.ctx.client() === null) {
             this._currentPop = pop
             return
         }
         await this.inOrder(async () => {
-            if (this._socket !== null && this._socket.open) {
-                await this.setPopOn(this._socket, pop)
+            const sockets = this.openSockets()
+            if (sockets.length > 0) {
+                for (const socket of sockets) {
+                    await this.setPopOn(socket, pop)
+                }
                 this._currentPop = pop
                 return
             }
@@ -794,14 +832,16 @@ export class PipelineBackend implements WorkerBackend {
             // Cancelled before its turn: never sent, so it takes no source on the pipeline.
             return null
         }
-        let socket = await this.ensureSocket()
+        let socket = await this.socketForJob()
         await socket.room(job)
         if (job.cancelled) {
             return null
         }
         const combined = await combinedMedia(job)
-        // It may have closed while the send waited for room.
-        socket = await this.ensureSocket()
+        if (!socket.open) {
+            // It closed while the send waited for room.
+            socket = await this.socketForJob()
+        }
         const source = new OpenSource(this.newId('source'))
         if (combined === null) {
             uploadKeys(job).forEach(key => source.uploads.set(key, new Credit()))

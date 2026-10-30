@@ -1,5 +1,6 @@
 import {
     EyePop,
+    PIPELINE_SOCKETS,
     PipelineBackend,
     PipelineCommandError,
     PipelineConfigurationError,
@@ -387,7 +388,7 @@ describe('pipeline mode (SDK-27)', () => {
 
     test('jobs go out in submission order on one socket', async () => {
         const urls = [0, 1, 2, 3, 4].map(n => `https://images.example/${n}.jpg`)
-        const ep = endpoint()
+        const ep = endpoint({ pipelineSockets: 1 })
         await ep.connect()
         const jobs = [await ep.process({ source: { path: file('image.jpg', 'jpeg') } })]
         for (const url of urls) {
@@ -402,7 +403,7 @@ describe('pipeline mode (SDK-27)', () => {
 
     test('queue_full with no other source open rejects', async () => {
         fake.refusals.push('queue_full')
-        const ep = endpoint()
+        const ep = endpoint({ pipelineSockets: 1 })
         await ep.connect()
         const refused = await all(await ep.process({ source: { url: 'https://images.example/a.jpg' } })).catch(e => e)
         expect(refused).toBeInstanceOf(PipelineCommandError)
@@ -414,7 +415,7 @@ describe('pipeline mode (SDK-27)', () => {
         fake.queueFullAt = 2
         fake.sourceDelayMs = 20
         const urls = Array.from({ length: 30 }, (_, n) => `https://images.example/${n}.jpg`)
-        const ep = endpoint()
+        const ep = endpoint({ pipelineSockets: 1 })
         await ep.connect()
         const jobs = []
         for (const url of urls) {
@@ -434,7 +435,7 @@ describe('pipeline mode (SDK-27)', () => {
 
     test('the end of a cancelled source lets a source refused queue_full go', async () => {
         fake.queueFullAt = 1
-        const ep = endpoint()
+        const ep = endpoint({ pipelineSockets: 1 })
         await ep.connect()
         const live = await ep.process({ source: { url: 'rtsp://camera.example/stream' } })
         expect((await live[Symbol.asyncIterator]().next()).value).toEqual(prediction(0))
@@ -447,7 +448,7 @@ describe('pipeline mode (SDK-27)', () => {
 
     test('a job cancelled while it waits for room ends at once', async () => {
         fake.queueFullAt = 1
-        const ep = endpoint()
+        const ep = endpoint({ pipelineSockets: 1 })
         await ep.connect()
         const live = await ep.process({ source: { url: 'rtsp://camera.example/stream' } })
         expect((await live[Symbol.asyncIterator]().next()).value).toEqual(prediction(0))
@@ -465,7 +466,7 @@ describe('pipeline mode (SDK-27)', () => {
 
     test('an upload from a stream refused queue_full rejects', async () => {
         fake.queueFullAt = 1
-        const ep = endpoint()
+        const ep = endpoint({ pipelineSockets: 1 })
         await ep.connect()
         const live = await ep.process({ source: { url: 'rtsp://camera.example/stream' } })
         expect((await live[Symbol.asyncIterator]().next()).value).toEqual(prediction(0))
@@ -481,6 +482,68 @@ describe('pipeline mode (SDK-27)', () => {
         expect(refused.error).toBe('queue_full')
         live.cancel()
         await ep.disconnect()
+    })
+
+    test('a batch spreads over pipelineSockets sockets, each with the pop', async () => {
+        fake.sourceDelayMs = 200
+        const urls = Array.from({ length: 12 }, (_, n) => `https://images.example/${n}.jpg`)
+        const ep = endpoint({ pop: PERSON })
+        await ep.connect()
+        const jobs = []
+        for (const url of urls) {
+            jobs.push(await ep.process({ source: { url } }))
+        }
+        const results = await Promise.all(jobs.map(all))
+        await ep.disconnect()
+        expect(results.every(r => r.length === 2)).toBe(true)
+        expect(fake.sockets).toHaveLength(PIPELINE_SOCKETS)
+        expect(PIPELINE_SOCKETS).toBe(4)
+        expect(fake.sockets.every(socket => JSON.stringify(pops(socket)) === JSON.stringify([PERSON]))).toBe(true)
+        expect(fake.sockets.every(socket => sources(socket).length > 0)).toBe(true)
+        expect(fake.sockets.flatMap(socket => sources(socket).map(s => s['url'])).sort()).toEqual([...urls].sort())
+    })
+
+    test('jobs one after another stay on one socket', async () => {
+        const ep = endpoint()
+        await ep.connect()
+        for (const n of [0, 1, 2]) {
+            expect(await all(await ep.process({ source: { url: `https://images.example/${n}.jpg` } }))).toEqual([prediction(0), prediction(1)])
+        }
+        await ep.disconnect()
+        expect(fake.sockets).toHaveLength(1)
+    })
+
+    test('changePop reaches every open socket', async () => {
+        fake.sourceDelayMs = 200
+        const ep = endpoint({ pop: PERSON })
+        await ep.connect()
+        const jobs = []
+        for (const n of [0, 1, 2, 3]) {
+            jobs.push(await ep.process({ source: { url: `https://images.example/${n}.jpg` } }))
+        }
+        await Promise.all(jobs.map(all))
+        await ep.changePop(VEHICLE)
+        await ep.disconnect()
+        expect(fake.sockets).toHaveLength(4)
+        expect(fake.sockets.every(socket => JSON.stringify(pops(socket)) === JSON.stringify([PERSON, VEHICLE]))).toBe(true)
+    })
+
+    test('another socket the pipeline API refuses does not hold up the job', async () => {
+        fake.sourceDelayMs = 200
+        const ep = endpoint()
+        await ep.connect()
+        fake.upgradeAnswers.push({ status: 503, headers: { 'Retry-After': '5' } })
+        const started = Date.now()
+        const jobs = []
+        for (const n of [0, 1]) {
+            jobs.push(await ep.process({ source: { url: `https://images.example/${n}.jpg` } }))
+        }
+        const results = await Promise.all(jobs.map(all))
+        await ep.disconnect()
+        expect(results.every(r => r.length === 2)).toBe(true)
+        // the second job went on the open socket instead of waiting 5 s
+        expect(Date.now() - started).toBeLessThan(2000)
+        expect(fake.sockets).toHaveLength(1)
     })
 
     // Handing a session to another endpoint
