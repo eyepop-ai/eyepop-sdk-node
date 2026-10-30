@@ -493,6 +493,8 @@ describe('pipeline mode (SDK-27)', () => {
         const jobs = await Promise.all(['a', 'b'].map(name => ep.process({ source: { url: `https://images.example/${name}.jpg` } })))
         const refused = await Promise.all(jobs.map(job => all(job).catch(e => e)))
         expect(refused.map(e => e.error)).toEqual(['queue_full', 'queue_full'])
+        // The waiting send went again once the last held source was refused.
+        expect(sources(only()).filter(source => source['url'] === 'https://images.example/a.jpg')).toHaveLength(2)
         await ep.disconnect()
     })
 
