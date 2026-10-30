@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [3.25.2] - 2026-10-30
+
 ### Changed
 - **Breaking**: `Prediction.meshs` and `PredictedObject.meshs` are renamed `meshes`, matching the key the worker now sends; `RenderFace` draws face meshes from `meshes`.
 - The local mode docs no longer pass a pop. An on-premise instance serves the pop chosen with `eyepop instance init` or `eyepop instance set`, and the endpoint runs on the instance's own pipeline and leaves it running on disconnect.
