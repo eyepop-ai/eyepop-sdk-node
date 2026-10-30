@@ -42,6 +42,10 @@ const logger = pino({ level: 'warn', name: 'ab-load' })
 const hms = () => new Date().toTimeString().slice(0, 8)
 const token = process.env['EYEPOP_ACCESS_TOKEN']
 if (!token) throw new Error('EYEPOP_ACCESS_TOKEN is not set')
+if (!['images', 'video', 'streams'].includes(what ?? '') || arg === undefined) throw new Error('usage: ab_load.ts images <count> | video <file> | streams <count> [options]')
+if (POPS[popName] === undefined) throw new Error(`unknown --pop ${popName}; one of ${Object.keys(POPS).join(', ')}`)
+// Jobs that failed, so that the exit status says the run had failures.
+let failures = 0
 
 const newEp = () => EyePop.workerEndpoint({ isPipelineMode: true, pipelineSockets: Number(process.env['SOCKETS'] ?? 4), accessToken: token, eyepopUrl: process.env['EYEPOP_URL'], logger, pop: POPS[popName] })
 
@@ -66,6 +70,7 @@ async function images(ep: any, count: number) {
     for (const r of results) if (r.status === 'rejected') errors[errorKind(r.reason)] = (errors[errorKind(r.reason)] ?? 0) + 1
     const firsts = results.flatMap(r => (r.status === 'fulfilled' && r.value !== undefined ? [r.value] : [])).sort((a, b) => a - b)
     const failed = Object.values(errors).reduce((a, b) => a + b, 0)
+    failures += failed
     let line = `${hms()} ${account}: batch of ${count} images on ${popName} took ${((performance.now() - t0) / 1000).toFixed(1)} s`
     line += firsts.length ? `; ${firsts.length} predicted, ${count - firsts.length - failed} without a prediction, first after ${firsts[0].toFixed(1)} s, median ${firsts[firsts.length >> 1].toFixed(1)} s` : '; none predicted'
     console.log(line + (failed ? `; ${failed} failed: ${JSON.stringify(errors)}` : ''))
@@ -100,6 +105,7 @@ async function streams(count: number, stop: Promise<void>) {
                 ended.set(cam, 'closed')
             } catch (e) {
                 ended.set(cam, errorKind(e))
+                failures += 1
                 console.log(`  cam-${cam} ${hms()} raised ${errorKind(e)}`)
             }
         })()
@@ -137,5 +143,5 @@ async function streams(count: number, stop: Promise<void>) {
         }
     }
     console.log(`${hms()} ${account}: stopped after ${duration / 1000} s (--for)`)
-    process.exit(0)
+    process.exit(failures > 0 ? 1 : 0)
 })()

@@ -106,6 +106,10 @@ describe('pipeline mode (SDK-27)', () => {
         },
     )
 
+    test.each([0, -1, 1.5])('refuses pipelineSockets %p', pipelineSockets => {
+        expect(() => EyePop.workerEndpoint({ apiKey: 'k', isPipelineMode: true, pipelineSockets })).toThrow(PipelineConfigurationError)
+    })
+
     test('a pipeline mode endpoint built directly holds 256 jobs and leaves the options as they were', () => {
         const options = { eyepopUrl: fake.url, accessToken: 't', isPipelineMode: true }
         const direct = new WorkerEndpoint(options)
@@ -627,6 +631,21 @@ describe('pipeline mode (SDK-27)', () => {
         // the second job went on the open socket instead of waiting 5 s
         expect(Date.now() - started).toBeLessThan(2000)
         expect(fake.sockets).toHaveLength(1)
+    })
+
+    test('a socket that finishes opening after disconnect started is closed', async () => {
+        fake.closes.set(1, [1001, 'shutting_down'])
+        const ep = endpoint()
+        await ep.connect()
+        fake.upgradeDelayMs = 300
+        // The close reopens the socket at once; disconnect starts while that upgrade is held.
+        await all(await ep.process({ source: { url: 'https://images.example/0.jpg' } })).catch(() => undefined)
+        await eventually(() => fake.sockets.length === 1 && fake.openSockets === 0)
+        await new Promise(resolve => setTimeout(resolve, 50))
+        await ep.disconnect()
+        await new Promise(resolve => setTimeout(resolve, 500))
+        expect(fake.sockets).toHaveLength(2)
+        expect(fake.openSockets).toBe(0)
     })
 
     test('after the pipeline API refused another socket, the next jobs do not ask again at once', async () => {

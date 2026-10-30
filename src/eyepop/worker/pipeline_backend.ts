@@ -36,7 +36,7 @@ const RECONNECT_AT_ONCE = new Set(['1008 credential_expired', '1011 overloaded',
 const MAX_RECONNECT_DELAY_MS = 30 * 1000
 
 /** Why pipeline mode refused its configuration. */
-export type PipelineConfigurationProblem = 'session_options' | 'job_queue_length' | 'no_pipeline_api_url' | 'insecure_url'
+export type PipelineConfigurationProblem = 'session_options' | 'job_queue_length' | 'pipeline_sockets' | 'no_pipeline_api_url' | 'insecure_url'
 
 /** Pipeline mode cannot run as configured; `options` names the refused options for `session_options`. */
 export class PipelineConfigurationError extends Error {
@@ -457,6 +457,11 @@ export class PipelineBackend implements WorkerBackend {
             throw new PipelineSocketClosedError(undefined, 'the endpoint is not connected')
         }
         const ws = await this.upgrade(await this.socketUrl(), patient)
+        if (this._disconnecting) {
+            // A reconnect whose upgrade finished after disconnect took the sockets it had.
+            ws.close(1000)
+            throw new PipelineSocketClosedError(undefined, 'the endpoint disconnected')
+        }
         const socket = new PipelineSocket(ws)
         ws.onmessage = (event: MessageEvent) => {
             if (typeof event.data === 'string') {

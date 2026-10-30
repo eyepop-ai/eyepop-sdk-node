@@ -22,6 +22,9 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             if ((options.jobQueueLength as number) > MAX_OPEN_SOURCES) {
                 throw new PipelineConfigurationError('job_queue_length', `jobQueueLength ${options.jobQueueLength} exceeds ${MAX_OPEN_SOURCES}, the open sources a pipeline API socket takes`)
             }
+            if (options.pipelineSockets !== undefined && !(Number.isInteger(options.pipelineSockets) && options.pipelineSockets > 0)) {
+                throw new PipelineConfigurationError('pipeline_sockets', `pipelineSockets ${options.pipelineSockets} is not a positive whole number`)
+            }
         }
         super(options)
         const context: WorkerContext = {

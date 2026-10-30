@@ -43,7 +43,8 @@ export function pops(socket: FakeSocket): unknown[] {
  * each setPop's answer that long, `queueFullAt` refuses a setSource `queue_full` while the socket
  * has that many open sources (counted in `queueFullRefused`), `queueFullDelayMs` holds that refusal
  * that long, `sourceDelayMs` holds each source that long before its predictions, and `closeOnPop`
- * closes the socket at that index `1000 idle` instead of answering its next setPop.
+ * closes the socket at that index `1000 idle` instead of answering its next setPop, and `upgradeDelayMs`
+ * holds each upgrade that long. `openSockets` counts the sockets still open.
  */
 export class FakePipelineApi {
     frames = 2
@@ -61,6 +62,7 @@ export class FakePipelineApi {
     queueFullRefused = 0
     queueFullDelayMs = 0
     closeOnPop: number | null = null
+    upgradeDelayMs = 0
     sourceDelayMs = 0
     // False plays a pipeline API from before stopSource, which answers it unknown_command.
     knowsStopSource = true
@@ -83,7 +85,7 @@ export class FakePipelineApi {
                 socket.end(`HTTP/1.1 ${answer.status} Refused\r\n${headers}Content-Length: 0\r\n\r\n`)
                 return
             }
-            this._wss.handleUpgrade(request, socket, head, ws => {
+            const upgrade = () => this._wss.handleUpgrade(request, socket, head, ws => {
                 const fake: FakeSocket = {
                     authorization: request.headers['authorization'],
                     protocols: (request.headers['sec-websocket-protocol'] ?? '')
@@ -103,7 +105,16 @@ export class FakePipelineApi {
                 }
                 new Run(this, fake, ws)
             })
+            if (this.upgradeDelayMs > 0) {
+                setTimeout(upgrade, this.upgradeDelayMs)
+            } else {
+                upgrade()
+            }
         })
+    }
+
+    get openSockets(): number {
+        return this._open.size
     }
 
     get url(): string {
