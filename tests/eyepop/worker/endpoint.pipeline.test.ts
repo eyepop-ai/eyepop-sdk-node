@@ -550,7 +550,8 @@ describe('pipeline mode (SDK-27)', () => {
     })
 
     test('a batch spreads over pipelineSockets sockets, each with the pop', async () => {
-        fake.sourceDelayMs = 200
+        let release!: () => void
+        fake.sourceGate = new Promise(resolve => (release = resolve))
         const urls = Array.from({ length: 12 }, (_, n) => `https://images.example/${n}.jpg`)
         const ep = endpoint({ pop: PERSON })
         await ep.connect()
@@ -558,6 +559,9 @@ describe('pipeline mode (SDK-27)', () => {
         for (const url of urls) {
             jobs.push(await ep.process({ source: { url } }))
         }
+        // No source ends before the fake has every one of them.
+        await eventually(() => fake.sockets.flatMap(sources).length === urls.length)
+        release()
         const results = await Promise.all(jobs.map(all))
         await ep.disconnect()
         expect(results.every(r => r.length === 2)).toBe(true)

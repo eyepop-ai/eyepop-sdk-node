@@ -44,7 +44,7 @@ export function pops(socket: FakeSocket): unknown[] {
  * has that many open sources (counted in `queueFullRefused`), `queueFullDelayMs` holds that refusal
  * that long, `sourceDelayMs` holds each source that long before its predictions, and `closeOnPop`
  * closes the socket at that index `1000 idle` instead of answering its next setPop, and `upgradeDelayMs`
- * holds each upgrade that long. `upgrades` counts the upgrade requests, `openSockets` the sockets still open.
+ * holds each upgrade that long, and `sourceGate` holds every source until it settles. `upgrades` counts the upgrade requests, `openSockets` the sockets still open.
  */
 export class FakePipelineApi {
     frames = 2
@@ -64,6 +64,7 @@ export class FakePipelineApi {
     closeOnPop: number | null = null
     upgradeDelayMs = 0
     upgrades = 0
+    sourceGate: Promise<void> | null = null
     sourceDelayMs = 0
     // False plays a pipeline API from before stopSource, which answers it unknown_command.
     knowsStopSource = true
@@ -407,7 +408,9 @@ class Run {
             }
             setImmediate(() => this.playNext())
         }
-        if (this._fake.sourceDelayMs > 0) {
+        if (this._fake.sourceGate !== null) {
+            this._fake.sourceGate.then(finish)
+        } else if (this._fake.sourceDelayMs > 0) {
             setTimeout(finish, this._fake.sourceDelayMs)
         } else {
             finish()
