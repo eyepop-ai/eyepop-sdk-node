@@ -37,10 +37,10 @@ const everyArg = opt('--every')
 const every = everyArg !== undefined ? Number(everyArg) : undefined
 const firstCam = Number(opt('--first-cam', '1'))
 const [what, arg] = argv
-const account = process.env.ACCOUNT ?? 'node'
+const account = process.env['ACCOUNT'] ?? 'node'
 const logger = pino({ level: 'warn', name: 'ab-load' })
 const hms = () => new Date().toTimeString().slice(0, 8)
-const token = process.env.EYEPOP_ACCESS_TOKEN
+const token = process.env['EYEPOP_ACCESS_TOKEN']
 if (!token) throw new Error('EYEPOP_ACCESS_TOKEN is not set')
 
 const newEp = () => EyePop.workerEndpoint({ isPipelineMode: true, pipelineSockets: Number(process.env['SOCKETS'] ?? 4), accessToken: token, eyepopUrl: process.env['EYEPOP_URL'], logger, pop: POPS[popName] })
