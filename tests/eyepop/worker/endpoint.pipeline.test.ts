@@ -467,7 +467,8 @@ describe('pipeline mode (SDK-27)', () => {
     test('a source cancelled before its queue_full refusal arrives is not counted as open', async () => {
         fake.queueFullAt = 1
         fake.queueFullDelayMs = 50
-        fake.sourceDelayMs = 100
+        // Far longer than the refusal's delay, so the refusal arrives before the slow source ends.
+        fake.sourceDelayMs = 500
         const ep = endpoint({ pipelineSockets: 1 })
         await ep.connect()
         const slow = await ep.process({ source: { url: 'https://images.example/slow.jpg' } })
@@ -482,6 +483,30 @@ describe('pipeline mode (SDK-27)', () => {
         const refused = await all(await ep.process({ source: { url: 'https://images.example/b.jpg' } })).catch(e => e)
         expect(refused).toBeInstanceOf(PipelineCommandError)
         expect(refused.error).toBe('queue_full')
+        await ep.disconnect()
+    })
+
+    test('a send waiting for room goes once the last held source is refused too', async () => {
+        fake.refusals.push('queue_full')
+        fake.queueFullAt = 0
+        fake.queueFullDelayMs = 50
+        const ep = endpoint({ pipelineSockets: 1 })
+        await ep.connect()
+        const jobs = await Promise.all(['a', 'b'].map(name => ep.process({ source: { url: `https://images.example/${name}.jpg` } })))
+        const refused = await Promise.all(jobs.map(job => all(job).catch(e => e)))
+        expect(refused.map(e => e.error)).toEqual(['queue_full', 'queue_full'])
+        // The waiting send went again once the last held source was refused.
+        expect(sources(only()).filter(source => source['url'] === 'https://images.example/a.jpg')).toHaveLength(2)
+        await ep.disconnect()
+    })
+
+    test('a source refused for another reason is not counted as open', async () => {
+        fake.refusals.push('invalid_request')
+        const ep = endpoint({ pipelineSockets: 1 })
+        await ep.connect()
+        expect((await all(await ep.process({ source: { url: 'https://images.example/a.jpg' } })).catch(e => e)).error).toBe('invalid_request')
+        fake.refusals.push('queue_full')
+        expect((await all(await ep.process({ source: { url: 'https://images.example/b.jpg' } })).catch(e => e)).error).toBe('queue_full')
         await ep.disconnect()
     })
 
