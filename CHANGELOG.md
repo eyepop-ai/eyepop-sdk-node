@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Changed
+- The local mode docs no longer pass a pop. An on-premise instance serves the pop chosen with `eyepop instance init` or `eyepop instance set`, and the endpoint runs on the instance's own pipeline and leaves it running on disconnect.
+
 ## [3.25.1] - 2026-10-23
 
 ### Fixed
