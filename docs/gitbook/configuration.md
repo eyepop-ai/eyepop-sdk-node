@@ -57,22 +57,19 @@ Never ship an API key in client code. Create the session on a trusted backend an
 
 An [on-premise instance](https://docs.eyepop.ai/developer-documentation/cli/on-premise) serves the EyePop runtime on your own machine. **Local mode** points the SDK at `http://127.0.0.1:8080` instead of the cloud and needs no account credentials — the instance is already registered to your account, and reaching the loopback port is what authorizes the client. An `EYEPOP_API_KEY` in the environment is still sent if it is set; unset it to connect anonymously.
 
+The instance serves one Pop, chosen when it is set up with `eyepop instance init` and changed with `eyepop instance set`, so you do not pass one from the SDK:
+
 ```typescript
-import { EyePop, PopComponentType } from '@eyepop.ai/eyepop'
+import { EyePop } from '@eyepop.ai/eyepop'
 
 const endpoint = await EyePop.workerEndpoint({
     isLocalMode: true,
-    pop: {
-        components: [
-            { type: PopComponentType.INFERENCE, ability: 'eyepop.person:latest' },
-        ],
-    },
 }).connect()
 ```
 
 `EYEPOP_LOCAL_MODE=true` in the environment selects it without the option. In the worker mode shown here, local mode always uses port `8080`, so leave the instance on its default port when Node clients connect to it. In pipeline mode (`isPipelineMode: true`, or `EYEPOP_PIPELINE_MODE=true`) local mode means a local pipeline API on `http://127.0.0.1:9002` instead, or `EYEPOP_URL` when set, not an instance.
 
-Connecting creates a pipeline on the instance and disconnecting removes it, so disconnect in a `finally` and reuse one connected endpoint for many images.
+The endpoint runs on the instance's own pipeline and leaves it running when it disconnects. Disconnect in a `finally`, and reuse one connected endpoint for many images rather than connecting for each.
 
 ### Next steps
 
