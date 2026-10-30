@@ -486,17 +486,32 @@ describe('pipeline mode (SDK-27)', () => {
         await ep.disconnect()
     })
 
-    test('a send waiting for room goes once the last held source is refused too', async () => {
+    test('a send waiting for room goes once the last source in flight is refused', async () => {
+        fake.sourceDelayMs = 200
+        const ep = endpoint({ pipelineSockets: 1 })
+        await ep.connect()
+        const slow = await ep.process({ source: { url: 'https://images.example/slow.jpg' } })
+        await eventually(() => sources(only()).length === 1)
+        await new Promise(resolve => setTimeout(resolve, 20))
+        // a is refused at once while slow plays, and waits for room behind b; b's refusal comes after slow ended.
         fake.refusals.push('queue_full')
+        fake.queueFullAt = 1
+        fake.queueFullDelayMs = 400
+        const jobs = await Promise.all(['a', 'b'].map(name => ep.process({ source: { url: `https://images.example/${name}.jpg` } })))
+        const results = await Promise.all([slow, ...jobs].map(all))
+        expect(results).toEqual([0, 1, 2].map(() => [prediction(0), prediction(1)]))
+        expect(sources(only()).filter(source => source['url'] === 'https://images.example/a.jpg')).toHaveLength(2)
+        await ep.disconnect()
+    })
+
+    test('sources refused with none taken reject instead of sending each other again', async () => {
         fake.queueFullAt = 0
-        fake.queueFullDelayMs = 50
         const ep = endpoint({ pipelineSockets: 1 })
         await ep.connect()
         const jobs = await Promise.all(['a', 'b'].map(name => ep.process({ source: { url: `https://images.example/${name}.jpg` } })))
         const refused = await Promise.all(jobs.map(job => all(job).catch(e => e)))
         expect(refused.map(e => e.error)).toEqual(['queue_full', 'queue_full'])
-        // The waiting send went again once the last held source was refused.
-        expect(sources(only()).filter(source => source['url'] === 'https://images.example/a.jpg')).toHaveLength(2)
+        expect(fake.queueFullRefused).toBe(2)
         await ep.disconnect()
     })
 
