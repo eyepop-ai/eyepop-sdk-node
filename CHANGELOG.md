@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Fixed
+- Selected predictions arrive on an endpoint that does not know its Pop: a persistent deployment attached by session UUID, or an on-premise instance in local mode without a pop. Every endpoint now asks for prediction version 3, where it used to ask for it only when the Pop it was given had a select forward and asked for version 2 otherwise. `DEFAULT_PREDICTION_VERSION` is `V3`.
+
 ## [3.25.2] - 2026-10-30
 
 ### Changed

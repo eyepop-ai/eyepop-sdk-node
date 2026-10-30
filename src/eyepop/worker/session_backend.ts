@@ -13,14 +13,12 @@ import {
     MediaStreamSource,
     PathSource,
     Pop,
-    PredictionVersion,
     ProcessParams,
     ResultStream,
     Source,
     StreamSource,
     UrlSource,
     WorkerSession,
-    popSelects,
 } from './worker_types'
 
 interface PopConfig {
@@ -120,15 +118,6 @@ export class SessionBackend implements WorkerBackend {
             return this._pipeline.pop || null
         }
         return this.ctx.options.pop || null
-    }
-
-    /**
-     * A select forward's results come only at V3. Only a Pop that selects asks
-     * for it, so a worker too old to know V3 - which also rejects that Pop - is
-     * never sent a version it would not accept.
-     */
-    private predictionVersion(): PredictionVersion {
-        return popSelects(this.pop()) ? PredictionVersion.V3 : DEFAULT_PREDICTION_VERSION
     }
 
     public async changePop(pop: Pop): Promise<void> {
@@ -238,7 +227,7 @@ export class SessionBackend implements WorkerBackend {
                     return { stream: streamSource.stream, mimeType: streamSource.mimeType }
                 }),
             )
-            return this.start(new UploadGroupJob(sources, params, async () => this.session(), client, this.ctx.requestLogger, this.predictionVersion()))
+            return this.start(new UploadGroupJob(sources, params, async () => this.session(), client, this.ctx.requestLogger, DEFAULT_PREDICTION_VERSION))
         } catch (e) {
             limit.release()
             throw e
@@ -258,7 +247,7 @@ export class SessionBackend implements WorkerBackend {
                 stream,
                 mimeType: mimeTypes?.[i] ?? null,
             }))
-            return this.start(new UploadGroupJob(sources, params, async () => this.session(), client, this.ctx.requestLogger, this.predictionVersion()))
+            return this.start(new UploadGroupJob(sources, params, async () => this.session(), client, this.ctx.requestLogger, DEFAULT_PREDICTION_VERSION))
         } catch (e) {
             limit.release()
             throw e
@@ -274,7 +263,7 @@ export class SessionBackend implements WorkerBackend {
         await limit.acquire()
         try {
             this.ctx.updateState()
-            return this.start(new LoadFromGroupJob(urls, params, async () => this.session(), client, this.ctx.requestLogger, this.predictionVersion()))
+            return this.start(new LoadFromGroupJob(urls, params, async () => this.session(), client, this.ctx.requestLogger, DEFAULT_PREDICTION_VERSION))
         } catch (e) {
             limit.release()
             throw e
@@ -324,7 +313,7 @@ export class SessionBackend implements WorkerBackend {
                     client,
                     this.ctx.requestLogger,
                     undefined,
-                    this.predictionVersion(),
+                    DEFAULT_PREDICTION_VERSION,
                 ),
             true,
         )
@@ -333,7 +322,7 @@ export class SessionBackend implements WorkerBackend {
     private async uploadStream(source: StreamSource, params: ProcessParams): Promise<ResultStream> {
         return await this.startConnected(
             async client =>
-                new UploadJob(source.stream, source.mimeType, source.size, source.videoMode, params, async () => this.session(), client, this.ctx.requestLogger, undefined, this.predictionVersion()),
+                new UploadJob(source.stream, source.mimeType, source.size, source.videoMode, params, async () => this.session(), client, this.ctx.requestLogger, undefined, DEFAULT_PREDICTION_VERSION),
             true,
         )
     }
@@ -359,7 +348,7 @@ export class SessionBackend implements WorkerBackend {
                 client,
                 this.ctx.requestLogger,
                 uploadBodyFactory,
-                this.predictionVersion(),
+                DEFAULT_PREDICTION_VERSION,
             )
         })
     }
@@ -368,15 +357,15 @@ export class SessionBackend implements WorkerBackend {
         if (source.url.startsWith('file://')) {
             return await this.uploadPath({ path: source.url.substring('file://'.length) }, params)
         }
-        return await this.startConnected(async client => new LoadFromJob(source.url, params, async () => this.session(), client, this.ctx.requestLogger, this.predictionVersion()))
+        return await this.startConnected(async client => new LoadFromJob(source.url, params, async () => this.session(), client, this.ctx.requestLogger, DEFAULT_PREDICTION_VERSION))
     }
 
     private async loadFromAssetUuid(source: AssetUuidSource, params: ProcessParams): Promise<ResultStream> {
-        return await this.startConnected(async client => new LoadFromAssetUuidJob(source.assetUuid, params, async () => this.session(), client, this.ctx.requestLogger, this.predictionVersion()))
+        return await this.startConnected(async client => new LoadFromAssetUuidJob(source.assetUuid, params, async () => this.session(), client, this.ctx.requestLogger, DEFAULT_PREDICTION_VERSION))
     }
 
     private async loadMediaStream(source: MediaStreamSource, params: ProcessParams): Promise<ResultStream> {
-        return await this.startConnected(async client => new LoadMediaStreamJob(source.mediaStream, params, async () => this.session(), client, this.ctx.requestLogger, this.predictionVersion()))
+        return await this.startConnected(async client => new LoadMediaStreamJob(source.mediaStream, params, async () => this.session(), client, this.ctx.requestLogger, DEFAULT_PREDICTION_VERSION))
     }
 
     public async reconnect(): Promise<void> {

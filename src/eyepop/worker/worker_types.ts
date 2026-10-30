@@ -13,7 +13,7 @@ export enum PredictionVersion {
     V3 = 3,
 }
 
-export const DEFAULT_PREDICTION_VERSION: PredictionVersion = PredictionVersion.V2
+export const DEFAULT_PREDICTION_VERSION: PredictionVersion = PredictionVersion.V3
 
 export interface WorkerSession extends Session {
     /**

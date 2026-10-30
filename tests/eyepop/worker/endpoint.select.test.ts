@@ -65,7 +65,7 @@ describe('EyePopSdk endpoint asks for selected predictions', () => {
     afterAll(() => server.stop())
     beforeEach(() => server.reset())
 
-    async function loadWith(pop: Pop): Promise<unknown> {
+    async function loadWith(pop: Pop | null): Promise<unknown> {
         const test_pop_id = uuidv4()
         const test_pipeline_id = uuidv4()
         server.post('/v1/auth/authenticate').mockImplementation(ctx => {
@@ -113,7 +113,11 @@ describe('EyePopSdk endpoint asks for selected predictions', () => {
         expect(await loadWith(faceIdPop(selectCrop))).toBe(PredictionVersion.V3)
     })
 
-    test('any other Pop keeps asking for version 2', async () => {
-        expect(await loadWith(faceIdPop({ operator: { type: ForwardOperatorType.CROP }, targets: faceTargets }))).toBe(PredictionVersion.V2)
+    test('any other Pop asks for version 3 too', async () => {
+        expect(await loadWith(faceIdPop({ operator: { type: ForwardOperatorType.CROP }, targets: faceTargets }))).toBe(PredictionVersion.V3)
+    })
+
+    test('an endpoint that does not know its Pop asks for version 3', async () => {
+        expect(await loadWith(null)).toBe(PredictionVersion.V3)
     })
 })

@@ -106,7 +106,7 @@ for await (const prediction of results) {
 
 `examples/webpack/src/track-demo.html` in this repository shows both kinds side by side: live predictions build a list of the tracks, and selected predictions fill in each track's result as they arrive.
 
-The endpoint asks the worker for prediction version 3 whenever its Pop has a select forward, which is the version that carries selected predictions. For any other Pop it keeps asking for version 2.
+The endpoint always asks the worker for prediction version 3, the version that carries selected predictions, so they arrive even on a deployment or an on-premise instance whose Pop the endpoint was not given.
 
 ### World coordinates
 
