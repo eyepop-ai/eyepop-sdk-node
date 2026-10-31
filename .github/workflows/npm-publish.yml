@@ -41,7 +41,9 @@ jobs:
             if [ -n "$(npm view "$name@$version" version 2>/dev/null)" ]; then
               echo "Skipping $name@$version — already published"
             else
-              echo "Publishing $name@$version"
-              npm publish --workspace "$ws"
+              # A pre-release version goes out under the next dist-tag, so latest stays on the last release.
+              case "$version" in *-*) tag=next ;; *) tag=latest ;; esac
+              echo "Publishing $name@$version ($tag)"
+              npm publish --workspace "$ws" --tag "$tag"
             fi
           done
