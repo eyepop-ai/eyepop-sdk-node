@@ -175,7 +175,9 @@ for await (const prediction of await endpoint.process({ source: { path: 'photo.j
 await endpoint.disconnect()
 ```
 
-The endpoint opens one socket to the pipeline API at `connect()` and sets its pop there. The compute API at `eyepopUrl` names the pipeline API in its `/v1/configs` (`pipeline_api_url`); with `isLocalMode`, `eyepopUrl` is the pipeline API itself (default `http://127.0.0.1:9002`). Jobs go out in the order they are submitted, each queued behind the ones before it; `jobQueueLength` may not exceed 256.
+The endpoint opens a socket to the pipeline API at `connect()` and sets its pop there. The compute API at `eyepopUrl` names the pipeline API in its `/v1/configs` (`pipeline_api_url`); with `isLocalMode`, `eyepopUrl` is the pipeline API itself (default `http://127.0.0.1:9002`). Jobs go out in the order they are submitted, each queued behind the ones before it on its socket; `jobQueueLength` may not exceed 256.
+
+Each socket runs its own pipeline, which plays its sources one after another. While every open socket has a source, the next job opens another, up to 4 (`pipelineSockets`), each with the pop set; a job goes on the socket with the fewest open sources. A batch submitted at once therefore runs on 4 pipelines, and jobs run one after another stay on one socket. On a T4, 4 sockets of 704-pixel images ran `common-objects.large` at about 89 images per second, against 30 on one. When the pipeline API refuses another socket, the job goes on an open one, and the endpoint asks again only 10 s later. A live source never ends, so nothing queued behind it would play: it goes on an idle socket or a new one, which the 4 do not count, and no other job is sent on a socket that has one. `changePop` sets the pop on every open socket.
 
 | | Pipeline mode |
 |---|---|

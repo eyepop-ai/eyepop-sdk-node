@@ -42,7 +42,10 @@ export function pops(socket: FakeSocket): unknown[] {
  * `1011 overloaded`, `closeOnOpen` closes every socket as soon as it opens, `popDelayMs` holds
  * each setPop's answer that long, `queueFullAt` refuses a setSource `queue_full` while the socket
  * has that many open sources (counted in `queueFullRefused`), `queueFullDelayMs` holds that refusal
- * that long, and `sourceDelayMs` holds each source that long before its predictions.
+ * that long, `sourceDelayMs` holds each source that long before its predictions, and `closeOnPop`
+ * closes the socket at that index `1000 idle` instead of answering its next setPop, and `upgradeDelayMs`
+ * holds each upgrade that long, and `sourceGate` holds every source until it settles. `upgrades` counts the upgrade requests, `openSockets` the sockets still open,
+ * and `closeSocket` closes the socket at that index `1000 idle`.
  */
 export class FakePipelineApi {
     frames = 2
@@ -59,6 +62,10 @@ export class FakePipelineApi {
     queueFullAt: number | null = null
     queueFullRefused = 0
     queueFullDelayMs = 0
+    closeOnPop: number | null = null
+    upgradeDelayMs = 0
+    upgrades = 0
+    sourceGate: Promise<void> | null = null
     sourceDelayMs = 0
     // False plays a pipeline API from before stopSource, which answers it unknown_command.
     knowsStopSource = true
@@ -70,9 +77,11 @@ export class FakePipelineApi {
     private readonly _server = http.createServer((request, response) => this.route(request, response))
     private readonly _wss = new WebSocketServer({ noServer: true, handleProtocols: protocols => (protocols.has('eyepop.v1') ? 'eyepop.v1' : false) })
     private readonly _open = new Set<WebSocket>()
+    private readonly _ws = new Map<FakeSocket, WebSocket>()
 
     constructor() {
         this._server.on('upgrade', (request, socket, head) => {
+            this.upgrades += 1
             const answer = this.upgradeAnswers.shift()
             if (answer !== undefined) {
                 const headers = Object.entries(answer.headers ?? {})
@@ -81,7 +90,7 @@ export class FakePipelineApi {
                 socket.end(`HTTP/1.1 ${answer.status} Refused\r\n${headers}Content-Length: 0\r\n\r\n`)
                 return
             }
-            this._wss.handleUpgrade(request, socket, head, ws => {
+            const upgrade = () => this._wss.handleUpgrade(request, socket, head, ws => {
                 const fake: FakeSocket = {
                     authorization: request.headers['authorization'],
                     protocols: (request.headers['sec-websocket-protocol'] ?? '')
@@ -94,6 +103,7 @@ export class FakePipelineApi {
                 }
                 this.sockets.push(fake)
                 this._open.add(ws)
+                this._ws.set(fake, ws)
                 ws.on('close', () => this._open.delete(ws))
                 if (this.closeOnOpen !== null) {
                     ws.close(...this.closeOnOpen)
@@ -101,7 +111,20 @@ export class FakePipelineApi {
                 }
                 new Run(this, fake, ws)
             })
+            if (this.upgradeDelayMs > 0) {
+                setTimeout(upgrade, this.upgradeDelayMs)
+            } else {
+                upgrade()
+            }
         })
+    }
+
+    closeSocket(index: number): void {
+        this._ws.get(this.sockets[index]!)!.close(1000, 'idle')
+    }
+
+    get openSockets(): number {
+        return this._open.size
     }
 
     get url(): string {
@@ -188,6 +211,11 @@ class Run {
         const id = command['id']
         switch (command['type']) {
             case 'setPop': {
+                if (this._fake.closeOnPop !== null && this._fake.sockets.indexOf(this._socket) === this._fake.closeOnPop) {
+                    this._fake.closeOnPop = null
+                    this.close(1000, 'idle')
+                    break
+                }
                 const answer = () => {
                     if (this._fake.popError) {
                         this.send({ type: 'error', id, error: this._fake.popError, message: 'no such ability' })
@@ -372,6 +400,11 @@ class Run {
             return
         }
         const finish = () => {
+            if (this._stopped.has(id)) {
+                // stopSource ended it already
+                setImmediate(() => this.playNext())
+                return
+            }
             if (String(command['url'] ?? '').includes('bad')) {
                 this.end(id, 'error', 'bad media')
             } else {
@@ -382,7 +415,9 @@ class Run {
             }
             setImmediate(() => this.playNext())
         }
-        if (this._fake.sourceDelayMs > 0) {
+        if (this._fake.sourceGate !== null) {
+            this._fake.sourceGate.then(finish)
+        } else if (this._fake.sourceDelayMs > 0) {
             setTimeout(finish, this._fake.sourceDelayMs)
         } else {
             finish()
