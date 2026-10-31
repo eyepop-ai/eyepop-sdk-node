@@ -44,7 +44,8 @@ export function pops(socket: FakeSocket): unknown[] {
  * has that many open sources (counted in `queueFullRefused`), `queueFullDelayMs` holds that refusal
  * that long, `sourceDelayMs` holds each source that long before its predictions, and `closeOnPop`
  * closes the socket at that index `1000 idle` instead of answering its next setPop, and `upgradeDelayMs`
- * holds each upgrade that long, and `sourceGate` holds every source until it settles. `upgrades` counts the upgrade requests, `openSockets` the sockets still open.
+ * holds each upgrade that long, and `sourceGate` holds every source until it settles. `upgrades` counts the upgrade requests, `openSockets` the sockets still open,
+ * and `closeSocket` closes the socket at that index `1000 idle`.
  */
 export class FakePipelineApi {
     frames = 2
@@ -76,6 +77,7 @@ export class FakePipelineApi {
     private readonly _server = http.createServer((request, response) => this.route(request, response))
     private readonly _wss = new WebSocketServer({ noServer: true, handleProtocols: protocols => (protocols.has('eyepop.v1') ? 'eyepop.v1' : false) })
     private readonly _open = new Set<WebSocket>()
+    private readonly _ws = new Map<FakeSocket, WebSocket>()
 
     constructor() {
         this._server.on('upgrade', (request, socket, head) => {
@@ -101,6 +103,7 @@ export class FakePipelineApi {
                 }
                 this.sockets.push(fake)
                 this._open.add(ws)
+                this._ws.set(fake, ws)
                 ws.on('close', () => this._open.delete(ws))
                 if (this.closeOnOpen !== null) {
                     ws.close(...this.closeOnOpen)
@@ -114,6 +117,10 @@ export class FakePipelineApi {
                 upgrade()
             }
         })
+    }
+
+    closeSocket(index: number): void {
+        this._ws.get(this.sockets[index]!)!.close(1000, 'idle')
     }
 
     get openSockets(): number {

@@ -659,6 +659,11 @@ export class PipelineBackend implements WorkerBackend {
     private command(socket: PipelineSocket, message: Message): Promise<Message> {
         const id = this.newId(message['type'])
         return new Promise((resolve, reject) => {
+            // A closed socket drops the message unanswered, and closed() already rejected its commands.
+            if (!socket.open) {
+                reject(new PipelineSocketClosedError(undefined, 'the socket closed'))
+                return
+            }
             socket.commands.set(id, { resolve, reject })
             socket.sendJson({ ...message, id })
         })
