@@ -85,9 +85,16 @@ async function video(ep: any, name: string) {
     const t0 = performance.now()
     let frames = 0
     let first: number | undefined
-    for await (const _ of await ep.process({ source: { path: `${SAMPLES}/video/${name}` } })) {
-        first ??= (performance.now() - t0) / 1000
-        frames++
+    try {
+        for await (const _ of await ep.process({ source: { path: `${SAMPLES}/video/${name}` } })) {
+            first ??= (performance.now() - t0) / 1000
+            frames++
+        }
+    } catch (e) {
+        // Counted and logged, so --every goes on to the next run.
+        failures += 1
+        console.log(`${hms()} ${account}: video ${name} on ${popName} failed after ${frames} frames: ${errorKind(e)}`)
+        return
     }
     const took = (performance.now() - t0) / 1000
     console.log(`${hms()} ${account}: video ${name} on ${popName}, first result after ${(first ?? 0).toFixed(1)} s, ${frames} frames in ${took.toFixed(1)} s (${(frames / took).toFixed(1)} per second)`)
