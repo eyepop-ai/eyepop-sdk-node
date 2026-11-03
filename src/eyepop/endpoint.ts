@@ -34,7 +34,7 @@ export class Endpoint<T extends Endpoint<T>> {
         this._expire_token_time = null
         this._client = null
         this._statusRetryHandlers = new Map()
-        this._statusRetryHandlers.set(401, this.statusHandler401)
+        this._statusRetryHandlers.set(401, (statusCode: number) => this.statusHandler401(statusCode))
 
         this._limit = new Semaphore(this._options.jobQueueLength ?? 1024)
         this._state = EndpointState.Idle
@@ -53,7 +53,7 @@ export class Endpoint<T extends Endpoint<T>> {
 
     protected setStatusRetryHandlers(statusRetryHandlers: Map<number, Function> | undefined = undefined) {
         this._statusRetryHandlers = new Map(statusRetryHandlers)
-        this._statusRetryHandlers.set(401, this.statusHandler401)
+        this._statusRetryHandlers.set(401, (statusCode: number) => this.statusHandler401(statusCode))
     }
 
     public eyepopUrl(): string {
