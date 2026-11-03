@@ -240,6 +240,14 @@ describe('pipeline mode (SDK-27)', () => {
         expect(only().authorization).toBe('Bearer minted-2')
     })
 
+    test('a 401 on the configs authenticates again', async () => {
+        fake.configAnswers.push(401)
+        const ep = endpoint()
+        await ep.connect()
+        await ep.disconnect()
+        expect(fake.configAuthorizations).toEqual(['Bearer minted-1', 'Bearer minted-2'])
+    })
+
     test('a live source refused overloaded goes once more on a new socket, and twice raises', async () => {
         fake.overloadedLive = 1
         const ep = endpoint()

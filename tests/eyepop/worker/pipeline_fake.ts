@@ -44,7 +44,7 @@ export function pops(socket: FakeSocket): unknown[] {
  * has that many open sources (counted in `queueFullRefused`), `queueFullDelayMs` holds that refusal
  * that long, `sourceDelayMs` holds each source that long before its predictions, and `closeOnPop`
  * closes the socket at that index `1000 idle` instead of answering its next setPop, and `upgradeDelayMs`
- * holds each upgrade that long, and `sourceGate` holds every source until it settles. `upgrades` counts the upgrade requests, `openSockets` the sockets still open,
+ * holds each upgrade that long, `configAnswers` answer `/v1/configs` with those statuses first, and `sourceGate` holds every source until it settles. `upgrades` counts the upgrade requests, `openSockets` the sockets still open,
  * and `closeSocket` closes the socket at that index `1000 idle`.
  */
 export class FakePipelineApi {
@@ -52,6 +52,7 @@ export class FakePipelineApi {
     window = 16
     sockets: FakeSocket[] = []
     upgradeAnswers: Array<{ status: number; headers?: Record<string, string> }> = []
+    configAnswers: number[] = []
     refusals: string[] = []
     popError: string | null = null
     closes = new Map<number, [number, string]>()
@@ -155,6 +156,12 @@ export class FakePipelineApi {
             json({ access_token: `minted-${this.exchanges.length}`, expires_in: this.expiresIn, token_type: 'Bearer' })
         } else if (request.method === 'GET' && request.url?.startsWith('/v1/configs')) {
             this.configAuthorizations.push(request.headers['authorization'])
+            const status = this.configAnswers.shift()
+            if (status !== undefined) {
+                response.writeHead(status)
+                response.end()
+                return
+            }
             const config: Message = { dataset_api_url: 'https://dataset-api.example' }
             const url = this.pipelineApiUrl === undefined ? this.url : this.pipelineApiUrl
             if (url !== null) {

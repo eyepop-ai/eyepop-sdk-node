@@ -279,56 +279,6 @@ describe('EyePopSdk endpoint module auth and connect', () => {
         }
     })
 
-    test('EyePopSdk forgets a token the server answers 401 to and authenticates again', async () => {
-        const authenticationRoute = server.post('/v1/auth/authenticate').mockImplementation(ctx => {
-            ctx.status = 200
-            ctx.response.headers['content-type'] = 'application/json'
-            ctx.body = JSON.stringify({
-                access_token: test_access_token,
-                expires_in: long_token_valid_time,
-                token_type: 'Bearer',
-            })
-        })
-
-        const popConfigRoute = server
-            .get(`/pops/${test_pop_id}/config`)
-            .mockImplementationOnce(ctx => {
-                ctx.status = 401
-            })
-            .mockImplementation(ctx => {
-                ctx.status = 200
-                ctx.response.headers['content-type'] = 'application/json'
-                ctx.body = JSON.stringify({ base_url: `${server.getURL()}worker/`, pipeline_id: test_pipeline_id })
-            })
-
-        server.get(`/worker/pipelines/${test_pipeline_id}`).mockImplementationOnce(ctx => {
-            ctx.status = 200
-            ctx.response.headers['content-type'] = 'application/json'
-            ctx.body = JSON.stringify({
-                id: test_pipeline_id,
-            })
-        })
-
-        server.patch(`/worker/pipelines/${test_pipeline_id}/source`).mockImplementation(ctx => {
-            ctx.status = 204
-        })
-
-        const endpoint = EyePop.workerEndpoint({
-            eyepopUrl: server.getURL().toString(),
-            popId: test_pop_id,
-            stopJobs: false,
-            auth: { apiKey: test_api_key },
-        })
-        try {
-            await endpoint.connect()
-            // The token is still valid by its expiry, so only the 401 makes the endpoint authenticate a second time.
-            expect(authenticationRoute).toHaveBeenCalledTimes(2)
-            expect(popConfigRoute).toHaveBeenCalledTimes(2)
-        } finally {
-            await endpoint.disconnect()
-        }
-    })
-
     test('EyePopSdk auth with session', async () => {
         const authenticationRoute = server.post('/v1/auth/authenticate').mockImplementation(ctx => {
             ctx.status = 200
