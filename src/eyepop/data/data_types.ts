@@ -519,6 +519,16 @@ export interface InferRequest {
     refresh?: boolean
     transform_into?: TransformInto
     response_schema?: ResponseSchema
+    /**
+     * Auto-label task. The worker derives the prompt and output schema from the task and
+     * `prompts`, so `text_prompt`, `transform_into` and `response_schema` must be unset.
+     * Object detection returns `objects`, image classification `classes`, each labeled with a
+     * prompt's label. A task takes one image. Leave `config.max_new_tokens` unset to use the
+     * worker's default, which leaves room for a detection answer.
+     */
+    task?: AutoAnnotateTask
+    /** Labels and what each one means, for `task`; required with a task. */
+    prompts?: AutoAnnotatePrompt[]
 }
 
 export interface EvaluateFilter {
