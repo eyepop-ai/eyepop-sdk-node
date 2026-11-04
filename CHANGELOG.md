@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Added
+- `InferRequest.task` (`AutoAnnotateTask.object_detection` or `image_classification`) and `InferRequest.prompts` (`AutoAnnotatePrompt[]`, `{label, prompt}`) for vlm-server's auto-label tasks (eyepop-vlm v3.14.0 / server v2.8.0, AWSU-324).
+  - The worker derives the prompt and output schema from the task, so `text_prompt`, `transform_into` and `response_schema` must stay unset. The server rejects them with 422.
+  - Object detection returns `objects`, image classification `classes`, labeled with the prompts' labels. A task takes one image.
+  - Worker releases that run tasks: `qwen3-instruct` (local Qwen), `gpt-6-astra` (OpenAI) and `gemini-4-argon` (Gemini on Vertex AI).
+  - Leave `config.max_new_tokens` unset for a task to get the worker's default; the server's 200-token default for plain requests would cut off a detection answer.
+
 ### Changed
 - In pipeline mode, an endpoint runs its jobs on up to 4 sockets (the `pipelineSockets` worker option, exported default `PIPELINE_SOCKETS`) instead of one. A socket's pipeline plays its sources one after another, so one socket of 704-pixel images ran `common-objects.large` at about 30 images per second on a staging T4 with the GPU about a third busy; 4 sockets ran about 89 with the GPU 98 percent busy (2026-10-29). A new socket opens only while every open one has a source, with the pop set on it, and each job goes on the socket with the fewest open sources, so jobs run one after another still use one socket. When the pipeline API refuses another socket, the job goes on an open one instead of waiting, and the endpoint asks again only 10 s later. A live source goes on an idle socket or a new one, which `pipelineSockets` does not count, and no other job is sent on a socket that has one, so images no longer queue behind a camera that never ends and a camera refused `overloaded` takes no other source down with its socket. `changePop` sets the pop on every open socket. Jobs still go out in submission order, but a job on a less busy socket may finish before an earlier one.
 
