@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [3.25.4] - 2026-11-04
+
 ### Added
 - `InferRequest.task` (`AutoAnnotateTask.object_detection` or `image_classification`) and `InferRequest.prompts` (`AutoAnnotatePrompt[]`, `{label, prompt}`) for vlm-server's auto-label tasks (eyepop-vlm v3.14.0 / server v2.8.0, AWSU-324).
   - The worker derives the prompt and output schema from the task, so `text_prompt`, `transform_into` and `response_schema` must stay unset. The server rejects them with 422.
