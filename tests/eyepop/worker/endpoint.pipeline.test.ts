@@ -849,6 +849,48 @@ describe('pipeline mode (SDK-27)', () => {
         expect(String(failure)).toMatch(/WebRTC connection of whip ingress .* failed/)
         expect(only().commands).toContainEqual({ type: 'stopSource', id: sources(only())[0]?.['id'] })
     })
+
+    // Compute units
+
+    test("a job's milliComputeUnits are its source's total", async () => {
+        fake.usages = [300, 650]
+        fake.milliComputeUnits = 700
+        const ep = endpoint()
+        await ep.connect()
+        const job = await ep.process({ source: { url: 'https://images.example/a.jpg' } })
+        expect(await all(job)).toEqual([prediction(0), prediction(1)])
+        expect(job.milliComputeUnits).toBe(700)
+        await ep.disconnect()
+    })
+
+    test('the last usage is the total when the end reports none', async () => {
+        fake.usages = [300]
+        const ep = endpoint()
+        await ep.connect()
+        const job = await ep.process({ source: { url: 'https://images.example/a.jpg' } })
+        await all(job)
+        expect(job.milliComputeUnits).toBe(300)
+        await ep.disconnect()
+    })
+
+    test('a job without usage has no milliComputeUnits', async () => {
+        const ep = endpoint()
+        await ep.connect()
+        const job = await ep.process({ source: { url: 'https://images.example/a.jpg' } })
+        await all(job)
+        expect(job.milliComputeUnits).toBeUndefined()
+        await ep.disconnect()
+    })
+
+    test('a failed job keeps what its calls used', async () => {
+        fake.milliComputeUnits = 40
+        const ep = endpoint()
+        await ep.connect()
+        const job = await ep.process({ source: { url: 'https://images.example/bad.jpg' } })
+        await expect(all(job)).rejects.toBeInstanceOf(PipelineSourceError)
+        expect(job.milliComputeUnits).toBe(40)
+        await ep.disconnect()
+    })
 })
 
 jest.setTimeout(20000)

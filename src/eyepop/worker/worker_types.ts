@@ -79,6 +79,12 @@ export type Source = FileSource | StreamSource | PathSource | UrlSource | AssetU
 
 export interface ResultStream extends AsyncIterable<Prediction> {
     cancel(): void
+    /**
+     * What the stream's remote calls (a VLM ability's calls to vlm-server) used so far, in milli compute units:
+     * a running total while it runs, its total once it ended. Undefined until reported, and where a backend does
+     * not report it; a local model reports none. Informational: the called API bills its calls itself.
+     */
+    readonly milliComputeUnits?: number | undefined
 }
 
 // Pop definition types

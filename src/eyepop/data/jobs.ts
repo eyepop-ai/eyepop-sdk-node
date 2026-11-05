@@ -12,6 +12,7 @@ export class InferAssetJob implements ResultStream {
 
     protected _response: Promise<Prediction[]> | null = null
     protected _runInfo: InferRunInfo | null = null
+    protected _milliComputeUnits: number | undefined = undefined
     protected _controller: AbortController = new AbortController()
 
     protected _requestLogger: Logger;
@@ -50,6 +51,14 @@ export class InferAssetJob implements ResultStream {
         return iterator()
     }
 
+    /**
+     * The milli compute units vlm-server billed for the inference, 0 on a cache hit; undefined before it answered
+     * or when it reported none.
+     */
+    get milliComputeUnits(): number | undefined {
+        return this._milliComputeUnits
+    }
+
     public constructor(assetUrl: string, inferRequest: InferRequest, vlmFetch: VlmFetch, requestLogger: Logger) {
         this._vlmFetch = vlmFetch
 
@@ -83,6 +92,9 @@ export class InferAssetJob implements ResultStream {
                     const runInfo = response['run_info']
                     if (predictions) {
                         this._runInfo = runInfo
+                        // compute_units is vlm-server's older name for the same milli value
+                        const used = response['milli_compute_units'] ?? response['compute_units']
+                        this._milliComputeUnits = typeof used === 'number' ? used : undefined
                         resolve(predictions)
                         break
                     } else {

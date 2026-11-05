@@ -45,7 +45,8 @@ export function pops(socket: FakeSocket): unknown[] {
  * that long, `sourceDelayMs` holds each source that long before its predictions, and `closeOnPop`
  * closes the socket at that index `1000 idle` instead of answering its next setPop, and `upgradeDelayMs`
  * holds each upgrade that long, `configAnswers` answer `/v1/configs` with those statuses first, and `sourceGate` holds every source until it settles. `upgrades` counts the upgrade requests, `openSockets` the sockets still open,
- * and `closeSocket` closes the socket at that index `1000 idle`.
+ * and `closeSocket` closes the socket at that index `1000 idle`. `usages` are the running totals of
+ * milli compute units a source reports after its predictions, and `milliComputeUnits` its end's total.
  */
 export class FakePipelineApi {
     frames = 2
@@ -68,6 +69,8 @@ export class FakePipelineApi {
     upgrades = 0
     sourceGate: Promise<void> | null = null
     sourceDelayMs = 0
+    usages: number[] = []
+    milliComputeUnits: number | null = null
     // False plays a pipeline API from before stopSource, which answers it unknown_command.
     knowsStopSource = true
     pipelineApiUrl: string | null | undefined = undefined
@@ -427,6 +430,9 @@ class Run {
                 for (let n = 0; n < this._fake.frames; n++) {
                     this.send({ type: 'prediction', id, prediction: prediction(n) })
                 }
+                for (const usage of this._fake.usages) {
+                    this.send({ type: 'usage', id, milliComputeUnits: usage })
+                }
                 this.end(id, 'eos')
             }
             setImmediate(() => this.playNext())
@@ -442,7 +448,8 @@ class Run {
 
     private end(id: string, reason: string, message: string = ''): void {
         this._open.splice(this._open.indexOf(id), 1)
-        this.send({ type: 'end', id, reason, ...(message ? { message } : {}) })
+        const total = this._fake.milliComputeUnits
+        this.send({ type: 'end', id, reason, ...(message ? { message } : {}), ...(total !== null ? { milliComputeUnits: total } : {}) })
         if (this._open.length === 0) {
             this.send({ type: 'done' })
             if (this._fake.idleAfterDone) {

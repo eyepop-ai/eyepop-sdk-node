@@ -274,6 +274,7 @@ export class PipelineJob implements ResultStream {
     openSource: OpenSource | null = null
     // Stops the job's source on the pipeline, once it was sent.
     stopOnPipeline: (() => void) | null = null
+    private _milliComputeUnits: number | undefined = undefined
 
     constructor(
         readonly source: Message,
@@ -285,6 +286,19 @@ export class PipelineJob implements ResultStream {
 
     get cancelled(): boolean {
         return this._cancelled
+    }
+
+    /** The source's milli compute units: the latest total of its `usage` messages and its `end`. */
+    get milliComputeUnits(): number | undefined {
+        return this._milliComputeUnits
+    }
+
+    /** Keep a usage's or an end's milliComputeUnits: each carries the source's total so far. */
+    noteMilliComputeUnits(message: Message): void {
+        const value = message['milliComputeUnits']
+        if (Number.isInteger(value) && value >= 0) {
+            this._milliComputeUnits = value
+        }
     }
 
     command(id: string): Message {
@@ -934,7 +948,11 @@ export class PipelineBackend implements WorkerBackend {
                 case 'prediction':
                     job.predicted(message['prediction'] as Prediction)
                     break
+                case 'usage':
+                    job.noteMilliComputeUnits(message)
+                    break
                 case 'end':
+                    job.noteMilliComputeUnits(message)
                     if (message['reason'] === 'eos') {
                         return null
                     }
