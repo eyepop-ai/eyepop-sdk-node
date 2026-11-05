@@ -12,10 +12,24 @@ interface AccessToken {
     token_type: string
 }
 
+const ACCOUNT_CLAIM = 'https://ident.eyepop.ai/account-uuid'
+const M2M_REFUSAL = 'API key or user login required'
+
+/** Reads the JWT payload without checking the signature; an opaque or malformed token carries no account. */
+function carriesAccount(token: string): boolean {
+    try {
+        const payload = (token.split('.')[1] ?? '').replace(/-/g, '+').replace(/_/g, '/')
+        return Boolean(JSON.parse(atob(payload))?.[ACCOUNT_CLAIM])
+    } catch {
+        return false
+    }
+}
+
 export class Endpoint<T extends Endpoint<T>> {
     protected _options: Options
     private _token: string | null
     private _expire_token_time: number | null
+    private _exchanging: Promise<void> | null = null
 
     protected _client: HttpClient | null
     private _statusRetryHandlers: Map<number, Function>
@@ -34,7 +48,7 @@ export class Endpoint<T extends Endpoint<T>> {
         this._expire_token_time = null
         this._client = null
         this._statusRetryHandlers = new Map()
-        this._statusRetryHandlers.set(401, (statusCode: number) => this.statusHandler401(statusCode))
+        this._statusRetryHandlers.set(401, (statusCode: number, failedToken?: string) => this.statusHandler401(statusCode, failedToken))
 
         this._limit = new Semaphore(this._options.jobQueueLength ?? 1024)
         this._state = EndpointState.Idle
@@ -53,7 +67,7 @@ export class Endpoint<T extends Endpoint<T>> {
 
     protected setStatusRetryHandlers(statusRetryHandlers: Map<number, Function> | undefined = undefined) {
         this._statusRetryHandlers = new Map(statusRetryHandlers)
-        this._statusRetryHandlers.set(401, (statusCode: number) => this.statusHandler401(statusCode))
+        this._statusRetryHandlers.set(401, (statusCode: number, failedToken?: string) => this.statusHandler401(statusCode, failedToken))
     }
 
     public eyepopUrl(): string {
@@ -167,13 +181,16 @@ export class Endpoint<T extends Endpoint<T>> {
         }
     }
 
-    protected statusHandler401(_statusCode: number): void {
-        this._token = null
-        this._expire_token_time = null
+    protected statusHandler401(_statusCode: number, failedToken: string | null = this._token): void {
+        if (this._token === failedToken) {
+            this._token = null
+            this._expire_token_time = null
+        }
     }
 
     protected async fetchWithRetry(fetcher: () => Promise<Response>, retries: number = 1): Promise<Response> {
         while (true) {
+            const sentToken = this._token ?? undefined
             try {
                 const response = await fetcher()
                 if (response.ok) {
@@ -181,7 +198,7 @@ export class Endpoint<T extends Endpoint<T>> {
                 } else {
                     const handler = this._statusRetryHandlers.get(response.status)
                     if (handler != null) {
-                        handler(response.status)
+                        handler(response.status, sentToken)
                         if (retries--) {
                             this._requestLogger.info('received %d response, retry', response.status)
                         } else {
@@ -237,49 +254,59 @@ export class Endpoint<T extends Endpoint<T>> {
         this._expire_token_time = now + token.expires_in - 60
     }
 
-    /** A token the compute API refuses as neither an API key nor a login is already exchanged, and is used as is. */
+    /**
+     * A token that already carries an account, or that the compute API refuses as an exchanged
+     * token ("API key or user login required"), is used as is. Any other refusal is raised.
+     */
     private async exchangeLoginToken(client: HttpClient, loginToken: string, validUntil: number, now: number): Promise<void> {
-        const response = await this.exchange(client, loginToken, this._options.accountId)
-        if (response.status == 401 && (await response.clone().text()).includes('AUTH_001')) {
-            this._token = loginToken
-            this._expire_token_time = validUntil
-            return
+        if (!carriesAccount(loginToken)) {
+            const response = await this.exchange(client, loginToken, this._options.accountId)
+            if (response.status != 401 || !(await response.clone().text()).includes(M2M_REFUSAL)) {
+                await this.storeExchangedToken(response, now)
+                return
+            }
         }
-        await this.storeExchangedToken(response, now)
+        this._token = loginToken
+        this._expire_token_time = validUntil
     }
 
     private async currentAccessToken(): Promise<string> {
+        if (!this._token || <number>this._expire_token_time < Date.now() / 1000) {
+            this._exchanging ??= this.authenticate().finally(() => (this._exchanging = null))
+            await this._exchanging
+        }
+        this._logger.debug('using access token, valid for at least %d seconds', <number>this._expire_token_time - Date.now() / 1000)
+        return <string>this._token
+    }
+
+    private async authenticate(): Promise<void> {
         const now = Date.now() / 1000
-        if (!this._token || <number>this._expire_token_time < now) {
-            this.updateState(EndpointState.Authenticating)
-            try {
-                const auth = resolveAuth(this._options)
-                if (!this._client) {
-                    return Promise.reject('endpoint not connected')
-                } else if ((auth as LocalAuth | undefined)?.isLocal !== undefined) {
-                    this._token = 'implicit'
-                    this._expire_token_time = Number.MAX_VALUE
-                } else if ((auth as SessionAuth | undefined)?.session !== undefined) {
-                    return Promise.reject('temporary access token expired')
-                } else if ((auth as OAuth2Auth | undefined)?.oAuth2 !== undefined && this._options.eyepopUrl) {
-                    const login = await authenticateBrowserSession((auth as OAuth2Auth).oAuth2 as Auth0Options, this._options)
-                    await this.exchangeLoginToken(this._client, login.accessToken, login.validUntil / 1000, now)
-                } else if (accessTokenCredential(auth) !== undefined) {
-                    await this.exchangeLoginToken(this._client, accessTokenCredential(auth) as string, Number.MAX_VALUE, now)
-                } else if (this._options.eyepopUrl) {
-                    const credential = apiKeyCredential(auth)
-                    if (credential === undefined) {
-                        return Promise.reject('no valid auth option')
-                    }
-                    await this.storeExchangedToken(await this.exchange(this._client, credential), now)
-                } else {
+        this.updateState(EndpointState.Authenticating)
+        try {
+            const auth = resolveAuth(this._options)
+            if (!this._client) {
+                return Promise.reject('endpoint not connected')
+            } else if ((auth as LocalAuth | undefined)?.isLocal !== undefined) {
+                this._token = 'implicit'
+                this._expire_token_time = Number.MAX_VALUE
+            } else if ((auth as SessionAuth | undefined)?.session !== undefined) {
+                return Promise.reject('temporary access token expired')
+            } else if ((auth as OAuth2Auth | undefined)?.oAuth2 !== undefined && this._options.eyepopUrl) {
+                const login = await authenticateBrowserSession((auth as OAuth2Auth).oAuth2 as Auth0Options, this._options)
+                await this.exchangeLoginToken(this._client, login.accessToken, login.validUntil / 1000, now)
+            } else if (accessTokenCredential(auth) !== undefined) {
+                await this.exchangeLoginToken(this._client, accessTokenCredential(auth) as string, Number.MAX_VALUE, now)
+            } else if (this._options.eyepopUrl) {
+                const credential = apiKeyCredential(auth)
+                if (credential === undefined) {
                     return Promise.reject('no valid auth option')
                 }
-            } finally {
-                this.updateState()
+                await this.storeExchangedToken(await this.exchange(this._client, credential), now)
+            } else {
+                return Promise.reject('no valid auth option')
             }
+        } finally {
+            this.updateState()
         }
-        this._logger.debug('using access token, valid for at least %d seconds', <number>this._expire_token_time - now)
-        return <string>this._token
     }
 }
