@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Changed
+- A login token is exchanged at the compute API (`POST /v1/auth/authenticate`) before it is used, so the token the SDK sends carries the account the pipeline API requires (eyepop-instance ADR-0024, compute-api #498). This covers the `accessToken` option and the `oAuth2` browser login; an API key is exchanged as before, and `session` and local mode are not exchanged. The `accountId` option (`account_uuid`) names the account for a login with more than one. The exchanged token is cached until its `expires_in` less 60 seconds, and a 401 on a request or a pipeline mode socket exchanges again from the original credential and retries once. An `accessToken` the compute API refuses with `AUTH_001`, because it is already exchanged, is used as it is, so existing callers keep working; any other refusal is raised.
+
 ## [3.25.4] - 2026-11-04
 
 ### Added

@@ -189,7 +189,7 @@ Each socket runs its own pipeline, which plays its sources one after another. Wh
 | `rtspForceNonCompliantUrl` | Not sent; a warning names it once per endpoint. |
 | `changePop`, `pop()` | Supported. A pop the pipeline refuses rejects, and the last pop it took stays. |
 | `session()` | Its `baseUrl` is the pipeline API's url, there is no `pipelineId`, and `isPipelineMode` is `true`: an endpoint created from it with `session` runs in pipeline mode too, with the token's own `validUntil`. |
-| `apiKey`, `accessToken`, `session`, `oAuth2` | An API key is exchanged at the compute API and never sent to the pipeline API. Node sends the token as `Authorization: Bearer`; a browser, which cannot set headers on a WebSocket, as the `eyepop.bearer.<jwt>` subprotocol. |
+| `apiKey`, `accessToken`, `session`, `oAuth2` | An API key, or a login token (`accessToken`, `oAuth2`, with `accountId` naming the account), is exchanged at the compute API and never sent to the pipeline API; an `accessToken` the compute API says is already exchanged is sent as is. A 401 exchanges again once. Node sends the token as `Authorization: Bearer`; a browser, which cannot set headers on a WebSocket, as the `eyepop.bearer.<jwt>` subprotocol. |
 | `popId`, `sessionUuid`, `sessionName`, `pipelineImage`, `pipelineVersion` | Throw at construction. |
 | Prediction version | The pipeline API's own (V3); none is sent. |
 

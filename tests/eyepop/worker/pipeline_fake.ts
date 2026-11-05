@@ -72,6 +72,8 @@ export class FakePipelineApi {
     knowsStopSource = true
     pipelineApiUrl: string | null | undefined = undefined
     exchanges: Array<string | undefined> = []
+    exchangeQueries: string[] = []
+    exchangeAnswers: Array<{ status: number; body: string }> = []
     configAuthorizations: Array<string | undefined> = []
     expiresIn = 3600
 
@@ -151,8 +153,15 @@ export class FakePipelineApi {
             response.writeHead(200, { 'Content-Type': 'application/json' })
             response.end(JSON.stringify(body))
         }
-        if (request.method === 'POST' && request.url === '/v1/auth/authenticate') {
+        if (request.method === 'POST' && request.url?.split('?')[0] === '/v1/auth/authenticate') {
             this.exchanges.push(request.headers['authorization'])
+            this.exchangeQueries.push(request.url.split('?')[1] ?? '')
+            const answer = this.exchangeAnswers.shift()
+            if (answer !== undefined) {
+                response.writeHead(answer.status)
+                response.end(answer.body)
+                return
+            }
             json({ access_token: `minted-${this.exchanges.length}`, expires_in: this.expiresIn, token_type: 'Bearer' })
         } else if (request.method === 'GET' && request.url?.startsWith('/v1/configs')) {
             this.configAuthorizations.push(request.headers['authorization'])

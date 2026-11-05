@@ -25,6 +25,10 @@ const endpoint = await EyePop.workerEndpoint({
 The nested `auth` option is deprecated. Pass the credential at the top level in new code.
 {% endhint %}
 
+### Login tokens
+
+`accessToken` and `oAuth2` hold a login token, as from your dashboard.eyepop.ai account. The SDK exchanges it at the compute API (`POST /v1/auth/authenticate`) for a token that carries your account, sends that token, and exchanges again when it expires or a request or a pipeline mode socket is answered 401, retrying once. Name the account with `accountId` when your login has more than one. A token that is already exchanged, which the compute API refuses with `AUTH_001`, is used as it is. Any other refusal, such as `AUTHZ_001` for an account you may not use, is raised.
+
 ### Transient and persistent sessions
 
 With no session UUID and a `pop` — the flow every example here uses — the SDK creates a new **transient** session each time it connects, and deletes the pipeline it created on disconnect. It does not delete the session itself. This is the right default for building and testing.

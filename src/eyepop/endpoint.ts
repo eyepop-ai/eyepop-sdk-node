@@ -219,6 +219,35 @@ export class Endpoint<T extends Endpoint<T>> {
         return `Bearer ${await this.currentAccessToken()}`
     }
 
+    private async exchange(client: HttpClient, credential: string, accountUuid?: string): Promise<Response> {
+        const query = accountUuid ? `?account_uuid=${encodeURIComponent(accountUuid)}` : ''
+        return await client.fetch(`${this.eyepopUrl()}/v1/auth/authenticate${query}`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${credential}` },
+        })
+    }
+
+    private async storeExchangedToken(response: Response, now: number): Promise<void> {
+        if (response.status != 200) {
+            const message = await response.text()
+            return Promise.reject(`Unexpected status ${response.status}: ${message}`)
+        }
+        const token: AccessToken = (await response.json()) as AccessToken
+        this._token = token.access_token
+        this._expire_token_time = now + token.expires_in - 60
+    }
+
+    /** A token the compute API refuses as neither an API key nor a login is already exchanged, and is used as is. */
+    private async exchangeLoginToken(client: HttpClient, loginToken: string, validUntil: number, now: number): Promise<void> {
+        const response = await this.exchange(client, loginToken, this._options.accountId)
+        if (response.status == 401 && (await response.clone().text()).includes('AUTH_001')) {
+            this._token = loginToken
+            this._expire_token_time = validUntil
+            return
+        }
+        await this.storeExchangedToken(response, now)
+    }
+
     private async currentAccessToken(): Promise<string> {
         const now = Date.now() / 1000
         if (!this._token || <number>this._expire_token_time < now) {
@@ -233,31 +262,16 @@ export class Endpoint<T extends Endpoint<T>> {
                 } else if ((auth as SessionAuth | undefined)?.session !== undefined) {
                     return Promise.reject('temporary access token expired')
                 } else if ((auth as OAuth2Auth | undefined)?.oAuth2 !== undefined && this._options.eyepopUrl) {
-                    const session = await authenticateBrowserSession((auth as OAuth2Auth).oAuth2 as Auth0Options, this._options)
-                    this._token = session.accessToken
-                    this._expire_token_time = session.validUntil / 1000
+                    const login = await authenticateBrowserSession((auth as OAuth2Auth).oAuth2 as Auth0Options, this._options)
+                    await this.exchangeLoginToken(this._client, login.accessToken, login.validUntil / 1000, now)
                 } else if (accessTokenCredential(auth) !== undefined) {
-                    this._token = accessTokenCredential(auth) as string
-                    this._expire_token_time = Number.MAX_VALUE
+                    await this.exchangeLoginToken(this._client, accessTokenCredential(auth) as string, Number.MAX_VALUE, now)
                 } else if (this._options.eyepopUrl) {
                     const credential = apiKeyCredential(auth)
                     if (credential === undefined) {
                         return Promise.reject('no valid auth option')
                     }
-                    const headers = { Authorization: `Bearer ${credential}` }
-                    const post_url = `${this.eyepopUrl()}/v1/auth/authenticate`
-                    const response = await this._client.fetch(post_url, {
-                        method: 'POST',
-                        headers: headers,
-                    })
-                    if (response.status != 200) {
-                        const message = await response.text()
-                        return Promise.reject(`Unexpected status ${response.status}: ${message}`)
-                    }
-                    const data = await response.json()
-                    const token: AccessToken = data as AccessToken
-                    this._token = token.access_token
-                    this._expire_token_time = now + token.expires_in - 60
+                    await this.storeExchangedToken(await this.exchange(this._client, credential), now)
                 } else {
                     return Promise.reject('no valid auth option')
                 }
