@@ -102,9 +102,16 @@ export interface Options {
     apiKey?: string | undefined
 
     /**
-     * Bearer token accepted by the compute API.
+     * Bearer token accepted by the compute API: a login token, which the SDK exchanges at the
+     * compute API, or an already exchanged token, which it uses as is.
      */
     accessToken?: string | undefined
+
+    /**
+     * The account a login token (`accessToken` or `oAuth2`) is exchanged for, sent to the compute API
+     * as `account_uuid`. Needed when the user has no single account to pick.
+     */
+    accountId?: string | undefined
 
     /**
      * Temporary authentication token for client side execution.

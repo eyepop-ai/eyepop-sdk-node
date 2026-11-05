@@ -64,9 +64,10 @@ describe('EyePopSdk endpoint module auth and connect', () => {
         }
     })
 
-    test('EyePopSdk connect uses accessToken directly', async () => {
+    test('EyePopSdk connect uses an already exchanged accessToken as is', async () => {
         const authenticationRoute = server.post('/v1/auth/authenticate').mockImplementationOnce(ctx => {
-            ctx.status = 500
+            ctx.status = 401
+            ctx.body = JSON.stringify({ error: { code: 'AUTH_001', type: 'error', message: 'API key or user login required to authenticate' } })
         })
 
         const popConfigRoute = server.get(`/pops/${test_pop_id}/config`).mockImplementationOnce(ctx => {
@@ -97,7 +98,7 @@ describe('EyePopSdk endpoint module auth and connect', () => {
         expect(endpoint).toBeDefined()
         try {
             await endpoint.connect()
-            expect(authenticationRoute).toHaveBeenCalledTimes(0)
+            expect(authenticationRoute).toHaveBeenCalledTimes(1)
             expect(popConfigRoute).toHaveBeenCalledTimes(1)
             expect(stopRoute).toHaveBeenCalledTimes(1)
             expect(getPipelineRoute).toHaveBeenCalledTimes(1)
