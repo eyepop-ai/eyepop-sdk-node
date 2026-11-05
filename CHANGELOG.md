@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [3.25.5] - 2026-11-05
+
 ### Added
 - Compute units, informational only; the API that runs a call bills it.
   - In pipeline mode, a job's `milliComputeUnits` holds what its source's remote calls used so far, for example a VLM ability's calls to vlm-server. It is the running total from the pipeline API's periodic `usage` messages while the source runs, and its total from `end` once it ended. It stays `undefined` until the pipeline API reports any. A local model reports none.
