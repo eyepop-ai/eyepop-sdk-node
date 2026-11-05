@@ -65,6 +65,13 @@ export interface Prediction extends StreamTime {
     source_url?: string
     source_type?: string
     system_timestamp?: number
+    /**
+     * Compute units the frame's remote calls (a VLM ability's calls to vlm-server) used, in whole units. Absent
+     * when they used none, as for a local model.
+     */
+    compute_units?: number
+    /** The same in milli compute units; from prediction version 4. */
+    milli_compute_units?: number
     objects?: Array<PredictedObject>
     classes?: Array<PredictedClass>
     texts?: Array<PredictedText>

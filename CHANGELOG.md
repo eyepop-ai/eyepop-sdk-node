@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Added
+- Compute units, informational only; the API that runs a call bills it.
+  - In pipeline mode, a job's `milliComputeUnits` holds what its source's remote calls used so far, for example a VLM ability's calls to vlm-server. It is the running total from the pipeline API's periodic `usage` messages while the source runs, and its total from `end` once it ended. It stays `undefined` until the pipeline API reports any. A local model reports none.
+  - `Prediction.compute_units` (whole units) and `Prediction.milli_compute_units` (prediction version 4) carry what one frame's remote calls used.
+  - `InferAssetJob.milliComputeUnits` holds what vlm-server billed for an inference, 0 on a cache hit. It reads the response's `milli_compute_units`, falling back to the older `compute_units`.
+
 ### Changed
 - A login token is exchanged at the compute API (`POST /v1/auth/authenticate`) before it is used, so the token the SDK sends carries the account the pipeline API requires (eyepop-instance ADR-0024, compute-api #498). This covers the `accessToken` option and the `oAuth2` browser login; an API key is exchanged as before, and `session` and local mode are not exchanged. The `accountId` option (`account_uuid`) names the account for a login with more than one. The exchanged token is cached until its `expires_in` less 60 seconds, and a 401 on a request or a pipeline mode socket exchanges again from the original credential and retries once. An `accessToken` that already carries the `https://ident.eyepop.ai/account-uuid` claim is used as it is without an exchange, and so is one the compute API refuses with "API key or user login required", so existing callers with an exchanged token keep working. Any other refusal is raised, including an expired or invalid login (`AUTH_001`, "Authentication failed"), 403, and 5xx. Calls that need a token at the same time share one exchange, and a 401 clears the token only if it is still the one that was refused.
 
