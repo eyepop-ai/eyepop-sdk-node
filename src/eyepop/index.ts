@@ -349,18 +349,18 @@ export namespace EyePop {
                         opts.eyepopUrl && opts.eyepopUrl.match(/https:(.*).staging.eyepop.xyz/i)
                             ? {
                                   oAuth2: {
-                                      domain: 'dev-eyepop.us.auth0.com',
+                                      domain: 'auth0.eyepop.xyz',
                                       clientId: 'jktx3YO2UnbkNPvr05PQWf26t1kNTJyg',
                                       audience: 'https://dev-app.eyepop.ai',
-                                      scope: 'admin:clouds access:inference-api access:datasets',
+                                      scope: 'access:inference-api access:datasets',
                                   },
                               }
                             : {
                                   oAuth2: {
-                                      domain: 'eyepop.us.auth0.com',
+                                      domain: 'auth0.eyepop.ai',
                                       clientId: 'Lb9ubA9Hf3jlaqWLUx8XgA0zvotgViCl',
                                       audience: 'https://api.eyepop.ai',
-                                      scope: 'admin:clouds access:inference-api access:datasets',
+                                      scope: 'access:inference-api access:datasets',
                                   },
                               }
                     if (opts.oAuth2 !== undefined) {
