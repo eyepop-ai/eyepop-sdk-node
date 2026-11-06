@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [3.25.7] - 2026-11-06
+
+### Fixed
+- A login token (`oAuth2` or `accessToken`) is used as is again when the compute API cannot exchange it. Releases of compute-api before #498 refuse a user login at `POST /v1/auth/authenticate` with "API key authentication required for token refresh"; 3.25.5 and 3.25.6 raised that refusal as `401 AUTH_001`, so every browser and access-token sign-in failed against them.
+
 ## [3.25.6] - 2026-11-05
 
 ### Fixed
