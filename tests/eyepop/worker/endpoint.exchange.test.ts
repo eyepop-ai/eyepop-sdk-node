@@ -14,6 +14,7 @@ function refusal(status: number, code: string, message: string): { status: numbe
 }
 
 const NOT_EXCHANGEABLE = refusal(401, 'AUTH_001', 'API key or user login required to authenticate')
+const LOGIN_NOT_EXCHANGEABLE = refusal(401, 'AUTH_001', 'API key authentication required for token refresh')
 const EXPIRED = refusal(401, 'AUTH_001', 'Authentication failed')
 const FORBIDDEN = refusal(403, 'AUTHZ_001', 'user may not use the account')
 
@@ -101,6 +102,16 @@ describe('exchanging a credential at the compute API', () => {
         await ep.disconnect()
 
         expect(fake.sockets[0]!.authorization).toBe('Bearer already exchanged')
+    })
+
+    test('a login token a compute API without login exchange refuses is used as is', async () => {
+        fake.exchangeAnswers.push(LOGIN_NOT_EXCHANGEABLE)
+        const ep = endpoint({ accessToken: 'login token' })
+
+        await ep.connect()
+        await ep.disconnect()
+
+        expect(fake.sockets[0]!.authorization).toBe('Bearer login token')
     })
 
     test('an expired or invalid login token is raised, not used as is', async () => {
