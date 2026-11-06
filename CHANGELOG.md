@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [3.25.6] - 2026-11-05
+
+### Fixed
+- `oAuth2: true` signs in at the Auth0 custom domains (`auth0.eyepop.xyz` on staging, `auth0.eyepop.ai` in production). The APIs only accept tokens issued there; the old `*.auth0.com` defaults made `connect()` fail with 401 AUTH_001.
+
+### Changed
+- The `oAuth2: true` default scope no longer asks for `admin:clouds`; it is `access:inference-api access:datasets`.
+
 ## [3.25.5] - 2026-11-05
 
 ### Added
