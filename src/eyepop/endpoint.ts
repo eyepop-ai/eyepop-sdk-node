@@ -13,7 +13,12 @@ interface AccessToken {
 }
 
 const ACCOUNT_CLAIM = 'https://ident.eyepop.ai/account-uuid'
-const M2M_REFUSAL = 'API key or user login required'
+/**
+ * How the compute API refuses to exchange a token it will not take as a login, in which case the
+ * token is used as is. Releases before compute-api #498 refuse every user login with the older
+ * message, so against them a login is used as is too.
+ */
+const NOT_EXCHANGEABLE = ['API key or user login required', 'API key authentication required for token refresh']
 
 /** Reads the JWT payload without checking the signature; an opaque or malformed token carries no account. */
 function carriesAccount(token: string): boolean {
@@ -255,13 +260,14 @@ export class Endpoint<T extends Endpoint<T>> {
     }
 
     /**
-     * A token that already carries an account, or that the compute API refuses as an exchanged
-     * token ("API key or user login required"), is used as is. Any other refusal is raised.
+     * A token that already carries an account, or that the compute API refuses to exchange
+     * (see NOT_EXCHANGEABLE), is used as is. Any other refusal is raised.
      */
     private async exchangeLoginToken(client: HttpClient, loginToken: string, validUntil: number, now: number): Promise<void> {
         if (!carriesAccount(loginToken)) {
             const response = await this.exchange(client, loginToken, this._options.accountId)
-            if (response.status != 401 || !(await response.clone().text()).includes(M2M_REFUSAL)) {
+            const refusal = response.status == 401 ? await response.clone().text() : ''
+            if (!NOT_EXCHANGEABLE.some((message) => refusal.includes(message))) {
                 await this.storeExchangedToken(response, now)
                 return
             }
