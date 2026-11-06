@@ -51,7 +51,7 @@ open http://localhost:8000/upload.html
 
 or
 
-open http://localhost:8000/ingress.html
+open http://localhost:8000/ (the webcam page, `index.html`: a browser gives a page the camera only on `localhost` or https)
 
 or
 
