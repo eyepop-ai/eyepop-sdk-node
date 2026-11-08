@@ -1,4 +1,4 @@
-import { AutoAnnotateTask, DataEndpoint, EyePop, VlmAbilityCreate } from '../../../src/eyepop'
+import { AutoAnnotateTask, DataEndpoint, EyePop, VlmAbilityCreate, VlmAbilityModeError, VlmAbilityModeErrorReason as Reason } from '../../../src/eyepop'
 
 import { describe, expect, jest, test } from '@jest/globals'
 
@@ -25,6 +25,16 @@ const base = {
 }
 
 const prompts = [{ label: 'person', prompt: 'a person, standing or sitting' }]
+
+async function expectModeError(call: Promise<unknown>, reason: Reason, fields: string[]): Promise<void> {
+    const error = await call.then(
+        () => undefined,
+        (e: unknown) => e,
+    )
+    expect(error).toBeInstanceOf(VlmAbilityModeError)
+    expect((error as VlmAbilityModeError).reason).toBe(reason)
+    expect((error as VlmAbilityModeError).fields).toEqual(fields)
+}
 
 describe('DataEndpoint.createVlmAbility', () => {
     test('a free-form ability sends text_prompt, transform_into and response_schema', async () => {
@@ -56,24 +66,25 @@ describe('DataEndpoint.createVlmAbility', () => {
         expect(bodyOf(request)).toEqual({ ...base, task: 'object_detection', prompts })
     })
 
-    test.each<[string, Partial<VlmAbilityCreate>, RegExp]>([
-        ['neither mode', {}, /set either text_prompt \(free-form\) or task with non-empty prompts/],
-        ['an empty text_prompt', { text_prompt: '' }, /set either text_prompt/],
-        ['transform_into without text_prompt', { transform_into: { classes: ['a'] } }, /set either text_prompt/],
-        ['a task without prompts', { task: AutoAnnotateTask.object_detection }, /requires a non-empty prompts list/],
-        ['a task with empty prompts', { task: AutoAnnotateTask.object_detection, prompts: [] }, /prompts must be a non-empty list/],
-        ['prompts without a task', { prompts }, /prompts are only used with a task/],
-        ['a task with text_prompt', { task: AutoAnnotateTask.object_detection, prompts, text_prompt: 'x' }, /text_prompt must be unset/],
+    test.each<[string, Partial<VlmAbilityCreate>, Reason, string[]]>([
+        ['neither mode', {}, Reason.missing_mode, ['text_prompt', 'task']],
+        ['an empty text_prompt', { text_prompt: '' }, Reason.missing_mode, ['text_prompt', 'task']],
+        ['transform_into without text_prompt', { transform_into: { classes: ['a'] } }, Reason.missing_mode, ['text_prompt', 'task']],
+        ['a task without prompts', { task: AutoAnnotateTask.object_detection }, Reason.task_without_prompts, ['prompts']],
+        ['a task with empty prompts', { task: AutoAnnotateTask.object_detection, prompts: [] }, Reason.empty_prompts, ['prompts']],
+        ['prompts without a task', { prompts }, Reason.prompts_without_task, ['prompts']],
+        ['a task with text_prompt', { task: AutoAnnotateTask.object_detection, prompts, text_prompt: 'x' }, Reason.task_excludes_free_form, ['text_prompt']],
         [
             'a task with transform_into and response_schema',
             { task: AutoAnnotateTask.image_classification, prompts, transform_into: { classes: ['a'] }, response_schema: { type: 'object' } },
-            /transform_into, response_schema must be unset/,
+            Reason.task_excludes_free_form,
+            ['transform_into', 'response_schema'],
         ],
-        ['an unknown task', { task: 'segmentation' as AutoAnnotateTask, prompts }, /unknown task 'segmentation'/],
-        ['a prompt without a label', { task: AutoAnnotateTask.object_detection, prompts: [{ label: '', prompt: 'p' }] }, /prompts\[0\] needs a non-empty label and prompt/],
-    ])('refuses %s without a request', async (_, fields, message) => {
+        ['an unknown task', { task: 'segmentation' as AutoAnnotateTask, prompts }, Reason.unknown_task, ['task']],
+        ['a prompt without a label', { task: AutoAnnotateTask.object_detection, prompts: [{ label: '', prompt: 'p' }] }, Reason.invalid_prompt, ['prompts[0]']],
+    ])('refuses %s without a request', async (_, fields, reason, faulty) => {
         const { endpoint, request } = stubbedEndpoint()
-        await expect(endpoint.createVlmAbility({ ...base, ...fields } as VlmAbilityCreate)).rejects.toThrow(message)
+        await expectModeError(endpoint.createVlmAbility({ ...base, ...fields } as VlmAbilityCreate), reason, faulty)
         expect(request).not.toHaveBeenCalled()
     })
 })
@@ -99,13 +110,13 @@ describe('DataEndpoint.updateVlmAbility', () => {
         expect(bodyOf(request)).toEqual({ text_prompt: 'new prompt' })
     })
 
-    test.each([
-        ['a task with text_prompt', { task: AutoAnnotateTask.object_detection, text_prompt: 'x' }, /text_prompt must be unset/],
-        ['prompts with response_schema', { prompts, response_schema: { type: 'object' as const } }, /response_schema must be unset/],
-        ['empty prompts', { prompts: [] }, /prompts must be a non-empty list/],
-    ])('refuses %s', async (_, update, message) => {
+    test.each<[string, Parameters<DataEndpoint['updateVlmAbility']>[1], Reason, string[]]>([
+        ['a task with text_prompt', { task: AutoAnnotateTask.object_detection, text_prompt: 'x' }, Reason.task_excludes_free_form, ['text_prompt']],
+        ['prompts with response_schema', { prompts, response_schema: { type: 'object' } }, Reason.task_excludes_free_form, ['response_schema']],
+        ['empty prompts', { prompts: [] }, Reason.empty_prompts, ['prompts']],
+    ])('refuses %s', async (_, update, reason, faulty) => {
         const { endpoint, request } = stubbedEndpoint()
-        await expect(endpoint.updateVlmAbility('ability-1', update)).rejects.toThrow(message)
+        await expectModeError(endpoint.updateVlmAbility('ability-1', update), reason, faulty)
         expect(request).not.toHaveBeenCalled()
     })
 })
