@@ -50,6 +50,7 @@ import {
     VlmAbilityGroupCreate,
     VlmAbilityGroupUpdate,
     VlmAbilityUpdate,
+    AutoAnnotateTask,
     AliasResolution,
     Workflow,
     WorkflowPhase,
@@ -103,6 +104,93 @@ function omit_nulls(_: any, value: any) {
         return undefined
     }
     return value
+}
+
+const TASK_EXCLUDED_FIELDS = ['text_prompt', 'transform_into', 'response_schema'] as const
+
+/** Why `createVlmAbility` or `updateVlmAbility` refused an ability's mode fields. */
+export enum VlmAbilityModeErrorReason {
+    /** Neither a non-empty `text_prompt` nor `task` is set (create only). */
+    missing_mode = 'missing_mode',
+    /** `task` is not an `AutoAnnotateTask`. */
+    unknown_task = 'unknown_task',
+    /** `task` or `prompts` is set together with `text_prompt`, `transform_into` or `response_schema`. */
+    task_excludes_free_form = 'task_excludes_free_form',
+    /** `task` is set without `prompts` (create only). */
+    task_without_prompts = 'task_without_prompts',
+    /** `prompts` is set without `task` (create only). */
+    prompts_without_task = 'prompts_without_task',
+    /** `prompts` is empty or not a list. */
+    empty_prompts = 'empty_prompts',
+    /** An entry of `prompts` lacks a non-empty `label` or `prompt`. */
+    invalid_prompt = 'invalid_prompt',
+}
+
+/** Thrown, before any request, for a VLM ability that is neither free-form nor a task, or mixes them. */
+export class VlmAbilityModeError extends Error {
+    readonly reason: VlmAbilityModeErrorReason
+    /** The fields at fault, for example the free-form fields set next to a task, or `prompts[0]`. */
+    readonly fields: string[]
+
+    constructor(reason: VlmAbilityModeErrorReason, message: string, fields: string[] = []) {
+        super(message)
+        this.name = 'VlmAbilityModeError'
+        this.reason = reason
+        this.fields = fields
+    }
+}
+
+function isSet(value: unknown): boolean {
+    return value !== undefined && value !== null
+}
+
+/**
+ * Checks the fields of a VLM ability that select its mode: free-form (`text_prompt`, optionally
+ * `transform_into` and `response_schema`) or task (`task` with non-empty `prompts`, nothing else).
+ * With `partial`, as for an update, a field left out is not required, but the fields that are set
+ * must still not mix the two modes.
+ */
+function validateVlmAbilityMode(ability: VlmAbilityCreate | VlmAbilityUpdate, partial: boolean): void {
+    const kind = partial ? 'VLM ability update' : 'VLM ability'
+    const taskSet = isSet(ability.task)
+    const promptsSet = isSet(ability.prompts)
+    if (taskSet && !(Object.values(AutoAnnotateTask) as unknown[]).includes(ability.task)) {
+        throw new VlmAbilityModeError(VlmAbilityModeErrorReason.unknown_task, `${kind}: unknown task '${String(ability.task)}', expected one of ${Object.values(AutoAnnotateTask).join(', ')}`, [
+            'task',
+        ])
+    }
+    if (taskSet || promptsSet) {
+        const conflicting = TASK_EXCLUDED_FIELDS.filter(field => isSet(ability[field]))
+        if (conflicting.length > 0) {
+            throw new VlmAbilityModeError(
+                VlmAbilityModeErrorReason.task_excludes_free_form,
+                `${kind}: a task derives the prompt and output schema, so ${conflicting.join(', ')} must be unset with task and prompts`,
+                [...conflicting],
+            )
+        }
+    }
+    if (promptsSet) {
+        if (!Array.isArray(ability.prompts) || ability.prompts.length === 0) {
+            throw new VlmAbilityModeError(VlmAbilityModeErrorReason.empty_prompts, `${kind}: prompts must be a non-empty list of {label, prompt}`, ['prompts'])
+        }
+        ability.prompts.forEach((entry, i) => {
+            if (!entry || typeof entry.label !== 'string' || entry.label.length === 0 || typeof entry.prompt !== 'string' || entry.prompt.length === 0) {
+                throw new VlmAbilityModeError(VlmAbilityModeErrorReason.invalid_prompt, `${kind}: prompts[${i}] needs a non-empty label and prompt`, [`prompts[${i}]`])
+            }
+        })
+    }
+    if (partial) {
+        return
+    }
+    if (taskSet && !promptsSet) {
+        throw new VlmAbilityModeError(VlmAbilityModeErrorReason.task_without_prompts, `${kind}: task '${ability.task}' requires a non-empty prompts list of {label, prompt}`, ['prompts'])
+    }
+    if (!taskSet && promptsSet) {
+        throw new VlmAbilityModeError(VlmAbilityModeErrorReason.prompts_without_task, `${kind}: prompts are only used with a task; set task, or use text_prompt for a free-form ability`, ['prompts'])
+    }
+    if (!taskSet && !(typeof ability.text_prompt === 'string' && ability.text_prompt.length > 0)) {
+        throw new VlmAbilityModeError(VlmAbilityModeErrorReason.missing_mode, `${kind}: set either text_prompt (free-form) or task with non-empty prompts`, ['text_prompt', 'task'])
+    }
 }
 
 export class DataEndpoint extends Endpoint<DataEndpoint> {
@@ -1055,6 +1143,7 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
     }
 
     async createVlmAbility(create: VlmAbilityCreate, vlm_ability_group_uuid?: string): Promise<VlmAbility> {
+        validateVlmAbilityMode(create, false)
         const groupQuery = vlm_ability_group_uuid ? `&vlm_ability_group_uuid=${vlm_ability_group_uuid}` : ''
         return this.request(`/vlm_abilities?account_uuid=${this._accountId}${groupQuery}`, {
             method: 'POST',
@@ -1076,6 +1165,7 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
     }
 
     async updateVlmAbility(vlm_ability_uuid: string, update: VlmAbilityUpdate): Promise<VlmAbility> {
+        validateVlmAbilityMode(update, true)
         return this.request(`/vlm_abilities/${vlm_ability_uuid}`, {
             method: 'PATCH',
             body: JSON.stringify(update),

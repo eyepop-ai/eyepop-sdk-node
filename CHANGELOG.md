@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Added
+- User-defined VLM abilities can run an auto-label task, like an ad-hoc `InferRequest` (3.25.4). `VlmAbilityCreate`, `VlmAbilityUpdate` and `VlmAbility` have `task` (`AutoAnnotateTask.object_detection` or `image_classification`) and `prompts` (`AutoAnnotatePrompt[]`, `{label, prompt}`), with the same JSON shape as the Python SDK.
+  - The Dataset API must persist and run the fields before a task ability works; until then it ignores or refuses them.
+
+### Changed
+- `VlmAbilityCreate.text_prompt` and `transform_into` are optional. An ability is either free-form, with a non-empty `text_prompt` and optionally `transform_into` and `response_schema`, or a task, with `task` and a non-empty `prompts` and none of the other three. `createVlmAbility` throws a `VlmAbilityModeError` (with `reason`, a `VlmAbilityModeErrorReason`, and the faulty `fields`) before sending a create that mixes the two modes or sets neither, and `updateVlmAbility` throws one on an update that sets `task` or `prompts` together with `text_prompt`, `transform_into` or `response_schema`, or sets an empty `prompts`. Existing free-form creates are unchanged.
+
 ## [3.25.7] - 2026-11-06
 
 ### Fixed

@@ -626,13 +626,27 @@ export interface AbilityAliasEntry {
     tag: string
 }
 
+/**
+ * A VLM ability runs in one of two modes:
+ * - free-form: `text_prompt`, optionally with `transform_into` and `response_schema`;
+ * - task: `task` with a non-empty `prompts`. The worker derives the prompt and output schema
+ *   from them, as for {@link InferRequest.task}, so `text_prompt`, `transform_into` and
+ *   `response_schema` must be unset.
+ *
+ * `DataEndpoint.createVlmAbility` refuses a create that mixes the two or has neither.
+ */
 export interface VlmAbilityCreate {
     name: string
     description: string
     worker_release: string
-    text_prompt: string
-    transform_into: TransformInto
+    /** The prompt of a free-form ability; required unless `task` is set. */
+    text_prompt?: string
+    transform_into?: TransformInto
     response_schema?: ResponseSchema
+    /** Auto-label task; see {@link InferRequest.task}. Excludes `text_prompt`, `transform_into` and `response_schema`. */
+    task?: AutoAnnotateTask
+    /** Labels and what each one means, for `task`; required and non-empty with a task. */
+    prompts?: AutoAnnotatePrompt[]
     config: InferRuntimeConfig
     is_public: boolean
     video_chunk_length_ns?: number
@@ -646,6 +660,8 @@ export interface VlmAbilityUpdate {
     text_prompt?: string
     transform_into?: TransformInto
     response_schema?: ResponseSchema
+    task?: AutoAnnotateTask
+    prompts?: AutoAnnotatePrompt[]
     config?: InferRuntimeConfig
     is_public?: boolean
     video_chunk_length_ns?: number
@@ -666,6 +682,8 @@ export interface VlmAbility {
     text_prompt?: string
     transform_into?: TransformInto
     response_schema?: ResponseSchema
+    task?: AutoAnnotateTask
+    prompts?: AutoAnnotatePrompt[]
     config?: InferRuntimeConfig
     video_chunk_length_ns?: number
     video_chunk_overlap?: number
