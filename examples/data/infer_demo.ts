@@ -32,11 +32,12 @@ const { positionals, values } = parseArgs({
 
 (async (parameters=values) => {
     const endpoint = EyePop.dataEndpoint()
-    const workerRelease = VLM_MODEL_WORKER_RELEASES[parameters.model as VlmModel]
-    if (!workerRelease) {
+    const model = parameters.model as VlmModel
+    if (!Object.hasOwn(VLM_MODEL_WORKER_RELEASES, model)) {
         console.error(`unknown --model ${parameters.model}, expected one of ${Object.keys(VLM_MODEL_WORKER_RELEASES).join(', ')}`)
         return
     }
+    const workerRelease = VLM_MODEL_WORKER_RELEASES[model]
     try {
         await endpoint.connect()
             const inferRequest: InferRequest = {

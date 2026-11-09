@@ -231,6 +231,9 @@ function modelForWorkerRelease(release: string): VlmModel | undefined {
     return VLM_MODELS.find(model => normalizeWorkerRelease(VLM_MODEL_WORKER_RELEASES[model]) === normalized)
 }
 
+// Module-level on purpose: the deprecation warning is once per process, not per endpoint, and goes
+// to console.warn like the EYEPOP_ACCOUNT_ID warning in index.ts. The Python SDK's DeprecationWarning
+// behaves the same way.
 let warnedWorkerRelease = false
 
 /**

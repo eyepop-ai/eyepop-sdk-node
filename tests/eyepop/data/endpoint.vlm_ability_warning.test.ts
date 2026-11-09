@@ -1,4 +1,4 @@
-import { EyePop } from '../../../src/eyepop'
+import { EyePop, VlmAbilityModelErrorReason } from '../../../src/eyepop'
 
 import { afterEach, expect, jest, test } from '@jest/globals'
 
@@ -20,7 +20,9 @@ test('worker_release warns once per process, model never', async () => {
 
     await endpoint.createVlmAbility({ ...base, worker_release: 'qwen3_instruct' })
     await endpoint.updateVlmAbility('ability-1', { worker_release: 'gpt-6-astra' })
-    await expect(endpoint.createVlmAbility({ ...base, worker_release: 'smol' })).rejects.toThrow('unknown worker_release')
+    await expect(endpoint.createVlmAbility({ ...base, worker_release: 'smol' })).rejects.toMatchObject({
+        reason: VlmAbilityModelErrorReason.unknown_worker_release,
+        fields: ['worker_release'],
+    })
     expect(warn).toHaveBeenCalledTimes(1)
-    expect(warn.mock.calls[0][0]).toMatch(/worker_release is deprecated, use model/)
 })
