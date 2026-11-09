@@ -621,6 +621,19 @@ export enum VlmAbilityStatus {
     published = "published",
 }
 
+/**
+ * The model a user-defined VLM ability runs on. `qwen3` (the default when neither `model` nor
+ * `worker_release` is set) runs on EyePop's GPUs; `gpt_6_astra` and `gemini_4_argon` call a remote model.
+ */
+export type VlmModel = 'qwen3' | 'gpt_6_astra' | 'gemini_4_argon'
+
+/** The VLM worker release each {@link VlmModel} runs on. */
+export const VLM_MODEL_WORKER_RELEASES: Readonly<Record<VlmModel, string>> = Object.freeze({
+    qwen3: 'qwen3_instruct',
+    gpt_6_astra: 'gpt-6-astra',
+    gemini_4_argon: 'gemini-4-argon',
+})
+
 export interface AbilityAliasEntry {
     alias: string
     tag: string
@@ -638,7 +651,14 @@ export interface AbilityAliasEntry {
 export interface VlmAbilityCreate {
     name: string
     description: string
-    worker_release: string
+    /**
+     * @deprecated Use `model`. Still accepted when it names the release of a {@link VlmModel}
+     * (`qwen3_instruct`, `gpt-6-astra` or `gemini-4-argon`, compared lowercase with `_` as `-`),
+     * and it must then agree with `model` if both are set.
+     */
+    worker_release?: string
+    /** The model the ability runs on; the Dataset API defaults to `qwen3`. */
+    model?: VlmModel
     /** The prompt of a free-form ability; required unless `task` is set. */
     text_prompt?: string
     transform_into?: TransformInto
@@ -656,7 +676,14 @@ export interface VlmAbilityCreate {
 export interface VlmAbilityUpdate {
     name?: string
     description?: string
+    /**
+     * @deprecated Use `model`. Still accepted when it names the release of a {@link VlmModel}
+     * (`qwen3_instruct`, `gpt-6-astra` or `gemini-4-argon`, compared lowercase with `_` as `-`),
+     * and it must then agree with `model` if both are set.
+     */
     worker_release?: string
+    /** The model the ability runs on; left out, the stored model is kept. */
+    model?: VlmModel
     text_prompt?: string
     transform_into?: TransformInto
     response_schema?: ResponseSchema
@@ -678,7 +705,13 @@ export interface VlmAbility {
     name: string
     description: string
     vlm_ability_group_uuid?: string
+    /** @deprecated Use `model`. The worker release the ability runs on, as stored. */
     worker_release?: string
+    /**
+     * The model the ability runs on, derived from its stored worker release; `null` for a legacy
+     * release that is none of the {@link VlmModel}s. Older Dataset APIs leave it out.
+     */
+    model?: VlmModel | null
     text_prompt?: string
     transform_into?: TransformInto
     response_schema?: ResponseSchema
