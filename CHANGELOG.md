@@ -5,6 +5,8 @@
 ### Added
 - `VlmAbilityCreate.model` and `VlmAbilityUpdate.model` pick the model a user-defined VLM ability runs on: a `VlmModel`, `qwen3` (the Dataset API's default), `gpt_6_astra` or `gemini_4_argon`. `VlmAbility.model` reports it, `null` for an ability stored with a release that is none of them. `VLM_MODEL_WORKER_RELEASES` maps each model to its worker release (`qwen3_instruct`, `gpt-6-astra`, `gemini-4-argon`).
 - `createVlmAbility` and `updateVlmAbility` throw a `VlmAbilityModelError` (with `reason`, a `VlmAbilityModelErrorReason`, and the faulty `fields`) before sending an unknown `model`, a `worker_release` that is none of the three releases (compared lowercase, with `_` as `-`), or a `model` and `worker_release` that disagree.
+- `DEFAULT_VLM_MODEL` (`qwen3`), `normalizeWorkerRelease`, `modelForWorkerRelease` and `resolveWorkerRelease(model, workerRelease)` turn a worker release into its model and back, like the Python SDK's helpers. `modelForWorkerRelease` gives `qwen3` for an unset release and `null` for a release that is no model's.
+- Every `DataEndpoint` call that returns a `VlmAbility` sets its `model`. When a Dataset API that predates `model` sends only `worker_release`, `model` is derived from the release (`qwen3` when it is unset). A model this SDK does not know reads as `null`.
 
 ### Deprecated
 - `VlmAbilityCreate.worker_release`, `VlmAbilityUpdate.worker_release` and `VlmAbility.worker_release`; use `model`. `worker_release` is no longer required on create, is still sent when set, and logs a deprecation warning once per process. Until the next major release, a create or update with `model` also sends the model's `worker_release`, so it works against a Dataset API that still requires it. `InferRequest.worker_release` is unchanged.

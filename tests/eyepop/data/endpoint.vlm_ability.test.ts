@@ -1,5 +1,6 @@
 import {
     AutoAnnotateTask,
+    DEFAULT_VLM_MODEL,
     DataEndpoint,
     EyePop,
     VLM_MODEL_WORKER_RELEASES,
@@ -10,6 +11,9 @@ import {
     VlmAbilityModelErrorReason as ModelReason,
     VlmAbilityUpdate,
     VlmModel,
+    modelForWorkerRelease,
+    normalizeWorkerRelease,
+    resolveWorkerRelease,
 } from '../../../src/eyepop'
 
 import { describe, expect, jest, test } from '@jest/globals'
@@ -213,5 +217,95 @@ describe('VLM ability model', () => {
         const { endpoint, request } = stubbedEndpoint()
         await expectModelError(endpoint.updateVlmAbility('ability-1', update), reason, faulty)
         expect(request).not.toHaveBeenCalled()
+    })
+})
+
+describe('VLM model helpers', () => {
+    test('the default model is qwen3', () => {
+        expect(DEFAULT_VLM_MODEL).toBe('qwen3')
+    })
+
+    test('normalizeWorkerRelease lowercases and uses dashes', () => {
+        expect(normalizeWorkerRelease('Qwen3_Instruct')).toBe('qwen3-instruct')
+        expect(normalizeWorkerRelease('gpt-6-astra')).toBe('gpt-6-astra')
+    })
+
+    test.each<[string | null | undefined, VlmModel | null]>([
+        [undefined, 'qwen3'],
+        [null, 'qwen3'],
+        ['qwen3_instruct', 'qwen3'],
+        ['qwen3-instruct', 'qwen3'],
+        ['QWEN3-INSTRUCT', 'qwen3'],
+        ['gpt-6-astra', 'gpt_6_astra'],
+        ['gpt_6_astra', 'gpt_6_astra'],
+        ['gemini-4-argon', 'gemini_4_argon'],
+        ['gemini_4_argon', 'gemini_4_argon'],
+        ['smol22b-instruct', null],
+        ['qwen3', null],
+        ['toString', null],
+    ])('modelForWorkerRelease(%p) is %p', (release, model) => {
+        expect(modelForWorkerRelease(release)).toBe(model)
+    })
+
+    test.each<[VlmModel | null | undefined, string | null | undefined, string]>([
+        [undefined, undefined, 'qwen3_instruct'],
+        [null, null, 'qwen3_instruct'],
+        ['qwen3', undefined, 'qwen3_instruct'],
+        ['gpt_6_astra', undefined, 'gpt-6-astra'],
+        ['gemini_4_argon', undefined, 'gemini-4-argon'],
+        [undefined, 'qwen3-instruct', 'qwen3_instruct'],
+        [undefined, 'GPT_6_ASTRA', 'gpt-6-astra'],
+        ['gemini_4_argon', 'gemini_4_argon', 'gemini-4-argon'],
+    ])('resolveWorkerRelease(%p, %p) is %p', (model, release, resolved) => {
+        expect(resolveWorkerRelease(model, release)).toBe(resolved)
+    })
+
+    test.each<[VlmModel | undefined, string, ModelReason, string[]]>([
+        [undefined, 'smol22b-instruct', ModelReason.unknown_worker_release, ['worker_release']],
+        ['gpt_6_astra', 'qwen3_instruct', ModelReason.model_conflict, ['model', 'worker_release']],
+    ])('resolveWorkerRelease(%p, %p) throws', (model, release, reason, fields) => {
+        expect(() => resolveWorkerRelease(model, release)).toThrow(expect.objectContaining({ reason, fields }))
+    })
+})
+
+describe('VlmAbility responses', () => {
+    function respondingWith(response: unknown): DataEndpoint {
+        const { endpoint, request } = stubbedEndpoint()
+        request.mockImplementation(async () => response)
+        return endpoint
+    }
+
+    const ability = { uuid: 'ability-1', account_uuid: 'acc-1', status: 'draft', name: 'n', description: 'd', is_public: false }
+
+    test.each<[string, Record<string, unknown>, VlmModel | null]>([
+        ['keeps a known model', { model: 'gpt_6_astra', worker_release: 'gpt-6-astra' }, 'gpt_6_astra'],
+        ['keeps a null model', { model: null, worker_release: 'smol22b-instruct' }, null],
+        ['derives the model from a release without model', { worker_release: 'Gemini_4_Argon' }, 'gemini_4_argon'],
+        ['derives null from an unknown release without model', { worker_release: 'smol22b-instruct' }, null],
+        ['derives qwen3 from a null release', { worker_release: null }, 'qwen3'],
+        ['derives qwen3 from no release', {}, 'qwen3'],
+        ['reads a model it does not know as null', { model: 'a_future_model', worker_release: 'a-future-model' }, null],
+    ])('a response %s', async (_, fields, model) => {
+        const endpoint = respondingWith({ ...ability, ...fields })
+        expect((await endpoint.getVlmAbility('ability-1')).model).toBe(model)
+    })
+
+    test('every VLM ability call reports the model', async () => {
+        const endpoint = respondingWith({ ...ability, worker_release: 'gpt-6-astra' })
+        const results = await Promise.all([
+            endpoint.createVlmAbility({ ...base, text_prompt: 'p' }),
+            endpoint.updateVlmAbility('ability-1', { name: 'n' }),
+            endpoint.refineVlmAbility('ability-1', { dataset_uuid: 'd' } as never),
+            endpoint.cloneVlmAbility('ability-1'),
+            endpoint.publishVlmAbility('ability-1'),
+            endpoint.addVlmAbilityAlias('ability-1', 'alias'),
+            endpoint.removeVlmAbilityAlias('ability-1', 'alias', 'tag'),
+        ])
+        expect(results.map(r => r.model)).toEqual(Array(results.length).fill('gpt_6_astra'))
+    })
+
+    test('a listing reports the model of each ability', async () => {
+        const endpoint = respondingWith([{ ...ability, worker_release: 'qwen3-instruct' }, { ...ability, model: 'gemini_4_argon' }, { ...ability, worker_release: 'smol' }])
+        expect((await endpoint.listVlmAbilities()).map(a => a.model)).toEqual(['qwen3', 'gemini_4_argon', null])
     })
 })
