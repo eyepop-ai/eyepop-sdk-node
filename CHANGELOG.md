@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [3.27.0] - 2026-11-10
+
 ### Added
 - `VlmAbilityCreate.model` and `VlmAbilityUpdate.model` pick the model a user-defined VLM ability runs on: a `VlmModel`, `qwen3` (the Dataset API's default), `gpt_6_astra` or `gemini_4_argon`. `VlmAbility.model` reports it, `null` for an ability stored with a release that is none of them. `VLM_MODEL_WORKER_RELEASES` maps each model to its worker release (`qwen3_instruct`, `gpt-6-astra`, `gemini-4-argon`).
 - `createVlmAbility` and `updateVlmAbility` throw a `VlmAbilityModelError` (with `reason`, a `VlmAbilityModelErrorReason`, and the faulty `fields`) before sending an unknown `model`, a `worker_release` that is none of the three releases (compared lowercase, with `_` as `-`), or a `model` and `worker_release` that disagree.
