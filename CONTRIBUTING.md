@@ -11,6 +11,8 @@ npx jest --runInBand --testPathIgnorePatterns="<rootDir>/.worktrees"
 
 ## Session integration
 
+`npm run smoke:pipeline` runs the pipeline mode smoke (`scripts/pipeline-smoke.mjs`): two jobs on the pipeline API, no session created. Set `EYEPOP_API_KEY` and `EYEPOP_ENV=staging`, or pass `--environment`; `--help` lists the options. The `Node Pipeline Smoke` workflow runs it on pushes to `main` and on PRs that touch `src/eyepop`.
+
 Run the session matrix locally before dispatching the `SDK Integration` workflow. Copy `.env.example` to `.env` and set `EYEPOP_API_KEY` to a key for the account you want to exercise; the smoke script loads `.env` when the variable is not already exported.
 
 ```shell

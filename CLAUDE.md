@@ -15,7 +15,7 @@ Use npm workspaces (not pnpm/yarn). Install dependencies with `npm install`. Bef
   strips a `.js` suffix if one appears and redirects the `src/eyepop` / `src/eyepop-render-2d` directory imports to
   `index.ts`, without which their `package.json` `main` resolves to whatever `dist/` was built last.
 - Unit tests are hermetic (mock server / fake HttpClient); the smoke/live tests (`npm run smoke:session`,
-  `scripts/session-smoke.mjs`) hit real hosts and need `EYEPOP_API_KEY` — exported, or in a `.env` copied
+  `scripts/session-smoke.mjs`; `npm run smoke:pipeline`, `scripts/pipeline-smoke.mjs`) hit real hosts and need `EYEPOP_API_KEY` — exported, or in a `.env` copied
   from `.env.example`. Its default abilities must stay account-portable; no private fixtures. The smoke deletes
   only sessions its own creates returned. `--cleanup-preexisting` deletes every transient session of the user,
   including other repos' CI on the shared `basic`/`pro` fixtures: manual use on a private account only, never in CI.
