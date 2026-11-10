@@ -519,7 +519,7 @@ export class PipelineBackend implements WorkerBackend {
 
     private async socketUrl(): Promise<string> {
         if (this._pipelineApiUrl === null) {
-            const base = this.ctx.options.isLocalMode ? this.ctx.eyepopUrl() : new URL(await this.configuredPipelineApiUrl(), this.ctx.eyepopUrl() + '/').toString()
+            const base = this.ctx.options.pipelineApiUrl ?? (this.ctx.options.isLocalMode ? this.ctx.eyepopUrl() : new URL(await this.configuredPipelineApiUrl(), this.ctx.eyepopUrl() + '/').toString())
             this._pipelineApiUrl = checkedUrl(base)
         }
         return 'ws' + this._pipelineApiUrl.slice('http'.length) + PIPELINE_PATH

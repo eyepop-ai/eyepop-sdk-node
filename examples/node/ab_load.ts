@@ -47,7 +47,7 @@ if (POPS[popName] === undefined) throw new Error(`unknown --pop ${popName}; one 
 // Jobs that failed, so that the exit status says the run had failures.
 let failures = 0
 
-const newEp = () => EyePop.workerEndpoint({ isPipelineMode: true, pipelineSockets: Number(process.env['SOCKETS'] ?? 4), accessToken: token, eyepopUrl: process.env['EYEPOP_URL'], logger, pop: POPS[popName] })
+const newEp = () => EyePop.workerEndpoint({ pipelineSockets: Number(process.env['SOCKETS'] ?? 4), accessToken: token, eyepopUrl: process.env['EYEPOP_URL'], logger, pop: POPS[popName] })
 
 function errorKind(e: any): string {
     if (e instanceof PipelineSourceError) return `source ended ${e.reason}`

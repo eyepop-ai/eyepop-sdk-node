@@ -174,6 +174,13 @@ const stringToBooleanSafe = (str?: string): boolean => {
     return loweCaseStr == 'true' || loweCaseStr == 'yes'
 }
 
+/** The pipeline API per EYEPOP_ENV. */
+const PIPELINE_API_URLS: Record<string, string> = {
+    staging: 'https://pipeline.staging.eyepop.xyz',
+    production: 'https://pipeline.eyepop.ai',
+    local: 'http://localhost:8080',
+}
+
 export namespace EyePop {
     const envApiKey = readEnv('EYEPOP_API_KEY')
 
@@ -206,7 +213,8 @@ export namespace EyePop {
             // A session handed over from a pipeline mode endpoint carries a token for the pipeline
             // API, so its mode wins over the environment; an explicit isPipelineMode wins over both.
             const shared = (resolveAuth(opts) as SessionAuth | undefined)?.session as WorkerSession | undefined
-            opts.isPipelineMode = shared?.isPipelineMode ?? stringToBooleanSafe(readEnv('EYEPOP_PIPELINE_MODE'))
+            const envPipelineMode = readEnv('EYEPOP_PIPELINE_MODE')
+            opts.isPipelineMode = shared?.isPipelineMode ?? (envPipelineMode === undefined ? true : stringToBooleanSafe(envPipelineMode))
         }
         if (opts.isPipelineMode) {
             return pipelineEndpoint(opts)
@@ -283,6 +291,13 @@ export namespace EyePop {
             .map(([name]) => name)
         if (named.length > 0) {
             throw new PipelineConfigurationError('session_options', `pipeline mode runs no worker session; it takes no ${named.join(', ')}`, named)
+        }
+        const envName = readEnv('EYEPOP_ENV')
+        if (!opts.pipelineApiUrl && envName) {
+            opts.pipelineApiUrl = PIPELINE_API_URLS[envName.toLowerCase()]
+            if (!opts.pipelineApiUrl) {
+                throw new PipelineConfigurationError('no_pipeline_api_url', `EYEPOP_ENV=${envName} is not one of ${Object.keys(PIPELINE_API_URLS).join(', ')}`)
+            }
         }
         if (opts.isLocalMode && !opts.eyepopUrl) {
             // Local mode talks to the pipeline API itself, on its default listener.

@@ -211,6 +211,7 @@ async function main() {
     try {
         endpoint = await EyePop.workerEndpoint({
             eyepopUrl,
+            isPipelineMode: false,
             auth: { apiKey },
             sessionName,
             pop,

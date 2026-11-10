@@ -8,9 +8,10 @@ In project root:
 export EYEPOP_API_KEY=<your api key>
 ```
 
-For a provisioned persistent worker session, also set:
+For a provisioned persistent worker session (not pipeline mode, the default), also set:
 
 ```shell
+export EYEPOP_PIPELINE_MODE=false
 export EYEPOP_SESSION_UUID=<your session uuid>
 ```
 

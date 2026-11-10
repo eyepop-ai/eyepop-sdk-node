@@ -3,6 +3,9 @@ import { EyePop } from '../../../src/eyepop'
 import { MockServer } from 'jest-mock-server'
 import { describe, expect, test } from '@jest/globals'
 import { v4 as uuidv4 } from 'uuid'
+
+// these tests cover worker session mode; pipeline mode is the default
+process.env['EYEPOP_PIPELINE_MODE'] = 'false'
 async function readMultipartBody(ctx: any): Promise<string> {
     const chunks: Buffer[] = []
     for await (const chunk of ctx.req) {

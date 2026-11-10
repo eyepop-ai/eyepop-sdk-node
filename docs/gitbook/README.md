@@ -56,7 +56,7 @@ try {
 
 Pass the Pop when you create the endpoint so EyePop can schedule the right compute before any media is processed.
 
-To run on your own hardware instead of EyePop's cloud, point the SDK at an [on-premise instance](https://docs.eyepop.ai/developer-documentation/cli/on-premise) with **local mode**, `isLocalMode: true`. See [Local mode](configuration.md#local-mode).
+To run on your own hardware instead of EyePop's cloud, point the SDK at an [on-premise instance](https://docs.eyepop.ai/developer-documentation/cli/on-premise) with **local mode**, `isLocalMode: true` and `isPipelineMode: false`. See [Local mode](configuration.md#local-mode).
 
 ### Next steps
 
