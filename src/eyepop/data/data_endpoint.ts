@@ -51,6 +51,8 @@ import {
     VlmAbilityGroupUpdate,
     VlmAbilityUpdate,
     AutoAnnotateTask,
+    VLM_MODEL_WORKER_RELEASES,
+    VlmModel,
     AliasResolution,
     Workflow,
     WorkflowPhase,
@@ -191,6 +193,87 @@ function validateVlmAbilityMode(ability: VlmAbilityCreate | VlmAbilityUpdate, pa
     if (!taskSet && !(typeof ability.text_prompt === 'string' && ability.text_prompt.length > 0)) {
         throw new VlmAbilityModeError(VlmAbilityModeErrorReason.missing_mode, `${kind}: set either text_prompt (free-form) or task with non-empty prompts`, ['text_prompt', 'task'])
     }
+}
+
+/** Why `createVlmAbility` or `updateVlmAbility` refused an ability's `model` or `worker_release`. */
+export enum VlmAbilityModelErrorReason {
+    /** `model` is not a {@link VlmModel}. */
+    unknown_model = 'unknown_model',
+    /** `worker_release` is not the release of a {@link VlmModel}. */
+    unknown_worker_release = 'unknown_worker_release',
+    /** `model` and `worker_release` are both set and name different models. */
+    model_conflict = 'model_conflict',
+}
+
+/** Thrown, before any request, for a VLM ability whose `model` or deprecated `worker_release` the Dataset API would refuse. */
+export class VlmAbilityModelError extends Error {
+    readonly reason: VlmAbilityModelErrorReason
+    /** The fields at fault: `model`, `worker_release` or both. */
+    readonly fields: string[]
+
+    constructor(reason: VlmAbilityModelErrorReason, message: string, fields: string[] = []) {
+        super(message)
+        this.name = 'VlmAbilityModelError'
+        this.reason = reason
+        this.fields = fields
+    }
+}
+
+const VLM_MODELS = Object.keys(VLM_MODEL_WORKER_RELEASES) as VlmModel[]
+
+/** A worker release as the VLM server compares it: lowercase, with `_` as `-`. */
+function normalizeWorkerRelease(release: string): string {
+    return release.toLowerCase().replace(/_/g, '-')
+}
+
+function modelForWorkerRelease(release: string): VlmModel | undefined {
+    const normalized = normalizeWorkerRelease(release)
+    return VLM_MODELS.find(model => normalizeWorkerRelease(VLM_MODEL_WORKER_RELEASES[model]) === normalized)
+}
+
+// Module-level on purpose: the deprecation warning is once per process, not per endpoint, and goes
+// to console.warn like the EYEPOP_ACCOUNT_ID warning in index.ts. The Python SDK's DeprecationWarning
+// behaves the same way.
+let warnedWorkerRelease = false
+
+/**
+ * Checks `model` and the deprecated `worker_release` of a VLM ability create or update, warns once
+ * per process when `worker_release` is used, and returns the body to send. Until the next major
+ * release, a body with `model` also carries the model's `worker_release`, so it works against a
+ * Dataset API that still requires `worker_release`.
+ */
+function prepareVlmAbilityModel<T extends VlmAbilityCreate | VlmAbilityUpdate>(ability: T, partial: boolean): T {
+    const kind = partial ? 'VLM ability update' : 'VLM ability'
+    const modelSet = isSet(ability.model)
+    const releaseSet = isSet(ability.worker_release)
+    if (releaseSet && !warnedWorkerRelease) {
+        warnedWorkerRelease = true
+        console.warn(`VLM ability worker_release is deprecated, use model (${VLM_MODELS.join(', ')}) instead`)
+    }
+    if (modelSet && !VLM_MODELS.includes(ability.model as VlmModel)) {
+        throw new VlmAbilityModelError(VlmAbilityModelErrorReason.unknown_model, `${kind}: unknown model '${String(ability.model)}', expected one of ${VLM_MODELS.join(', ')}`, ['model'])
+    }
+    if (releaseSet) {
+        const releaseModel = typeof ability.worker_release === 'string' ? modelForWorkerRelease(ability.worker_release) : undefined
+        if (releaseModel === undefined) {
+            throw new VlmAbilityModelError(
+                VlmAbilityModelErrorReason.unknown_worker_release,
+                `${kind}: unknown worker_release '${String(ability.worker_release)}'; use model (${VLM_MODELS.join(', ')}) instead`,
+                ['worker_release'],
+            )
+        }
+        if (modelSet && releaseModel !== ability.model) {
+            throw new VlmAbilityModelError(
+                VlmAbilityModelErrorReason.model_conflict,
+                `${kind}: worker_release '${ability.worker_release}' runs model ${releaseModel}, not ${ability.model}; set model only`,
+                ['model', 'worker_release'],
+            )
+        }
+    }
+    if (modelSet && !releaseSet) {
+        return { ...ability, worker_release: VLM_MODEL_WORKER_RELEASES[ability.model as VlmModel] }
+    }
+    return ability
 }
 
 export class DataEndpoint extends Endpoint<DataEndpoint> {
@@ -1144,10 +1227,11 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
 
     async createVlmAbility(create: VlmAbilityCreate, vlm_ability_group_uuid?: string): Promise<VlmAbility> {
         validateVlmAbilityMode(create, false)
+        const body = prepareVlmAbilityModel(create, false)
         const groupQuery = vlm_ability_group_uuid ? `&vlm_ability_group_uuid=${vlm_ability_group_uuid}` : ''
         return this.request(`/vlm_abilities?account_uuid=${this._accountId}${groupQuery}`, {
             method: 'POST',
-            body: JSON.stringify(create, omit_nulls),
+            body: JSON.stringify(body, omit_nulls),
             headers: { 'Content-Type': 'application/json' },
         })
     }
@@ -1166,9 +1250,10 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
 
     async updateVlmAbility(vlm_ability_uuid: string, update: VlmAbilityUpdate): Promise<VlmAbility> {
         validateVlmAbilityMode(update, true)
+        const body = prepareVlmAbilityModel(update, true)
         return this.request(`/vlm_abilities/${vlm_ability_uuid}`, {
             method: 'PATCH',
-            body: JSON.stringify(update),
+            body: JSON.stringify(body),
             headers: { 'Content-Type': 'application/json' },
         })
     }

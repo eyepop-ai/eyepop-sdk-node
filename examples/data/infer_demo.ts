@@ -1,6 +1,6 @@
 import { parseArgs } from 'node:util'
 import { pino } from 'pino'
-import EyePop, { InferRequest, TranscodeMode } from '@eyepop.ai/eyepop/index'
+import EyePop, { InferRequest, TranscodeMode, VLM_MODEL_WORKER_RELEASES, VlmModel } from '@eyepop.ai/eyepop/index'
 
 const logger = pino({ level: "debug", name: "eyepop-example" });
 
@@ -16,10 +16,11 @@ const { positionals, values } = parseArgs({
       short: "d",
       default: undefined
     },
+    // qwen3, gpt_6_astra or gemini_4_argon
     model: {
         type: 'string',
         short: "m",
-        default: "smol"
+        default: "qwen3"
     },
     prompt: {
         type: 'string',
@@ -31,11 +32,17 @@ const { positionals, values } = parseArgs({
 
 (async (parameters=values) => {
     const endpoint = EyePop.dataEndpoint()
+    const model = parameters.model as VlmModel
+    if (!Object.hasOwn(VLM_MODEL_WORKER_RELEASES, model)) {
+        console.error(`unknown --model ${parameters.model}, expected one of ${Object.keys(VLM_MODEL_WORKER_RELEASES).join(', ')}`)
+        return
+    }
+    const workerRelease = VLM_MODEL_WORKER_RELEASES[model]
     try {
         await endpoint.connect()
             const inferRequest: InferRequest = {
                 text_prompt: parameters.prompt,
-                worker_release: parameters.model,
+                worker_release: workerRelease,
                 config: {
                     image_size: 1024
                 }
