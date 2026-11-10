@@ -175,11 +175,11 @@ const stringToBooleanSafe = (str?: string): boolean => {
 }
 
 /** The pipeline API per EYEPOP_ENV. */
-const PIPELINE_API_URLS: Record<string, string> = {
-    staging: 'https://pipeline.staging.eyepop.xyz',
-    production: 'https://pipeline.eyepop.ai',
-    local: 'http://localhost:8080',
-}
+const PIPELINE_API_URLS: ReadonlyMap<string, string> = new Map([
+    ['staging', 'https://pipeline.staging.eyepop.xyz'],
+    ['production', 'https://pipeline.eyepop.ai'],
+    ['local', 'http://localhost:8080'],
+])
 
 export namespace EyePop {
     const envApiKey = readEnv('EYEPOP_API_KEY')
@@ -294,10 +294,11 @@ export namespace EyePop {
         }
         const envName = readEnv('EYEPOP_ENV')
         if (!opts.pipelineApiUrl && envName) {
-            opts.pipelineApiUrl = PIPELINE_API_URLS[envName.toLowerCase()]
-            if (!opts.pipelineApiUrl) {
-                throw new PipelineConfigurationError('no_pipeline_api_url', `EYEPOP_ENV=${envName} is not one of ${Object.keys(PIPELINE_API_URLS).join(', ')}`)
+            const url = PIPELINE_API_URLS.get(envName.toLowerCase())
+            if (!url) {
+                throw new PipelineConfigurationError('no_pipeline_api_url', `EYEPOP_ENV=${envName} is not one of ${[...PIPELINE_API_URLS.keys()].join(', ')}`)
             }
+            opts.pipelineApiUrl = url
         }
         if (opts.isLocalMode && !opts.eyepopUrl) {
             // Local mode talks to the pipeline API itself, on its default listener.

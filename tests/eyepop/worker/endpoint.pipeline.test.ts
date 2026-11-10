@@ -22,7 +22,7 @@ import { FakePipelineApi, FakeSocket, pops, prediction, sources } from './pipeli
 const PERSON: Pop = { components: [{ type: 'inference', ability: 'eyepop.person:latest' } as any] }
 const VEHICLE: Pop = { components: [{ type: 'inference', ability: 'eyepop.vehicle:latest' } as any] }
 
-const ENV = ['EYEPOP_URL', 'EYEPOP_API_KEY', 'EYEPOP_POP_ID', 'EYEPOP_SESSION_UUID', 'EYEPOP_PIPELINE_MODE', 'EYEPOP_LOCAL_MODE']
+const ENV = ['EYEPOP_URL', 'EYEPOP_API_KEY', 'EYEPOP_POP_ID', 'EYEPOP_SESSION_UUID', 'EYEPOP_PIPELINE_MODE', 'EYEPOP_LOCAL_MODE', 'EYEPOP_ENV']
 
 async function all(stream: ResultStream): Promise<Prediction[]> {
     const results: Prediction[] = []
@@ -97,6 +97,41 @@ describe('pipeline mode (SDK-27)', () => {
         const session = EyePop.workerEndpoint({ accessToken: 't', isPipelineMode: false })
         expect(inPipelineMode(session)).toBe(false)
         expect(session.backend()).toBeInstanceOf(SessionBackend)
+    })
+
+    test('is the default: no option and no environment selects pipeline mode', () => {
+        expect(inPipelineMode(EyePop.workerEndpoint({ accessToken: 't' }))).toBe(true)
+        process.env['EYEPOP_PIPELINE_MODE'] = 'false'
+        expect(EyePop.workerEndpoint({ accessToken: 't' }).backend()).toBeInstanceOf(SessionBackend)
+        expect(inPipelineMode(EyePop.workerEndpoint({ accessToken: 't', isPipelineMode: true }))).toBe(true)
+    })
+
+    describe('EYEPOP_ENV picks the pipeline API', () => {
+        const urlOf = (options: Record<string, any> = {}): unknown => (EyePop.workerEndpoint({ accessToken: 't', ...options }) as any)._options.pipelineApiUrl
+
+        test.each([
+            ['staging', 'https://pipeline.staging.eyepop.xyz'],
+            ['production', 'https://pipeline.eyepop.ai'],
+            ['local', 'http://localhost:8080'],
+            ['Staging', 'https://pipeline.staging.eyepop.xyz'],
+        ])('%s maps to %s', (name, url) => {
+            process.env['EYEPOP_ENV'] = name
+            expect(urlOf()).toBe(url)
+        })
+
+        test('unset leaves the compute API to name it', () => {
+            expect(urlOf()).toBeUndefined()
+        })
+
+        test.each(['dev', 'constructor', 'toString', '__proto__'])('an unknown name, %s, is refused', name => {
+            process.env['EYEPOP_ENV'] = name
+            expect(refusal(() => EyePop.workerEndpoint({ accessToken: 't' }))).toMatchObject({ problem: 'no_pipeline_api_url' })
+        })
+
+        test('the pipelineApiUrl option wins over EYEPOP_ENV', () => {
+            process.env['EYEPOP_ENV'] = 'staging'
+            expect(urlOf({ pipelineApiUrl: 'https://pipeline.example.test' })).toBe('https://pipeline.example.test')
+        })
     })
 
     test.each([{ popId: 'a-named-pop' }, { sessionUuid: 'a-session' }, { sessionName: 'a-name' }, { pipelineImage: 'an-image' }, { pipelineVersion: '4.8.0' }, { jobQueueLength: 257 }])(
