@@ -708,8 +708,9 @@ export interface VlmAbility {
     /** @deprecated Use `model`. The worker release the ability runs on, as stored. */
     worker_release?: string
     /**
-     * The model the ability runs on, derived from its stored worker release; `null` for a legacy
-     * release that is none of the {@link VlmModel}s. Older Dataset APIs leave it out.
+     * The model the ability runs on; `null` for a legacy worker release that is none of the
+     * {@link VlmModel}s. `DataEndpoint` derives it from `worker_release` when the Dataset API does not
+     * send it (`qwen3` when the release is unset), and reads a model this SDK does not know as `null`.
      */
     model?: VlmModel | null
     text_prompt?: string

@@ -221,14 +221,83 @@ export class VlmAbilityModelError extends Error {
 
 const VLM_MODELS = Object.keys(VLM_MODEL_WORKER_RELEASES) as VlmModel[]
 
-/** A worker release as the VLM server compares it: lowercase, with `_` as `-`. */
-function normalizeWorkerRelease(release: string): string {
-    return release.toLowerCase().replace(/_/g, '-')
+/** The model of an ability that names neither `model` nor `worker_release`. */
+export const DEFAULT_VLM_MODEL: VlmModel = 'qwen3'
+
+function isVlmModel(value: unknown): value is VlmModel {
+    return typeof value === 'string' && Object.prototype.hasOwnProperty.call(VLM_MODEL_WORKER_RELEASES, value)
 }
 
-function modelForWorkerRelease(release: string): VlmModel | undefined {
-    const normalized = normalizeWorkerRelease(release)
-    return VLM_MODELS.find(model => normalizeWorkerRelease(VLM_MODEL_WORKER_RELEASES[model]) === normalized)
+/**
+ * The comparable form of a worker release name: lowercase, `_` replaced by `-`.
+ * `qwen3_instruct` and `Qwen3-Instruct` both normalize to `qwen3-instruct`.
+ */
+export function normalizeWorkerRelease(workerRelease: string): string {
+    return workerRelease.toLowerCase().replace(/_/g, '-')
+}
+
+/** The model a worker release runs: `qwen3` for `null` or `undefined`, `null` for a release that is no model's. */
+export function modelForWorkerRelease(workerRelease: string | null | undefined): VlmModel | null {
+    if (workerRelease === undefined || workerRelease === null) {
+        return DEFAULT_VLM_MODEL
+    }
+    const normalized = normalizeWorkerRelease(workerRelease)
+    return VLM_MODELS.find(model => normalizeWorkerRelease(VLM_MODEL_WORKER_RELEASES[model]) === normalized) ?? null
+}
+
+/**
+ * The model that `model` and `worker_release` name together, `null` when neither is set. Throws a
+ * {@link VlmAbilityModelError} for an unknown model, a release that is no model's, or a release of another model.
+ */
+function checkModelAndWorkerRelease(model: unknown, workerRelease: unknown, prefix: string): VlmModel | null {
+    const modelSet = isSet(model)
+    if (modelSet && !isVlmModel(model)) {
+        throw new VlmAbilityModelError(VlmAbilityModelErrorReason.unknown_model, `${prefix}unknown model '${String(model)}'; set \`model\` to one of ${VLM_MODELS.join(', ')}`, ['model'])
+    }
+    if (!isSet(workerRelease)) {
+        return modelSet ? (model as VlmModel) : null
+    }
+    const releaseModel = typeof workerRelease === 'string' ? modelForWorkerRelease(workerRelease) : null
+    if (releaseModel === null) {
+        throw new VlmAbilityModelError(
+            VlmAbilityModelErrorReason.unknown_worker_release,
+            `${prefix}unknown worker_release '${String(workerRelease)}'; worker_release is deprecated, set \`model\` to one of ${VLM_MODELS.join(', ')}`,
+            ['worker_release'],
+        )
+    }
+    if (modelSet && releaseModel !== model) {
+        throw new VlmAbilityModelError(
+            VlmAbilityModelErrorReason.model_conflict,
+            `${prefix}worker_release '${String(workerRelease)}' runs model ${releaseModel}, not ${String(model)}; worker_release is deprecated, set only \`model\``,
+            ['model', 'worker_release'],
+        )
+    }
+    return releaseModel
+}
+
+/**
+ * The worker release to store for an ability: the canonical release of the model the fields name,
+ * `qwen3_instruct` when neither is set. Throws a {@link VlmAbilityModelError} like `createVlmAbility` does.
+ */
+export function resolveWorkerRelease(model: VlmModel | null | undefined, workerRelease: string | null | undefined): string {
+    return VLM_MODEL_WORKER_RELEASES[checkModelAndWorkerRelease(model, workerRelease, '') ?? DEFAULT_VLM_MODEL]
+}
+
+/**
+ * A VLM ability as the Dataset API returned it, with `model` set: one that has no `model`, from a Dataset
+ * API before it, derives it from `worker_release`, and a model this SDK does not know reads as `null`.
+ */
+function withVlmModel(ability: VlmAbility): VlmAbility {
+    if (!ability || typeof ability !== 'object') {
+        return ability
+    }
+    if (!('model' in ability)) {
+        return { ...ability, model: modelForWorkerRelease(ability.worker_release) }
+    }
+    if (isSet(ability.model) && !isVlmModel(ability.model)) {
+        return { ...ability, model: null }
+    }
+    return ability
 }
 
 // Module-level on purpose: the deprecation warning is once per process, not per endpoint, and goes
@@ -243,34 +312,12 @@ let warnedWorkerRelease = false
  * Dataset API that still requires `worker_release`.
  */
 function prepareVlmAbilityModel<T extends VlmAbilityCreate | VlmAbilityUpdate>(ability: T, partial: boolean): T {
-    const kind = partial ? 'VLM ability update' : 'VLM ability'
-    const modelSet = isSet(ability.model)
-    const releaseSet = isSet(ability.worker_release)
-    if (releaseSet && !warnedWorkerRelease) {
+    if (isSet(ability.worker_release) && !warnedWorkerRelease) {
         warnedWorkerRelease = true
-        console.warn(`VLM ability worker_release is deprecated, use model (${VLM_MODELS.join(', ')}) instead`)
+        console.warn('worker_release is deprecated, set model to a VlmModel instead')
     }
-    if (modelSet && !VLM_MODELS.includes(ability.model as VlmModel)) {
-        throw new VlmAbilityModelError(VlmAbilityModelErrorReason.unknown_model, `${kind}: unknown model '${String(ability.model)}', expected one of ${VLM_MODELS.join(', ')}`, ['model'])
-    }
-    if (releaseSet) {
-        const releaseModel = typeof ability.worker_release === 'string' ? modelForWorkerRelease(ability.worker_release) : undefined
-        if (releaseModel === undefined) {
-            throw new VlmAbilityModelError(
-                VlmAbilityModelErrorReason.unknown_worker_release,
-                `${kind}: unknown worker_release '${String(ability.worker_release)}'; use model (${VLM_MODELS.join(', ')}) instead`,
-                ['worker_release'],
-            )
-        }
-        if (modelSet && releaseModel !== ability.model) {
-            throw new VlmAbilityModelError(
-                VlmAbilityModelErrorReason.model_conflict,
-                `${kind}: worker_release '${ability.worker_release}' runs model ${releaseModel}, not ${ability.model}; set model only`,
-                ['model', 'worker_release'],
-            )
-        }
-    }
-    if (modelSet && !releaseSet) {
+    checkModelAndWorkerRelease(ability.model, ability.worker_release, partial ? 'VLM ability update: ' : 'VLM ability: ')
+    if (isSet(ability.model) && !isSet(ability.worker_release)) {
         return { ...ability, worker_release: VLM_MODEL_WORKER_RELEASES[ability.model as VlmModel] }
     }
     return ability
@@ -1222,7 +1269,7 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
     async listVlmAbilities(): Promise<VlmAbility[]> {
         return this.request(`/vlm_abilities?account_uuid=${this._accountId}`, {
             method: 'GET',
-        })
+        }).then((abilities: VlmAbility[]) => (Array.isArray(abilities) ? abilities.map(withVlmModel) : abilities))
     }
 
     async createVlmAbility(create: VlmAbilityCreate, vlm_ability_group_uuid?: string): Promise<VlmAbility> {
@@ -1233,13 +1280,13 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
             method: 'POST',
             body: JSON.stringify(body, omit_nulls),
             headers: { 'Content-Type': 'application/json' },
-        })
+        }).then(withVlmModel)
     }
 
     async getVlmAbility(vlm_ability_uuid: string): Promise<VlmAbility> {
         return this.request(`/vlm_abilities/${vlm_ability_uuid}`, {
             method: 'GET',
-        })
+        }).then(withVlmModel)
     }
 
     async deleteVlmAbility(vlm_ability_uuid: string): Promise<void> {
@@ -1255,7 +1302,7 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
             method: 'PATCH',
             body: JSON.stringify(body),
             headers: { 'Content-Type': 'application/json' },
-        })
+        }).then(withVlmModel)
     }
 
     async refineVlmAbility(vlm_ability_uuid: string, auto_prompt: AutoPromptConfig | undefined, auto_task?: AutoTask | undefined): Promise<VlmAbility> {
@@ -1264,13 +1311,13 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
                 method: 'POST',
                 body: JSON.stringify(auto_prompt, omit_nulls),
                 headers: { 'Content-Type': 'application/json' },
-            })
+            }).then(withVlmModel)
         } else if (auto_task !== undefined) {
             return this.request(`/vlm_abilities/${vlm_ability_uuid}/refine_task`, {
                 method: 'POST',
                 body: JSON.stringify(auto_task, omit_nulls),
                 headers: { 'Content-Type': 'application/json' },
-            })
+            }).then(withVlmModel)
         } else {
             return Promise.reject('refine vlm ability requires auto_prompt or auto_config parameter')
         }
@@ -1291,7 +1338,7 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         }
         return this.request(`/vlm_abilities/${vlm_ability_uuid}/clone?${params.toString()}`, {
             method: 'POST',
-        })
+        }).then(withVlmModel)
     }
 
     async publishVlmAbility(vlm_ability_uuid: string, alias_name?: string, tag_name?: string): Promise<VlmAbility> {
@@ -1299,19 +1346,19 @@ export class DataEndpoint extends Endpoint<DataEndpoint> {
         const tag_name_query = tag_name ? `tag_name=${encodeURIComponent(tag_name)}&` : ''
         return this.request(`/vlm_abilities/${vlm_ability_uuid}/publish?${alias_name_query}${tag_name_query}`, {
             method: 'POST',
-        })
+        }).then(withVlmModel)
     }
 
     async addVlmAbilityAlias(vlm_ability_uuid: string, alias_name: string, tag_name?: string): Promise<VlmAbility> {
         return this.request(`/vlm_abilities/${vlm_ability_uuid}/alias/${encodeURIComponent(alias_name)}/tag/${tag_name ? encodeURIComponent(tag_name) : ''}`, {
             method: 'POST',
-        })
+        }).then(withVlmModel)
     }
 
     async removeVlmAbilityAlias(vlm_ability_uuid: string, alias_name: string, tag_name: string): Promise<VlmAbility> {
         return this.request(`/vlm_abilities/${vlm_ability_uuid}/alias/${encodeURIComponent(alias_name)}/tag/${encodeURIComponent(tag_name)}`, {
             method: 'DELETE',
-        })
+        }).then(withVlmModel)
     }
 
     async listVlmAbilityEvaluations(vlm_ability_uuid: string): Promise<DatasetAutoAnnotate[]> {
