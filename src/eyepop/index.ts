@@ -174,6 +174,12 @@ const stringToBooleanSafe = (str?: string): boolean => {
     return loweCaseStr == 'true' || loweCaseStr == 'yes'
 }
 
+/** The compute API per EYEPOP_ENV, which mints the token the pipeline API of that environment takes. */
+const COMPUTE_API_URLS: ReadonlyMap<string, string> = new Map([
+    ['staging', 'https://compute.staging.eyepop.xyz'],
+    ['production', 'https://compute.eyepop.ai'],
+])
+
 /** The pipeline API per EYEPOP_ENV. */
 const PIPELINE_API_URLS: ReadonlyMap<string, string> = new Map([
     ['staging', 'https://pipeline.staging.eyepop.xyz'],
@@ -301,6 +307,12 @@ export namespace EyePop {
                 throw new PipelineConfigurationError('no_pipeline_api_url', `EYEPOP_ENV=${envName} is not one of ${[...PIPELINE_API_URLS.keys()].join(', ')}`)
             }
             opts.pipelineApiUrl = url
+            // The token must come from the same environment as the pipeline API. A session, EYEPOP_URL
+            // or eyepopUrl names the compute API itself and wins.
+            const hasSession = (resolveAuth(opts) as SessionAuth | undefined)?.session !== undefined
+            if (!opts.eyepopUrl && !hasSession && !readEnv('EYEPOP_URL')) {
+                opts.eyepopUrl = COMPUTE_API_URLS.get(envName.toLowerCase())
+            }
         }
         if (opts.isLocalMode && !opts.eyepopUrl) {
             // Local mode talks to the pipeline API itself, on its default listener.

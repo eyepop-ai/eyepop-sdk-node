@@ -10,6 +10,7 @@
 - **Breaking:** an `EYEPOP_ENV` that is not `staging`, `production` or `local` throws `no_pipeline_api_url` in pipeline mode; the SDK ignored the variable before.
 
 ### Added
+- `EYEPOP_ENV=staging|production` also picks the compute API that mints the token (`compute.staging.eyepop.xyz`, `compute.eyepop.ai`), unless `eyepopUrl`, `EYEPOP_URL` or a `session` names one.
 - `EYEPOP_ENV=staging|production|local` picks the pipeline API (`pipeline.staging.eyepop.xyz`, `pipeline.eyepop.ai`, `127.0.0.1:9002`), and the `pipelineApiUrl` option overrides it. Unset, the compute API names it as before.
 
 ## [3.27.0] - 2026-11-10

@@ -138,6 +138,21 @@ describe('pipeline mode (SDK-27)', () => {
             expect(urlOf({ isLocalMode: true })).toBeUndefined()
         })
 
+        test.each([
+            ['staging', 'https://compute.staging.eyepop.xyz'],
+            ['production', 'https://compute.eyepop.ai'],
+        ])('%s also picks the compute API that mints the token', (name, url) => {
+            process.env['EYEPOP_ENV'] = name
+            expect((EyePop.workerEndpoint({ accessToken: 't' }) as any)._options.eyepopUrl).toBe(url)
+        })
+
+        test('eyepopUrl and EYEPOP_URL win over the compute API of EYEPOP_ENV', () => {
+            process.env['EYEPOP_ENV'] = 'staging'
+            expect((EyePop.workerEndpoint({ accessToken: 't', eyepopUrl: 'https://compute.example.test' }) as any)._options.eyepopUrl).toBe('https://compute.example.test')
+            process.env['EYEPOP_URL'] = 'https://compute.env.test'
+            expect((EyePop.workerEndpoint({ accessToken: 't' }) as any)._options.eyepopUrl).toBe('https://compute.env.test')
+        })
+
         test('the pipelineApiUrl option wins over EYEPOP_ENV', () => {
             process.env['EYEPOP_ENV'] = 'staging'
             expect(urlOf({ pipelineApiUrl: 'https://pipeline.example.test' })).toBe('https://pipeline.example.test')
