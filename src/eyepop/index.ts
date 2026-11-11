@@ -293,7 +293,9 @@ export namespace EyePop {
             throw new PipelineConfigurationError('session_options', `pipeline mode runs no worker session; it takes no ${named.join(', ')}`, named)
         }
         const envName = readEnv('EYEPOP_ENV')
-        if (!opts.pipelineApiUrl && envName) {
+        // Local mode names the pipeline API itself (eyepopUrl below), so EYEPOP_ENV does not
+        // point the socket somewhere else than the HTTP calls.
+        if (!opts.pipelineApiUrl && envName && !opts.isLocalMode) {
             const url = PIPELINE_API_URLS.get(envName.toLowerCase())
             if (!url) {
                 throw new PipelineConfigurationError('no_pipeline_api_url', `EYEPOP_ENV=${envName} is not one of ${[...PIPELINE_API_URLS.keys()].join(', ')}`)

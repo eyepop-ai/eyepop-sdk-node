@@ -128,6 +128,11 @@ describe('pipeline mode (SDK-27)', () => {
             expect(refusal(() => EyePop.workerEndpoint({ accessToken: 't' }))).toMatchObject({ problem: 'no_pipeline_api_url' })
         })
 
+        test('local mode wins over EYEPOP_ENV: one origin for the HTTP calls and the socket', () => {
+            process.env['EYEPOP_ENV'] = 'staging'
+            expect(urlOf({ isLocalMode: true })).toBeUndefined()
+        })
+
         test('the pipelineApiUrl option wins over EYEPOP_ENV', () => {
             process.env['EYEPOP_ENV'] = 'staging'
             expect(urlOf({ pipelineApiUrl: 'https://pipeline.example.test' })).toBe('https://pipeline.example.test')
