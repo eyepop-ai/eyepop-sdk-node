@@ -178,7 +178,7 @@ const stringToBooleanSafe = (str?: string): boolean => {
 const PIPELINE_API_URLS: ReadonlyMap<string, string> = new Map([
     ['staging', 'https://pipeline.staging.eyepop.xyz'],
     ['production', 'https://pipeline.eyepop.ai'],
-    ['local', 'http://localhost:8080'],
+    ['local', 'http://127.0.0.1:9002'],
 ])
 
 export namespace EyePop {
@@ -214,7 +214,7 @@ export namespace EyePop {
             // API, so its mode wins over the environment; an explicit isPipelineMode wins over both.
             const shared = (resolveAuth(opts) as SessionAuth | undefined)?.session as WorkerSession | undefined
             const envPipelineMode = readEnv('EYEPOP_PIPELINE_MODE')
-            opts.isPipelineMode = shared !== undefined ? shared.isPipelineMode === true : envPipelineMode === undefined || stringToBooleanSafe(envPipelineMode)
+            opts.isPipelineMode = shared !== undefined ? shared.isPipelineMode === true : !envPipelineMode || stringToBooleanSafe(envPipelineMode)
         }
         if (opts.isPipelineMode) {
             return pipelineEndpoint(opts)

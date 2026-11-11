@@ -106,13 +106,18 @@ describe('pipeline mode (SDK-27)', () => {
         expect(inPipelineMode(EyePop.workerEndpoint({ accessToken: 't', isPipelineMode: true }))).toBe(true)
     })
 
+    test('an empty EYEPOP_PIPELINE_MODE is unset, so the default holds', () => {
+        process.env['EYEPOP_PIPELINE_MODE'] = ''
+        expect(inPipelineMode(EyePop.workerEndpoint({ accessToken: 't' }))).toBe(true)
+    })
+
     describe('EYEPOP_ENV picks the pipeline API', () => {
         const urlOf = (options: Record<string, any> = {}): unknown => (EyePop.workerEndpoint({ accessToken: 't', ...options }) as any)._options.pipelineApiUrl
 
         test.each([
             ['staging', 'https://pipeline.staging.eyepop.xyz'],
             ['production', 'https://pipeline.eyepop.ai'],
-            ['local', 'http://localhost:8080'],
+            ['local', 'http://127.0.0.1:9002'],
             ['Staging', 'https://pipeline.staging.eyepop.xyz'],
         ])('%s maps to %s', (name, url) => {
             process.env['EYEPOP_ENV'] = name

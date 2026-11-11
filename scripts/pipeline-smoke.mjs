@@ -70,7 +70,12 @@ function parseArgs(argv) {
         '--image': v => (args.image = v),
         '--ability': v => (args.ability = v),
         '--expected-class': v => (args.expectedClass = v),
-        '--min-objects': v => (args.minObjects = Number(v)),
+        '--min-objects': v => {
+            args.minObjects = Number(v)
+            if (!Number.isFinite(args.minObjects)) {
+                throw new Error(`--min-objects needs a number, got ${v}`)
+            }
+        },
         '--min-confidence': v => (args.minConfidence = Number(v)),
         '--summary-json': v => (args.summaryJson = v),
     }

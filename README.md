@@ -166,7 +166,7 @@ Persistent sessions are worker sessions, so turn pipeline mode off with `EYEPOP_
 
 ## Pipeline Mode
 
-Pipeline mode is the default: a worker endpoint runs its jobs on the pipeline API instead of a worker session. Set `isPipelineMode: false`, or `EYEPOP_PIPELINE_MODE=false`, for a worker session. `EYEPOP_ENV=staging|production|local` picks the pipeline API (`pipeline.staging.eyepop.xyz`, `pipeline.eyepop.ai`, `localhost:8080`); unset, the compute API names it. The code that uses the endpoint stays the same:
+Pipeline mode is the default: a worker endpoint runs its jobs on the pipeline API instead of a worker session. Set `isPipelineMode: false`, or `EYEPOP_PIPELINE_MODE=false`, for a worker session. `EYEPOP_ENV=staging|production|local` picks the pipeline API (`pipeline.staging.eyepop.xyz`, `pipeline.eyepop.ai`, `127.0.0.1:9002`); unset, the compute API names it. The code that uses the endpoint stays the same:
 
 ```javascript
 const endpoint = await EyePop.workerEndpoint({ pop }).connect()

@@ -74,7 +74,7 @@ const endpoint = await EyePop.workerEndpoint({
 }).connect()
 ```
 
-`EYEPOP_LOCAL_MODE=true` in the environment selects it without the option. Local mode on an instance is a worker session, so it needs `isPipelineMode: false` (or `EYEPOP_PIPELINE_MODE=false`). With it off here, local mode always uses port `8080`, so leave the instance on its default port when Node clients connect to it. In pipeline mode, the default, local mode means a local pipeline API on `http://127.0.0.1:9002` instead, or `EYEPOP_URL` when set, not an instance; local mode ignores `EYEPOP_ENV`, and without local mode `EYEPOP_ENV=local` picks `http://localhost:8080`.
+`EYEPOP_LOCAL_MODE=true` in the environment selects it without the option. Local mode on an instance is a worker session, so it needs `isPipelineMode: false` (or `EYEPOP_PIPELINE_MODE=false`). With it off here, local mode always uses port `8080`, so leave the instance on its default port when Node clients connect to it. In pipeline mode, the default, local mode means a local pipeline API on `http://127.0.0.1:9002` instead, or `EYEPOP_URL` when set, not an instance; local mode ignores `EYEPOP_ENV`, and without local mode `EYEPOP_ENV=local` picks `http://127.0.0.1:9002`.
 
 The endpoint runs on the instance's own pipeline and leaves it running when it disconnects. Disconnect in a `finally`, and reuse one connected endpoint for many images rather than connecting for each.
 
