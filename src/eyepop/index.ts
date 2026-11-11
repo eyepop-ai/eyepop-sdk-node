@@ -214,7 +214,7 @@ export namespace EyePop {
             // API, so its mode wins over the environment; an explicit isPipelineMode wins over both.
             const shared = (resolveAuth(opts) as SessionAuth | undefined)?.session as WorkerSession | undefined
             const envPipelineMode = readEnv('EYEPOP_PIPELINE_MODE')
-            opts.isPipelineMode = shared?.isPipelineMode ?? (envPipelineMode === undefined ? true : stringToBooleanSafe(envPipelineMode))
+            opts.isPipelineMode = shared !== undefined ? shared.isPipelineMode === true : envPipelineMode === undefined || stringToBooleanSafe(envPipelineMode)
         }
         if (opts.isPipelineMode) {
             return pipelineEndpoint(opts)
@@ -282,9 +282,9 @@ export namespace EyePop {
         const sessionOnly: Record<string, unknown> = {
             popId: popId === TransientPopId.Transient ? undefined : popId,
             sessionUuid: opts.sessionUuid ?? readEnv('EYEPOP_SESSION_UUID'),
-            sessionName: opts.sessionName,
-            pipelineImage: opts.pipelineImage,
-            pipelineVersion: opts.pipelineVersion,
+            sessionName: opts.sessionName ?? readEnv('EYEPOP_SESSION_NAME'),
+            pipelineImage: opts.pipelineImage ?? readEnv('EYEPOP_PIPELINE_IMAGE'),
+            pipelineVersion: opts.pipelineVersion ?? readEnv('EYEPOP_PIPELINE_VERSION'),
         }
         const named = Object.entries(sessionOnly)
             .filter(([, value]) => value)

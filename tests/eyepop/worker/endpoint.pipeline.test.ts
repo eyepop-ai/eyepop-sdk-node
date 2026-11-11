@@ -22,7 +22,7 @@ import { FakePipelineApi, FakeSocket, pops, prediction, sources } from './pipeli
 const PERSON: Pop = { components: [{ type: 'inference', ability: 'eyepop.person:latest' } as any] }
 const VEHICLE: Pop = { components: [{ type: 'inference', ability: 'eyepop.vehicle:latest' } as any] }
 
-const ENV = ['EYEPOP_URL', 'EYEPOP_API_KEY', 'EYEPOP_POP_ID', 'EYEPOP_SESSION_UUID', 'EYEPOP_PIPELINE_MODE', 'EYEPOP_LOCAL_MODE', 'EYEPOP_ENV']
+const ENV = ['EYEPOP_URL', 'EYEPOP_API_KEY', 'EYEPOP_POP_ID', 'EYEPOP_SESSION_UUID', 'EYEPOP_SESSION_NAME', 'EYEPOP_PIPELINE_IMAGE', 'EYEPOP_PIPELINE_VERSION', 'EYEPOP_PIPELINE_MODE', 'EYEPOP_LOCAL_MODE', 'EYEPOP_ENV']
 
 async function all(stream: ResultStream): Promise<Prediction[]> {
     const results: Prediction[] = []
@@ -156,6 +156,18 @@ describe('pipeline mode (SDK-27)', () => {
     test('refuses a session named by the environment', () => {
         process.env['EYEPOP_SESSION_UUID'] = 'a-session'
         expect(refusal(() => EyePop.workerEndpoint({ apiKey: 'k', isPipelineMode: true }))).toMatchObject({ problem: 'session_options', options: ['sessionUuid'] })
+    })
+
+    test.each([
+        ['EYEPOP_SESSION_UUID', 'sessionUuid'],
+        ['EYEPOP_POP_ID', 'popId'],
+        ['EYEPOP_SESSION_NAME', 'sessionName'],
+        ['EYEPOP_PIPELINE_IMAGE', 'pipelineImage'],
+        ['EYEPOP_PIPELINE_VERSION', 'pipelineVersion'],
+    ])('by default, refuses %s: a worker session needs isPipelineMode: false', (name, option) => {
+        process.env[name] = 'a-value'
+        expect(refusal(() => EyePop.workerEndpoint({ apiKey: 'k' }))).toMatchObject({ problem: 'session_options', options: [option] })
+        expect(EyePop.workerEndpoint({ apiKey: 'k', isPipelineMode: false }).backend()).toBeInstanceOf(SessionBackend)
     })
 
     test('takes the pipeline API url from the compute API configs', async () => {
@@ -771,6 +783,11 @@ describe('pipeline mode (SDK-27)', () => {
 
     test('a client built from a worker session stays in session mode', () => {
         const session = { eyepopUrl: fake.url, accessToken: 't', validUntil: Date.now() + 60000, popId: 'transient', baseUrl: fake.url, pipelineId: 'p', isPipelineMode: false }
+        expect(EyePop.workerEndpoint({ session: session as any }).backend()).toBeInstanceOf(SessionBackend)
+    })
+
+    test('a session that does not say its mode is a worker session', () => {
+        const session = { eyepopUrl: fake.url, accessToken: 't', validUntil: Date.now() + 60000, popId: 'transient', baseUrl: fake.url, pipelineId: 'p' }
         expect(EyePop.workerEndpoint({ session: session as any }).backend()).toBeInstanceOf(SessionBackend)
     })
 

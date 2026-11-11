@@ -3,7 +3,11 @@
 ## [Unreleased]
 
 ### Changed
-- **Breaking:** `EyePop.workerEndpoint()` runs in pipeline mode by default. Set `isPipelineMode: false` or `EYEPOP_PIPELINE_MODE=false` for a worker session; `popId`, `sessionUuid`, `sessionName`, `pipelineImage`, `pipelineVersion` and `EYEPOP_SESSION_UUID` need it.
+- **Breaking:** `EyePop.workerEndpoint()` runs in pipeline mode by default. Set `isPipelineMode: false` or `EYEPOP_PIPELINE_MODE=false` for a worker session; `popId`, `sessionUuid`, `sessionName`, `pipelineImage`, `pipelineVersion` and their environment variables (`EYEPOP_POP_ID`, `EYEPOP_SESSION_UUID`, `EYEPOP_SESSION_NAME`, `EYEPOP_PIPELINE_IMAGE`, `EYEPOP_PIPELINE_VERSION`) are refused without it. The worker session flow is being phased out.
+- **Breaking:** in a browser there is no environment, so every client defaults to pipeline mode; a browser client that uses a worker session or a `popId` must pass `isPipelineMode: false`.
+- **Breaking:** a `session` handed to `workerEndpoint()` that does not say `isPipelineMode` is a worker session.
+- **Breaking:** `EYEPOP_LOCAL_MODE=true` now means pipeline mode on `EYEPOP_URL` or `http://127.0.0.1:9002`, not a worker session on `http://127.0.0.1:8080`.
+- **Breaking:** an `EYEPOP_ENV` that is not `staging`, `production` or `local` throws `no_pipeline_api_url` in pipeline mode; the SDK ignored the variable before.
 
 ### Added
 - `EYEPOP_ENV=staging|production|local` picks the pipeline API (`pipeline.staging.eyepop.xyz`, `pipeline.eyepop.ai`, `localhost:8080`), and the `pipelineApiUrl` option overrides it. Unset, the compute API names it as before.
