@@ -18,6 +18,9 @@ export type RenderBoxOptions = {
     boxType?: BoxType // The style of the box bounds
 } & RenderTarget
 
+/** Orders by category; a class or object without one (e.g. from a classifier) sorts first. */
+const byCategory = (a: { category?: string }, b: { category?: string }) => (a.category ?? '').localeCompare(b.category ?? '')
+
 export class RenderBox implements Render {
     public target: string = DEFAULT_TARGET
 
@@ -64,15 +67,6 @@ export class RenderBox implements Render {
         const y = yOffset + element.y * yScale
         const w = element.width * xScale
         const h = element.height * yScale
-
-        // Sort the element's objects based on the element.object.category
-        if (element.objects) {
-            element.objects.sort((a, b) => {
-                if (!a.category || !b.category) return 0
-
-                return a.category.localeCompare(b.category)
-            })
-        }
 
         let canvasDimension = Math.min(w, h)
 
@@ -140,13 +134,11 @@ export class RenderBox implements Render {
         }
 
         if (this.showNestedClasses && element?.classes) {
-            // Sort the classes based category
-            element.classes.sort((a: any, b: any) => {
-                return a.category.localeCompare(b.category)
-            })
+            // a sorted copy: the caller's prediction stays as received
+            const classes = [...element.classes].sort(byCategory)
 
-            for (let i = 0; i < element.classes.length; i++) {
-                label = element.classes[i]?.classLabel
+            for (let i = 0; i < classes.length; i++) {
+                label = classes[i]?.classLabel
 
                 if (!label) continue
 
@@ -180,14 +172,6 @@ export class RenderBox implements Render {
         const w = element.width * xScale
         const h = element.height * yScale
 
-        // Sort the element's objects based on the element.object.category
-        if (element.objects) {
-            element.objects.sort((a, b) => {
-                if (!a.category || !b.category) return 0
-
-                return a.category.localeCompare(b.category)
-            })
-        }
         const scale = style.scale
 
         //faded blue background
@@ -217,13 +201,11 @@ export class RenderBox implements Render {
         }
 
         if (this.showNestedClasses && element?.classes) {
-            // Sort the classes based category
-            element.classes.sort((a: any, b: any) => {
-                return a.category.localeCompare(b.category)
-            })
+            // a sorted copy: the caller's prediction stays as received
+            const classes = [...element.classes].sort(byCategory)
 
-            for (let i = 0; i < element.classes.length; i++) {
-                label = element.classes[i]?.classLabel
+            for (let i = 0; i < classes.length; i++) {
+                label = classes[i]?.classLabel
 
                 if (!label) continue
 
@@ -257,14 +239,6 @@ export class RenderBox implements Render {
         const w = element.width * xScale
         const h = element.height * yScale
 
-        // Sort the element's objects based on the element.object.category
-        if (element.objects) {
-            element.objects.sort((a, b) => {
-                if (!a.category || !b.category) return 0
-
-                return a.category.localeCompare(b.category)
-            })
-        }
         const scale = style.scale
 
         //faded blue background
@@ -325,13 +299,11 @@ export class RenderBox implements Render {
         }
 
         if (this.showNestedClasses && element?.classes) {
-            // Sort the classes based category
-            element.classes.sort((a: any, b: any) => {
-                return a.category.localeCompare(b.category)
-            })
+            // a sorted copy: the caller's prediction stays as received
+            const classes = [...element.classes].sort(byCategory)
 
-            for (let i = 0; i < element.classes.length; i++) {
-                label = element.classes[i]?.classLabel
+            for (let i = 0; i < classes.length; i++) {
+                label = classes[i]?.classLabel
 
                 if (!label) continue
 
