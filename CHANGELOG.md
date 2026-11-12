@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [3.27.1] - 2026-11-12
+
 ### Fixed
 - `eyepop-render-2d`: a `RenderBox` with `showNestedClasses` no longer throws on an object whose `classes` have no `category`, such as a classifier's output on a crop. It used to throw `TypeError: Cannot read properties of undefined (reading 'localeCompare')` after drawing the class label, so the nested class labels, track id and confidence were missing (BUG-326). Classes without a category are drawn first.
 - `RenderBox` no longer reorders the caller's prediction: it draws nested classes from a sorted copy, and no longer sorts `objects`, which it never drew from.
