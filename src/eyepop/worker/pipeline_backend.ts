@@ -136,6 +136,10 @@ class Credit {
     sending = false
     // Whether the upload's `uploaded` went out.
     uploaded = false
+    private _markEnded!: () => void
+    // Settles when the upload ends early, so that a read of the caller's stream that waits for its
+    // next chunk stops instead of holding the upload, and the job, until the stream yields.
+    readonly whenEnded = new Promise<void>(resolve => (this._markEnded = resolve))
 
     get ended(): boolean {
         return this._ended
@@ -148,6 +152,7 @@ class Credit {
 
     end(): void {
         this._ended = true
+        this._markEnded()
         this.wake()
     }
 
@@ -1038,7 +1043,7 @@ export class PipelineBackend implements WorkerBackend {
             for (let i = 0; i < keys.length; i++) {
                 key = keys[i] as number | null
                 credit = source.uploads.get(key) as Credit
-                for await (let piece of pieces(await (job.media[i] as Media).open())) {
+                for await (let piece of pieces(await (job.media[i] as Media).open(), credit.whenEnded)) {
                     while (piece.length > 0) {
                         const n = await credit.take(Math.min(piece.length, CHUNK_BYTES))
                         const chunk = new Uint8Array(n + 1)
@@ -1266,18 +1271,33 @@ function combinedMessage(command: Message, media: Uint8Array[]): Uint8Array {
     return concat([prefix, header, ...media])
 }
 
-async function* pieces(body: UploadBody): AsyncGenerator<Uint8Array> {
+const STOPPED: unique symbol = Symbol('stopped')
+
+/**
+ * The body's bytes. Once `stop` settles, a read that waits for the stream's next chunk is cancelled
+ * and the generator throws `UploadEnded`.
+ */
+async function* pieces(body: UploadBody, stop?: Promise<void>): AsyncGenerator<Uint8Array> {
     if (typeof Blob !== 'undefined' && body instanceof Blob) {
-        yield* pieces(body.stream() as ReadableStream<Uint8Array>)
+        yield* pieces(body.stream() as ReadableStream<Uint8Array>, stop)
     } else if (body instanceof ArrayBuffer) {
         yield new Uint8Array(body)
     } else if (ArrayBuffer.isView(body)) {
         yield new Uint8Array(body.buffer, body.byteOffset, body.byteLength)
     } else {
         const reader = (body as ReadableStream<Uint8Array>).getReader()
+        const stopped = stop?.then((): typeof STOPPED => STOPPED)
         try {
             while (true) {
-                const { value, done } = await reader.read()
+                const read = reader.read()
+                const next = stopped === undefined ? await read : await Promise.race([read, stopped])
+                if (next === STOPPED) {
+                    // The upload ended: its source ended or its job was cancelled. Nothing reads the
+                    // stream after this, so it is cancelled rather than left waiting.
+                    await reader.cancel().catch(() => undefined)
+                    throw new UploadEnded()
+                }
+                const { value, done } = next
                 if (done) {
                     return
                 }

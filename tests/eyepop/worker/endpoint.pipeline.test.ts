@@ -630,6 +630,44 @@ describe('pipeline mode (SDK-27)', () => {
             expect(only().commands).toContainEqual({ type: 'uploaded', id })
         })
 
+        // A caller's stream that sends its first bytes and then neither sends more nor closes.
+        const stalled = (text: string) =>
+            new ReadableStream<Uint8Array>({
+                start(controller) {
+                    controller.enqueue(new TextEncoder().encode(text))
+                },
+            })
+
+        test('while the stream waits for its next chunk, once its source ended', async () => {
+            fake.returnCredit = true
+            fake.window = 16
+            fake.failUploadAfter = 4
+            const ep = endpoint({ pipelineSockets: 1 })
+            await ep.connect()
+            await expect(within(all(await ep.process({ source: { stream: stalled('four'), mimeType: 'video/mp4' } })))).rejects.toThrow(PipelineSourceError)
+            fake.failUploadAfter = null
+            expect(await within(all(await ep.process({ source: { stream: streamOf('second'), mimeType: 'video/mp4' } })))).toEqual([prediction(0), prediction(1)])
+            await ep.disconnect()
+            const failed = sources(only())[0]?.['id']
+            expect(only().commands).toContainEqual({ type: 'uploaded', id: failed })
+        })
+
+        test('while the stream waits for its next chunk, once its job was cancelled', async () => {
+            fake.returnCredit = true
+            fake.window = 16
+            const ep = endpoint({ pipelineSockets: 1 })
+            await ep.connect()
+            const cancelled = await ep.process({ source: { stream: stalled('four'), mimeType: 'video/mp4' } })
+            await within(eventually(() => (only().media.get(sources(only())[0]?.['id'])?.get(null)?.length ?? 0) === 4))
+            const id = sources(only())[0]?.['id']
+            cancelled.cancel()
+            expect(await within(all(cancelled))).toEqual([])
+            expect(await within(all(await ep.process({ source: { stream: streamOf('second'), mimeType: 'video/mp4' } })))).toEqual([prediction(0), prediction(1)])
+            await within(ep.disconnect())
+            expect(only().commands).toContainEqual({ type: 'stopSource', id })
+            expect(only().commands).toContainEqual({ type: 'uploaded', id })
+        })
+
         test('a pipeline API that refuses the late uploaded fails neither a job nor the socket', async () => {
             fake.failUploadAfter = 4
             fake.dropEndedUploads = true

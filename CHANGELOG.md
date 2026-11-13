@@ -12,6 +12,7 @@
 
 ### Fixed
 - In pipeline mode, a chunked upload whose source ended early (`end` with reason `error`) or whose job was cancelled while it was sending now sends its `uploaded` (with `member` for a group member). The pipeline API keeps a sending upload at the head of the socket's line until its `uploaded`, so every later chunked upload on that socket used to hang once the client had used its credit. An `error` the pipeline API answers to such a late `uploaded` is logged at debug and fails neither a job nor the socket.
+- In pipeline mode, a chunked upload from a caller's stream that stops sending without closing no longer holds its job when the source ends or the job is cancelled: the SDK cancels the stream's pending read and sends `uploaded`. The job used to wait for the stream's next chunk, and so did every later chunked upload on the socket.
 
 ## [4.0.0-rc.1] - 2026-11-13
 
