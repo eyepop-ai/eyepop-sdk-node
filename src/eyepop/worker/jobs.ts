@@ -22,13 +22,40 @@ export class AbstractJob implements ResultStream {
 
     protected _version: PredictionVersion;
 
+    // A failure on a side request (the async upload beside a prepared result stream). It aborts the result
+    // stream, and the iterator throws it instead of ending as if the job had been cancelled.
+    protected _sideFailure: Error | undefined = undefined;
+
     [Symbol.asyncIterator](): AsyncIterator<Prediction> {
         if (!this._responseStream) {
             throw Error('logical bug')
         }
-        return Stream.iterFromReadableStream(this._responseStream, this._controller, async (event: StreamEvent) => {
+        const predictions = Stream.iterFromReadableStream<Prediction>(this._responseStream, this._controller, async (event: StreamEvent) => {
             return await this.onEvent(event)
         })
+        const job = this
+        async function* withSideFailure(): AsyncGenerator<Prediction> {
+            try {
+                while (true) {
+                    const next = await predictions.next()
+                    if (next.done) break
+                    yield next.value
+                }
+            } catch (e) {
+                throw job._sideFailure ?? e
+            }
+            if (job._sideFailure) {
+                throw job._sideFailure
+            }
+        }
+        return withSideFailure()
+    }
+
+    protected failSide(failure: Error): void {
+        if (this._sideFailure === undefined) {
+            this._sideFailure = failure
+            this._controller.abort(failure)
+        }
     }
 
     protected constructor(params: ProcessParams, getSession: () => Promise<WorkerSession>, client: HttpClient, requestLogger: Logger, version: PredictionVersion = DEFAULT_PREDICTION_VERSION) {
@@ -236,14 +263,23 @@ export class UploadJob extends AbstractJob {
                     eyepop: { responseStreaming: true },
                 })
             }
+            // The upload's outcome reaches the result stream: without it, the prepared stream would end or wait
+            // with no word of why (AIW-163 made every streamed video take this path).
             request
                 .then(async value => {
-                    if (value.status != 204) {
-                        this._requestLogger.debug(`unexpected status ${value.status} (${await value.text()}) for POST ${postUrl}`)
+                    if (!value.ok) {
+                        const text = await value.text().catch(() => '')
+                        this.failSide(new Error(`upload error ${value.status}: ${text}`))
+                    } else if (value.status != 204) {
+                        this._requestLogger.debug(`unexpected status ${value.status} for POST ${postUrl}`)
                     }
                 })
                 .catch(reason => {
-                    this._requestLogger.debug(`error ${reason} for POST ${postUrl}`)
+                    if (this._controller.signal.aborted && this._sideFailure === undefined) {
+                        // the job was cancelled; its upload going with it is not a failure
+                        return
+                    }
+                    this.failSide(new Error(`upload request failed: ${reason}`))
                 })
         }
         return Promise.resolve()

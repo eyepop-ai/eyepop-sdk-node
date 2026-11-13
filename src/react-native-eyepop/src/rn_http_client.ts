@@ -44,7 +44,9 @@ export async function createHttpClientRN(logger: Logger): Promise<HttpClient> {
         streamBody = init.body;
         // @ts-ignore
       } else if (init?.eyepop?.responseStreaming) {
-        const requestBody = input instanceof Request ? input.body : init?.body;
+        // A body in init overrides the Request's own, as with fetch().
+        const requestBody =
+          init?.body ?? (input instanceof Request ? input.body : undefined);
         if (requestBody === undefined || requestBody === null) {
           streamWithoutBody = true;
         } else {
@@ -76,15 +78,17 @@ export async function createHttpClientRN(logger: Logger): Promise<HttpClient> {
         let headers: Headers;
         if (input instanceof Request) {
           url = new URL(input.url);
-          method = input.method;
-          headers = input.headers;
+          method = init?.method || input.method;
+          // a copy: the transport headers below must not change the caller's Request
+          headers = new Headers(input.headers);
         } else {
           if (input instanceof URL) {
             url = input;
           } else {
             url = new URL(input);
           }
-          method = init?.method || 'POST';
+          // fetch() defaults to GET; only a request with a body defaults to POST here
+          method = init?.method || (streamBody ? 'POST' : 'GET');
           headers = new Headers(init?.headers);
         }
         let contentLength;
@@ -99,6 +103,8 @@ export async function createHttpClientRN(logger: Logger): Promise<HttpClient> {
         this.logger.debug(
           `reactNativeStreamingFetch() BEFORE ${method} ${url}`
         );
+        const signal =
+          init?.signal ?? (input instanceof Request ? input.signal : undefined);
         const response = await reactNativeStreamingFetch(
           url,
           method,
@@ -106,7 +112,8 @@ export async function createHttpClientRN(logger: Logger): Promise<HttpClient> {
           streamBody,
           contentLength,
           TcpSockets,
-          this.logger
+          this.logger,
+          signal ?? undefined
         );
         this.logger.debug(`AFTER ${method} ${url} -> ${response.status}`);
         return response;

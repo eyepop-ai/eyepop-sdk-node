@@ -4,6 +4,7 @@ import { MockServer } from 'jest-mock-server'
 import { describe, expect, test } from '@jest/globals'
 import { v4 as uuidv4 } from 'uuid'
 import * as fs from 'fs'
+import { PassThrough } from 'stream'
 
 // these tests cover worker session mode; pipeline mode is the default
 process.env['EYEPOP_PIPELINE_MODE'] = 'false'
@@ -278,6 +279,48 @@ describe('EyePopSdk endpoint module upload', () => {
             }
             expect(syncUploadRoute).toHaveBeenCalledTimes(1)
         } finally {
+            await endpoint.disconnect()
+        }
+    })
+    test('EyePopSdk fails a streamed video job when its async upload fails (AIW-163)', async () => {
+        const test_pop_id = uuidv4()
+        const test_pipeline_id = uuidv4()
+        const prepared_source_id = uuidv4()
+        prepMockServer(server, test_pop_id, test_pipeline_id)
+
+        server.post(`/worker/pipelines/${test_pipeline_id}/source`).mockImplementation(async ctx => {
+            await ctx.request.req.toArray()
+            ctx.status = 500
+            ctx.body = 'pipeline gone'
+        })
+        let resultStream: PassThrough | undefined
+        server.post(`/worker/pipelines/${test_pipeline_id}/prepareSource`).mockImplementation(ctx => {
+            // stays open as a real prepared result stream does until its source ends
+            resultStream = new PassThrough()
+            resultStream.write(JSON.stringify({ event: { type: 'prepared', source_id: prepared_source_id } }) + '\n')
+            ctx.status = 200
+            ctx.response.headers['content-type'] = 'application/jsonl'
+            ctx.body = resultStream
+        })
+
+        const endpoint = EyePop.workerEndpoint({
+            eyepopUrl: server.getURL().toString(),
+            auth: { apiKey: test_api_key },
+            popId: test_pop_id,
+            stopJobs: false,
+        })
+        try {
+            await endpoint.connect()
+            const job = await endpoint.process({
+                source: { stream: new Uint8Array([0, 0, 0, 24]), mimeType: 'video/mp4', videoMode: VideoMode.STREAM },
+            })
+            const iterate = async () => {
+                for await (const _ of await job) {
+                }
+            }
+            await expect(iterate()).rejects.toThrow('upload error 500: pipeline gone')
+        } finally {
+            resultStream?.end()
             await endpoint.disconnect()
         }
     })
