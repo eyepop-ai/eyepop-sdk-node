@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### Added
+- In pipeline mode, `motionDetect` (`MotionDetectConfig`: `motionDetect`, `motionSensitivity`, `motionThreshold`, `motionGap`, `motionGridX`, `motionGridY`) goes on the source's `setSource`, with the same names and meaning as on a worker session; a member left unset is not sent, so the pop's `defaults` apply (BUG-327). It needs a pipeline API of eyepop-worker v4.15.0 or later; an older one refuses the source with `PipelineCommandError` `invalid_request`.
+- In pipeline mode, the `videoMode` of a `path`, `file` or `stream` source goes on its upload (AWSU-317). Unset, the pipeline API buffers a video upload, so an MP4 with its `moov` atom at the end plays; `VideoMode.STREAM` plays it as it arrives. Needs eyepop-worker v4.15.0 or later.
+
+### Changed
+- In pipeline mode, `uploadGroup`, `uploadStreamGroup` and `loadFromGroup` with `motionDetect` reject with `PipelineCommandError` `invalid_request` before anything is sent, as the pipeline API refuses a group with motion detection. They used to drop it with a warning.
+- `motionDetect` and `videoMode` no longer log "is not sent to the pipeline API" in pipeline mode.
+
+### Fixed
+- In pipeline mode, a chunked upload whose source ended early (`end` with reason `error`) or whose job was cancelled while it was sending now sends its `uploaded` (with `member` for a group member). The pipeline API keeps a sending upload at the head of the socket's line until its `uploaded`, so every later chunked upload on that socket used to hang once the client had used its credit. An `error` the pipeline API answers to such a late `uploaded` is logged at debug and fails neither a job nor the socket.
+- In pipeline mode, a chunked upload from a caller's stream that stops sending without closing no longer holds its job when the source ends or the job is cancelled: the SDK cancels the stream's pending read and sends `uploaded`. The job used to wait for the stream's next chunk, and so did every later chunked upload on the socket.
+
 ## [4.0.0-rc.1] - 2026-11-13
 
 ### Changed

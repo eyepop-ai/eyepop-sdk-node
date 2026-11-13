@@ -47,6 +47,13 @@ export function pops(socket: FakeSocket): unknown[] {
  * holds each upgrade that long, `configAnswers` answer `/v1/configs` with those statuses first, and `sourceGate` holds every source until it settles. `upgrades` counts the upgrade requests, `openSockets` the sockets still open,
  * and `closeSocket` closes the socket at that index `1000 idle`. `usages` are the running totals of
  * milli compute units a source reports after its predictions, and `milliComputeUnits` its end's total.
+ *
+ * Chunked uploads go one at a time, as on the pipeline API: an upload that got its `send` stays at the
+ * head of the line until its `uploaded`, also once its source ended, and the bytes that still arrive
+ * for an ended source are discarded; an `uploaded` for no upload that is sending is answered
+ * `invalid_request`. `failUploadAfter` ends an upload's source with reason error once that many of its
+ * bytes arrived, `returnCredit` false returns no credit for the bytes, and `dropEndedUploads` takes
+ * the sending upload out of the line as soon as its source ends, so a late `uploaded` is refused.
  */
 export class FakePipelineApi {
     frames = 2
@@ -79,6 +86,9 @@ export class FakePipelineApi {
     exchangeAnswers: Array<{ status: number; body: string }> = []
     configAuthorizations: Array<string | undefined> = []
     expiresIn = 3600
+    failUploadAfter: number | null = null
+    returnCredit = true
+    dropEndedUploads = false
 
     private readonly _server = http.createServer((request, response) => this.route(request, response))
     private readonly _wss = new WebSocketServer({ noServer: true, handleProtocols: protocols => (protocols.has('eyepop.v1') ? 'eyepop.v1' : false) })
@@ -193,8 +203,11 @@ class Run {
     private _answered = 0
     private readonly _queue: Array<[string, Message]> = []
     private _playing = false
-    // Chunked uploads in line, as [id, member]; the first one is sending.
+    // Chunked uploads in line, as [id, member]; the first one is sending once it got its send.
     private readonly _uploads: Array<[string, number | null]> = []
+    private _headSending = false
+    // The sources that ended, whose late upload bytes are discarded.
+    private readonly _ended = new Set<string>()
     private readonly _missing = new Map<string, number>()
     private readonly _commands = new Map<string, Message>()
     // Sources the client stopped, and the live one playing, which ends at its next frame once stopped.
@@ -254,15 +267,20 @@ class Run {
                 break
             case 'uploaded': {
                 const head = this._uploads[0]
-                if (head !== undefined && head[0] === id && head[1] === (command['member'] ?? null)) {
-                    this._uploads.shift()
+                if (head === undefined || !this._headSending || head[0] !== id || head[1] !== (command['member'] ?? null)) {
+                    this.send({ type: 'error', id, error: 'invalid_request', message: 'uploaded names no upload that is sending' })
+                    break
+                }
+                this._uploads.shift()
+                this._headSending = false
+                if (!this._ended.has(id)) {
                     const missing = (this._missing.get(id) ?? 1) - 1
                     this._missing.set(id, missing)
                     if (missing === 0) {
                         this.play(id, this._commands.get(id) as Message)
                     }
-                    this.nextUpload()
                 }
+                this.nextUpload()
                 break
             }
             case 'whipIceServers':
@@ -291,10 +309,24 @@ class Run {
 
     private binary(data: Buffer): void {
         if (data[0] === 0x01) {
-            const [id, member] = this._uploads[0] as [string, number | null]
+            const head = this._uploads[0]
+            if (head === undefined || !this._headSending) {
+                this.close(1008, 'unexpected_bytes')
+                return
+            }
+            const [id, member] = head
+            if (this._ended.has(id)) {
+                return
+            }
             const media = this._socket.media.get(id) as Map<number | null, Buffer>
-            media.set(member, Buffer.concat([media.get(member) ?? Buffer.alloc(0), data.subarray(1)]))
-            this.send({ type: 'credit', id, bytes: data.length - 1, ...(member === null ? {} : { member }) })
+            const received = Buffer.concat([media.get(member) ?? Buffer.alloc(0), data.subarray(1)])
+            media.set(member, received)
+            if (this._fake.returnCredit) {
+                this.send({ type: 'credit', id, bytes: data.length - 1, ...(member === null ? {} : { member }) })
+            }
+            if (this._fake.failUploadAfter !== null && received.length >= this._fake.failUploadAfter) {
+                this.end(id, 'error', 'stream error')
+            }
             return
         }
         const length = data.readUInt32BE(1)
@@ -349,9 +381,9 @@ class Run {
             this.play(id, command)
         } else if (members.length > 0) {
             this._missing.set(id, members.length)
-            const sending = this._uploads.length > 0
+            const waiting = this._uploads.length > 0
             members.forEach(([member]) => this._uploads.push([id, member]))
-            if (!sending) {
+            if (!waiting) {
                 this.nextUpload()
             }
         } else {
@@ -361,7 +393,8 @@ class Run {
 
     private nextUpload(): void {
         const head = this._uploads[0]
-        if (head !== undefined) {
+        if (head !== undefined && !this._headSending) {
+            this._headSending = true
             this.send({ type: 'send', id: head[0], credit: this._fake.window, ...(head[1] === null ? {} : { member: head[1] }) })
         }
     }
@@ -382,7 +415,6 @@ class Run {
         }
         this._stopped.add(id)
         if (this._live !== id) {
-            this._uploads.splice(0, this._uploads.length, ...this._uploads.filter(([upload]) => upload !== id))
             this.end(id, 'stopped')
         }
     }
@@ -448,6 +480,16 @@ class Run {
 
     private end(id: string, reason: string, message: string = ''): void {
         this._open.splice(this._open.indexOf(id), 1)
+        this._ended.add(id)
+        // An ended source's uploads leave the line, except the one that is sending: it stays until its
+        // uploaded, so that its last chunks are not taken for the next upload's.
+        const head = this._uploads[0]
+        const keepHead = head !== undefined && this._headSending && (head[0] !== id || !this._fake.dropEndedUploads)
+        const rest = this._uploads.slice(keepHead ? 1 : 0).filter(([upload]) => upload !== id)
+        this._uploads.splice(0, this._uploads.length, ...(keepHead ? [head as [string, number | null]] : []), ...rest)
+        if (!keepHead) {
+            this._headSending = false
+        }
         const total = this._fake.milliComputeUnits
         this.send({ type: 'end', id, reason, ...(message ? { message } : {}), ...(total !== null ? { milliComputeUnits: total } : {}) })
         if (this._open.length === 0) {
@@ -456,6 +498,7 @@ class Run {
                 this.close(1000, 'idle')
             }
         }
+        this.nextUpload()
     }
 }
 
