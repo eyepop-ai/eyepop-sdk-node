@@ -11,11 +11,16 @@ export async function reactNativeStreamingFetch(
   body: ReadableStream<Uint8Array> | undefined,
   contentLength: number | undefined,
   sockets: any,
-  logger: Logger
+  logger: Logger,
+  signal?: AbortSignal
 ): Promise<Response> {
   const isHttps = url.protocol === 'https:';
   const port = url.port ? parseInt(url.port, 10) : isHttps ? 443 : 80;
   return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(abortReason(signal));
+      return;
+    }
     const connectOptions = {
       port: port,
       host: url.hostname,
@@ -44,7 +49,19 @@ export async function reactNativeStreamingFetch(
       client.destroy();
     });
 
+    // Cancelling the request closes its socket, also while the response
+    // streams after this promise has resolved.
+    const onAbort = () => {
+      if (!error) {
+        error = abortReason(signal!);
+        reject(error);
+      }
+      client.destroy();
+    };
+    signal?.addEventListener('abort', onAbort);
+
     client.on('close', function () {
+      signal?.removeEventListener('abort', onAbort);
       if (!error) {
         error = 'socket closed';
         reject(error);
@@ -128,4 +145,13 @@ export async function reactNativeStreamingFetch(
       await pipeChunk();
     });
   });
+}
+
+function abortReason(signal: AbortSignal): any {
+  if (signal.reason !== undefined) {
+    return signal.reason;
+  }
+  const error = new Error('The operation was aborted');
+  error.name = 'AbortError';
+  return error;
 }
