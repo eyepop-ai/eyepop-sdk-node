@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [4.0.0-rc.3] - 2026-11-13
+
+### Fixed
+- `EyePop.workerEndpoint({ auth: { session } })` with a login token session, one that names no worker session (no `popId`, `baseUrl` or `pipelineId`) and no `isPipelineMode`, now gets the pipeline mode default and follows `EYEPOP_PIPELINE_MODE`. It used to read the missing `isPipelineMode` as `false` and run a worker session. A session that names a worker session and does not say its mode is still a worker session.
+
 ## [4.0.0-rc.2] - 2026-11-13
 
 ### Added
