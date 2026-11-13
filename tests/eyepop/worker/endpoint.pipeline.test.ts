@@ -111,13 +111,22 @@ describe('pipeline mode (SDK-27)', () => {
         expect(inPipelineMode(EyePop.workerEndpoint({ accessToken: 't' }))).toBe(true)
     })
 
+    test.each(['ture', 'enabled', '0'])('EYEPOP_PIPELINE_MODE=%s is refused rather than read as a worker session', value => {
+        process.env['EYEPOP_PIPELINE_MODE'] = value
+        expect(() => EyePop.workerEndpoint({ accessToken: 't' })).toThrow('EYEPOP_PIPELINE_MODE')
+    })
+
+    test.each(['no', 'FALSE'])('EYEPOP_PIPELINE_MODE=%s selects a worker session', value => {
+        process.env['EYEPOP_PIPELINE_MODE'] = value
+        expect(EyePop.workerEndpoint({ accessToken: 't' }).backend()).toBeInstanceOf(SessionBackend)
+    })
+
     describe('EYEPOP_ENV picks the pipeline API', () => {
         const urlOf = (options: Record<string, any> = {}): unknown => (EyePop.workerEndpoint({ accessToken: 't', ...options }) as any)._options.pipelineApiUrl
 
         test.each([
             ['staging', 'https://pipeline.staging.eyepop.xyz'],
             ['production', 'https://pipeline.eyepop.ai'],
-            ['local', 'http://127.0.0.1:9002'],
             ['Staging', 'https://pipeline.staging.eyepop.xyz'],
         ])('%s maps to %s', (name, url) => {
             process.env['EYEPOP_ENV'] = name
@@ -144,6 +153,21 @@ describe('pipeline mode (SDK-27)', () => {
         ])('%s also picks the compute API that mints the token', (name, url) => {
             process.env['EYEPOP_ENV'] = name
             expect((EyePop.workerEndpoint({ accessToken: 't' }) as any)._options.eyepopUrl).toBe(url)
+        })
+
+        test('local is local mode: no compute API, one origin for the HTTP calls and the socket', () => {
+            process.env['EYEPOP_ENV'] = 'local'
+            const options = (EyePop.workerEndpoint({}) as any)._options
+            expect(options.isLocalMode).toBe(true)
+            expect(options.eyepopUrl).toBe('http://127.0.0.1:9002')
+            expect(options.pipelineApiUrl).toBeUndefined()
+        })
+
+        test('the compute API of EYEPOP_ENV applies when the pipelineApiUrl option names the pipeline API', () => {
+            process.env['EYEPOP_ENV'] = 'staging'
+            const options = (EyePop.workerEndpoint({ accessToken: 't', pipelineApiUrl: 'https://pipeline.example.test' }) as any)._options
+            expect(options.pipelineApiUrl).toBe('https://pipeline.example.test')
+            expect(options.eyepopUrl).toBe('https://compute.staging.eyepop.xyz')
         })
 
         test('eyepopUrl and EYEPOP_URL win over the compute API of EYEPOP_ENV', () => {

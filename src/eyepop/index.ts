@@ -174,6 +174,18 @@ const stringToBooleanSafe = (str?: string): boolean => {
     return loweCaseStr == 'true' || loweCaseStr == 'yes'
 }
 
+/** EYEPOP_PIPELINE_MODE: unset or empty is the pipeline default; anything else must say which mode. */
+const pipelineModeFromEnv = (value?: string): boolean => {
+    const mode = value?.toLowerCase()
+    if (!mode || mode === 'true' || mode === 'yes') {
+        return true
+    }
+    if (mode === 'false' || mode === 'no') {
+        return false
+    }
+    throw new Error(`EYEPOP_PIPELINE_MODE=${value} is not one of true, yes, false, no`)
+}
+
 /** The compute API per EYEPOP_ENV, which mints the token the pipeline API of that environment takes. */
 const COMPUTE_API_URLS: ReadonlyMap<string, string> = new Map([
     ['staging', 'https://compute.staging.eyepop.xyz'],
@@ -220,7 +232,7 @@ export namespace EyePop {
             // API, so its mode wins over the environment; an explicit isPipelineMode wins over both.
             const shared = (resolveAuth(opts) as SessionAuth | undefined)?.session as WorkerSession | undefined
             const envPipelineMode = readEnv('EYEPOP_PIPELINE_MODE')
-            opts.isPipelineMode = shared !== undefined ? shared.isPipelineMode === true : !envPipelineMode || stringToBooleanSafe(envPipelineMode)
+            opts.isPipelineMode = shared !== undefined ? shared.isPipelineMode === true : pipelineModeFromEnv(envPipelineMode)
         }
         if (opts.isPipelineMode) {
             return pipelineEndpoint(opts)
@@ -299,16 +311,21 @@ export namespace EyePop {
             throw new PipelineConfigurationError('session_options', `pipeline mode runs no worker session; it takes no ${named.join(', ')}`, named)
         }
         const envName = readEnv('EYEPOP_ENV')
+        if (envName && envName.toLowerCase() === 'local' && !opts.pipelineApiUrl && !opts.eyepopUrl) {
+            // A local environment is local mode: no compute API mints a token for it, and the HTTP
+            // calls and the socket share the one origin.
+            opts.isLocalMode = true
+        }
         // Local mode names the pipeline API itself (eyepopUrl below), so EYEPOP_ENV does not
         // point the socket somewhere else than the HTTP calls.
-        if (!opts.pipelineApiUrl && envName && !opts.isLocalMode) {
+        if (envName && !opts.isLocalMode) {
             const url = PIPELINE_API_URLS.get(envName.toLowerCase())
             if (!url) {
                 throw new PipelineConfigurationError('no_pipeline_api_url', `EYEPOP_ENV=${envName} is not one of ${[...PIPELINE_API_URLS.keys()].join(', ')}`)
             }
-            opts.pipelineApiUrl = url
-            // The token must come from the same environment as the pipeline API. A session, EYEPOP_URL
-            // or eyepopUrl names the compute API itself and wins.
+            opts.pipelineApiUrl ??= url
+            // The token must come from the same environment as the pipeline API, however that API was
+            // named. A session, EYEPOP_URL or eyepopUrl names the compute API itself and wins.
             const hasSession = (resolveAuth(opts) as SessionAuth | undefined)?.session !== undefined
             if (!opts.eyepopUrl && !hasSession && !readEnv('EYEPOP_URL')) {
                 opts.eyepopUrl = COMPUTE_API_URLS.get(envName.toLowerCase())
