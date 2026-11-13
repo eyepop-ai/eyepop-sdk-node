@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [4.0.0-rc.1] - 2026-11-13
+
 ### Changed
 - **Breaking:** `EyePop.workerEndpoint()` runs in pipeline mode by default. Set `isPipelineMode: false` or `EYEPOP_PIPELINE_MODE=false` for a worker session; `popId`, `sessionUuid`, `sessionName`, `pipelineImage`, `pipelineVersion` and their environment variables (`EYEPOP_POP_ID`, `EYEPOP_SESSION_UUID`, `EYEPOP_SESSION_NAME`, `EYEPOP_PIPELINE_IMAGE`, `EYEPOP_PIPELINE_VERSION`) are refused without it. The worker session flow is being phased out.
 - **Breaking:** in a browser there is no environment, so every client defaults to pipeline mode; a browser client that uses a worker session or a `popId` must pass `isPipelineMode: false`.
