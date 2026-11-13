@@ -14,6 +14,12 @@
 - `EYEPOP_ENV=staging|production` also picks the compute API that mints the token (`compute.staging.eyepop.xyz`, `compute.eyepop.ai`), unless `eyepopUrl`, `EYEPOP_URL` or a `session` names one.
 - `EYEPOP_ENV=staging|production|local` picks the pipeline API (`pipeline.staging.eyepop.xyz`, `pipeline.eyepop.ai`, `127.0.0.1:9002`), and the `pipelineApiUrl` option overrides it. Unset, the compute API names it as before.
 
+## [3.27.1] - 2026-11-12
+
+### Fixed
+- `eyepop-render-2d`: a `RenderBox` with `showNestedClasses` no longer throws on an object whose `classes` have no `category`, such as a classifier's output on a crop. It used to throw `TypeError: Cannot read properties of undefined (reading 'localeCompare')` after drawing the class label, so the nested class labels, track id and confidence were missing (BUG-326). Classes without a category are drawn first.
+- `RenderBox` no longer reorders the caller's prediction: it draws nested classes from a sorted copy, and no longer sorts `objects`, which it never drew from.
+
 ## [3.27.0] - 2026-11-10
 
 ### Added
