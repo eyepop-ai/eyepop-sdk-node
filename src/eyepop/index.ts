@@ -230,9 +230,12 @@ export namespace EyePop {
         if (opts.isPipelineMode === undefined) {
             // A session handed over from a pipeline mode endpoint carries a token for the pipeline
             // API, so its mode wins over the environment; an explicit isPipelineMode wins over both.
+            // A session that does not say its mode is a worker session if it names one (a popId,
+            // baseUrl or pipelineId). A login token session names none, so it gets the default.
             const shared = (resolveAuth(opts) as SessionAuth | undefined)?.session as WorkerSession | undefined
-            const envPipelineMode = readEnv('EYEPOP_PIPELINE_MODE')
-            opts.isPipelineMode = shared !== undefined ? shared.isPipelineMode === true : pipelineModeFromEnv(envPipelineMode)
+            const namesWorkerSession = shared?.popId !== undefined || shared?.baseUrl !== undefined || shared?.pipelineId !== undefined
+            opts.isPipelineMode =
+                shared?.isPipelineMode ?? (namesWorkerSession ? false : pipelineModeFromEnv(readEnv('EYEPOP_PIPELINE_MODE')))
         }
         if (opts.isPipelineMode) {
             return pipelineEndpoint(opts)
