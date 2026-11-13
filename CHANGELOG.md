@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [4.0.0] - 2026-11-13
+
+The first stable release of 4.0: `EyePop.workerEndpoint()` runs in pipeline mode by default. See 4.0.0-rc.1 for the breaking change, and rc.2 and rc.3 for the pipeline fixes.
+
+### Fixed
+- In a worker session, a streamed video upload now always goes up as an async upload beside a `prepareSource` result stream, whatever the client reports (AIW-163). Behind the session ingress, a response that starts before the request body ends cuts the rest of the upload, so a streamed video on one sync request lost everything after the first second. `HttpClient.isFullDuplex` is deprecated and no longer read. The React Native client sends a response-streaming request without a body over its socket.
+
 ## [4.0.0-rc.3] - 2026-11-13
 
 ### Fixed
