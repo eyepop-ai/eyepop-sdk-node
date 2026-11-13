@@ -11,7 +11,7 @@ import { resolvePath } from '../shims/local_file'
 import { UpgradeError, openAuthorizedWebSocket } from '../shims/websockets'
 import { WorkerBackend, WorkerContext, WorkerWork } from './worker_backend'
 import { WebrtcBase } from './webrtc_base'
-import { AssetUuidSource, FileSource, MediaStreamSource, PathSource, Pop, ProcessParams, ResultStream, Source, StreamSource, UrlSource, WorkerSession } from './worker_types'
+import { AssetUuidSource, FileSource, MediaStreamSource, MotionDetectConfig, PathSource, Pop, ProcessParams, ResultStream, Source, StreamSource, UrlSource, VideoMode, WorkerSession } from './worker_types'
 
 export const PIPELINE_PATH = '/api/v1/pipeline'
 export const SUBPROTOCOL = 'eyepop.v1'
@@ -34,6 +34,8 @@ const MAX_RETRY_MS = 30 * 1000
 const RECONNECT_AT_ONCE = new Set(['1008 credential_expired', '1011 overloaded', '1001 shutting_down'])
 // The longest wait before such a reconnect, when one close follows another with no source played between.
 const MAX_RECONNECT_DELAY_MS = 30 * 1000
+// The setSource members of motion detection, with the names and meaning of the instance's SetSource.
+const MOTION_FIELDS: ReadonlyArray<keyof MotionDetectConfig> = ['motionDetect', 'motionSensitivity', 'motionThreshold', 'motionGap', 'motionGridX', 'motionGridY']
 
 /** Why pipeline mode refused its configuration. */
 export type PipelineConfigurationProblem = 'session_options' | 'job_queue_length' | 'pipeline_sockets' | 'no_pipeline_api_url' | 'insecure_url'
@@ -129,6 +131,15 @@ class Credit {
     private _credit = 0
     private _ended = false
     private _waiter: (() => void) | null = null
+    // Whether the server sent the upload's `send`: from then on it is the socket's upload that is
+    // sending, and it stays at the head of the line until its `uploaded`.
+    sending = false
+    // Whether the upload's `uploaded` went out.
+    uploaded = false
+
+    get ended(): boolean {
+        return this._ended
+    }
 
     grant(n: number): void {
         this._credit += n
@@ -190,6 +201,9 @@ class PipelineSocket {
     readonly accepted = new Set<string>()
     // The ends on this socket so far.
     ended = 0
+    // The sources whose upload this socket sent `uploaded` for after it ended early: an error the
+    // pipeline API answers for one of them refuses that late `uploaded`, not the source.
+    readonly lateUploaded = new Set<string>()
     // How many sources the socket had taken when it last refused queue_full: while as many are held,
     // the next send waits. Null once none is held.
     cap: number | null = null
@@ -282,6 +296,8 @@ export class PipelineJob implements ResultStream {
         readonly live: boolean,
         readonly params: ProcessParams,
         readonly mediaStream: MediaStream | undefined = undefined,
+        // How the pipeline reads an upload; only an upload takes it.
+        readonly videoMode: VideoMode | undefined = undefined,
     ) {}
 
     get cancelled(): boolean {
@@ -314,6 +330,12 @@ export class PipelineJob implements ResultStream {
         }
         if (this.params.fps !== undefined) {
             command['fps'] = this.params.fps
+        }
+        for (const [name, value] of motionFields(this.params)) {
+            command[name] = value
+        }
+        if (this.videoMode !== undefined) {
+            command['videoMode'] = this.videoMode
         }
         return command
     }
@@ -615,6 +637,12 @@ export class PipelineBackend implements WorkerBackend {
         const type = message['type']
         const id = message['id']
         const source = typeof id === 'string' ? socket.sources.get(id) : undefined
+        if (type === 'error' && typeof id === 'string' && socket.lateUploaded.delete(id)) {
+            // The answer to an `uploaded` sent after the source ended, from a pipeline API that already
+            // took the upload out of its line; the source's job ended either way.
+            this.ctx.requestLogger.debug('the pipeline API refused a late uploaded for %s: %s %s', id, message['error'], message['message'])
+            return
+        }
         if (type === 'end') {
             // Also the end of a source its job already let go, a cancelled one: it frees room all the same.
             socket.held.delete(id)
@@ -631,7 +659,23 @@ export class PipelineBackend implements WorkerBackend {
             socket.wake()
         }
         if (type === 'send' || type === 'credit') {
-            const upload = source?.uploads.get(message['member'] ?? null)
+            const member = message['member'] ?? null
+            const upload = source?.uploads.get(member)
+            if (type === 'send' && (upload === undefined || upload.ended)) {
+                // The send of an upload whose source this side let go of, ended or cancelled, crossed
+                // that end: no byte of it is coming, and the pipeline API keeps the upload at the head of
+                // the socket's line until its uploaded, so every later upload would wait.
+                if (typeof id === 'string' && upload?.uploaded !== true) {
+                    if (upload !== undefined) {
+                        upload.uploaded = true
+                    }
+                    this.lateUploaded(socket, id, member)
+                }
+                return
+            }
+            if (type === 'send' && upload !== undefined) {
+                upload.sending = true
+            }
             upload?.grant(Number(type === 'send' ? message['credit'] : message['bytes']))
             return
         }
@@ -662,6 +706,15 @@ export class PipelineBackend implements WorkerBackend {
                 this.ctx.requestLogger.debug('the pipeline API refused a command for %s: %s %s', id, message['error'], message['message'])
             }
         }
+    }
+
+    /** Send `uploaded` for an upload that ended early, so that the next upload on the socket may send. */
+    private lateUploaded(socket: PipelineSocket, id: string, member: number | null): void {
+        if (!socket.open) {
+            return
+        }
+        socket.lateUploaded.add(id)
+        socket.sendJson(member === null ? { type: 'uploaded', id } : { type: 'uploaded', id, member })
     }
 
     private newId(prefix: string): string {
@@ -736,8 +789,11 @@ export class PipelineBackend implements WorkerBackend {
         if (this.ctx.client() === null) {
             throw new Error('endpoint not connected, use connect()')
         }
-        const sourceOptions = work.kind === 'source' ? (work.source as FileSource | StreamSource | PathSource) : undefined
-        this.notSent({ motionDetect: work.params.motionDetect, videoMode: sourceOptions?.videoMode, rtspForceNonCompliantUrl: work.params.rtspForceNonCompliantUrl })
+        if (work.kind !== 'source' && motionFields(work.params).length > 0) {
+            // As the pipeline API answers it: the pipeline forces motion detection off for a group.
+            throw new PipelineCommandError('invalid_request', 'a group takes no motion detection: leave motionDetect unset for uploadGroup, uploadStreamGroup and loadFromGroup')
+        }
+        this.notSent({ rtspForceNonCompliantUrl: work.params.rtspForceNonCompliantUrl })
         const job = await this.jobOf(work)
         const limit = this.ctx.limit()
         await limit.acquire()
@@ -757,8 +813,7 @@ export class PipelineBackend implements WorkerBackend {
                 continue
             }
             this._warned.add(name)
-            const ticket = name === 'rtspForceNonCompliantUrl' ? '' : ' (AWSU-317)'
-            this.ctx.logger.warn(`${name} is not sent to the pipeline API and has no effect in pipeline mode${ticket}`)
+            this.ctx.logger.warn(`${name} is not sent to the pipeline API and has no effect in pipeline mode`)
         }
     }
 
@@ -783,14 +838,14 @@ export class PipelineBackend implements WorkerBackend {
         if ((source as FileSource).file !== undefined) {
             const file = (source as FileSource).file
             const media = bodyMedia(file, file.type || 'application/octet-stream', file.size)
-            return new PipelineJob({ upload: { contentType: media.contentType } }, [media], false, params)
+            return new PipelineJob({ upload: { contentType: media.contentType } }, [media], false, params, undefined, (source as FileSource).videoMode)
         } else if ((source as StreamSource).stream !== undefined) {
             const stream = source as StreamSource
             const media = bodyMedia(stream.stream, stream.mimeType, stream.size ?? knownSize(stream.stream))
-            return new PipelineJob({ upload: { contentType: media.contentType } }, [media], false, params)
+            return new PipelineJob({ upload: { contentType: media.contentType } }, [media], false, params, undefined, stream.videoMode)
         } else if ((source as PathSource).path !== undefined) {
             const media = await this.pathMedia(source as PathSource)
-            return new PipelineJob({ upload: { contentType: media.contentType } }, [media], false, params)
+            return new PipelineJob({ upload: { contentType: media.contentType } }, [media], false, params, undefined, (source as PathSource).videoMode)
         } else if ((source as UrlSource).url !== undefined) {
             const url = (source as UrlSource).url
             if (url.startsWith('file://')) {
@@ -969,13 +1024,20 @@ export class PipelineBackend implements WorkerBackend {
         }
     }
 
-    /** Send each upload member's bytes in chunks within its credit, then its uploaded. */
+    /**
+     * Send each upload member's bytes in chunks within its credit, then its uploaded. A member that
+     * ends early, its source ended or cancelled, still sends its uploaded once it got its send: the
+     * pipeline API keeps a sending upload at the head of the socket's line until its uploaded, and
+     * discards the bytes in between, so without it every later upload on the socket would wait.
+     */
     private async upload(socket: PipelineSocket, source: OpenSource, job: PipelineJob): Promise<void> {
         const keys = uploadKeys(job)
+        let key: number | null = null
+        let credit: Credit | undefined
         try {
             for (let i = 0; i < keys.length; i++) {
-                const key = keys[i] as number | null
-                const credit = source.uploads.get(key) as Credit
+                key = keys[i] as number | null
+                credit = source.uploads.get(key) as Credit
                 for await (let piece of pieces(await (job.media[i] as Media).open())) {
                     while (piece.length > 0) {
                         const n = await credit.take(Math.min(piece.length, CHUNK_BYTES))
@@ -986,9 +1048,14 @@ export class PipelineBackend implements WorkerBackend {
                         piece = piece.subarray(n)
                     }
                 }
+                credit.uploaded = true
                 socket.sendJson(key === null ? { type: 'uploaded', id: source.id } : { type: 'uploaded', id: source.id, member: key })
             }
         } catch (error) {
+            if (credit !== undefined && credit.sending && !credit.uploaded) {
+                credit.uploaded = true
+                this.lateUploaded(socket, source.id, key)
+            }
             if (!(error instanceof UploadEnded)) {
                 // The source ended or the socket closed in any other case; the job reports how.
                 if (socket.open) {
@@ -1097,6 +1164,15 @@ class SocketWhip {
         this._pc = null
         pc?.close()
     }
+}
+
+/** The motion detection members a source's params set, as the setSource names them. */
+function motionFields(params: ProcessParams): Array<[string, unknown]> {
+    const config = params.motionDetect
+    if (config === undefined || config === null) {
+        return []
+    }
+    return MOTION_FIELDS.flatMap(name => (config[name] === undefined ? [] : [[name, config[name]] as [string, unknown]]))
 }
 
 function checkedUrl(url: string): string {

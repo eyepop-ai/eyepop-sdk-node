@@ -10,6 +10,7 @@ import {
     Prediction,
     ResultStream,
     SessionBackend,
+    VideoMode,
     WorkerEndpoint,
 } from '../../../src/eyepop'
 import { afterEach, beforeEach, describe, expect, jest, test } from '@jest/globals'
@@ -247,17 +248,80 @@ describe('pipeline mode (SDK-27)', () => {
         expect(only().protocols).toEqual(['eyepop.v1'])
     })
 
-    // 2. Options not sent yet
+    // 2. Source options
 
-    test('an option not sent warns once per endpoint naming AWSU-317', async () => {
+    test('motion detection goes on the setSource with the instance names (BUG-327)', async () => {
+        const ep = endpoint()
+        await ep.connect()
+        const motionDetect = { motionDetect: true, motionSensitivity: 0.4, motionThreshold: 12, motionGap: 1, motionGridX: 4, motionGridY: 3 }
+        await all(await ep.process({ source: { url: 'https://videos.example/a.mp4' }, motionDetect }))
+        await all(await ep.process({ source: { path: file('image.jpg', 'jpeg bytes') }, motionDetect: { motionDetect: true, motionGap: 2 } }))
+        await all(await ep.process({ source: { url: 'https://videos.example/b.mp4' } }))
+        await ep.disconnect()
+        const [url, upload, plain] = sources(only()) as [Record<string, any>, Record<string, any>, Record<string, any>]
+        expect(url).toMatchObject(motionDetect)
+        expect(url['motionDetect']).toBe(true)
+        // an unset member is not sent, so the pop's defaults apply; a combined upload carries them in its header
+        expect(only().combined).toEqual([upload['id']])
+        expect(Object.keys(upload).filter(key => key.startsWith('motion'))).toEqual(['motionDetect', 'motionGap'])
+        expect(upload['motionGap']).toBe(2)
+        expect(Object.keys(plain).filter(key => key.startsWith('motion'))).toEqual([])
+        expect(warnings).toEqual([])
+    })
+
+    test('videoMode goes on an upload’s setSource (AWSU-317)', async () => {
+        const ep = endpoint()
+        await ep.connect()
+        await all(await ep.process({ source: { path: file('clip.mp4', 'mp4 bytes'), videoMode: VideoMode.STREAM } }))
+        const stream = new ReadableStream<Uint8Array>({
+            start(controller) {
+                controller.enqueue(new TextEncoder().encode('video bytes'))
+                controller.close()
+            },
+        })
+        await all(await ep.process({ source: { stream, mimeType: 'video/mp4', videoMode: VideoMode.BUFFER } }))
+        await all(await ep.process({ source: { path: file('other.mp4', 'mp4 bytes') } }))
+        await ep.disconnect()
+        const [combined, chunked, unset] = sources(only()) as [Record<string, any>, Record<string, any>, Record<string, any>]
+        expect(combined['videoMode']).toBe('stream')
+        expect(chunked['videoMode']).toBe('buffer')
+        expect(only().combined).toEqual([combined['id'], unset['id']])
+        // unset, the pipeline API buffers a video upload that is not live
+        expect('videoMode' in unset).toBe(false)
+        expect(warnings).toEqual([])
+    })
+
+    test.each([
+        ['uploadGroup', (ep: WorkerEndpoint, motionDetect: any, path: string) => ep.uploadGroup([path, path], { motionDetect })],
+        ['loadFromGroup', (ep: WorkerEndpoint, motionDetect: any) => ep.loadFromGroup(['https://images.example/a.jpg'], { motionDetect })],
+        [
+            'uploadStreamGroup',
+            (ep: WorkerEndpoint, motionDetect: any) => ep.uploadStreamGroup([new Blob(['one'])], ['image/png'], { motionDetect }),
+        ],
+    ])('%s with motion detection is refused before anything is sent (BUG-327)', async (_name, submit) => {
+        const ep = endpoint()
+        await ep.connect()
+        for (const motionDetect of [{ motionDetect: true }, { motionDetect: false }, { motionGap: 1 }]) {
+            const refused = submit(ep, motionDetect, file('a.png', 'one'))
+            await expect(refused).rejects.toBeInstanceOf(PipelineCommandError)
+            await expect(refused).rejects.toMatchObject({ error: 'invalid_request' })
+        }
+        // the refusal holds no slot of the endpoint
+        expect(await all(await submit(ep, undefined, file('a.png', 'one')))).toEqual([prediction(0), prediction(1)])
+        await ep.disconnect()
+        expect(sources(only())).toHaveLength(1)
+        expect(Object.keys(sources(only())[0] as object).filter(key => key.startsWith('motion'))).toEqual([])
+    })
+
+    test('an option not sent warns once per endpoint', async () => {
         const ep = endpoint()
         await ep.connect()
         for (let i = 0; i < 2; i++) {
-            await all(await ep.process({ source: { url: 'https://images.example/a.jpg' }, motionDetect: { everyNFrames: 1 } as any }))
+            await all(await ep.process({ source: { url: 'https://images.example/a.jpg' }, rtspForceNonCompliantUrl: true } as any))
         }
         await ep.disconnect()
-        expect(warnings.filter(w => w.includes('motionDetect'))).toEqual(['motionDetect is not sent to the pipeline API and has no effect in pipeline mode (AWSU-317)'])
-        expect(sources(only()).every(s => s['everyNFrames'] === undefined)).toBe(true)
+        expect(warnings).toEqual(['rtspForceNonCompliantUrl is not sent to the pipeline API and has no effect in pipeline mode'])
+        expect(sources(only()).every(s => s['rtspForceNonCompliantUrl'] === undefined)).toBe(true)
     })
 
     // 3. Session-era methods and the pop
@@ -490,6 +554,99 @@ describe('pipeline mode (SDK-27)', () => {
         expect(asset['assetUuid']).toBe('an-asset')
         expect(group['mode']).toBeUndefined()
         expect(group['version']).toBeUndefined()
+    })
+
+    describe('an upload that ends early sends its uploaded, so the next upload on the socket goes', () => {
+        const streamOf = (text: string) =>
+            new ReadableStream<Uint8Array>({
+                start(controller) {
+                    controller.enqueue(new TextEncoder().encode(text))
+                    controller.close()
+                },
+            })
+
+        // Fails the test instead of hanging it when the socket's upload line is stuck.
+        async function within<T>(promise: Promise<T>, ms: number = 2000): Promise<T> {
+            let timer: ReturnType<typeof setTimeout> | undefined
+            const late = new Promise<never>((_, reject) => (timer = setTimeout(() => reject(new Error('the upload line is stuck')), ms)))
+            try {
+                return await Promise.race([promise, late])
+            } finally {
+                clearTimeout(timer)
+            }
+        }
+
+        beforeEach(() => {
+            // The client sends its whole credit, and the source ends before it gets any more.
+            fake.window = 4
+            fake.returnCredit = false
+        })
+
+        test('after its source ended with an error', async () => {
+            fake.failUploadAfter = 4
+            const ep = endpoint({ pipelineSockets: 1 })
+            await ep.connect()
+            await expect(all(await ep.process({ source: { stream: streamOf('ten bytes!'), mimeType: 'video/mp4' } }))).rejects.toThrow(PipelineSourceError)
+            fake.failUploadAfter = null
+            fake.returnCredit = true
+            expect(await within(all(await ep.process({ source: { stream: streamOf('second'), mimeType: 'video/mp4' } })))).toEqual([prediction(0), prediction(1)])
+            await ep.disconnect()
+            const [failed, second] = sources(only()) as [Record<string, any>, Record<string, any>]
+            expect(only().commands).toContainEqual({ type: 'uploaded', id: failed['id'] })
+            expect(only().media.get(second['id'])?.get(null)?.toString()).toBe('second')
+            expect(fake.sockets).toHaveLength(1)
+        })
+
+        test('for the group member that was sending', async () => {
+            fake.failUploadAfter = 4
+            const ep = endpoint({ pipelineSockets: 1 })
+            await ep.connect()
+            await expect(all(await ep.uploadStreamGroup([streamOf('ten bytes!'), streamOf('other')], ['image/png', 'image/png']))).rejects.toThrow(PipelineSourceError)
+            fake.failUploadAfter = null
+            fake.returnCredit = true
+            expect(await within(all(await ep.process({ source: { stream: streamOf('second'), mimeType: 'video/mp4' } })))).toEqual([prediction(0), prediction(1)])
+            await ep.disconnect()
+            const id = sources(only())[0]?.['id']
+            const uploaded = only().commands.filter(c => c['type'] === 'uploaded' && c['id'] === id)
+            // the member that never got its send left the line with its source
+            expect(uploaded).toEqual([{ type: 'uploaded', id, member: 0 }])
+        })
+
+        test('after its job was cancelled', async () => {
+            const ep = endpoint({ pipelineSockets: 1 })
+            await ep.connect()
+            const cancelled = await ep.process({ source: { stream: streamOf('ten bytes!'), mimeType: 'video/mp4' } })
+            const id = await within(
+                (async () => {
+                    await eventually(() => (only().media.get(sources(only())[0]?.['id'])?.get(null)?.length ?? 0) === 4)
+                    return sources(only())[0]?.['id']
+                })(),
+            )
+            cancelled.cancel()
+            fake.returnCredit = true
+            expect(await within(all(await ep.process({ source: { stream: streamOf('second'), mimeType: 'video/mp4' } })))).toEqual([prediction(0), prediction(1)])
+            await ep.disconnect()
+            expect(only().commands).toContainEqual({ type: 'stopSource', id })
+            expect(only().commands).toContainEqual({ type: 'uploaded', id })
+        })
+
+        test('a pipeline API that refuses the late uploaded fails neither a job nor the socket', async () => {
+            fake.failUploadAfter = 4
+            fake.dropEndedUploads = true
+            const ep = endpoint({ pipelineSockets: 1 })
+            await ep.connect()
+            await expect(all(await ep.process({ source: { stream: streamOf('ten bytes!'), mimeType: 'video/mp4' } }))).rejects.toThrow(PipelineSourceError)
+            fake.failUploadAfter = null
+            fake.returnCredit = true
+            for (const text of ['second', 'third']) {
+                expect(await within(all(await ep.process({ source: { stream: streamOf(text), mimeType: 'video/mp4' } })))).toEqual([prediction(0), prediction(1)])
+            }
+            await ep.disconnect()
+            const failed = sources(only())[0]?.['id']
+            expect(only().commands).toContainEqual({ type: 'uploaded', id: failed })
+            expect(fake.sockets).toHaveLength(1)
+            expect(warnings).toEqual([])
+        })
     })
 
     // 6. Concurrency
