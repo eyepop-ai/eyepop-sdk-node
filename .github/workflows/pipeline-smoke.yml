@@ -1,0 +1,108 @@
+name: Node Pipeline Smoke
+
+# Runs the source SDK in its default (pipeline) mode against staging: two jobs on the pipeline API,
+# no worker session. The session paths stay covered by SDK Integration and Node Sessions Smoke.
+on:
+    push:
+        branches:
+            - main
+        paths:
+            - 'src/eyepop/**'
+            - 'scripts/pipeline-smoke.mjs'
+            - 'tests/test.jpg'
+            - 'package.json'
+            - '.github/workflows/pipeline-smoke.yml'
+    pull_request:
+        branches:
+            - main
+        paths:
+            - 'src/eyepop/**'
+            - 'scripts/pipeline-smoke.mjs'
+            - 'tests/test.jpg'
+            - 'package.json'
+            - '.github/workflows/pipeline-smoke.yml'
+    workflow_dispatch:
+        inputs:
+            environment:
+                description: Environment to smoke
+                required: true
+                default: staging
+                type: environment
+
+# The pipeline API opens no session, so these runs do not queue behind the session workflows.
+concurrency:
+    group: eyepop-pipeline-${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'staging' }}
+    cancel-in-progress: false
+
+permissions:
+    contents: read
+
+jobs:
+    pipeline-smoke:
+        # Fork PRs get no secrets.
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        name: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'staging' }} pipeline mode
+        runs-on: ubuntu-latest
+        timeout-minutes: 15
+        environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'staging' }}
+        env:
+            SMOKE_ENVIRONMENT: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'staging' }}
+            EYEPOP_URL: ${{ secrets.EYEPOP_URL }}
+            SUMMARY_JSON: pipeline-smoke-summary.json
+        steps:
+            - uses: actions/checkout@v7
+              with:
+                  persist-credentials: false
+
+            - uses: actions/setup-node@v7
+              with:
+                  node-version: 22
+
+            - name: Install dependencies
+              run: npm install
+
+            - name: Build source SDK
+              run: npm run build -w @eyepop.ai/eyepop
+
+            - name: Run SDK pipeline smoke
+              id: smoke
+              env:
+                  EYEPOP_API_KEY: ${{ secrets.EYEPOP_API_KEY }}
+              run: |
+                  node scripts/pipeline-smoke.mjs \
+                    --environment "$SMOKE_ENVIRONMENT" \
+                    --sdk-module "$GITHUB_WORKSPACE/src/eyepop/dist/eyepop.index.js" \
+                    --image tests/test.jpg \
+                    --ability eyepop.person:latest \
+                    --expected-class person \
+                    --summary-json "$SUMMARY_JSON"
+
+            - name: Write summary
+              if: always()
+              run: |
+                  {
+                    echo "## Node Pipeline Smoke"
+                    echo ""
+                    echo "- environment: $SMOKE_ENVIRONMENT"
+                    echo "- conclusion: ${{ steps.smoke.conclusion }}"
+                    echo "- run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+                    if [[ -f "$SUMMARY_JSON" ]] && jq -e . "$SUMMARY_JSON" >/dev/null 2>&1; then
+                      jq -r '
+                        "- ok: \((.ok // false)|tostring)",
+                        "- pipeline_api_url: \(.pipeline_api_url // "n/a")",
+                        (.jobs[]? | "- job \(.job): objects=\(.matching_objects) in \(.seconds)s"),
+                        "- duration_seconds: \((.duration_seconds // "n/a")|tostring)",
+                        if .error then "- error: \(.error)" else empty end
+                      ' "$SUMMARY_JSON"
+                    else
+                      echo "- result: no JSON summary captured"
+                    fi
+                  } >> "$GITHUB_STEP_SUMMARY"
+
+            - name: Upload smoke summary
+              if: always()
+              uses: actions/upload-artifact@v7
+              with:
+                  name: node-pipeline-smoke-summary-${{ env.SMOKE_ENVIRONMENT }}
+                  path: ${{ env.SUMMARY_JSON }}
+                  if-no-files-found: ignore

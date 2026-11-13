@@ -161,3 +161,4 @@ docs/postmortems/
 
 # Claude Code: .claude/settings.json is shared and tracked; local overrides are not
 .claude/settings.local.json
+.serena/

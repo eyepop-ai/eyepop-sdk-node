@@ -4,6 +4,9 @@ import { MockServer } from 'jest-mock-server'
 import { describe, expect, test } from '@jest/globals'
 import { v4 as uuidv4 } from 'uuid'
 
+// these tests cover worker session mode; pipeline mode is the default
+process.env['EYEPOP_PIPELINE_MODE'] = 'false'
+
 function faceIdPop(forward: PopForward): Pop {
     return {
         components: [

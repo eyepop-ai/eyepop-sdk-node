@@ -5,6 +5,9 @@ import { describe, expect, test } from '@jest/globals'
 import { v4 as uuidv4 } from 'uuid'
 import * as fs from 'fs'
 
+// these tests cover worker session mode; pipeline mode is the default
+process.env['EYEPOP_PIPELINE_MODE'] = 'false'
+
 function prepMockServer(server: MockServer, test_pop_id: string, test_pipeline_id: string) {
     const test_access_token = uuidv4()
     const token_valid_time = 1000 * 1000

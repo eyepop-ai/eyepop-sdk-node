@@ -738,6 +738,7 @@ async function runScenario(args, sdk, undici, eyepopUrl, scenario) {
 
         const connectOptions = {
             auth: { apiKey: args.apiKey },
+            isPipelineMode: false,
             eyepopUrl,
             sessionName,
             sessionReadyTimeoutSeconds: args.sessionReadyTimeoutSeconds,
@@ -796,6 +797,7 @@ async function runScenario(args, sdk, undici, eyepopUrl, scenario) {
 
                 const reconnectOptions = {
                     auth: { apiKey: args.apiKey },
+                    isPipelineMode: false,
                     eyepopUrl,
                     sessionName,
                     sessionReadyTimeoutSeconds: args.sessionReadyTimeoutSeconds,

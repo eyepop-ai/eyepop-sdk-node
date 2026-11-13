@@ -154,6 +154,7 @@ Without any calibration the worker assumes a 60-degree horizontal field of view.
 For a provisioned persistent worker session, set the session UUID and connect without a transient pop:
 
 ```shell
+export EYEPOP_PIPELINE_MODE=false
 export EYEPOP_SESSION_UUID=<your_session_uuid>
 ```
 
@@ -161,21 +162,21 @@ export EYEPOP_SESSION_UUID=<your_session_uuid>
 const endpoint = await EyePop.workerEndpoint().connect()
 ```
 
-When `EYEPOP_SESSION_UUID` is set, `EyePop.workerEndpoint()` connects to that persistent session. Persistent deployments are normally created outside the SDK through the compute API or EyePop tooling.
+Persistent sessions are worker sessions, so turn pipeline mode off with `EYEPOP_PIPELINE_MODE=false` (or `isPipelineMode: false`). Then, when `EYEPOP_SESSION_UUID` is set, `EyePop.workerEndpoint()` connects to that persistent session. Persistent deployments are normally created outside the SDK through the compute API or EyePop tooling.
 
 ## Pipeline Mode
 
-With `isPipelineMode: true`, or `EYEPOP_PIPELINE_MODE=true`, a worker endpoint runs its jobs on the pipeline API instead of a worker session. The code that uses the endpoint stays the same:
+Pipeline mode is the default: a worker endpoint runs its jobs on the pipeline API instead of a worker session. Set `isPipelineMode: false`, or `EYEPOP_PIPELINE_MODE=false`, for a worker session. `EYEPOP_ENV=staging|production|local` picks the pipeline API (`pipeline.staging.eyepop.xyz`, `pipeline.eyepop.ai`, `127.0.0.1:9002`); unset, the compute API names it. The code that uses the endpoint stays the same:
 
 ```javascript
-const endpoint = await EyePop.workerEndpoint({ isPipelineMode: true, pop }).connect()
+const endpoint = await EyePop.workerEndpoint({ pop }).connect()
 for await (const prediction of await endpoint.process({ source: { path: 'photo.jpg' } })) {
     console.log(prediction)
 }
 await endpoint.disconnect()
 ```
 
-The endpoint opens a socket to the pipeline API at `connect()` and sets its pop there. The compute API at `eyepopUrl` names the pipeline API in its `/v1/configs` (`pipeline_api_url`); with `isLocalMode`, `eyepopUrl` is the pipeline API itself (default `http://127.0.0.1:9002`). Jobs go out in the order they are submitted, each queued behind the ones before it on its socket; `jobQueueLength` may not exceed 256.
+The endpoint opens a socket to the pipeline API at `connect()` and sets its pop there. `EYEPOP_ENV` (or `pipelineApiUrl`) names the pipeline API; unset, the compute API at `eyepopUrl` names it in its `/v1/configs` (`pipeline_api_url`); with `isLocalMode`, `eyepopUrl` is the pipeline API itself (default `http://127.0.0.1:9002`). Jobs go out in the order they are submitted, each queued behind the ones before it on its socket; `jobQueueLength` may not exceed 256.
 
 Each socket runs its own pipeline, which plays its sources one after another. While every open socket has a source, the next job opens another, up to 4 (`pipelineSockets`), each with the pop set; a job goes on the socket with the fewest open sources. A batch submitted at once therefore runs on 4 pipelines, and jobs run one after another stay on one socket. On a T4, 4 sockets of 704-pixel images ran `common-objects.large` at about 89 images per second, against 30 on one. When the pipeline API refuses another socket, the job goes on an open one, and the endpoint asks again only 10 s later. A live source never ends, so nothing queued behind it would play: it goes on an idle socket or a new one, which the 4 do not count, and no other job is sent on a socket that has one. `changePop` sets the pop on every open socket.
 
@@ -190,7 +191,7 @@ Each socket runs its own pipeline, which plays its sources one after another. Wh
 | `changePop`, `pop()` | Supported. A pop the pipeline refuses rejects, and the last pop it took stays. |
 | `session()` | Its `baseUrl` is the pipeline API's url, there is no `pipelineId`, and `isPipelineMode` is `true`: an endpoint created from it with `session` runs in pipeline mode too, with the token's own `validUntil`. |
 | `apiKey`, `accessToken`, `session`, `oAuth2` | An API key, or a login token (`accessToken`, `oAuth2`, with `accountId` naming the account), is exchanged at the compute API and never sent to the pipeline API; an `accessToken` that already carries an account claim, or that the compute API refuses as "API key or user login required", is sent as is. A 401 exchanges again once. Node sends the token as `Authorization: Bearer`; a browser, which cannot set headers on a WebSocket, as the `eyepop.bearer.<jwt>` subprotocol. |
-| `popId`, `sessionUuid`, `sessionName`, `pipelineImage`, `pipelineVersion` | Throw at construction. |
+| `popId`, `sessionUuid`, `sessionName`, `pipelineImage`, `pipelineVersion` | Throw at construction. Set `isPipelineMode: false` to use them. |
 | Prediction version | The pipeline API's own (V3); none is sent. |
 
 **Errors.** A source that ends with an error rejects with `PipelineSourceError`. A command the pipeline API refuses rejects with `PipelineCommandError`, except `queue_full` on a source: the socket is full (256 open sources, or 32 MiB of uploads sent in one message), so the source goes again once another of the endpoint's sources on that socket ended. It rejects only when none of them is open. When the socket closes under a job, the job rejects with `PipelineSocketClosedError`, which carries the close's code and reason, and is not sent again; jobs not yet sent go out on a new socket. After the pipeline stops itself when idle, the next job opens a new socket and sets the pop again; after `credential_expired`, `overloaded` or `shutting_down`, a new socket is opened at once. A live source refused `overloaded` is sent once more on the new socket. Cancelling a job stops its source on the pipeline with `stopSource`, queued or playing, so a cancelled live source frees its place; a pipeline API from before `stopSource` lets the source run until it ends or the endpoint disconnects.

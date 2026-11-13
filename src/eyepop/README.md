@@ -79,7 +79,7 @@ import { EyePop } from '@eyepop.ai/eyepop'
 
 For transient sessions, pass `pop` when creating the endpoint whenever possible. Use `endpoint.changePop(pop)` only when an already connected transient worker needs to switch Pops.
 
-When `sessionUuid` is not provided, the SDK creates compute sessions with `POST /v1/sessions?wait=true`.
+Pipeline mode is the default and runs no worker session; `EYEPOP_ENV=staging|production|local` picks its pipeline API. With `isPipelineMode: false` (or `EYEPOP_PIPELINE_MODE=false`) and no `sessionUuid`, the SDK creates compute sessions with `POST /v1/sessions?wait=true`.
 
 ModelLess CPU pops use the same constructor-pop path:
 
@@ -120,7 +120,7 @@ The nested `auth` option is still supported but deprecated. Pass `apiKey`, `acce
 
 ### Persistent Sessions
 
-If EyePop has provisioned a persistent worker session for your deployment, set `EYEPOP_SESSION_UUID` in the trusted server environment or pass `sessionUuid` explicitly.
+If EyePop has provisioned a persistent worker session for your deployment, set `EYEPOP_SESSION_UUID` in the trusted server environment or pass `sessionUuid` explicitly, with pipeline mode off (`isPipelineMode: false`).
 
 ```shell
 export EYEPOP_API_KEY=<your_api_key>
@@ -132,6 +132,7 @@ import { EyePop } from '@eyepop.ai/eyepop'
 ;(async () => {
     const endpoint = await EyePop.workerEndpoint({
         sessionUuid: process.env.EYEPOP_SESSION_UUID,
+        isPipelineMode: false,
     }).connect()
 
     try {
