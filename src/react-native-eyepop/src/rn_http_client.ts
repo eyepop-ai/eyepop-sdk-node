@@ -33,6 +33,10 @@ export async function createHttpClientRN(logger: Logger): Promise<HttpClient> {
     ): Promise<Response> {
       init ||= {};
       let streamBody: ReadableStream<Uint8Array> | undefined;
+      // A response-streaming request without a body (prepareSource) still
+      // goes over the socket: RN fetch would hold the response back, and the
+      // upload that follows waits for its first line.
+      let streamWithoutBody = false;
       if (input instanceof Request && input.body instanceof ReadableStream) {
         // Request body streaming not supported by RN fetch
         streamBody = input.body;
@@ -41,7 +45,9 @@ export async function createHttpClientRN(logger: Logger): Promise<HttpClient> {
         // @ts-ignore
       } else if (init?.eyepop?.responseStreaming) {
         const requestBody = input instanceof Request ? input.body : init?.body;
-        if (requestBody !== undefined) {
+        if (requestBody === undefined || requestBody === null) {
+          streamWithoutBody = true;
+        } else {
           // The limited HTTP post requires a ReadableStream request body
           if (typeof requestBody === 'string') {
             streamBody = new ReadableStream({
@@ -64,7 +70,7 @@ export async function createHttpClientRN(logger: Logger): Promise<HttpClient> {
           }
         }
       }
-      if (streamBody) {
+      if (streamBody || streamWithoutBody) {
         let url: URL;
         let method: string;
         let headers: Headers;
@@ -82,7 +88,10 @@ export async function createHttpClientRN(logger: Logger): Promise<HttpClient> {
           headers = new Headers(init?.headers);
         }
         let contentLength;
-        if (headers.has('content-length')) {
+        if (!streamBody) {
+          headers.set('Content-Length', '0');
+          contentLength = 0;
+        } else if (headers.has('content-length')) {
           contentLength = parseInt(headers.get('content-length') || '', 10);
         } else {
           headers.append('Transfer-Encoding', 'chunked');
@@ -113,6 +122,9 @@ export async function createHttpClientRN(logger: Logger): Promise<HttpClient> {
 
     public async close(): Promise<void> {}
 
+    // Deprecated in HttpClient and no longer read. The socket can stream both
+    // ways, but the session ingress cuts a body once its response has started
+    // (AIW-163), so the SDK splits a streamed upload anyway.
     public isFullDuplex() {
       return true;
     }

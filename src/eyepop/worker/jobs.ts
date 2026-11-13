@@ -145,7 +145,11 @@ export class UploadJob extends AbstractJob {
         this._mimeType = mimeType
         this._size = size
         this._videoMode = videoMode
-        this._needsFullDuplex = !client.isFullDuplex() && mimeType.startsWith('video/') && videoMode == VideoMode.STREAM
+        // A streamed video gets results while it is still uploading. Behind the session ingress (Traefik) a
+        // response that starts before the request body ends cuts the rest of the upload, whatever the client
+        // can do, so a streamed video always goes up as an async upload beside a prepareSource result stream
+        // (AIW-163). The Python SDK does the same.
+        this._needsFullDuplex = mimeType.startsWith('video/') && videoMode == VideoMode.STREAM
     }
 
     private async uploadBody(): Promise<UploadBody> {

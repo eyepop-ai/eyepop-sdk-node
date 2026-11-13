@@ -86,6 +86,10 @@ export function accessTokenCredential(auth: Authentication): string | undefined 
 export interface HttpClient {
     fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response>
     close(): Promise<void>
+    /**
+     * @deprecated No longer read: a streamed video upload is always split into a prepareSource result stream and
+     * an async upload, because the session ingress cuts a request body once its response has started (AIW-163).
+     */
     isFullDuplex(): boolean
 }
 
