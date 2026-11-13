@@ -1035,6 +1035,17 @@ describe('pipeline mode (SDK-27)', () => {
         expect(EyePop.workerEndpoint({ session: session as any }).backend()).toBeInstanceOf(SessionBackend)
     })
 
+    test('a login token session, which names no worker session, gets the default: pipeline mode', () => {
+        const session = { eyepopUrl: fake.url, accessToken: 't', validUntil: Date.now() + 60000 }
+        expect(inPipelineMode(EyePop.workerEndpoint({ auth: { session } as any }))).toBe(true)
+    })
+
+    test('a login token session follows EYEPOP_PIPELINE_MODE=false', () => {
+        process.env['EYEPOP_PIPELINE_MODE'] = 'false'
+        const session = { eyepopUrl: fake.url, accessToken: 't', validUntil: Date.now() + 60000 }
+        expect(EyePop.workerEndpoint({ auth: { session } as any }).backend()).toBeInstanceOf(SessionBackend)
+    })
+
     test('an explicit isPipelineMode wins over the session it is built from', () => {
         const session = { eyepopUrl: fake.url, accessToken: 't', validUntil: Date.now() + 60000, popId: 'transient', baseUrl: fake.url, pipelineId: undefined, isPipelineMode: true }
         expect(EyePop.workerEndpoint({ session: session as any, isPipelineMode: false }).backend()).toBeInstanceOf(SessionBackend)
