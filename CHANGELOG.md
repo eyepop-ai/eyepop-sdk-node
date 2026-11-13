@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [4.0.0-rc.2] - 2026-11-13
+
 ### Added
 - In pipeline mode, `motionDetect` (`MotionDetectConfig`: `motionDetect`, `motionSensitivity`, `motionThreshold`, `motionGap`, `motionGridX`, `motionGridY`) goes on the source's `setSource`, with the same names and meaning as on a worker session; a member left unset is not sent, so the pop's `defaults` apply (BUG-327). It needs a pipeline API of eyepop-worker v4.15.0 or later; an older one refuses the source with `PipelineCommandError` `invalid_request`.
 - In pipeline mode, the `videoMode` of a `path`, `file` or `stream` source goes on its upload (AWSU-317). Unset, the pipeline API buffers a video upload, so an MP4 with its `moov` atom at the end plays; `VideoMode.STREAM` plays it as it arrives. Needs eyepop-worker v4.15.0 or later.
