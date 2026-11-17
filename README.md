@@ -1,6 +1,6 @@
 # EyePop.ai Node SDK
 
-The EyePop.ai Node SDK lets Node.js applications process images and videos with EyePop worker sessions.
+The EyePop.ai Node SDK lets Node.js applications process images and videos with EyePop.
 
 ## Install
 
@@ -58,11 +58,11 @@ Run it:
 node quickstart.mjs
 ```
 
-Passing `pop` up front creates a transient worker session with the requested pipeline already scheduled. SDK-created sessions use compute-api with `wait=true`; persistent deployments are created separately.
+The endpoint runs in pipeline mode, the default: it opens a socket to the pipeline API and sets the `pop` there, and creates no worker session. Set `EYEPOP_ENV=staging|production` to pick the environment (see [Pipeline Mode](#pipeline-mode)). For a worker session, set `isPipelineMode: false`; passing `pop` up front then creates a transient session with the requested pipeline already scheduled, using compute-api with `wait=true`. Persistent deployments are created separately.
 
 ## Configure a Pop
 
-Transient sessions can be configured when the worker endpoint is created, so EyePop can schedule the right compute before media is processed:
+A Pop can be configured when the worker endpoint is created, so the pipeline is ready before media is processed:
 
 ```javascript
 const endpoint = await EyePop.workerEndpoint({
@@ -78,7 +78,7 @@ const endpoint = await EyePop.workerEndpoint({
 }).connect()
 ```
 
-Use `endpoint.changePop(pop)` when an already connected transient worker needs to switch Pops. Persistent sessions are usually preconfigured; process media directly unless your deployment is intended to accept runtime Pop changes.
+Use `endpoint.changePop(pop)` when an already connected endpoint needs to switch Pops. Persistent sessions are usually preconfigured; process media directly unless your deployment is intended to accept runtime Pop changes.
 
 ## World Coordinates
 
@@ -199,7 +199,7 @@ Each socket runs its own pipeline, which plays its sources one after another. Wh
 
 ## Accounts
 
-A worker session runs and is billed under one account. If your credential belongs to more than one account, name it with `EYEPOP_ACCOUNT_UUID` or the `accountId` option, which `EyePop.workerEndpoint()` and `EyePop.dataEndpoint()` both take. A worker endpoint sends it as `account_uuid` when it creates a session and reuses only a live session of that account; without it, the compute API refuses a session it cannot attribute to an account.
+Work runs and is billed under one account. If your credential belongs to more than one account, name it with `EYEPOP_ACCOUNT_UUID` or the `accountId` option, which `EyePop.workerEndpoint()` and `EyePop.dataEndpoint()` both take. In pipeline mode the worker endpoint sends it to the compute API with the token exchange and the `/v1/configs` request. With `isPipelineMode: false` it sends it as `account_uuid` when it creates a worker session and reuses only a live session of that account; without it, the compute API refuses a session it cannot attribute to an account.
 
 ## Documentation
 
@@ -207,6 +207,6 @@ Customer documentation lives in [docs/gitbook](docs/gitbook/README.md) and is pu
 
 ## Module Docs
 
-- [@eyepop.ai/eyepop](src/eyepop/README.md) - Node and browser SDK for worker sessions.
+- [@eyepop.ai/eyepop](src/eyepop/README.md) - Node and browser SDK.
 - [@eyepop.ai/eyepop-render-2d](src/eyepop-render-2d/README.md) - Canvas rendering helpers for predictions.
 - [@eyepop.ai/react-native-eyepop](src/react-native-eyepop/README.md) - React Native SDK package.

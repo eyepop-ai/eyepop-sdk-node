@@ -72,6 +72,6 @@ back-projected through `eyepop.depth.metric.small-landscape`. A second tab draws
 three.js - skeletons, contours and point clouds - with controls for the camera's pose. Either view goes fullscreen from
 a toggle overlaid on it.)
 
-The build mints a worker session from `EYEPOP_API_KEY` and emits it as `eyepop-session.json`, so the key stays
+The build connects with `EYEPOP_API_KEY` (set `EYEPOP_ENV=staging|production` to pick the environment), reads the endpoint's session, which is a pipeline mode session by default, and emits it as `eyepop-session.json`, so the key stays
 on the build host and only the short lived session reaches the browser. Never place an EyePop API key in a
 browser-delivered file.

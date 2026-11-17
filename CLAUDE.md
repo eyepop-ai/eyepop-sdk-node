@@ -1,6 +1,6 @@
 # eyepop-sdk-node
 
-Official Node.js / TypeScript SDK for EyePop.ai's inference API — connect to worker sessions and process
+Official Node.js / TypeScript SDK for EyePop.ai's inference API — connect through the pipeline API (or a worker session) and process
 images/videos through vision pipelines ("Pops"). npm-workspaces monorepo (`src/eyepop`, `src/eyepop-render-2d`, `src/react-native-eyepop`).
 
 ## Commands

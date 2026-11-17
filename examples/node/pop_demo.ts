@@ -1174,7 +1174,8 @@ function write_world_ply(series: WorldSeries[], path: string): number {
   const endpoint = await EyePop.workerEndpoint({
     logger: logger,
     sessionUuid: parameters.session_uuid,
-    isPipelineMode: false
+    // a persistent session is a worker session; otherwise pipeline mode, the default
+    isPipelineMode: parameters.session_uuid ? false : undefined
   })
     .onStateChanged((fromState: EndpointState, toState: EndpointState) => {
       logger.debug("Endpoint changed state %s -> %s", fromState, toState);

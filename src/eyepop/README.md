@@ -1,6 +1,6 @@
 # EyePop.ai Node SDK
 
-The EyePop.ai Node SDK provides JavaScript and TypeScript access to EyePop worker sessions for image and video inference.
+The EyePop.ai Node SDK provides JavaScript and TypeScript access to EyePop for image and video inference.
 
 ## Installation
 
@@ -39,7 +39,7 @@ See the [React Native example](https://github.com/eyepop-ai/eyepop-sdk-node/tree
 The SDK supports these authentication patterns:
 
 - API key authentication for trusted server-side code.
-- Persistent worker session selection for provisioned deployments.
+- Persistent worker session selection for provisioned deployments (with `isPipelineMode: false`).
 - Browser OAuth for dashboard users building local demos.
 
 ### Server-Side API Key
@@ -50,7 +50,7 @@ Set `EYEPOP_API_KEY` in your server environment. API keys are secrets and must n
 export EYEPOP_API_KEY=<your_api_key>
 ```
 
-Create transient sessions with a pop when the worker endpoint is constructed. This lets EyePop schedule the right compute before media is processed.
+Pass a pop when the worker endpoint is constructed, so the pipeline is ready before media is processed.
 
 ```typescript
 import { EyePop } from '@eyepop.ai/eyepop'
@@ -77,7 +77,7 @@ import { EyePop } from '@eyepop.ai/eyepop'
 })()
 ```
 
-For transient sessions, pass `pop` when creating the endpoint whenever possible. Use `endpoint.changePop(pop)` only when an already connected transient worker needs to switch Pops.
+Pass `pop` when creating the endpoint whenever possible. Use `endpoint.changePop(pop)` only when an already connected endpoint needs to switch Pops.
 
 Pipeline mode is the default and runs no worker session; `EYEPOP_ENV=staging|production|local` picks its pipeline API. With `isPipelineMode: false` (or `EYEPOP_PIPELINE_MODE=false`) and no `sessionUuid`, the SDK creates compute sessions with `POST /v1/sessions?wait=true`.
 
@@ -281,7 +281,7 @@ for await (const result of results) {
 
 ## Endpoint Options
 
-By default, `EyePop.workerEndpoint({ pop }).connect()` starts a transient worker when needed and cancels queued jobs on that worker when it connects.
+These two options apply to worker sessions (`isPipelineMode: false`); pipeline mode, the default, ignores them. With a worker session, `EyePop.workerEndpoint({ pop }).connect()` starts a transient worker when needed and cancels queued jobs on that worker when it connects.
 
 Disable worker startup:
 
