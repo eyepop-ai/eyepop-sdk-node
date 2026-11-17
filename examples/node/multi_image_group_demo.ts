@@ -13,7 +13,7 @@
  *
  * Environment variables:
  *   EYEPOP_API_KEY             — required
- *   EYEPOP_ENV                 — staging or production, to pick the pipeline API
+ *   EYEPOP_ENV                 — production or local, to pick the pipeline API
  *   EYEPOP_SESSION_UUID        — use a pre-configured persistent session (skips changePop)
  *   EYEPOP_MULTI_IMAGE_ABILITY — ability to use (default: eyepop.vlm.image:latest)
  */

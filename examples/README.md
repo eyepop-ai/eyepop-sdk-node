@@ -23,7 +23,7 @@ Build the local SDK before running examples that import from `src/eyepop/dist`:
 npm --workspace @eyepop.ai/eyepop run build
 ```
 
-For the staging SDK integration matrix used by CI, see the local command in `../CONTRIBUTING.md`.
+For the SDK integration matrix used by CI, see the local command in `../CONTRIBUTING.md`.
 
 ```shell
 npx tsx examples/node/pop_demo.ts \
@@ -38,7 +38,7 @@ To exercise a CPU ModelLess transient session:
 npm run demo:cpu-session
 ```
 
-This creates a transient staging session with a ModelLess pop, prompts for `person`, processes `examples/example.jpg`, prints the session and pipeline IDs, then deletes the transient session.
+This creates a transient session with a ModelLess pop, prompts for `person`, processes `examples/example.jpg`, prints the session and pipeline IDs, then deletes the transient session.
 
 ## With Webpack
 
@@ -72,6 +72,6 @@ back-projected through `eyepop.depth.metric.small-landscape`. A second tab draws
 three.js - skeletons, contours and point clouds - with controls for the camera's pose. Either view goes fullscreen from
 a toggle overlaid on it.)
 
-The build connects with `EYEPOP_API_KEY` (set `EYEPOP_ENV=staging|production` to pick the environment; unset, the compute API names it), reads the endpoint's session, which is a pipeline mode session by default, and emits it as `eyepop-session.json`, so the key stays
+The build connects with `EYEPOP_API_KEY`, reads the endpoint's session, which is a pipeline mode session by default, and emits it as `eyepop-session.json`, so the key stays
 on the build host and only the short lived session reaches the browser. Never place an EyePop API key in a
 browser-delivered file.

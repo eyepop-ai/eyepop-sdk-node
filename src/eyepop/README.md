@@ -79,7 +79,7 @@ import { EyePop } from '@eyepop.ai/eyepop'
 
 Pass `pop` when creating the endpoint whenever possible. Use `endpoint.changePop(pop)` only when an already connected endpoint needs to switch Pops.
 
-Pipeline mode is the default and runs no worker session; `EYEPOP_ENV=staging|production|local` picks its pipeline API. With `isPipelineMode: false` (or `EYEPOP_PIPELINE_MODE=false`) and no `sessionUuid`, the SDK creates compute sessions with `POST /v1/sessions?wait=true`.
+Pipeline mode is the default and runs no worker session; `EYEPOP_ENV=production|local` picks its pipeline API. With `isPipelineMode: false` (or `EYEPOP_PIPELINE_MODE=false`) and no `sessionUuid`, the SDK creates compute sessions with `POST /v1/sessions?wait=true`.
 
 ModelLess CPU pops use the same constructor-pop path:
 

@@ -31,7 +31,7 @@ The nested `auth` option is deprecated. Pass the credential at the top level in 
 
 ### Pipeline mode, transient and persistent sessions
 
-By default the endpoint runs in **pipeline mode**: it opens a socket to the pipeline API and sets your `pop` there, and no worker session is created. Pick the environment with `EYEPOP_ENV=staging|production|local`. This is the flow every example here uses, and the right default for building and testing.
+By default the endpoint runs in **pipeline mode**: it opens a socket to the pipeline API and sets your `pop` there, and no worker session is created. Point it at a local pipeline API with `EYEPOP_ENV=local`. This is the flow every example here uses, and the right default for building and testing.
 
 With `isPipelineMode: false` (or `EYEPOP_PIPELINE_MODE=false`) and no session UUID, the SDK works with a worker session instead. With a `pop` it creates a new **transient** session each time it connects, and deletes the pipeline it created on disconnect; it does not delete the session itself. With no `pop`, it reuses your first live non-persistent session if you have one, and creates a new session otherwise.
 

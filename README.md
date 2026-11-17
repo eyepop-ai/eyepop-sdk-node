@@ -58,7 +58,7 @@ Run it:
 node quickstart.mjs
 ```
 
-The endpoint runs in pipeline mode, the default: it opens a socket to the pipeline API and sets the `pop` there, and creates no worker session. Set `EYEPOP_ENV=staging|production` to pick the environment; unset, the compute API names the pipeline API (see [Pipeline Mode](#pipeline-mode)). For a worker session, set `isPipelineMode: false`; passing `pop` up front then creates a transient session with the requested pipeline already scheduled, using compute-api with `wait=true`. Persistent deployments are created separately.
+The endpoint runs in pipeline mode, the default: it opens a socket to the pipeline API and sets the `pop` there, and creates no worker session. The compute API names the pipeline API (see [Pipeline Mode](#pipeline-mode)). For a worker session, set `isPipelineMode: false`; passing `pop` up front then creates a transient session with the requested pipeline already scheduled, using compute-api with `wait=true`. Persistent deployments are created separately.
 
 ## Configure a Pop
 
@@ -166,7 +166,7 @@ Persistent sessions are worker sessions, so turn pipeline mode off with `EYEPOP_
 
 ## Pipeline Mode
 
-Pipeline mode is the default: a worker endpoint runs its jobs on the pipeline API instead of a worker session. Set `isPipelineMode: false`, or `EYEPOP_PIPELINE_MODE=false`, for a worker session. `EYEPOP_ENV=staging|production|local` picks the pipeline API (`pipeline.staging.eyepop.xyz`, `pipeline.eyepop.ai`, `127.0.0.1:9002`); unset, the compute API names it. The code that uses the endpoint stays the same:
+Pipeline mode is the default: a worker endpoint runs its jobs on the pipeline API instead of a worker session. Set `isPipelineMode: false`, or `EYEPOP_PIPELINE_MODE=false`, for a worker session. `EYEPOP_ENV=production|local` picks the pipeline API (`pipeline.eyepop.ai`, `127.0.0.1:9002`); unset, the compute API names it. The code that uses the endpoint stays the same:
 
 ```javascript
 const endpoint = await EyePop.workerEndpoint({ pop }).connect()
