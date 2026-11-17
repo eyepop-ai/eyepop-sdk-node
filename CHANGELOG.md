@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+- An event classification task (VREE-347): `AutoAnnotateTask.event_classification`, for `InferRequest` and user-defined VLM abilities. It answers which prompts' events (an action, an activity, something that happens) take place in one video or video chunk, returned as `classes`, on `qwen3` only. The Dataset API refuses an event ability on `gpt_6_astra` or `gemini_4_argon`.
+- A task takes optional `instructions` (VREE-347): `InferRequest`, `VlmAbilityCreate`, `VlmAbilityUpdate` and `VlmAbility` have `instructions`, the caller's own instructions for the task, added after the worker's. They refine what the model looks at, not the shape of the answer. `createVlmAbility` and `updateVlmAbility` throw `VlmAbilityModeError` before any request for instructions that are not 1 to `MAX_TASK_INSTRUCTIONS_LENGTH` (2000) characters (`invalid_instructions`), for instructions next to `text_prompt`, `transform_into` or `response_schema` (`task_excludes_free_form`), and, on a create, for instructions without a task (`instructions_without_task`). An update may change `instructions` alone. Needs eyepop-vlm with eyepop-vlm#512 and a Dataset API that stores them.
+
 ## [4.0.0] - 2026-11-13
 
 The first stable release of 4.0: `EyePop.workerEndpoint()` runs in pipeline mode by default. See 4.0.0-rc.1 for the breaking change, and rc.2 and rc.3 for the pipeline fixes.

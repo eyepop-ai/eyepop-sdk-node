@@ -1,5 +1,6 @@
 import {
     AutoAnnotateTask,
+    MAX_TASK_INSTRUCTIONS_LENGTH,
     DEFAULT_VLM_MODEL,
     DataEndpoint,
     EyePop,
@@ -79,7 +80,7 @@ describe('DataEndpoint.createVlmAbility', () => {
         expect(bodyOf(request)).toEqual({ ...sent, text_prompt: 'Describe the scene.' })
     })
 
-    test.each([AutoAnnotateTask.object_detection, AutoAnnotateTask.image_classification])('a %s task ability sends task and prompts only', async task => {
+    test.each(Object.values(AutoAnnotateTask))('a %s task ability sends task and prompts only', async task => {
         const { endpoint, request } = stubbedEndpoint()
         await endpoint.createVlmAbility({ ...base, task, prompts }, 'group-1')
         expect(request.mock.calls[0][0]).toBe('/vlm_abilities?account_uuid=acc-1&vlm_ability_group_uuid=group-1')
@@ -87,6 +88,24 @@ describe('DataEndpoint.createVlmAbility', () => {
         expect(body).toEqual({ ...sent, task, prompts })
         expect(body).not.toHaveProperty('text_prompt')
         expect(body).not.toHaveProperty('transform_into')
+    })
+
+    test('an event task ability sends its instructions and video chunking', async () => {
+        const { endpoint, request } = stubbedEndpoint()
+        await endpoint.createVlmAbility({
+            ...base,
+            task: AutoAnnotateTask.event_classification,
+            prompts,
+            instructions: 'Focus on the main booth.',
+            video_chunk_length_ns: 3_000_000_000,
+        })
+        expect(bodyOf(request)).toEqual({
+            ...sent,
+            task: 'event_classification',
+            prompts,
+            instructions: 'Focus on the main booth.',
+            video_chunk_length_ns: 3_000_000_000,
+        })
     })
 
     test('null free-form fields count as unset next to a task', async () => {
@@ -111,6 +130,15 @@ describe('DataEndpoint.createVlmAbility', () => {
         ],
         ['an unknown task', { task: 'segmentation' as AutoAnnotateTask, prompts }, Reason.unknown_task, ['task']],
         ['a prompt without a label', { task: AutoAnnotateTask.object_detection, prompts: [{ label: '', prompt: 'p' }] }, Reason.invalid_prompt, ['prompts[0]']],
+        ['instructions without a task', { text_prompt: 'x', instructions: 'Focus.' }, Reason.task_excludes_free_form, ['text_prompt']],
+        ['instructions alone', { instructions: 'Focus.' }, Reason.instructions_without_task, ['instructions']],
+        ['empty instructions', { task: AutoAnnotateTask.object_detection, prompts, instructions: '' }, Reason.invalid_instructions, ['instructions']],
+        [
+            'instructions over the limit',
+            { task: AutoAnnotateTask.object_detection, prompts, instructions: 'x'.repeat(MAX_TASK_INSTRUCTIONS_LENGTH + 1) },
+            Reason.invalid_instructions,
+            ['instructions'],
+        ],
     ])('refuses %s without a request', async (_, fields, reason, faulty) => {
         const { endpoint, request } = stubbedEndpoint()
         await expectModeError(endpoint.createVlmAbility({ ...base, ...fields } as VlmAbilityCreate), reason, faulty)
@@ -133,6 +161,12 @@ describe('DataEndpoint.updateVlmAbility', () => {
         expect(bodyOf(request)).toEqual({ task: 'image_classification', prompts })
     })
 
+    test('sends instructions alone', async () => {
+        const { endpoint, request } = stubbedEndpoint()
+        await endpoint.updateVlmAbility('ability-1', { instructions: 'Ignore the road.' })
+        expect(bodyOf(request)).toEqual({ instructions: 'Ignore the road.' })
+    })
+
     test('sends a free-form update', async () => {
         const { endpoint, request } = stubbedEndpoint()
         await endpoint.updateVlmAbility('ability-1', { text_prompt: 'new prompt' })
@@ -143,6 +177,8 @@ describe('DataEndpoint.updateVlmAbility', () => {
         ['a task with text_prompt', { task: AutoAnnotateTask.object_detection, text_prompt: 'x' }, Reason.task_excludes_free_form, ['text_prompt']],
         ['prompts with response_schema', { prompts, response_schema: { type: 'object' } }, Reason.task_excludes_free_form, ['response_schema']],
         ['empty prompts', { prompts: [] }, Reason.empty_prompts, ['prompts']],
+        ['instructions with text_prompt', { instructions: 'Focus.', text_prompt: 'x' }, Reason.task_excludes_free_form, ['text_prompt']],
+        ['empty instructions', { instructions: '' }, Reason.invalid_instructions, ['instructions']],
     ])('refuses %s', async (_, update, reason, faulty) => {
         const { endpoint, request } = stubbedEndpoint()
         await expectModeError(endpoint.updateVlmAbility('ability-1', update), reason, faulty)

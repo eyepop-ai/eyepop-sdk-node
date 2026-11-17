@@ -178,7 +178,12 @@ export interface AutoAnnotatePrompt {
 export enum AutoAnnotateTask {
     object_detection = 'object_detection',
     image_classification = 'image_classification',
+    /** Which prompts' events take place in one video or video chunk; `classes`, on `qwen3` only. */
+    event_classification = 'event_classification',
 }
+
+/** The longest `instructions` a task takes. */
+export const MAX_TASK_INSTRUCTIONS_LENGTH = 2000
 
 export interface AutoAnnotateParams {
     /**
@@ -522,13 +527,20 @@ export interface InferRequest {
     /**
      * Auto-label task. The worker derives the prompt and output schema from the task and
      * `prompts`, so `text_prompt`, `transform_into` and `response_schema` must be unset.
-     * Object detection returns `objects`, image classification `classes`, each labeled with a
-     * prompt's label. A task takes one image. Leave `config.max_new_tokens` unset to use the
-     * worker's default, which leaves room for a detection answer.
+     * Object detection returns `objects` and image classification `classes` for one image;
+     * event classification returns `classes` for one video, on `qwen3` only. Each result is
+     * labeled with a prompt's label. Leave `config.max_new_tokens` unset to use the worker's
+     * default, which leaves room for a detection answer.
      */
     task?: AutoAnnotateTask
     /** Labels and what each one means, for `task`; required with a task. */
     prompts?: AutoAnnotatePrompt[]
+    /**
+     * Optional instructions for `task`, 1 to {@link MAX_TASK_INSTRUCTIONS_LENGTH} characters, added
+     * to the worker's own instructions. They refine what the model looks at, such as "focus on the
+     * main booth area and ignore adjacent roads", not the shape of the answer; only with a task.
+     */
+    instructions?: string
 }
 
 export interface EvaluateFilter {
@@ -667,6 +679,8 @@ export interface VlmAbilityCreate {
     task?: AutoAnnotateTask
     /** Labels and what each one means, for `task`; required and non-empty with a task. */
     prompts?: AutoAnnotatePrompt[]
+    /** Optional instructions for `task`; see {@link InferRequest.instructions}. */
+    instructions?: string
     config: InferRuntimeConfig
     is_public: boolean
     video_chunk_length_ns?: number
@@ -689,6 +703,7 @@ export interface VlmAbilityUpdate {
     response_schema?: ResponseSchema
     task?: AutoAnnotateTask
     prompts?: AutoAnnotatePrompt[]
+    instructions?: string
     config?: InferRuntimeConfig
     is_public?: boolean
     video_chunk_length_ns?: number
@@ -718,6 +733,7 @@ export interface VlmAbility {
     response_schema?: ResponseSchema
     task?: AutoAnnotateTask
     prompts?: AutoAnnotatePrompt[]
+    instructions?: string
     config?: InferRuntimeConfig
     video_chunk_length_ns?: number
     video_chunk_overlap?: number
