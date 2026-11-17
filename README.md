@@ -58,7 +58,7 @@ Run it:
 node quickstart.mjs
 ```
 
-The endpoint runs in pipeline mode, the default: it opens a socket to the pipeline API and sets the `pop` there, and creates no worker session. The compute API names the pipeline API (see [Pipeline Mode](#pipeline-mode)). For a worker session, set `isPipelineMode: false`; passing `pop` up front then creates a transient session with the requested pipeline already scheduled, using compute-api with `wait=true`. Persistent deployments are created separately.
+The endpoint runs in pipeline mode, the default: it opens a socket to the pipeline API and sets the `pop` there, and creates no worker session. The compute API names the pipeline API (see [Pipeline Mode](#pipeline-mode)). A worker session, with `isPipelineMode: false`, is deprecated; passing `pop` up front then creates a transient session with the requested pipeline already scheduled, using compute-api with `wait=true`. Persistent deployments are created separately.
 
 ## Configure a Pop
 
@@ -150,6 +150,8 @@ Extrinsics are the camera-to-world pose, so world coordinates come back in a **Z
 Without any calibration the worker assumes a 60-degree horizontal field of view. That is a development scaffold: for canonical metric depth the guess cancels out of X and Y and survives only in Z, so lateral measurements stay exact while every distance along the optical axis is wrong by however wrong the guess was.
 
 ## Persistent Sessions
+
+> **Deprecated.** The worker session flow, persistent and transient sessions alike, is deprecated. Use [pipeline mode](#pipeline-mode), the default.
 
 For a provisioned persistent worker session, set the session UUID and connect without a transient pop:
 

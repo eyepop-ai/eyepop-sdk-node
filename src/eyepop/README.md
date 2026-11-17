@@ -39,7 +39,7 @@ See the [React Native example](https://github.com/eyepop-ai/eyepop-sdk-node/tree
 The SDK supports these authentication patterns:
 
 - API key authentication for trusted server-side code.
-- Persistent worker session selection for provisioned deployments (with `isPipelineMode: false`).
+- Persistent worker session selection for provisioned deployments (with `isPipelineMode: false`). **Deprecated**: the worker session flow is deprecated; use pipeline mode.
 - Browser OAuth for dashboard users building local demos.
 
 ### Server-Side API Key
@@ -119,6 +119,8 @@ const endpoint = await EyePop.workerEndpoint({
 The nested `auth` option is still supported but deprecated. Pass `apiKey`, `accessToken`, `session`, or `oAuth2` at the top level for new code.
 
 ### Persistent Sessions
+
+> **Deprecated.** The worker session flow, persistent and transient sessions alike, is deprecated. Use pipeline mode, the default.
 
 If EyePop has provisioned a persistent worker session for your deployment, set `EYEPOP_SESSION_UUID` in the trusted server environment or pass `sessionUuid` explicitly, with pipeline mode off (`isPipelineMode: false`).
 
@@ -281,7 +283,7 @@ for await (const result of results) {
 
 ## Endpoint Options
 
-These two options apply to worker sessions (`isPipelineMode: false`); pipeline mode, the default, ignores them. With a worker session, `EyePop.workerEndpoint({ pop }).connect()` starts a transient worker when needed and cancels queued jobs on that worker when it connects.
+These two options apply to worker sessions (`isPipelineMode: false`), a deprecated flow; pipeline mode, the default, ignores them. With a worker session, `EyePop.workerEndpoint({ pop }).connect()` starts a transient worker when needed and cancels queued jobs on that worker when it connects.
 
 Disable worker startup:
 

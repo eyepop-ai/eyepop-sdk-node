@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Deprecated
+- The worker session flow: `isPipelineMode: false` (or `EYEPOP_PIPELINE_MODE=false`), persistent and transient sessions, `sessionUuid`, `sessionName`, `pipelineImage`, `pipelineVersion`, `sessionReadyTimeoutSeconds`, `autoStart` and `stopJobs` and their environment variables. Use pipeline mode, the default.
+
 ## [4.0.0] - 2026-11-13
 
 The first stable release of 4.0: `EyePop.workerEndpoint()` runs in pipeline mode by default. See 4.0.0-rc.1 for the breaking change, and rc.2 and rc.3 for the pipeline fixes.

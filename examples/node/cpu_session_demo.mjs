@@ -64,7 +64,7 @@ const { values } = parseArgs({
 })
 
 function printHelpAndExit() {
-    console.info(`CPU session demo
+    console.info(`CPU session demo (the worker session flow, which is deprecated)
 
 Usage:
   npm run demo:cpu-session -- --image examples/example.jpg --prompt person

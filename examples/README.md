@@ -8,7 +8,7 @@ In project root:
 export EYEPOP_API_KEY=<your api key>
 ```
 
-For a provisioned persistent worker session (not pipeline mode, the default), also set:
+For a provisioned persistent worker session (a deprecated flow; pipeline mode is the default), also set:
 
 ```shell
 export EYEPOP_PIPELINE_MODE=false
@@ -32,7 +32,7 @@ npx tsx examples/node/pop_demo.ts \
   --localPath examples/example.jpg
 ```
 
-To exercise a CPU ModelLess transient session:
+To exercise a CPU ModelLess transient session (the worker session flow, which is deprecated):
 
 ```shell
 npm run demo:cpu-session

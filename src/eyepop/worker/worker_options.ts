@@ -12,11 +12,13 @@ export enum TransientPopId {
 export interface WorkerOptions extends Options {
     /**
      * @deprecated Pass `pop` for transient sessions or `sessionUuid` for persistent sessions.
-     * Support for pop id will be removed in 3.16.
+     * Support for pop id will be removed in 3.16. The worker session flow is deprecated: use pipeline mode.
      */
     popId?: string | TransientPopId | undefined
 
+    /** @deprecated The worker session flow is deprecated: use pipeline mode, which runs no session. */
     sessionUuid?: string | undefined
+    /** @deprecated The worker session flow is deprecated: use pipeline mode, which runs no session. */
     sessionName?: string | undefined
     /**
      * The account the compute session runs and is billed under, sent to compute-api as
@@ -24,18 +26,23 @@ export interface WorkerOptions extends Options {
      * Defaults to process.env['EYEPOP_ACCOUNT_UUID'], then the deprecated process.env['EYEPOP_ACCOUNT_ID'].
      */
     accountId?: string | undefined
+    /** @deprecated The worker session flow is deprecated: use pipeline mode, which runs no session. */
     pipelineImage?: string | undefined
+    /** @deprecated The worker session flow is deprecated: use pipeline mode, which runs no session. */
     pipelineVersion?: string | undefined
     pop?: Pop | undefined
+    /** @deprecated Worker session only; the worker session flow is deprecated. Pipeline mode ignores it. */
     sessionReadyTimeoutSeconds?: number | undefined
+    /** @deprecated Worker session only; the worker session flow is deprecated. Pipeline mode ignores it. */
     autoStart?: boolean
+    /** @deprecated Worker session only; the worker session flow is deprecated. Pipeline mode ignores it. */
     stopJobs?: boolean
     isLocalMode?: boolean
     /**
      * Run the endpoint's jobs on the pipeline API's socket instead of a worker session. The
      * compute API at `eyepopUrl` names the pipeline API in its `/v1/configs`; with `isLocalMode`,
      * `eyepopUrl` is the pipeline API itself. Takes no option that names a session or a pop id.
-     * On by default; set `false`, or EYEPOP_PIPELINE_MODE=false, for a worker session.
+     * On by default. Setting `false`, or EYEPOP_PIPELINE_MODE=false, selects the worker session flow, which is deprecated.
      */
     isPipelineMode?: boolean
     /** In pipeline mode, the pipeline API's url. Defaults from EYEPOP_ENV (production, local); unset, the compute API names it. */
