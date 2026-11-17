@@ -1175,7 +1175,7 @@ function write_world_ply(series: WorldSeries[], path: string): number {
     logger: logger,
     sessionUuid: parameters.session_uuid,
     // a persistent session is a worker session; otherwise pipeline mode, the default
-    isPipelineMode: parameters.session_uuid ? false : undefined
+    ...(parameters.session_uuid ? { isPipelineMode: false } : {})
   })
     .onStateChanged((fromState: EndpointState, toState: EndpointState) => {
       logger.debug("Endpoint changed state %s -> %s", fromState, toState);

@@ -175,7 +175,7 @@ The response includes `session_uuid`, `session_status`, `status_url`, and worker
 
 ### Browser and Mobile Clients
 
-Do not put `EYEPOP_API_KEY` in browser or mobile application code. Create EyePop sessions from a trusted backend, then pass only the session JSON to the client.
+Do not put `EYEPOP_API_KEY` in browser or mobile application code. Connect on a trusted backend, call `endpoint.session()`, then pass only the session JSON to the client. A session from a pipeline mode endpoint makes the client run in pipeline mode too.
 
 ### Browser OAuth for Local Dashboard Demos
 

@@ -58,7 +58,7 @@ Run it:
 node quickstart.mjs
 ```
 
-The endpoint runs in pipeline mode, the default: it opens a socket to the pipeline API and sets the `pop` there, and creates no worker session. Set `EYEPOP_ENV=staging|production` to pick the environment (see [Pipeline Mode](#pipeline-mode)). For a worker session, set `isPipelineMode: false`; passing `pop` up front then creates a transient session with the requested pipeline already scheduled, using compute-api with `wait=true`. Persistent deployments are created separately.
+The endpoint runs in pipeline mode, the default: it opens a socket to the pipeline API and sets the `pop` there, and creates no worker session. Set `EYEPOP_ENV=staging|production` to pick the environment; unset, the compute API names the pipeline API (see [Pipeline Mode](#pipeline-mode)). For a worker session, set `isPipelineMode: false`; passing `pop` up front then creates a transient session with the requested pipeline already scheduled, using compute-api with `wait=true`. Persistent deployments are created separately.
 
 ## Configure a Pop
 
@@ -199,7 +199,7 @@ Each socket runs its own pipeline, which plays its sources one after another. Wh
 
 ## Accounts
 
-Work runs and is billed under one account. If your credential belongs to more than one account, name it with `EYEPOP_ACCOUNT_UUID` or the `accountId` option, which `EyePop.workerEndpoint()` and `EyePop.dataEndpoint()` both take. In pipeline mode the worker endpoint sends it to the compute API with the token exchange and the `/v1/configs` request. With `isPipelineMode: false` it sends it as `account_uuid` when it creates a worker session and reuses only a live session of that account; without it, the compute API refuses a session it cannot attribute to an account.
+Work runs and is billed under one account. If your credential belongs to more than one account, name it with `EYEPOP_ACCOUNT_UUID` or the `accountId` option, which `EyePop.workerEndpoint()` and `EyePop.dataEndpoint()` both take. In pipeline mode `accountId` is sent with the exchange of a login token (`accessToken` or `oAuth2`), and with the `/v1/configs` request when the compute API names the pipeline API (no `EYEPOP_ENV` or `pipelineApiUrl`). An API key is exchanged without it. With `isPipelineMode: false` it sends it as `account_uuid` when it creates a worker session and reuses only a live session of that account; without it, the compute API refuses a session it cannot attribute to an account.
 
 ## Documentation
 

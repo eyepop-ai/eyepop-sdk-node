@@ -54,7 +54,7 @@ const groupPop: Pop = {
 ;(async () => {
     let endpoint: WorkerEndpoint | undefined
     try {
-        endpoint = await EyePop.workerEndpoint({ logger, sessionUuid, isPipelineMode: sessionUuid ? false : undefined })
+        endpoint = await EyePop.workerEndpoint({ logger, sessionUuid, ...(sessionUuid ? { isPipelineMode: false } : {}) })
             .onStateChanged((from: EndpointState, to: EndpointState) => {
                 logger.info('Endpoint state %s -> %s', from, to)
             })

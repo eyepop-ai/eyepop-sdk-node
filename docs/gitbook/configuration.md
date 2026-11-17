@@ -37,7 +37,7 @@ With `isPipelineMode: false` (or `EYEPOP_PIPELINE_MODE=false`) and no session UU
 
 ### Account
 
-Work runs and is billed under one account. When your credential belongs to more than one account, name the account with `EYEPOP_ACCOUNT_UUID` or the `accountId` option — the same option the data endpoint takes. In pipeline mode the SDK sends it to the compute API with the token exchange and the `/v1/configs` request. With `isPipelineMode: false` it sends it as `account_uuid` when it creates a worker session, and reuses only a live session of that account; without it, the compute API refuses to create a session it cannot attribute, with `VAL_001: account_uuid is required`.
+Work runs and is billed under one account. When your credential belongs to more than one account, name the account with `EYEPOP_ACCOUNT_UUID` or the `accountId` option — the same option the data endpoint takes. In pipeline mode `accountId` is sent with the exchange of a login token (`accessToken` or `oAuth2`), and with the `/v1/configs` request when the compute API names the pipeline API (no `EYEPOP_ENV` or `pipelineApiUrl`). An API key is exchanged without it. With `isPipelineMode: false` it sends it as `account_uuid` when it creates a worker session, and reuses only a live session of that account; without it, the compute API refuses to create a session it cannot attribute, with `VAL_001: account_uuid is required`.
 
 ```typescript
 const endpoint = await EyePop.workerEndpoint({
