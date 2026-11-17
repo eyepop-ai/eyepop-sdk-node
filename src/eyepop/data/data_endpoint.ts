@@ -51,6 +51,7 @@ import {
     VlmAbilityGroupUpdate,
     VlmAbilityUpdate,
     AutoAnnotateTask,
+    MAX_TASK_INSTRUCTIONS_LENGTH,
     VLM_MODEL_WORKER_RELEASES,
     VlmModel,
     AliasResolution,
@@ -126,6 +127,10 @@ export enum VlmAbilityModeErrorReason {
     empty_prompts = 'empty_prompts',
     /** An entry of `prompts` lacks a non-empty `label` or `prompt`. */
     invalid_prompt = 'invalid_prompt',
+    /** `instructions` is set without `task` (create only). */
+    instructions_without_task = 'instructions_without_task',
+    /** `instructions` is not a string of 1 to {@link MAX_TASK_INSTRUCTIONS_LENGTH} characters. */
+    invalid_instructions = 'invalid_instructions',
 }
 
 /** Thrown, before any request, for a VLM ability that is neither free-form nor a task, or mixes them. */
@@ -156,17 +161,18 @@ function validateVlmAbilityMode(ability: VlmAbilityCreate | VlmAbilityUpdate, pa
     const kind = partial ? 'VLM ability update' : 'VLM ability'
     const taskSet = isSet(ability.task)
     const promptsSet = isSet(ability.prompts)
+    const instructionsSet = isSet(ability.instructions)
     if (taskSet && !(Object.values(AutoAnnotateTask) as unknown[]).includes(ability.task)) {
         throw new VlmAbilityModeError(VlmAbilityModeErrorReason.unknown_task, `${kind}: unknown task '${String(ability.task)}', expected one of ${Object.values(AutoAnnotateTask).join(', ')}`, [
             'task',
         ])
     }
-    if (taskSet || promptsSet) {
+    if (taskSet || promptsSet || instructionsSet) {
         const conflicting = TASK_EXCLUDED_FIELDS.filter(field => isSet(ability[field]))
         if (conflicting.length > 0) {
             throw new VlmAbilityModeError(
                 VlmAbilityModeErrorReason.task_excludes_free_form,
-                `${kind}: a task derives the prompt and output schema, so ${conflicting.join(', ')} must be unset with task and prompts`,
+                `${kind}: a task derives the prompt and output schema, so ${conflicting.join(', ')} must be unset with task, prompts and instructions`,
                 [...conflicting],
             )
         }
@@ -181,8 +187,21 @@ function validateVlmAbilityMode(ability: VlmAbilityCreate | VlmAbilityUpdate, pa
             }
         })
     }
+    if (instructionsSet) {
+        const instructions = ability.instructions
+        if (typeof instructions !== 'string' || instructions.length === 0 || instructions.length > MAX_TASK_INSTRUCTIONS_LENGTH) {
+            throw new VlmAbilityModeError(
+                VlmAbilityModeErrorReason.invalid_instructions,
+                `${kind}: instructions must be a string of 1 to ${MAX_TASK_INSTRUCTIONS_LENGTH} characters`,
+                ['instructions'],
+            )
+        }
+    }
     if (partial) {
         return
+    }
+    if (!taskSet && instructionsSet) {
+        throw new VlmAbilityModeError(VlmAbilityModeErrorReason.instructions_without_task, `${kind}: instructions are only used with a task`, ['instructions'])
     }
     if (taskSet && !promptsSet) {
         throw new VlmAbilityModeError(VlmAbilityModeErrorReason.task_without_prompts, `${kind}: task '${ability.task}' requires a non-empty prompts list of {label, prompt}`, ['prompts'])
