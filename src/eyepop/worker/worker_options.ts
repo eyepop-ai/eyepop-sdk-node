@@ -38,7 +38,7 @@ export interface WorkerOptions extends Options {
      * On by default; set `false`, or EYEPOP_PIPELINE_MODE=false, for a worker session.
      */
     isPipelineMode?: boolean
-    /** In pipeline mode, the pipeline API's url. Defaults from EYEPOP_ENV (staging, production, local); unset, the compute API names it. */
+    /** In pipeline mode, the pipeline API's url. Defaults from EYEPOP_ENV (production, local); unset, the compute API names it. */
     pipelineApiUrl?: string
     /**
      * In pipeline mode, the most sockets the endpoint opens. Each runs its own pipeline, which plays its
