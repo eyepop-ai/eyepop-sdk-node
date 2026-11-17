@@ -199,7 +199,7 @@ Each socket runs its own pipeline, which plays its sources one after another. Wh
 
 ## Accounts
 
-Work runs and is billed under one account. If your credential belongs to more than one account, name it with `EYEPOP_ACCOUNT_UUID` or the `accountId` option, which `EyePop.workerEndpoint()` and `EyePop.dataEndpoint()` both take. In pipeline mode `accountId` is sent with the exchange of a login token (`accessToken` or `oAuth2`), and with the `/v1/configs` request when the compute API names the pipeline API (no `EYEPOP_ENV` or `pipelineApiUrl`). An API key is exchanged without it. With `isPipelineMode: false` it sends it as `account_uuid` when it creates a worker session and reuses only a live session of that account; without it, the compute API refuses a session it cannot attribute to an account.
+Work runs and is billed under one account. If your credential belongs to more than one account, name it with `EYEPOP_ACCOUNT_UUID` or the `accountId` option, which `EyePop.workerEndpoint()` and `EyePop.dataEndpoint()` both take. In pipeline mode `accountId` is sent with the exchange of a login token (`accessToken` or `oAuth2`), and with the `/v1/configs` request when the compute API names the pipeline API (no `EYEPOP_ENV` or `pipelineApiUrl`). An API key is exchanged without it, so with an API key and `EYEPOP_ENV` (or `pipelineApiUrl`) set, `accountId` has no effect in pipeline mode. With `isPipelineMode: false` it sends it as `account_uuid` when it creates a worker session and reuses only a live session of that account; without it, the compute API refuses a session it cannot attribute to an account.
 
 ## Documentation
 
