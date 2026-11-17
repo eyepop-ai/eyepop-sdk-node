@@ -126,8 +126,9 @@ describe('pipeline mode (SDK-27)', () => {
         const urlOf = (options: Record<string, any> = {}): unknown => (EyePop.workerEndpoint({ accessToken: 't', ...options }) as any)._options.pipelineApiUrl
 
         test.each([
+            ['staging', 'https://pipeline.staging.eyepop.xyz'],
             ['production', 'https://pipeline.eyepop.ai'],
-            ['Production', 'https://pipeline.eyepop.ai'],
+            ['Staging', 'https://pipeline.staging.eyepop.xyz'],
         ])('%s maps to %s', (name, url) => {
             process.env['EYEPOP_ENV'] = name
             expect(urlOf()).toBe(url)
@@ -143,11 +144,12 @@ describe('pipeline mode (SDK-27)', () => {
         })
 
         test('local mode wins over EYEPOP_ENV: one origin for the HTTP calls and the socket', () => {
-            process.env['EYEPOP_ENV'] = 'production'
+            process.env['EYEPOP_ENV'] = 'staging'
             expect(urlOf({ isLocalMode: true })).toBeUndefined()
         })
 
         test.each([
+            ['staging', 'https://compute.staging.eyepop.xyz'],
             ['production', 'https://compute.eyepop.ai'],
         ])('%s also picks the compute API that mints the token', (name, url) => {
             process.env['EYEPOP_ENV'] = name
@@ -163,21 +165,21 @@ describe('pipeline mode (SDK-27)', () => {
         })
 
         test('the compute API of EYEPOP_ENV applies when the pipelineApiUrl option names the pipeline API', () => {
-            process.env['EYEPOP_ENV'] = 'production'
+            process.env['EYEPOP_ENV'] = 'staging'
             const options = (EyePop.workerEndpoint({ accessToken: 't', pipelineApiUrl: 'https://pipeline.example.test' }) as any)._options
             expect(options.pipelineApiUrl).toBe('https://pipeline.example.test')
-            expect(options.eyepopUrl).toBe('https://compute.eyepop.ai')
+            expect(options.eyepopUrl).toBe('https://compute.staging.eyepop.xyz')
         })
 
         test('eyepopUrl and EYEPOP_URL win over the compute API of EYEPOP_ENV', () => {
-            process.env['EYEPOP_ENV'] = 'production'
+            process.env['EYEPOP_ENV'] = 'staging'
             expect((EyePop.workerEndpoint({ accessToken: 't', eyepopUrl: 'https://compute.example.test' }) as any)._options.eyepopUrl).toBe('https://compute.example.test')
             process.env['EYEPOP_URL'] = 'https://compute.env.test'
             expect((EyePop.workerEndpoint({ accessToken: 't' }) as any)._options.eyepopUrl).toBe('https://compute.env.test')
         })
 
         test('the pipelineApiUrl option wins over EYEPOP_ENV', () => {
-            process.env['EYEPOP_ENV'] = 'production'
+            process.env['EYEPOP_ENV'] = 'staging'
             expect(urlOf({ pipelineApiUrl: 'https://pipeline.example.test' })).toBe('https://pipeline.example.test')
         })
     })

@@ -188,11 +188,13 @@ const pipelineModeFromEnv = (value?: string): boolean => {
 
 /** The compute API per EYEPOP_ENV, which mints the token the pipeline API of that environment takes. */
 const COMPUTE_API_URLS: ReadonlyMap<string, string> = new Map([
+    ['staging', 'https://compute.staging.eyepop.xyz'],
     ['production', 'https://compute.eyepop.ai'],
 ])
 
 /** The pipeline API per EYEPOP_ENV. */
 const PIPELINE_API_URLS: ReadonlyMap<string, string> = new Map([
+    ['staging', 'https://pipeline.staging.eyepop.xyz'],
     ['production', 'https://pipeline.eyepop.ai'],
     ['local', 'http://127.0.0.1:9002'],
 ])
