@@ -1,6 +1,6 @@
 # EyePop.ai Node SDK
 
-The EyePop.ai Node SDK lets Node.js applications process images and videos with EyePop worker sessions.
+The EyePop.ai Node SDK lets Node.js applications process images and videos with EyePop.
 
 ## Install
 
@@ -58,11 +58,11 @@ Run it:
 node quickstart.mjs
 ```
 
-Passing `pop` up front creates a transient worker session with the requested pipeline already scheduled. SDK-created sessions use compute-api with `wait=true`; persistent deployments are created separately.
+The endpoint runs in pipeline mode, the default: it opens a socket to the pipeline API and sets the `pop` there, and creates no worker session. The compute API names the pipeline API (see [Pipeline Mode](#pipeline-mode)). A worker session, with `isPipelineMode: false`, is deprecated; passing `pop` up front then creates a transient session with the requested pipeline already scheduled, using compute-api with `wait=true`. Persistent deployments are created separately.
 
 ## Configure a Pop
 
-Transient sessions can be configured when the worker endpoint is created, so EyePop can schedule the right compute before media is processed:
+A Pop can be configured when the worker endpoint is created, so the pipeline is ready before media is processed:
 
 ```javascript
 const endpoint = await EyePop.workerEndpoint({
@@ -78,7 +78,7 @@ const endpoint = await EyePop.workerEndpoint({
 }).connect()
 ```
 
-Use `endpoint.changePop(pop)` when an already connected transient worker needs to switch Pops. Persistent sessions are usually preconfigured; process media directly unless your deployment is intended to accept runtime Pop changes.
+Use `endpoint.changePop(pop)` when an already connected endpoint needs to switch Pops. Persistent sessions are usually preconfigured; process media directly unless your deployment is intended to accept runtime Pop changes.
 
 ## World Coordinates
 
@@ -151,6 +151,8 @@ Without any calibration the worker assumes a 60-degree horizontal field of view.
 
 ## Persistent Sessions
 
+> **Deprecated.** The worker session flow, persistent and transient sessions alike, is deprecated. Use [pipeline mode](#pipeline-mode), the default.
+
 For a provisioned persistent worker session, set the session UUID and connect without a transient pop:
 
 ```shell
@@ -166,7 +168,7 @@ Persistent sessions are worker sessions, so turn pipeline mode off with `EYEPOP_
 
 ## Pipeline Mode
 
-Pipeline mode is the default: a worker endpoint runs its jobs on the pipeline API instead of a worker session. Set `isPipelineMode: false`, or `EYEPOP_PIPELINE_MODE=false`, for a worker session. `EYEPOP_ENV=staging|production|local` picks the pipeline API (`pipeline.staging.eyepop.xyz`, `pipeline.eyepop.ai`, `127.0.0.1:9002`); unset, the compute API names it. The code that uses the endpoint stays the same:
+Pipeline mode is the default: a worker endpoint runs its jobs on the pipeline API instead of a worker session. Set `isPipelineMode: false`, or `EYEPOP_PIPELINE_MODE=false`, for a worker session. `EYEPOP_ENV=production|local` picks the pipeline API (`pipeline.eyepop.ai`, `127.0.0.1:9002`); unset, the compute API names it. The code that uses the endpoint stays the same:
 
 ```javascript
 const endpoint = await EyePop.workerEndpoint({ pop }).connect()
@@ -199,7 +201,7 @@ Each socket runs its own pipeline, which plays its sources one after another. Wh
 
 ## Accounts
 
-A worker session runs and is billed under one account. If your credential belongs to more than one account, name it with `EYEPOP_ACCOUNT_UUID` or the `accountId` option, which `EyePop.workerEndpoint()` and `EyePop.dataEndpoint()` both take. A worker endpoint sends it as `account_uuid` when it creates a session and reuses only a live session of that account; without it, the compute API refuses a session it cannot attribute to an account.
+Work runs and is billed under one account. If your credential belongs to more than one account, name it with `EYEPOP_ACCOUNT_UUID` or the `accountId` option, which `EyePop.workerEndpoint()` and `EyePop.dataEndpoint()` both take. In pipeline mode `accountId` is sent with the exchange of a login token (`accessToken` or `oAuth2`), and with the `/v1/configs` request when the compute API names the pipeline API (no `EYEPOP_ENV` or `pipelineApiUrl`). An API key is exchanged without it, so with an API key and `EYEPOP_ENV` (or `pipelineApiUrl`) set, `accountId` has no effect in pipeline mode. With `isPipelineMode: false` it sends it as `account_uuid` when it creates a worker session and reuses only a live session of that account; without it, the compute API refuses a session it cannot attribute to an account.
 
 ## Documentation
 
@@ -207,6 +209,6 @@ Customer documentation lives in [docs/gitbook](docs/gitbook/README.md) and is pu
 
 ## Module Docs
 
-- [@eyepop.ai/eyepop](src/eyepop/README.md) - Node and browser SDK for worker sessions.
+- [@eyepop.ai/eyepop](src/eyepop/README.md) - Node and browser SDK.
 - [@eyepop.ai/eyepop-render-2d](src/eyepop-render-2d/README.md) - Canvas rendering helpers for predictions.
 - [@eyepop.ai/react-native-eyepop](src/react-native-eyepop/README.md) - React Native SDK package.

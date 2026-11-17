@@ -151,7 +151,7 @@ const endpoint = await EyePop.workerEndpoint({
 
 ### Changing a Pop
 
-Pass the Pop at construction whenever you can. `endpoint.changePop(pop)` switches the Pop on an already connected endpoint: it recreates the pipeline on a transient worker, and patches the pipeline's Pop on a persistent Deployment meant to accept runtime changes.
+Pass the Pop at construction whenever you can. `endpoint.changePop(pop)` switches the Pop on an already connected endpoint: in pipeline mode it sets the Pop on every open socket; with a worker session it recreates the pipeline on a transient worker, and patches the pipeline's Pop on a persistent Deployment meant to accept runtime changes.
 
 {% hint style="info" %}
 Three things in [Components](../../platform/pop-components.md) are not yet available from Node: the `objectAreaThreshold` and `multiClass` attributes, and the `raw` inference type. `PopComponent` is also a plain union rather than a discriminated one, so TypeScript will not flag an attribute used on the wrong component type. The worker does not reject it either — it ignores what the component type does not define, so a misplaced attribute silently does nothing.

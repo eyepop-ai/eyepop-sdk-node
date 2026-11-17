@@ -1,6 +1,6 @@
 name: Node Pipeline Smoke
 
-# Runs the source SDK in its default (pipeline) mode against staging: two jobs on the pipeline API,
+# Runs the source SDK in its default (pipeline) mode against the selected environment: two jobs on the pipeline API,
 # no worker session. The session paths stay covered by SDK Integration and Node Sessions Smoke.
 on:
     push:

@@ -7,7 +7,7 @@ import { parseArgs } from 'node:util'
 
 const require = createRequire(import.meta.url)
 
-const DEFAULT_EYEPOP_URL = 'https://compute.staging.eyepop.xyz'
+const DEFAULT_EYEPOP_URL = 'https://compute.eyepop.ai'
 const DEFAULT_IMAGE = 'examples/example.jpg'
 const DEFAULT_ABILITY = 'eyepop.localize-objects:latest'
 const DEFAULT_PROMPT = 'person'
@@ -64,7 +64,7 @@ const { values } = parseArgs({
 })
 
 function printHelpAndExit() {
-    console.info(`CPU session demo for staging
+    console.info(`CPU session demo (the worker session flow, which is deprecated)
 
 Usage:
   npm run demo:cpu-session -- --image examples/example.jpg --prompt person
@@ -78,8 +78,8 @@ Options:
   -a, --ability <alias>       Ability alias. Default: ${DEFAULT_ABILITY}
   -c, --expectedClass <name>  Class label to summarize. Default: ${DEFAULT_EXPECTED_CLASS}
       --minConfidence <n>     Minimum confidence for the summary. Default: 0.5
-      --eyepopUrl <url>       Compute API URL. Default: EYEPOP_URL or staging
-      --noCleanup             Leave the transient session in staging
+      --eyepopUrl <url>       Compute API URL. Default: EYEPOP_URL or https://compute.eyepop.ai
+      --noCleanup             Leave the transient session running
       --requireMatch          Exit non-zero if the ModelLess pop returns no objects
       --json                  Print the full prediction payload
 `)

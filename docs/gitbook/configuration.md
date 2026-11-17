@@ -29,15 +29,19 @@ The nested `auth` option is deprecated. Pass the credential at the top level in 
 
 `accessToken` and `oAuth2` hold a login token, as from your dashboard.eyepop.ai account. The SDK exchanges it at the compute API (`POST /v1/auth/authenticate`) for a token that carries your account, sends that token, and exchanges again when it expires or a request or a pipeline mode socket is answered 401, retrying once. Name the account with `accountId` when your login has more than one. A token that already carries an account (the `https://ident.eyepop.ai/account-uuid` claim, read without checking the signature) is used as it is, with no exchange, and so is a token the compute API refuses with "API key or user login required". Any other refusal is raised, including an expired or invalid login (`AUTH_001`, "Authentication failed"), `AUTHZ_001` for an account you may not use, and a server error.
 
-### Transient and persistent sessions
+### Pipeline mode, transient and persistent sessions
 
-With no session UUID and a `pop` — the flow every example here uses — the SDK creates a new **transient** session each time it connects, and deletes the pipeline it created on disconnect. It does not delete the session itself. This is the right default for building and testing.
+By default the endpoint runs in **pipeline mode**: it opens a socket to the pipeline API and sets your `pop` there, and no worker session is created. Point it at a local pipeline API with `EYEPOP_ENV=local`. This is the flow every example here uses, and the right default for building and testing.
 
-With no `pop`, the SDK reuses your first live non-persistent session if you have one, and creates a new session otherwise.
+{% hint style="warning" %}
+The worker session flow is deprecated: transient and persistent sessions, `isPipelineMode: false`, `sessionUuid` and the options that go with them. Use pipeline mode.
+{% endhint %}
+
+With `isPipelineMode: false` (or `EYEPOP_PIPELINE_MODE=false`) and no session UUID, the SDK works with a worker session instead. With a `pop` it creates a new **transient** session each time it connects, and deletes the pipeline it created on disconnect; it does not delete the session itself. With no `pop`, it reuses your first live non-persistent session if you have one, and creates a new session otherwise.
 
 ### Account
 
-A session runs and is billed under one account. When your credential belongs to more than one account, name the account with `EYEPOP_ACCOUNT_UUID` or the `accountId` option — the same option the data endpoint takes. The SDK sends it as `account_uuid` when it creates a session, and reuses only a live session of that account. Without it, the compute API refuses to create a session it cannot attribute, with `VAL_001: account_uuid is required`.
+Work runs and is billed under one account. When your credential belongs to more than one account, name the account with `EYEPOP_ACCOUNT_UUID` or the `accountId` option — the same option the data endpoint takes. In pipeline mode `accountId` is sent with the exchange of a login token (`accessToken` or `oAuth2`), and with the `/v1/configs` request when the compute API names the pipeline API (no `EYEPOP_ENV` or `pipelineApiUrl`). An API key is exchanged without it, so with an API key and `EYEPOP_ENV` (or `pipelineApiUrl`) set, `accountId` has no effect in pipeline mode. With `isPipelineMode: false` it sends it as `account_uuid` when it creates a worker session, and reuses only a live session of that account; without it, the compute API refuses to create a session it cannot attribute, with `VAL_001: account_uuid is required`.
 
 ```typescript
 const endpoint = await EyePop.workerEndpoint({
@@ -45,7 +49,7 @@ const endpoint = await EyePop.workerEndpoint({
 }).connect()
 ```
 
-Pipeline mode is the default; it runs no worker session. To run against a persistent Deployment, turn it off (`isPipelineMode: false` or `EYEPOP_PIPELINE_MODE=false`) and set `EYEPOP_SESSION_UUID` or pass `sessionUuid`. The Pop normally comes from the Deployment, so you do not pass one:
+Pipeline mode is the default; it runs no worker session. To run against a persistent Deployment (a deprecated flow), turn it off (`isPipelineMode: false` or `EYEPOP_PIPELINE_MODE=false`) and set `EYEPOP_SESSION_UUID` or pass `sessionUuid`. The Pop normally comes from the Deployment, so you do not pass one:
 
 ```typescript
 const endpoint = await EyePop.workerEndpoint({
@@ -54,11 +58,9 @@ const endpoint = await EyePop.workerEndpoint({
 }).connect()
 ```
 
-Pick the pipeline API with `EYEPOP_ENV=staging|production|local`.
-
 ### Browser and mobile clients
 
-Never ship an API key in client code. Create the session on a trusted backend and pass only the session JSON to the client, which connects with `session`.
+Never ship an API key in client code. Connect on a trusted backend, call `endpoint.session()`, and pass only the session JSON to the client, which connects with `session`. A session from a pipeline mode endpoint makes the client run in pipeline mode too.
 
 ### Local mode
 

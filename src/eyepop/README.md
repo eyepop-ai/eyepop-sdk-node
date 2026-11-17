@@ -1,6 +1,6 @@
 # EyePop.ai Node SDK
 
-The EyePop.ai Node SDK provides JavaScript and TypeScript access to EyePop worker sessions for image and video inference.
+The EyePop.ai Node SDK provides JavaScript and TypeScript access to EyePop for image and video inference.
 
 ## Installation
 
@@ -39,7 +39,7 @@ See the [React Native example](https://github.com/eyepop-ai/eyepop-sdk-node/tree
 The SDK supports these authentication patterns:
 
 - API key authentication for trusted server-side code.
-- Persistent worker session selection for provisioned deployments.
+- Persistent worker session selection for provisioned deployments (with `isPipelineMode: false`). **Deprecated**: the worker session flow is deprecated; use pipeline mode.
 - Browser OAuth for dashboard users building local demos.
 
 ### Server-Side API Key
@@ -50,7 +50,7 @@ Set `EYEPOP_API_KEY` in your server environment. API keys are secrets and must n
 export EYEPOP_API_KEY=<your_api_key>
 ```
 
-Create transient sessions with a pop when the worker endpoint is constructed. This lets EyePop schedule the right compute before media is processed.
+Pass a pop when the worker endpoint is constructed, so the pipeline is ready before media is processed.
 
 ```typescript
 import { EyePop } from '@eyepop.ai/eyepop'
@@ -77,9 +77,9 @@ import { EyePop } from '@eyepop.ai/eyepop'
 })()
 ```
 
-For transient sessions, pass `pop` when creating the endpoint whenever possible. Use `endpoint.changePop(pop)` only when an already connected transient worker needs to switch Pops.
+Pass `pop` when creating the endpoint whenever possible. Use `endpoint.changePop(pop)` only when an already connected endpoint needs to switch Pops.
 
-Pipeline mode is the default and runs no worker session; `EYEPOP_ENV=staging|production|local` picks its pipeline API. With `isPipelineMode: false` (or `EYEPOP_PIPELINE_MODE=false`) and no `sessionUuid`, the SDK creates compute sessions with `POST /v1/sessions?wait=true`.
+Pipeline mode is the default and runs no worker session; `EYEPOP_ENV=production|local` picks its pipeline API. With `isPipelineMode: false` (or `EYEPOP_PIPELINE_MODE=false`) and no `sessionUuid`, the SDK creates compute sessions with `POST /v1/sessions?wait=true`.
 
 ModelLess CPU pops use the same constructor-pop path:
 
@@ -119,6 +119,8 @@ const endpoint = await EyePop.workerEndpoint({
 The nested `auth` option is still supported but deprecated. Pass `apiKey`, `accessToken`, `session`, or `oAuth2` at the top level for new code.
 
 ### Persistent Sessions
+
+> **Deprecated.** The worker session flow, persistent and transient sessions alike, is deprecated. Use pipeline mode, the default.
 
 If EyePop has provisioned a persistent worker session for your deployment, set `EYEPOP_SESSION_UUID` in the trusted server environment or pass `sessionUuid` explicitly, with pipeline mode off (`isPipelineMode: false`).
 
@@ -175,7 +177,7 @@ The response includes `session_uuid`, `session_status`, `status_url`, and worker
 
 ### Browser and Mobile Clients
 
-Do not put `EYEPOP_API_KEY` in browser or mobile application code. Create EyePop sessions from a trusted backend, then pass only the session JSON to the client.
+Do not put `EYEPOP_API_KEY` in browser or mobile application code. Connect on a trusted backend, call `endpoint.session()`, then pass only the session JSON to the client. A session from a pipeline mode endpoint makes the client run in pipeline mode too.
 
 ### Browser OAuth for Local Dashboard Demos
 
@@ -281,7 +283,7 @@ for await (const result of results) {
 
 ## Endpoint Options
 
-By default, `EyePop.workerEndpoint({ pop }).connect()` starts a transient worker when needed and cancels queued jobs on that worker when it connects.
+These two options apply to worker sessions (`isPipelineMode: false`), a deprecated flow; pipeline mode, the default, ignores them. With a worker session, `EyePop.workerEndpoint({ pop }).connect()` starts a transient worker when needed and cancels queued jobs on that worker when it connects.
 
 Disable worker startup:
 

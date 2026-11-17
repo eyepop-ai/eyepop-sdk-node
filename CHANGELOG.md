@@ -6,6 +6,9 @@
 - An event classification task (VREE-347): `AutoAnnotateTask.event_classification`, for `InferRequest` and user-defined VLM abilities. It answers which prompts' events (an action, an activity, something that happens) take place in one video or video chunk, returned as `classes`, on `qwen3` only. The Dataset API refuses an event ability on `gpt_6_astra` or `gemini_4_argon`.
 - A task takes optional `instructions` (VREE-347): `InferRequest`, `VlmAbilityCreate`, `VlmAbilityUpdate` and `VlmAbility` have `instructions`, the caller's own instructions for the task, added after the worker's. They refine what the model looks at, not the shape of the answer. `createVlmAbility` and `updateVlmAbility` throw `VlmAbilityModeError` before any request for instructions that are not 1 to `MAX_TASK_INSTRUCTIONS_LENGTH` (2000) characters (`invalid_instructions`), for instructions next to `text_prompt`, `transform_into` or `response_schema` (`task_excludes_free_form`), and, on a create, for instructions without a task (`instructions_without_task`). An update may change `instructions` alone. Needs eyepop-vlm with eyepop-vlm#512 and a Dataset API that stores them.
 
+### Deprecated
+- The worker session flow: `isPipelineMode: false` (or `EYEPOP_PIPELINE_MODE=false`), persistent and transient sessions, `sessionUuid`, `sessionName`, `pipelineImage`, `pipelineVersion`, `sessionReadyTimeoutSeconds`, `autoStart` and `stopJobs` and their environment variables. Use pipeline mode, the default.
+
 ## [4.0.0] - 2026-11-13
 
 The first stable release of 4.0: `EyePop.workerEndpoint()` runs in pipeline mode by default. See 4.0.0-rc.1 for the breaking change, and rc.2 and rc.3 for the pipeline fixes.
@@ -40,11 +43,11 @@ The first stable release of 4.0: `EyePop.workerEndpoint()` runs in pipeline mode
 - **Breaking:** `EYEPOP_PIPELINE_MODE` must be `true`, `yes`, `false` or `no` (any case), or empty; another value throws instead of reading as `false`.
 - **Breaking:** a `session` handed to `workerEndpoint()` that does not say `isPipelineMode` is a worker session.
 - **Breaking:** `EYEPOP_LOCAL_MODE=true` now means pipeline mode on `EYEPOP_URL` or `http://127.0.0.1:9002`, not a worker session on `http://127.0.0.1:8080`.
-- **Breaking:** an `EYEPOP_ENV` that is not `staging`, `production` or `local` throws `no_pipeline_api_url` in pipeline mode; the SDK ignored the variable before.
+- **Breaking:** an unrecognised `EYEPOP_ENV` throws `no_pipeline_api_url` in pipeline mode; the SDK ignored the variable before.
 
 ### Added
-- `EYEPOP_ENV=staging|production` also picks the compute API that mints the token (`compute.staging.eyepop.xyz`, `compute.eyepop.ai`), unless `eyepopUrl`, `EYEPOP_URL` or a `session` names one.
-- `EYEPOP_ENV=staging|production|local` picks the pipeline API (`pipeline.staging.eyepop.xyz`, `pipeline.eyepop.ai`, `127.0.0.1:9002`), and the `pipelineApiUrl` option overrides it. Unset, the compute API names it as before.
+- `EYEPOP_ENV=production` also picks the compute API that mints the token (`compute.eyepop.ai`), unless `eyepopUrl`, `EYEPOP_URL` or a `session` names one.
+- `EYEPOP_ENV=production|local` picks the pipeline API (`pipeline.eyepop.ai`, `127.0.0.1:9002`), and the `pipelineApiUrl` option overrides it. Unset, the compute API names it as before.
 
 ## [3.27.1] - 2026-11-12
 
@@ -80,7 +83,7 @@ The first stable release of 4.0: `EyePop.workerEndpoint()` runs in pipeline mode
 ## [3.25.6] - 2026-11-05
 
 ### Fixed
-- `oAuth2: true` signs in at the Auth0 custom domains (`auth0.eyepop.xyz` on staging, `auth0.eyepop.ai` in production). The APIs only accept tokens issued there; the old `*.auth0.com` defaults made `connect()` fail with 401 AUTH_001.
+- `oAuth2: true` signs in at the Auth0 custom domains (`auth0.eyepop.ai`). The APIs only accept tokens issued there; the old `*.auth0.com` defaults made `connect()` fail with 401 AUTH_001.
 
 ### Changed
 - The `oAuth2: true` default scope no longer asks for `admin:clouds`; it is `access:inference-api access:datasets`.
@@ -106,13 +109,13 @@ The first stable release of 4.0: `EyePop.workerEndpoint()` runs in pipeline mode
   - Leave `config.max_new_tokens` unset for a task to get the worker's default; the server's 200-token default for plain requests would cut off a detection answer.
 
 ### Changed
-- In pipeline mode, an endpoint runs its jobs on up to 4 sockets (the `pipelineSockets` worker option, exported default `PIPELINE_SOCKETS`) instead of one. A socket's pipeline plays its sources one after another, so one socket of 704-pixel images ran `common-objects.large` at about 30 images per second on a staging T4 with the GPU about a third busy; 4 sockets ran about 89 with the GPU 98 percent busy (2026-10-29). A new socket opens only while every open one has a source, with the pop set on it, and each job goes on the socket with the fewest open sources, so jobs run one after another still use one socket. When the pipeline API refuses another socket, the job goes on an open one instead of waiting, and the endpoint asks again only 10 s later. A live source goes on an idle socket or a new one, which `pipelineSockets` does not count, and no other job is sent on a socket that has one, so images no longer queue behind a camera that never ends and a camera refused `overloaded` takes no other source down with its socket. `changePop` sets the pop on every open socket. Jobs still go out in submission order, but a job on a less busy socket may finish before an earlier one.
+- In pipeline mode, an endpoint runs its jobs on up to 4 sockets (the `pipelineSockets` worker option, exported default `PIPELINE_SOCKETS`) instead of one. A socket's pipeline plays its sources one after another, so one socket of 704-pixel images ran `common-objects.large` at about 30 images per second on a T4 with the GPU about a third busy; 4 sockets ran about 89 with the GPU 98 percent busy (2026-10-29). A new socket opens only while every open one has a source, with the pop set on it, and each job goes on the socket with the fewest open sources, so jobs run one after another still use one socket. When the pipeline API refuses another socket, the job goes on an open one instead of waiting, and the endpoint asks again only 10 s later. A live source goes on an idle socket or a new one, which `pipelineSockets` does not count, and no other job is sent on a socket that has one, so images no longer queue behind a camera that never ends and a camera refused `overloaded` takes no other source down with its socket. `changePop` sets the pop on every open socket. Jobs still go out in submission order, but a job on a less busy socket may finish before an earlier one.
 
 ## [3.25.3] - 2026-10-30
 
 ### Fixed
 - Selected predictions arrive on an endpoint that does not know its Pop: a persistent deployment attached by session UUID, or an on-premise instance in local mode without a pop. Every endpoint now asks for prediction version 3, where it used to ask for it only when the Pop it was given had a select forward and asked for version 2 otherwise. `DEFAULT_PREDICTION_VERSION` is `V3`.
-- In pipeline mode, a source the pipeline API refuses `queue_full` goes again once another source on the socket ended, instead of rejecting its job. The socket holds at most 256 open sources and 32 MiB of uploads sent in one message (eyepop-instance `image-max-bytes`); with images of about 600 KiB, about 53 fit, so a batch of 500 images on one endpoint lost many of them to `queue_full` (seen with the Python SDK on staging, 2026-10-29, which had the same behaviour). A refused source may now go after jobs submitted later. A `queue_full` refusal with none of the endpoint's other sources open on the socket still rejects the job, since no end would make room.
+- In pipeline mode, a source the pipeline API refuses `queue_full` goes again once another source on the socket ended, instead of rejecting its job. The socket holds at most 256 open sources and 32 MiB of uploads sent in one message (eyepop-instance `image-max-bytes`); with images of about 600 KiB, about 53 fit, so a batch of 500 images on one endpoint lost many of them to `queue_full` (seen with the Python SDK, 2026-10-29, which had the same behaviour). A refused source may now go after jobs submitted later. A `queue_full` refusal with none of the endpoint's other sources open on the socket still rejects the job, since no end would make room.
 
 ## [3.25.2] - 2026-10-30
 

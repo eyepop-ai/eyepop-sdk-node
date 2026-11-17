@@ -1,7 +1,7 @@
 /**
  * Runs a worker endpoint in pipeline mode, the default: the same calls as with a worker session, on the pipeline API.
  *
- * Run it with EYEPOP_API_KEY set, and EYEPOP_ENV=staging|production|local to pick the pipeline API:
+ * Run it with EYEPOP_API_KEY set, and EYEPOP_ENV=production|local to pick the pipeline API:
  * `npx tsx examples/node/pipeline_mode.ts examples/example.jpg examples/large_example.jpg`.
  */
 import { EyePop, PopComponentType } from '@eyepop.ai/eyepop'

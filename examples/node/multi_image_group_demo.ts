@@ -13,7 +13,8 @@
  *
  * Environment variables:
  *   EYEPOP_API_KEY             — required
- *   EYEPOP_SESSION_UUID        — use a pre-configured persistent session (skips changePop)
+ *   EYEPOP_ENV                 — production or local, to pick the pipeline API
+ *   EYEPOP_SESSION_UUID        — (deprecated) use a pre-configured persistent session (skips changePop)
  *   EYEPOP_MULTI_IMAGE_ABILITY — ability to use (default: eyepop.vlm.image:latest)
  */
 
@@ -53,7 +54,7 @@ const groupPop: Pop = {
 ;(async () => {
     let endpoint: WorkerEndpoint | undefined
     try {
-        endpoint = await EyePop.workerEndpoint({ logger, sessionUuid, isPipelineMode: false })
+        endpoint = await EyePop.workerEndpoint({ logger, sessionUuid, ...(sessionUuid ? { isPipelineMode: false } : {}) })
             .onStateChanged((from: EndpointState, to: EndpointState) => {
                 logger.info('Endpoint state %s -> %s', from, to)
             })
