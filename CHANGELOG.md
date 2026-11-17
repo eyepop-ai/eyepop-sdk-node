@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Changed
+- **Breaking:** `EYEPOP_ENV` takes `production` or `local`; any other value throws `no_pipeline_api_url`. To use another environment, set `EYEPOP_URL` (or `eyepopUrl`) to its compute API, which names the pipeline API in its `/v1/configs`.
+
 ## [4.0.0] - 2026-11-13
 
 The first stable release of 4.0: `EyePop.workerEndpoint()` runs in pipeline mode by default. See 4.0.0-rc.1 for the breaking change, and rc.2 and rc.3 for the pipeline fixes.

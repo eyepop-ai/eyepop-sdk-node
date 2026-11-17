@@ -11,7 +11,7 @@ npx jest --runInBand --testPathIgnorePatterns="<rootDir>/.worktrees"
 
 ## Session integration
 
-`npm run smoke:pipeline` runs the pipeline mode smoke (`scripts/pipeline-smoke.mjs`): two jobs on the pipeline API, no session created. Set `EYEPOP_API_KEY` and pick the environment with `EYEPOP_ENV` or `--environment`; `--help` lists the options. The `Node Pipeline Smoke` workflow runs it on pushes to `main` and on PRs that touch `src/eyepop`.
+`npm run smoke:pipeline` runs the pipeline mode smoke (`scripts/pipeline-smoke.mjs`): two jobs on the pipeline API, no session created. Set `EYEPOP_API_KEY` and `EYEPOP_URL` (the compute API), or pass `--eyepop-url`; `--help` lists the options. The `Node Pipeline Smoke` workflow runs it on pushes to `main` and on PRs that touch `src/eyepop`.
 
 Run the session matrix locally before dispatching the `SDK Integration` workflow. Copy `.env.example` to `.env` and set `EYEPOP_API_KEY` to a key for the account you want to exercise; the smoke script loads `.env` when the variable is not already exported.
 
@@ -40,7 +40,7 @@ node scripts/session-smoke.mjs \
   --summary-json /tmp/node-sdk-integration.json
 ```
 
-For the VLM-only slice, change `--scenario all-transient` to `--scenario vlm-direct`. Add `--environment <name>` to target another environment instead of the default. `node scripts/session-smoke.mjs --help` lists every option.
+For the VLM-only slice, change `--scenario all-transient` to `--scenario vlm-direct`. Add `--eyepop-url <url>` to target another compute API instead of the default. `node scripts/session-smoke.mjs --help` lists every option.
 
 The smoke deletes only the transient sessions its own `POST /v1/sessions` calls returned and that did not exist before each scenario connected; a session it reused stays. `--cleanup-preexisting` is different: it deletes every transient session of the user before each scenario, including sessions other clients are using at that moment. The fixture users (`basic`, `pro`) are shared with eyepop-sdk-python CI, the VLM smokes and agent runs, so use the flag only by hand, on an account nobody else uses, and never in CI. The script refuses it when `CI=true`.
 

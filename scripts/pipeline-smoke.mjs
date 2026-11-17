@@ -9,7 +9,6 @@ const require = createRequire(import.meta.url)
 
 const ENV_URLS = {
     production: 'https://compute.eyepop.ai',
-    staging: 'https://compute.staging.eyepop.xyz',
 }
 
 const USAGE = `Usage: node scripts/pipeline-smoke.mjs [options]
@@ -19,9 +18,8 @@ jobs return the expected objects. No worker session is created, so nothing is de
 A value in parentheses is the environment variable read when the option is not passed; a
 repo .env is loaded first.
 
-  --environment <name>     production or staging (EYEPOP_ENV, default staging). Also sets
-                           EYEPOP_ENV for the SDK, which picks the pipeline API from it.
-  --eyepop-url <url>       compute API URL, overriding the environment's (EYEPOP_URL)
+  --environment <name>     label for the run; production when --eyepop-url names no other (EYEPOP_ENV, default production)
+  --eyepop-url <url>       compute API URL; names the pipeline API through its /v1/configs (EYEPOP_URL)
   --api-key <key>          (EYEPOP_API_KEY)
   --sdk-module <path>      SDK build to load (default ./src/eyepop/dist/eyepop.index.js)
   --explicit-mode          pass isPipelineMode: true instead of relying on the default;
@@ -50,7 +48,7 @@ function loadDotEnv(path = '.env') {
 
 function parseArgs(argv) {
     const args = {
-        environment: process.env.EYEPOP_ENV || 'staging',
+        environment: process.env.EYEPOP_ENV || 'production',
         eyepopUrl: process.env.EYEPOP_URL || '',
         apiKey: process.env.EYEPOP_API_KEY || '',
         sdkModule: './src/eyepop/dist/eyepop.index.js',
@@ -106,11 +104,10 @@ async function main() {
         }
         const eyepopUrl = args.eyepopUrl || ENV_URLS[args.environment]
         if (!eyepopUrl) {
-            throw new Error(`Unknown environment ${args.environment}; use staging or production, or pass --eyepop-url`)
+            throw new Error(`Unknown environment ${args.environment}; use production, or pass --eyepop-url`)
         }
-        // The SDK picks the pipeline API from EYEPOP_ENV; an SDK that predates the variable ignores it
-        // and takes the url from the compute API's /v1/configs.
-        process.env.EYEPOP_ENV = args.environment
+        // EYEPOP_ENV stays unset for the SDK: the compute API at eyepopUrl names the pipeline API.
+        delete process.env.EYEPOP_ENV
         const sdk = require(resolve(args.sdkModule))
         summary.sdk_module = args.sdkModule
         summary.eyepop_url = eyepopUrl

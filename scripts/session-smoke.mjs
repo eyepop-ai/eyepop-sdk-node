@@ -10,7 +10,6 @@ const require = createRequire(import.meta.url)
 
 const ENV_URLS = {
     production: 'https://compute.eyepop.ai',
-    staging: 'https://compute.staging.eyepop.xyz',
 }
 
 const USAGE = `Usage: node scripts/session-smoke.mjs [options]
@@ -20,8 +19,8 @@ the results, and writes a JSON summary. A value in parentheses is the environmen
 variable read when the option is not passed; a repo .env is loaded first.
 
 Target:
-  --environment <name>        production or staging (EYEPOP_ENV, default production)
-  --eyepop-url <url>          compute URL, overriding the environment's (EYEPOP_URL)
+  --environment <name>        label for the run; production unless --eyepop-url is given (EYEPOP_ENV, default production)
+  --eyepop-url <url>          compute URL (EYEPOP_URL)
   --api-key <key>             (EYEPOP_API_KEY)
   --session-name <prefix>     each scenario requests <prefix>-<scenario> (EYEPOP_SESSION_NAME)
   --sdk-module <path>         SDK build to load (EYEPOP_SMOKE_SDK_MODULE,
