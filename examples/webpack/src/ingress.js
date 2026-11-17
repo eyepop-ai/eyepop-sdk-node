@@ -9,8 +9,10 @@ let stopButton = undefined
 let roiSwitch = undefined
 let timingSpan = undefined
 let resultSpan = undefined
+let cameraStatus = undefined
 
 let resultStream = undefined
+let starting = false
 
 let localVideo = undefined
 let localResultOverlay = undefined
@@ -24,30 +26,96 @@ async function setup() {
     roiSwitch = document.getElementById('roi-switch')
     timingSpan = document.getElementById('timing')
     resultSpan = document.getElementById('txt_json')
+    cameraStatus = document.getElementById('camera-status')
 
     localVideo = document.getElementById('local-video')
     localResultOverlay = document.getElementById('local-result-overlay')
     localOverlayContext = localResultOverlay.getContext('2d')
 
-    connectButton.addEventListener('click', connect)
+    connectButton.addEventListener('click', connectOnce)
     startButton.addEventListener('click', startLocalStream)
     stopButton.addEventListener('click', stopStream)
 
+    const allowButton = document.getElementById('allow-camera')
+    allowButton.addEventListener('click', allowCamera)
     connectButton.disabled = false
+    // connect at once; the camera starts as soon as it is allowed, with no Connect or Start to press
+    connectOnce().catch(error => showCamera('Could not connect: ' + error.message, true))
+    if (!navigator.mediaDevices) {
+        // a browser exposes the camera only on https or http://localhost, never on an IP or a .local name
+        allowButton.disabled = true
+        showCamera('No camera access here: open this page as http://localhost:8000/ or over https.', true)
+        return
+    }
+    navigator.mediaDevices.addEventListener('devicechange', populateDevices)
+    document.getElementById('video_device').addEventListener('change', restartStream)
     await populateDevices()
+    // the browser names the cameras only after the camera is allowed once; ask now if it is not already
+    const permission = await navigator.permissions?.query({ name: 'camera' }).catch(() => undefined)
+    if (permission?.state === 'granted') {
+        showCamera('Camera allowed.')
+        autoStart()
+    } else if (permission?.state === 'denied') {
+        showCamera('Camera blocked for this page: allow it from the camera icon in the address bar, then press Allow camera.', true)
+    } else {
+        showCamera('Press Allow camera, then choose Allow in the browser prompt.')
+    }
+    permission?.addEventListener('change', allowCameraChanged)
+}
+
+function showCamera(text, problem = false) {
+    cameraStatus.textContent = text
+    cameraStatus.style.color = problem ? '#f0883e' : ''
+}
+
+function allowCameraChanged(event) {
+    if (event.target.state === 'granted') {
+        populateDevices()
+        showCamera('Camera allowed.')
+        autoStart()
+    }
+}
+
+// Asks the browser for the camera once, so that it shows its prompt now and names the cameras in the list.
+async function allowCamera() {
+    try {
+        const probe = await navigator.mediaDevices.getUserMedia({ video: true })
+        probe.getTracks().forEach(track => track.stop())
+        await populateDevices()
+        showCamera('Camera allowed.')
+        autoStart()
+    } catch (error) {
+        showCamera(cameraProblem(error), true)
+    }
+}
+
+function cameraProblem(error) {
+    switch (error.name) {
+        case 'NotAllowedError':
+            return 'Camera blocked: allow it from the camera icon in the address bar, then press Allow camera.'
+        case 'NotFoundError':
+            return 'No camera found on this machine; choose screen in the list to share a window instead.'
+        case 'NotReadableError':
+            return 'The camera is in use by another application.'
+        default:
+            return 'Camera error: ' + error.message
+    }
 }
 
 async function populateDevices() {
     return navigator.mediaDevices.enumerateDevices().then(devices => {
+        const list = document.getElementById('video_device')
+        const chosen = list.value
+        list.replaceChildren()
         for (const device of devices) {
-            console.log(device)
             switch (device.kind) {
                 case 'videoinput':
                     {
                         const opt = document.createElement('option')
                         opt.value = device.deviceId
-                        opt.text = device.label
-                        document.getElementById('video_device').appendChild(opt)
+                        // the label is empty until the camera is allowed once
+                        opt.text = device.label || 'Camera ' + (list.children.length + 1)
+                        list.appendChild(opt)
                     }
                     break
             }
@@ -59,12 +127,23 @@ async function populateDevices() {
         opt.text = 'screen'
         document.getElementById('video_device').appendChild(opt)
 
-        // set default
-        document.getElementById('video_device').value = document.getElementById('video_device').children[1].value
+        // set default: the one chosen before, else the first source, a camera; the last is 'screen'
+        list.value = [...list.children].some(o => o.value === chosen) ? chosen : list.children[0].value
     })
 }
 
-async function connect(event) {
+let connecting = undefined
+
+function connectOnce() {
+    // a second call waits for the first; a failed connection can be tried again
+    connecting ??= connect().catch(error => {
+        connecting = undefined
+        throw error
+    })
+    return connecting
+}
+
+async function connect() {
     if (!endpoint) {
         const session = await (await fetch('eyepop-session.json')).json()
         endpoint = await EyePop.workerEndpoint({
@@ -80,8 +159,25 @@ async function connect(event) {
             }]
         })
     }
-    popNameElement.innerHTML = endpoint.popName()
+    popNameElement.textContent = endpoint.popName() || 'connected'
+    popNameElement.parentElement.dataset.on = ''
+    connectButton.hidden = true
     startButton.disabled = false
+}
+
+// Starts the chosen camera unless one is starting or already streams.
+function autoStart() {
+    if (!localVideo.srcObject && !starting) {
+        startLocalStream()
+    }
+}
+
+// A new choice in the list moves the stream to it.
+async function restartStream() {
+    if (localVideo.srcObject) {
+        await stopStream()
+    }
+    startLocalStream()
 }
 
 async function renderFromResultStream(results) {
@@ -102,12 +198,16 @@ async function renderFromResultStream(results) {
 }
 
 async function startLocalStream(event) {
+    starting = true
+    startButton.disabled = true
+    await connectOnce()
+    startButton.disabled = true // connecting enables it
     const startTime = performance.now()
     timingSpan.innerHTML = '__ms'
     resultSpan.innerHTML = "<span class='text-muted'>processing</a>"
-    startButton.disabled = true
     const videoId = document.getElementById('video_device').value
     let stream = undefined
+    try {
     if (videoId == 'screen') {
         stream = await navigator.mediaDevices.getDisplayMedia({
             video: {
@@ -120,13 +220,18 @@ async function startLocalStream(event) {
         })
     } else {
         stream = await navigator.mediaDevices.getUserMedia({
-            video: true,
-            //     {
-            //     width: { ideal: 4096 },
-            //     height: { ideal: 2160 },
-            // },
+            video: videoId ? { deviceId: { exact: videoId } } : true,
         })
     }
+    } catch (error) {
+        showCamera(cameraProblem(error), true)
+        starting = false
+        startButton.disabled = false
+        timingSpan.innerHTML = '__ms'
+        resultSpan.innerHTML = ''
+        return
+    }
+    showCamera('Streaming from ' + (stream.getVideoTracks()[0]?.label || videoId) + '.')
     localVideo.srcObject = stream
     localVideo.play()
     timingSpan.innerHTML = Math.floor(performance.now() - startTime) + 'ms'
@@ -164,6 +269,7 @@ async function startLocalStream(event) {
 }
 
 async function stopStream(event) {
+    starting = false
     stopButton.disabled = true
     localVideo.pause()
     localVideo.srcObject = null
