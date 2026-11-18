@@ -1,6 +1,6 @@
 import { describe, expect, test } from '@jest/globals'
 
-import { ComputeSessionClient, SessionStatus } from '../../../src/eyepop/compute/compute_session'
+import { ComputeSessionClient, SessionStatus, pipelineIdFromSession, type ComputeSession } from '../../../src/eyepop/compute/compute_session'
 import type { HttpClient } from '../../../src/eyepop/options'
 import { PopComponentType, type Pop } from '../../../src/eyepop/worker/worker_types'
 
@@ -188,5 +188,31 @@ describe('ComputeSessionClient', () => {
             sessionAccountId: 'other-account-uuid',
             accountId: 'account-uuid',
         })
+    })
+})
+
+describe('pipelineIdFromSession', () => {
+    const session = (fields: Partial<ComputeSession>) => ({ ...sessionResponse()[0], ...fields }) as ComputeSession
+
+    test('takes pipeline_uuid when compute-api fills it', () => {
+        expect(pipelineIdFromSession(session({ pipeline_uuid: 'chosen', pipelines: [{ pipeline_id: 'other' }] }))).toBe('chosen')
+    })
+
+    test('skips the pipelines the session agent owns', () => {
+        expect(pipelineIdFromSession(session({ pipelines: [{ pipeline_id: 'agent-cam-detect' }, { id: 'agent-processor-p1' }, { pipeline_id: 'boot' }] }))).toBe('boot')
+    })
+
+    test('takes the first pipeline when the agent owns every one', () => {
+        expect(pipelineIdFromSession(session({ pipelines: [{ pipeline_id: 'agent-cam-detect' }, { pipeline_id: 'agent-processor-p1' }] }))).toBe('agent-cam-detect')
+    })
+
+    test('takes the first pipeline of a session without an agent', () => {
+        expect(pipelineIdFromSession(session({ pipelines: [{ id: 'first' }, { pipeline_id: 'second' }] }))).toBe('first')
+    })
+
+    test('is null without pipelines', () => {
+        expect(pipelineIdFromSession(session({ pipelines: [] }))).toBeNull()
+        const { pipelines: _, ...withoutPipelines } = session({})
+        expect(pipelineIdFromSession(withoutPipelines as ComputeSession)).toBeNull()
     })
 })

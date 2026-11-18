@@ -34,6 +34,56 @@ interface Pipeline {
     pop?: Pop
 }
 
+type ServerErrorFields = { error?: string | undefined; reason?: string | undefined; message?: string | undefined }
+
+/**
+ * The worker refused to change a pipeline (HTTP 409): the session's declaration
+ * owns it, so a declared stream or a processor runs it, or the session fixes its
+ * pop. `error`, `reason` and `serverMessage` are the worker's own fields, when it
+ * sent them. Change the declaration rather than the pipeline; sending the same
+ * change again is refused again.
+ */
+export class PipelineManagedError extends Error {
+    readonly status: number
+    readonly pipelineId: string | undefined
+    readonly sessionUuid: string | undefined
+    readonly error: string | undefined
+    readonly reason: string | undefined
+    readonly serverMessage: string | undefined
+
+    constructor(status: number, pipelineId: string | undefined, sessionUuid: string | undefined, fields: ServerErrorFields = {}) {
+        const pipeline = `the pipeline ${pipelineId ?? '(unknown)'}${sessionUuid ? ` of session ${sessionUuid}` : ''}`
+        const what =
+            fields.error == 'pop_fixed'
+                ? `${pipeline} runs the session's fixed pop, which cannot be changed through the SDK; change the session's pop instead`
+                : `${pipeline} is managed by the session's declaration (a declared stream or processor) and its pop cannot be changed through the SDK; change the declaration instead`
+        const server = [fields.error, fields.reason, fields.message].filter(part => !!part).join(': ')
+        super(server ? `${what} (${status} ${server})` : `${what} (${status})`)
+        this.name = 'PipelineManagedError'
+        this.status = status
+        this.pipelineId = pipelineId
+        this.sessionUuid = sessionUuid
+        this.error = fields.error
+        this.reason = fields.reason
+        this.serverMessage = fields.message
+    }
+
+    static async fromResponse(response: Response, pipelineId: string | undefined, sessionUuid: string | undefined): Promise<PipelineManagedError> {
+        const body = await response.text()
+        let fields: ServerErrorFields = {}
+        try {
+            const parsed = JSON.parse(body)
+            if (parsed && typeof parsed == 'object') {
+                const text = (key: string) => (typeof parsed[key] == 'string' && parsed[key].length > 0 ? (parsed[key] as string) : undefined)
+                fields = { error: text('error'), reason: text('reason'), message: text('message') }
+            }
+        } catch (_) {
+            fields = body.trim() ? { message: body.trim().slice(0, 300) } : {}
+        }
+        return new PipelineManagedError(response.status, pipelineId, sessionUuid, fields)
+    }
+}
+
 /** Runs jobs on a worker session: a compute API session, or a named pop found through its config. */
 export class SessionBackend implements WorkerBackend {
     private _baseUrl: string | null = null
@@ -43,6 +93,8 @@ export class SessionBackend implements WorkerBackend {
     private _sessionAccessTokenValidUntil: number | null = null
     // The account the connected compute session runs under, as compute-api reports it.
     private _accountId: string | undefined = undefined
+    // The connected compute session, as compute-api reports it.
+    private _sessionUuid: string | undefined = undefined
 
     private _pipeline: Pipeline | null = null
     private _pipelineCreatePromise: Promise<string> | null = null
@@ -132,12 +184,14 @@ export class SessionBackend implements WorkerBackend {
             return Promise.reject('endpoint not connected, use connect()')
         }
 
+        let pipelineId: string | undefined
         let response = await this.ctx.fetchWithRetry(async () => {
             const session = await this.session()
             let headers = {
                 'Content-Type': 'application/json',
                 ...this._authenticationHeaders(session),
             }
+            pipelineId = session.pipelineId
             const patch_url = `${session.baseUrl}/pipelines/${session.pipelineId}/pop`
             return await client.fetch(patch_url, {
                 method: 'PATCH',
@@ -145,6 +199,9 @@ export class SessionBackend implements WorkerBackend {
                 headers: headers,
             })
         })
+        if (response.status == 409) {
+            throw await PipelineManagedError.fromResponse(response, pipelineId, this._sessionUuid ?? this.ctx.options.sessionUuid)
+        }
         if (response.status != 204) {
             const message = await response.text()
             throw new Error(`Unexpected status ${response.status}: ${message}`)
@@ -516,6 +573,7 @@ export class SessionBackend implements WorkerBackend {
         this._sessionAccessTokenValidUntil = resolved.accessTokenValidUntil
         this._baseUrl = resolved.session.session_endpoint
         this._accountId = resolved.session.account_uuid || undefined
+        this._sessionUuid = resolved.session.session_uuid || undefined
         this._pipeline = null
         this._pipelineId = resolved.pipelineId
         if (this.ctx.options.pop) {
