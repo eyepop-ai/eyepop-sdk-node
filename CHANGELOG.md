@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+- On a persistent worker session attached with `sessionUuid`, the endpoint now works on a pipeline the session's agent does not own: the first listed one whose id does not start with `agent-`, else the first listed one as before. compute-api lists a session's pipelines in no stable order, so on an agent-mode session `changePop()` could replace the pop of a declared stream's or a processor's pipeline.
+- `changePop()` on a worker session that answers `409` rejects with `PipelineManagedError` (`status`, `pipelineId`, `sessionUuid`, and the worker's `error`, `reason` and `serverMessage`), whose message says the session's declaration (a declared stream or processor) manages the pipeline and to change the declaration instead; for `pop_fixed`, that the session fixes its pop. It used to reject with a plain `Error('Unexpected status 409: …')`. It is not retried. eyepop-instance answers this `409` for a declared stream's or a processor's pipeline from spec 021 PR 9 on.
+
 ## [4.1.0] - 2026-11-17
 
 ### Added

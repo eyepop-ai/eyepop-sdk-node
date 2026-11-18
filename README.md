@@ -166,6 +166,8 @@ const endpoint = await EyePop.workerEndpoint().connect()
 
 Persistent sessions are worker sessions, so turn pipeline mode off with `EYEPOP_PIPELINE_MODE=false` (or `isPipelineMode: false`). Then, when `EYEPOP_SESSION_UUID` is set, `EyePop.workerEndpoint()` connects to that persistent session. Persistent deployments are normally created outside the SDK through the compute API or EyePop tooling.
 
+On a persistent session the endpoint works on a pipeline the session's agent does not own (one whose id does not start with `agent-`), when there is one. `changePop()` on a pipeline the session's declaration owns, a declared stream's or a processor's, rejects with `PipelineManagedError`, which names the pipeline, the session and the worker's `error`, `reason` and `serverMessage`; change the declaration instead. It does not retry.
+
 ## Pipeline Mode
 
 Pipeline mode is the default: a worker endpoint runs its jobs on the pipeline API instead of a worker session. Set `isPipelineMode: false`, or `EYEPOP_PIPELINE_MODE=false`, for a worker session. `EYEPOP_ENV=production|local` picks the pipeline API (`pipeline.eyepop.ai`, `127.0.0.1:9002`); unset, the compute API names it. The code that uses the endpoint stays the same:

@@ -74,12 +74,21 @@ const CHECK_FOR_IS_READY_INTERVAL = 250
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
+// The worker names every pipeline its agent runtime owns (a declared stream's
+// job, a processor) `agent-…`, and reads the same prefix to tell them apart.
+const AGENT_PIPELINE_ID_PREFIX = 'agent-'
+
+/**
+ * The pipeline the SDK works on in a compute session: `pipeline_uuid`, else the
+ * first listed pipeline that the session's agent does not own, else the first
+ * listed one. compute-api lists the pipelines in no stable order.
+ */
 export function pipelineIdFromSession(session: ComputeSession): string | null {
     if (session.pipeline_uuid) {
         return session.pipeline_uuid
     }
-    const pipeline = session.pipelines?.[0]
-    return pipeline?.id || pipeline?.pipeline_id || null
+    const ids = (session.pipelines ?? []).map(pipeline => pipeline?.id || pipeline?.pipeline_id).filter((id): id is string => !!id)
+    return ids.find(id => !id.startsWith(AGENT_PIPELINE_ID_PREFIX)) ?? ids[0] ?? null
 }
 
 function sessionCreateBody(options: ComputeSessionClientOptions): string | undefined {

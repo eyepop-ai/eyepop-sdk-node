@@ -150,6 +150,8 @@ import { EyePop } from '@eyepop.ai/eyepop'
 
 Persistent sessions are normally preconfigured. In that case, process media directly and do not call `changePop()` unless your deployment is meant to accept runtime Pop changes.
 
+On a persistent session the endpoint works on a pipeline the session's agent does not own (one whose id does not start with `agent-`), when there is one. `changePop()` on a pipeline the session's declaration owns, a declared stream's or a processor's, rejects with `PipelineManagedError`, which names the pipeline, the session and the worker's `error`, `reason` and `serverMessage`; change the declaration instead. It does not retry.
+
 Persistent deployments are created through compute-api or EyePop tooling. For example, a trusted server can create a persistent deployment with an inline pop and then pass the returned `session_uuid` to the SDK:
 
 ```shell
