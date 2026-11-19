@@ -4,6 +4,7 @@ import {
     PipelineBackend,
     PipelineCommandError,
     PipelineConfigurationError,
+    PipelineOverloadedError,
     PipelineSocketClosedError,
     PipelineSourceError,
     Pop,
@@ -419,7 +420,10 @@ describe('pipeline mode (SDK-27)', () => {
         expect(fake.sockets).toHaveLength(2)
 
         fake.overloadedLive = 2
-        await expect(all(await ep.process({ source: { url: 'rtsp://camera.example/other' } }))).rejects.toThrow(PipelineCommandError)
+        const refused = await all(await ep.process({ source: { url: 'rtsp://camera.example/other' } })).catch(e => e)
+        expect(refused).toBeInstanceOf(PipelineOverloadedError)
+        expect(refused).toBeInstanceOf(PipelineCommandError)
+        expect([refused.error, refused.waitedSecs]).toEqual(['overloaded', undefined])
         await ep.disconnect()
     })
 

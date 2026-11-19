@@ -73,6 +73,8 @@ export class FakePipelineApi {
     queueFullDelayMs = 0
     closeOnPop: number | null = null
     upgradeDelayMs = 0
+    // Called for every upgrade request, before it is answered.
+    onUpgrade: (() => void) | null = null
     upgrades = 0
     sourceGate: Promise<void> | null = null
     sourceDelayMs = 0
@@ -98,6 +100,7 @@ export class FakePipelineApi {
     constructor() {
         this._server.on('upgrade', (request, socket, head) => {
             this.upgrades += 1
+            this.onUpgrade?.()
             const answer = this.upgradeAnswers.shift()
             if (answer !== undefined) {
                 const headers = Object.entries(answer.headers ?? {})

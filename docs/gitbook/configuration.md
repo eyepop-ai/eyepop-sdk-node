@@ -39,6 +39,18 @@ The worker session flow is deprecated: transient and persistent sessions, `isPip
 
 With `isPipelineMode: false` (or `EYEPOP_PIPELINE_MODE=false`) and no session UUID, the SDK works with a worker session instead. With a `pop` it creates a new **transient** session each time it connects, and deletes the pipeline it created on disconnect; it does not delete the session itself. With no `pop`, it reuses your first live non-persistent session if you have one, and creates a new session otherwise.
 
+### Waiting for capacity
+
+A pipeline API with no capacity refuses a new socket with HTTP 503 or 429. A new GPU node takes minutes to arrive, so in pipeline mode the SDK waits and asks again: the `Retry-After` the answer names (at least 1 s, growing by half with each refusal up to 10 s or the `Retry-After` itself if that is more, plus up to half again as jitter), else 1, 2, 4, 8 and then 10 s. It gives up after `pipelineWaitTimeout` seconds, counted from the first refusal and shared by every socket that is refused meanwhile, and rejects with `PipelineOverloadedError`.
+
+| Option | Environment | Default |
+|---|---|---|
+| `pipelineWaitTimeout` | `EYEPOP_PIPELINE_WAIT_TIMEOUT` (plain decimal seconds; blank is unset) | `600` seconds; `0` does not wait and rejects at the first refusal |
+
+A give-up is remembered until a socket opens, `connect()` or `disconnect()`: jobs submitted before it make one attempt and fail with it at once (`waitedSecs` 0), and a job submitted after it tries and waits as usual, since capacity may be back. Jobs go out in submission order, so a live source waiting for its own socket holds the jobs queued behind it for up to `pipelineWaitTimeout`. The reconnect after a `1011 overloaded` or `1001 shutting_down` close is a single attempt, not a wait.
+
+The first wait is logged at `warn` and each retry at `debug`. Set a low value, or `0`, in a script or a test suite that should fail rather than wait. `disconnect()` ends a wait at once. The error is a `PipelineCommandError` with `error === 'overloaded'` and `waitedSecs`; it has no `status`, and its `cause` is the last refusal, an `UpgradeError` (exported) with `status`.
+
 ### Account
 
 Work runs and is billed under one account. When your credential belongs to more than one account, name the account with `EYEPOP_ACCOUNT_UUID` or the `accountId` option — the same option the data endpoint takes. In pipeline mode `accountId` is sent with the exchange of a login token (`accessToken` or `oAuth2`), and with the `/v1/configs` request when the compute API names the pipeline API (no `EYEPOP_ENV` or `pipelineApiUrl`). An API key is exchanged without it, so with an API key and `EYEPOP_ENV` (or `pipelineApiUrl`) set, `accountId` has no effect in pipeline mode. With `isPipelineMode: false` it sends it as `account_uuid` when it creates a worker session, and reuses only a live session of that account; without it, the compute API refuses to create a session it cannot attribute, with `VAL_001: account_uuid is required`.

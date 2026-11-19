@@ -10,6 +10,7 @@ import { WorkerSession, validatePop } from './worker/worker_types'
 import { DataSession } from './data/data_types'
 
 export { WorkerEndpoint } from './worker/worker_endpoint'
+export { UpgradeError } from './shims/websockets'
 export { DataEndpoint, EyePopDataWebSocketError } from './data/data_endpoint'
 
 export {
@@ -337,6 +338,17 @@ export namespace EyePop {
         if (opts.isLocalMode && !opts.eyepopUrl) {
             // Local mode talks to the pipeline API itself, on its default listener.
             opts.eyepopUrl = readEnv('EYEPOP_URL') || 'http://127.0.0.1:9002'
+        }
+        if (opts.pipelineWaitTimeout === undefined) {
+            const waitTimeout = readEnv('EYEPOP_PIPELINE_WAIT_TIMEOUT')
+            // Blank is unset; otherwise plain decimal seconds only, so that '0x10' and '1e3' are refused, not read.
+            if (waitTimeout?.trim()) {
+                const text = waitTimeout.trim()
+                if (!/^\d+(\.\d+)?$/.test(text)) {
+                    throw new PipelineConfigurationError('pipeline_wait_timeout', `EYEPOP_PIPELINE_WAIT_TIMEOUT=${waitTimeout} is not a number of seconds, 0 or more (digits, with an optional decimal part)`)
+                }
+                opts.pipelineWaitTimeout = Number(text)
+            }
         }
         if (!opts.jobQueueLength) {
             opts.jobQueueLength = MAX_OPEN_SOURCES
