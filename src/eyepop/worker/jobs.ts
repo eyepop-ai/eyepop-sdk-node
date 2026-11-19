@@ -20,10 +20,21 @@ function mediaCacheMembers(params: ProcessParams): Record<string, number | boole
     return members
 }
 
-/** An upload sends the media cache members as query parameters. */
+// Module-level on purpose, like warnedWorkerRelease in data_endpoint.ts: the warning is once per process.
+let warnedUploadReencode = false
+
+/**
+ * An upload sends mediaCacheSeconds as a query parameter. The instance's upload routes do not read
+ * mediaCacheReencode, so it is not sent, and the caller is told once that it has no effect there; it
+ * applies to a url or an asset source.
+ */
 function setMediaCacheQuery(queryParams: URLSearchParams, params: ProcessParams): void {
-    for (const [name, value] of Object.entries(mediaCacheMembers(params))) {
-        queryParams.set(name, String(value))
+    if (params.mediaCacheSeconds !== undefined) {
+        queryParams.set('mediaCacheSeconds', String(params.mediaCacheSeconds))
+    }
+    if (params.mediaCacheReencode !== undefined && !warnedUploadReencode) {
+        warnedUploadReencode = true
+        console.warn('mediaCacheReencode has no effect for an upload on a worker session; it applies to a url or an asset source')
     }
 }
 
