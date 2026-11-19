@@ -430,7 +430,9 @@ class Run {
             setImmediate(() => this.playNext())
             return
         }
-        this.send({ type: 'start', id })
+        // a source that records to the media cache gets a mediaId on its start, as the pipeline API gives it (spec 024)
+        const records = typeof command['mediaCacheSeconds'] === 'number' && command['mediaCacheSeconds'] > 0
+        this.send({ type: 'start', id, ...(records ? { mediaId: `v1.media-of-${id}` } : {}) })
         if (isLive(command)) {
             let n = 0
             this._live = id

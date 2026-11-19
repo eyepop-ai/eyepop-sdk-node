@@ -294,6 +294,7 @@ export class PipelineJob implements ResultStream {
     // Stops the job's source on the pipeline, once it was sent.
     stopOnPipeline: (() => void) | null = null
     private _milliComputeUnits: number | undefined = undefined
+    private _mediaId: string | undefined = undefined
 
     constructor(
         readonly source: Message,
@@ -312,6 +313,19 @@ export class PipelineJob implements ResultStream {
     /** The source's milli compute units: the latest total of its `usage` messages and its `end`. */
     get milliComputeUnits(): number | undefined {
         return this._milliComputeUnits
+    }
+
+    /** The recording's mediaId, from the source's start, when it records to the media cache. */
+    get mediaId(): string | undefined {
+        return this._mediaId
+    }
+
+    /** Keep a start's mediaId, which the pipeline API sends for a source that records. */
+    noteStart(message: Message): void {
+        const value = message['mediaId']
+        if (typeof value === 'string' && value !== '') {
+            this._mediaId = value
+        }
     }
 
     /** Keep a usage's or an end's milliComputeUnits: each carries the source's total so far. */
@@ -341,6 +355,12 @@ export class PipelineJob implements ResultStream {
         }
         if (this.videoMode !== undefined) {
             command['videoMode'] = this.videoMode
+        }
+        if (this.params.mediaCacheSeconds !== undefined) {
+            command['mediaCacheSeconds'] = this.params.mediaCacheSeconds
+        }
+        if (this.params.mediaCacheReencode !== undefined) {
+            command['mediaCacheReencode'] = this.params.mediaCacheReencode
         }
         return command
     }
@@ -1004,6 +1024,9 @@ export class PipelineBackend implements WorkerBackend {
             switch (message['type']) {
                 case 'result':
                     onResult()
+                    break
+                case 'start':
+                    job.noteStart(message)
                     break
                 case 'prediction':
                     job.predicted(message['prediction'] as Prediction)

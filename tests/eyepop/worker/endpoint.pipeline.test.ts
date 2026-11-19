@@ -269,6 +269,24 @@ describe('pipeline mode (SDK-27)', () => {
         expect(warnings).toEqual([])
     })
 
+    test('mediaCacheSeconds and mediaCacheReencode go on the setSource, and a recording job gets its mediaId (spec 024)', async () => {
+        const ep = endpoint()
+        await ep.connect()
+        const recorded = await ep.process({ source: { url: 'https://videos.example/a.mp4' }, mediaCacheSeconds: 600, mediaCacheReencode: true })
+        await all(recorded)
+        const plain = await ep.process({ source: { url: 'https://videos.example/b.mp4' } })
+        await all(plain)
+        await ep.disconnect()
+        const [first, second] = sources(only()) as [Record<string, any>, Record<string, any>]
+        expect(first['mediaCacheSeconds']).toBe(600)
+        expect(first['mediaCacheReencode']).toBe(true)
+        expect(second).not.toHaveProperty('mediaCacheSeconds')
+        expect(second).not.toHaveProperty('mediaCacheReencode')
+        expect(recorded.mediaId).toBe(`v1.media-of-${first['id']}`)
+        expect(plain.mediaId).toBeUndefined()
+        expect(warnings).toEqual([])
+    })
+
     test('videoMode goes on an upload’s setSource (AWSU-317)', async () => {
         const ep = endpoint()
         await ep.connect()

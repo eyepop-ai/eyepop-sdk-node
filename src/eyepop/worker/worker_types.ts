@@ -85,6 +85,12 @@ export interface ResultStream extends AsyncIterable<Prediction> {
      * not report it; a local model reports none. Informational: the called API bills its calls itself.
      */
     readonly milliComputeUnits?: number | undefined
+    /**
+     * The recording's id, on a stream whose source records to the media cache (`mediaCacheSeconds`) in pipeline
+     * mode: an opaque string, set once the source starts, to pass back unchanged to read the recording. Undefined
+     * before the start, for a source that does not record, and on a worker session.
+     */
+    readonly mediaId?: string | undefined
 }
 
 // Pop definition types
@@ -433,6 +439,18 @@ export interface ProcessParams {
      * address in it twice, which it answers 404.
      */
     rtspForceNonCompliantUrl?: boolean | undefined
+    /**
+     * Record the source to the media cache and keep its last this many seconds, on a worker session and in
+     * pipeline mode alike. At most the server's maximum, one day by default. In pipeline mode the job's
+     * `mediaId` names the recording once the source starts; the pipeline API refuses it without a media cache,
+     * for a token that names no account, and for a group.
+     */
+    mediaCacheSeconds?: number | undefined
+    /**
+     * Record the source encoded again from its decode, with a keyframe every 2 s, for a camera that sends
+     * keyframes too rarely. Takes effect with `mediaCacheSeconds`.
+     */
+    mediaCacheReencode?: boolean | undefined
 }
 
 export interface ProcessRequest extends ProcessParams {
