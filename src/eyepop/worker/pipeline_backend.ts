@@ -31,6 +31,10 @@ const MAX_BACKOFF_MS = 10 * 1000
 const RETRY_AFTER_GROWTH = 1.5
 // The longest delay setTimeout takes; a longer one fires after 1 ms, which would have the SDK ask again in a tight loop.
 const MAX_TIMER_MS = 2 ** 31 - 1
+// A wait that gave up is remembered while jobs keep failing against it: each such failure renews it, and it is
+// forgotten after this long without one. Jobs queued behind a give-up, one round trip apart, so fail at once
+// however long the queue is, and a job submitted later, unrelated to it, gets a wait of its own.
+const GIVE_UP_QUIET_MS = 30 * 1000
 /** Uploads up to this size go as one combined message, larger ones in chunks. */
 export const COMBINED_UPLOAD_MAX_BYTES = 8 * 1024 * 1024
 
@@ -121,6 +125,7 @@ interface WaitEpisode {
     timeoutSecs: number
     // The upgrades waiting in it.
     waiters: number
+    // When the wait last gave up, or a job last failed against that give-up.
     gaveUpAt: number | undefined
 }
 
@@ -650,6 +655,7 @@ export class PipelineBackend implements WorkerBackend {
     private async upgrade(url: string, patient: boolean, cancelled?: Promise<void>): Promise<WebSocket> {
         let rejected = false
         let refusals = 0
+        let asked = 0
         let episode: WaitEpisode | undefined
         try {
             while (true) {
@@ -680,13 +686,15 @@ export class PipelineBackend implements WorkerBackend {
                     if (episode === undefined) {
                         episode = this.joinEpisode(now)
                         first = episode.waiters === 1 && episode.gaveUpAt === undefined
+                        asked = now
                     }
                     const left = episode.deadline - now
                     if (left <= 0) {
-                        episode.gaveUpAt ??= now
-                        const waited = (now - episode.started) / 1000
+                        episode.gaveUpAt = now
+                        // What this call waited, not what the episode did: a job that fails against an earlier give-up waited nothing.
+                        const waited = refusals === 0 ? 0 : (now - asked) / 1000
                         throw new PipelineOverloadedError(
-                            waited === 0
+                            refusals === 0
                                 ? `the pipeline API has no capacity (HTTP ${error.status}) and the SDK did not wait for it: pipelineWaitTimeout is ${episode.timeoutSecs} s, or a wait for capacity gave up earlier and no socket has opened since`
                                 : `the pipeline API stayed at capacity for ${Math.round(waited)} seconds (HTTP ${error.status}); the wait is limited by pipelineWaitTimeout (${episode.timeoutSecs} s)`,
                             waited,
@@ -716,11 +724,15 @@ export class PipelineBackend implements WorkerBackend {
 
     /**
      * The wait for capacity this refusal belongs to: the one in progress, else a new one. One that gave up
-     * stays until a socket opens, `connect()` or `disconnect()`, so every job queued behind the give-up
-     * fails at once, however long each one's round trip takes, instead of starting a wait of its own.
+     * stays while jobs fail against it (see GIVE_UP_QUIET_MS) and until a socket opens, `connect()` or
+     * `disconnect()`, so every job queued behind the give-up fails at once, however long each one's round
+     * trip takes, instead of starting a wait of its own.
      */
     private joinEpisode(now: number): WaitEpisode {
         let episode = this._episode
+        if (episode !== null && episode.gaveUpAt !== undefined && now - episode.gaveUpAt > GIVE_UP_QUIET_MS) {
+            episode = null
+        }
         if (episode === null) {
             const timeoutSecs = this.ctx.options.pipelineWaitTimeout ?? PIPELINE_WAIT_TIMEOUT_SECS
             episode = { started: now, deadline: now + timeoutSecs * 1000, timeoutSecs, waiters: 0, gaveUpAt: undefined }

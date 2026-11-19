@@ -381,24 +381,97 @@ describe('pipeline mode waits for capacity', () => {
         errors.forEach(error => expect(error).toBeInstanceOf(PipelineOverloadedError))
         // 22 s in all: the first job's refused upgrade (2 s), its wait (10 s), its last refused upgrade (2 s),
         // and one refused upgrade (2 s) for each of the 4 jobs behind it. A job that started a wait of its
-        // own, as one does when the give-up is forgotten after 5 s, adds 10 s.
+        // own, as one does when the give-up is forgotten too soon, adds 10 s.
         expect(Date.now() - started).toBeLessThan(25 * 1000)
         expect(jest.getTimerCount()).toBe(0)
     })
 
-    test('a give-up is remembered until a socket opens: a job that runs later makes one attempt', async () => {
+    test('a long queue fails promptly: each job that fails against the give-up renews it', async () => {
         const ep = endpoint({ pipelineWaitTimeout: 10 })
         await noSocket(ep)
-        refused(50, 503, { 'Retry-After': '10' })
+        refused(200, 503, { 'Retry-After': '10' })
+        roundTrip(2)
+        const started = Date.now()
+        const jobs: Array<Promise<unknown>> = []
+        for (let n = 0; n < 20; n++) {
+            jobs.push(outcome(all(await ep.process({ source: { url: `https://images.example/${n}.jpg` } }))))
+        }
+        let settled = 0
+        jobs.forEach(job => job.then(() => (settled += 1)))
+        await asksAgainAfter(10000)
+        for (let step = 0; step < 5000 && settled < jobs.length; step++) {
+            await jest.advanceTimersByTimeAsync(1)
+            await io(5)
+        }
+        const errors = (await Promise.all(jobs)) as PipelineOverloadedError[]
+        errors.forEach(error => expect(error).toBeInstanceOf(PipelineOverloadedError))
+        // 2 + 10 + 2 s for the first job and 2 s for each of the 19 behind it, which is more than the 30 s of
+        // quiet after the first give-up: a window that did not renew would let the later jobs wait 10 s each.
+        expect(Date.now() - started).toBeLessThan(60 * 1000)
+        expect(waitsAnnounced()).toBe(1)
+    })
+
+    test('a give-up is forgotten after 30 s without a job failing against it: a later job waits', async () => {
+        const ep = endpoint({ pipelineWaitTimeout: 10 })
+        await noSocket(ep)
+        refused(2, 503, { 'Retry-After': '10' })
+        const firstJob = outcome(all(await ep.process({ source: { url: 'https://images.example/0.jpg' } })))
+        await asksAgainAfter(10000)
+        expect(await firstJob).toBeInstanceOf(PipelineOverloadedError)
+        const failFast = async (n: number) => {
+            const upgrades = fake.upgrades
+            const error = (await outcome(all(await ep.process({ source: { url: `https://images.example/${n}.jpg` } })))) as PipelineOverloadedError
+            expect(error).toBeInstanceOf(PipelineOverloadedError)
+            expect(error.waitedSecs).toBe(0)
+            expect(error.message).toContain('gave up earlier')
+            expect(fake.upgrades).toBe(upgrades + 1)
+        }
+        refused(10, 503, { 'Retry-After': '10' })
+        await jest.advanceTimersByTimeAsync(29 * 1000)
+        await failFast(1)
+        // 58 s after the give-up, but 29 s after the last job that failed against it
+        await jest.advanceTimersByTimeAsync(29 * 1000)
+        await failFast(2)
+        expect(waitsAnnounced()).toBe(1)
+        fake.upgradeAnswers.length = 0
+        await jest.advanceTimersByTimeAsync(31 * 1000)
+        refused(1, 503, { 'Retry-After': '3' })
+        const later = all(await ep.process({ source: { url: 'https://images.example/3.jpg' } }))
+        await asksAgainAfter(3000)
+        expect(await later).toEqual([prediction(0), prediction(1)])
+        await ep.disconnect()
+    })
+
+    test('the job that waited reports what it waited, and a job that failed against its give-up reports 0', async () => {
+        const ep = endpoint({ pipelineWaitTimeout: 10 })
+        await noSocket(ep)
+        refused(10, 503, { 'Retry-After': '10' })
         const first = outcome(all(await ep.process({ source: { url: 'https://images.example/0.jpg' } })))
+        const second = outcome(all(await ep.process({ source: { url: 'https://images.example/1.jpg' } })))
+        await asksAgainAfter(10000)
+        const [waited, fast] = (await Promise.all([first, second])) as PipelineOverloadedError[]
+        expect(waited!.waitedSecs).toBe(10)
+        expect(waited!.message).toContain('stayed at capacity for 10 seconds')
+        expect(fast!.waitedSecs).toBe(0)
+        expect(fast!.message).toContain('gave up earlier')
+        await jest.advanceTimersByTimeAsync(20 * 1000)
+        const later = (await outcome(all(await ep.process({ source: { url: 'https://images.example/2.jpg' } })))) as PipelineOverloadedError
+        expect(later.waitedSecs).toBe(0)
+    })
+
+    test('reconnect() after a failed connect, with no disconnect between, waits again', async () => {
+        const ep = endpoint({ pipelineWaitTimeout: 10 })
+        refused(2, 503, { 'Retry-After': '10' })
+        const first = outcome(ep.connect())
         await asksAgainAfter(10000)
         expect(await first).toBeInstanceOf(PipelineOverloadedError)
-        const upgrades = fake.upgrades
-        await jest.advanceTimersByTimeAsync(60 * 60 * 1000)
-        const later = (await outcome(all(await ep.process({ source: { url: 'https://images.example/1.jpg' } })))) as PipelineOverloadedError
-        expect(later).toBeInstanceOf(PipelineOverloadedError)
-        expect(fake.upgrades).toBe(upgrades + 1)
-        expect(waitsAnnounced()).toBe(1)
+        // A second connect() would do nothing here, the endpoint being connected as far as it knows; the backend's
+        // reconnect() is what clears the give-up, and what a connect after a disconnect calls.
+        refused(1, 503, { 'Retry-After': '3' })
+        const reconnecting = ep.backend().reconnect()
+        await asksAgainAfter(3000)
+        await reconnecting
+        await ep.disconnect()
     })
 
     test('a socket that opens ends the give-up: the next refusal is waited through again', async () => {
