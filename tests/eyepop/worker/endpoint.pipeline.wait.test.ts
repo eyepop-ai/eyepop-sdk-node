@@ -438,10 +438,12 @@ describe('pipeline mode waits for capacity', () => {
         expect(await firstJob).toBeInstanceOf(PipelineOverloadedError)
         await jest.advanceTimersByTimeAsync(20 * 1000)
         fake.upgradeAnswers.length = 0
-        const upgrades = fake.upgrades
-        // The first job gave up 20 s ago, inside the old 30 s record: capacity is back, so this job gets a socket
-        expect(await all(await ep.process({ source: { url: 'https://images.example/1.jpg' } }))).toEqual([prediction(0), prediction(1)])
-        expect(fake.upgrades).toBeGreaterThan(upgrades)
+        // The first job gave up 20 s ago, inside the old 30 s record, and the pipeline API still refuses once more:
+        // this job waits a wait of its own, where the old record failed it at once, and then gets a socket
+        refused(1, 503, { 'Retry-After': '3' })
+        const second = all(await ep.process({ source: { url: 'https://images.example/1.jpg' } }))
+        await asksAgainAfter(3000)
+        expect(await second).toEqual([prediction(0), prediction(1)])
         await ep.disconnect()
     })
 

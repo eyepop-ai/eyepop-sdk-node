@@ -337,7 +337,9 @@ export class PipelineJob implements ResultStream {
     // Settles when the job is cancelled, so that a send waiting for room ends at once.
     readonly whenCancelled = new Promise<void>(resolve => (this._markCancelled = resolve))
     // When the job's send was last submitted, for a wait for capacity that gave up before it: a job
-    // submitted before that fails with the give-up, one submitted after it tries for itself.
+    // submitted before that fails with the give-up, one submitted after it tries for itself. It is set when
+    // the job gets room in the job queue, and again each time `run` sends it anew (a live source retried after
+    // `overloaded`, a source resent after `queue_full`).
     submittedAt = Date.now()
     openSource: OpenSource | null = null
     // Stops the job's source on the pipeline, once it was sent.
