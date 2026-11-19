@@ -6,6 +6,24 @@ export interface StreamEvent {
     type: string
     source_id?: string
     message?: string
+    // the event's own payload, e.g. a warning's code
+    info?: unknown
+}
+
+/**
+ * The event of a result line, in one shape. The pipeline writes {"event": "<type>", "source_id", "message",
+ * "info"}, which an instance session forwards as is; the instance's own events are {"event": {"type", ...}}.
+ */
+function streamEventOf(message: Record<string, unknown>): StreamEvent {
+    const event = message['event']
+    if (typeof event === 'string') {
+        const streamEvent: StreamEvent = { type: event }
+        if (typeof message['source_id'] === 'string') streamEvent.source_id = message['source_id']
+        if (typeof message['message'] === 'string') streamEvent.message = message['message']
+        if (message['info'] !== undefined) streamEvent.info = message['info']
+        return streamEvent
+    }
+    return event as StreamEvent
 }
 
 export class Stream<Prediction> implements AsyncIterable<Prediction> {
@@ -50,9 +68,8 @@ export class Stream<Prediction> implements AsyncIterable<Prediction> {
                     if (done) continue
                     if (line) {
                         const message = JSON.parse(line)
-                        const event = message['event']
-                        if (event !== undefined) {
-                            await eventHandler(event)
+                        if (message['event'] !== undefined) {
+                            await eventHandler(streamEventOf(message))
                         } else {
                             yield message
                         }
