@@ -338,6 +338,16 @@ export namespace EyePop {
             // Local mode talks to the pipeline API itself, on its default listener.
             opts.eyepopUrl = readEnv('EYEPOP_URL') || 'http://127.0.0.1:9002'
         }
+        if (opts.pipelineWaitTimeout === undefined) {
+            const waitTimeout = readEnv('EYEPOP_PIPELINE_WAIT_TIMEOUT')
+            if (waitTimeout) {
+                const seconds = Number(waitTimeout)
+                if (!(Number.isFinite(seconds) && seconds >= 0)) {
+                    throw new PipelineConfigurationError('pipeline_wait_timeout', `EYEPOP_PIPELINE_WAIT_TIMEOUT=${waitTimeout} is not a number of seconds, 0 or more`)
+                }
+                opts.pipelineWaitTimeout = seconds
+            }
+        }
         if (!opts.jobQueueLength) {
             opts.jobQueueLength = MAX_OPEN_SOURCES
         }

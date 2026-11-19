@@ -52,4 +52,11 @@ export interface WorkerOptions extends Options {
      * sources one after another; a new one opens only while every open one has a source. Defaults to 4.
      */
     pipelineSockets?: number
+    /**
+     * In pipeline mode, how many seconds a socket the pipeline API refuses for lack of capacity (HTTP 503 or 429)
+     * is retried before `PipelineOverloadedError`. The wait is the `Retry-After` the answer names (at least 1 s),
+     * else a jittered backoff of 1, 2, 4, 8, then 10 s. Defaults to process.env['EYEPOP_PIPELINE_WAIT_TIMEOUT'],
+     * then 600; 0 does not wait. A disconnect ends a wait.
+     */
+    pipelineWaitTimeout?: number
 }

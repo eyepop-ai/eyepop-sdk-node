@@ -25,6 +25,9 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             if (options.pipelineSockets !== undefined && !(Number.isInteger(options.pipelineSockets) && options.pipelineSockets > 0)) {
                 throw new PipelineConfigurationError('pipeline_sockets', `pipelineSockets ${options.pipelineSockets} is not a positive whole number`)
             }
+            if (options.pipelineWaitTimeout !== undefined && !(Number.isFinite(options.pipelineWaitTimeout) && options.pipelineWaitTimeout >= 0)) {
+                throw new PipelineConfigurationError('pipeline_wait_timeout', `pipelineWaitTimeout ${options.pipelineWaitTimeout} is not a number of seconds, 0 or more`)
+            }
         }
         super(options)
         const context: WorkerContext = {

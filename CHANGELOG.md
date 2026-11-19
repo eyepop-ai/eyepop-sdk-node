@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### Changed
+- **In pipeline mode a refused socket is waited through, not failed.** A pipeline API at capacity refuses a new socket with HTTP 503 or 429, and a new GPU node takes minutes to arrive. The SDK now waits the `Retry-After` seconds the answer names (at least 1 s, growing by half with each refusal up to 10 s or the `Retry-After` itself, plus up to half again as jitter), else a jittered backoff of 1, 2, 4, 8 and 10 s, and asks again, until `pipelineWaitTimeout` seconds (`WorkerOptions`, or `EYEPOP_PIPELINE_WAIT_TIMEOUT`; default 600; `0` does not wait). The limit counts from the first refusal and is shared, so jobs queued behind a socket that gave up fail with it at once instead of each starting a wait. `disconnect()` and cancelling the waiting job end a wait at once. The first wait is logged at `warn`, each retry at `debug`. Behaviour that changes for callers:
+  - Before, only a 503 that carried `Retry-After` was waited through, for at most 30 s, and a 429, or a 503 without `Retry-After`, rejected at once. The default wait is now 600 s: a script or a test suite that should fail fast sets `pipelineWaitTimeout` low or to `0`.
+  - A socket that stayed refused now rejects with `PipelineOverloadedError`, not the `UpgradeError` that carried the `status`; this holds with `pipelineWaitTimeout: 0` too. Code that checks `error.status` for 429 or 503 misses it: the `UpgradeError` is its `cause`.
+  - A live source refused `overloaded` twice now rejects with `PipelineOverloadedError` too, which is a `PipelineCommandError` with `error === 'overloaded'`, so code that catches that still works, and also catches a socket that stayed at capacity.
+  - The extra socket of a batch is still not waited for, a 401 still exchanges the API key once, and any other refusal still rejects at once.
+
+### Added
+- `PipelineOverloadedError`, a `PipelineCommandError` with `error === 'overloaded'` and `waitedSecs` (how long the SDK waited for a socket; undefined for a source).
+- `WorkerOptions.pipelineWaitTimeout` and `PIPELINE_WAIT_TIMEOUT_SECS` (600), and the `pipeline_wait_timeout` `PipelineConfigurationError` problem for a value that is not a number of seconds, 0 or more (also for `EYEPOP_PIPELINE_WAIT_TIMEOUT`).
+
 ### Fixed
 - On a persistent worker session attached with `sessionUuid`, the endpoint now works on a pipeline the session's agent does not own: the first listed one whose id does not start with `agent-`, else the first listed one as before. compute-api lists a session's pipelines in no stable order, so on an agent-mode session `changePop()` could replace the pop of a declared stream's or a processor's pipeline.
 - `changePop()` on a worker session that answers `409` rejects with `PipelineManagedError` (`status`, `pipelineId`, `sessionUuid`, and the worker's `error`, `reason` and `serverMessage`), whose message says the session's declaration (a declared stream or processor) manages the pipeline and to change the declaration instead; for `pop_fixed`, that the session fixes its pop. It used to reject with a plain `Error('Unexpected status 409: …')`. It is not retried. eyepop-instance answers this `409` for a declared stream's or a processor's pipeline from spec 021 PR 9 on.
