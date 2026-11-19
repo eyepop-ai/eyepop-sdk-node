@@ -31,10 +31,6 @@ const MAX_BACKOFF_MS = 10 * 1000
 const RETRY_AFTER_GROWTH = 1.5
 // The longest delay setTimeout takes; a longer one fires after 1 ms, which would have the SDK ask again in a tight loop.
 const MAX_TIMER_MS = 2 ** 31 - 1
-// A wait that gave up is remembered while jobs keep failing against it: each such failure renews it, and it is
-// forgotten after this long without one. Jobs queued behind a give-up, one round trip apart, so fail at once
-// however long the queue is, and a job submitted later, unrelated to it, gets a wait of its own.
-const GIVE_UP_QUIET_MS = 30 * 1000
 /** Uploads up to this size go as one combined message, larger ones in chunks. */
 export const COMBINED_UPLOAD_MAX_BYTES = 8 * 1024 * 1024
 
@@ -125,7 +121,7 @@ interface WaitEpisode {
     timeoutSecs: number
     // The upgrades waiting in it.
     waiters: number
-    // When the wait last gave up, or a job last failed against that give-up.
+    // When the wait gave up. A job submitted before that fails with it; a later one starts a wait of its own.
     gaveUpAt: number | undefined
 }
 
@@ -340,6 +336,9 @@ export class PipelineJob implements ResultStream {
     private _markCancelled!: () => void
     // Settles when the job is cancelled, so that a send waiting for room ends at once.
     readonly whenCancelled = new Promise<void>(resolve => (this._markCancelled = resolve))
+    // When the job's send was last submitted, for a wait for capacity that gave up before it: a job
+    // submitted before that fails with the give-up, one submitted after it tries for itself.
+    submittedAt = Date.now()
     openSource: OpenSource | null = null
     // Stops the job's source on the pipeline, once it was sent.
     stopOnPipeline: (() => void) | null = null
@@ -559,7 +558,7 @@ export class PipelineBackend implements WorkerBackend {
         if (this.ctx.client() === null) {
             throw new PipelineSocketClosedError(undefined, 'the endpoint is not connected')
         }
-        const ws = await this.upgrade(await this.socketUrl(), patient, job?.whenCancelled)
+        const ws = await this.upgrade(await this.socketUrl(), patient, job?.whenCancelled, job?.submittedAt)
         if (this._disconnecting) {
             // A reconnect whose upgrade finished after disconnect took the sockets it had.
             ws.close(1000)
@@ -647,12 +646,12 @@ export class PipelineBackend implements WorkerBackend {
      * Open the socket, and exchange the API key again after a 401, once. A 503 or 429 means no capacity yet.
      * When `patient` it is waited through, `Retry-After` seconds plus jitter, else a backoff, until
      * `pipelineWaitTimeout`, then PipelineOverloadedError. The limit belongs to the episode, not to the
-     * call: every socket that is refused while another waits, or after it gave up and until a socket opens
-     * (see joinEpisode), shares that deadline, so jobs queued behind a refusal fail with it instead of
+     * call: every socket that is refused while another waits, or for a job submitted before it gave up, until a socket
+     * opens (see joinEpisode), shares that deadline, so jobs queued behind a refusal fail with it instead of
      * each starting a wait of their own. Disconnect ends
      * a wait at once, and so does `cancelled` settling (the job that asked was cancelled). Any other refusal rejects.
      */
-    private async upgrade(url: string, patient: boolean, cancelled?: Promise<void>): Promise<WebSocket> {
+    private async upgrade(url: string, patient: boolean, cancelled?: Promise<void>, submittedAt?: number): Promise<WebSocket> {
         let rejected = false
         let refusals = 0
         let asked = 0
@@ -684,13 +683,13 @@ export class PipelineBackend implements WorkerBackend {
                     const now = Date.now()
                     let first = false
                     if (episode === undefined) {
-                        episode = this.joinEpisode(now)
+                        episode = this.joinEpisode(now, submittedAt ?? now)
                         first = episode.waiters === 1 && episode.gaveUpAt === undefined
                         asked = now
                     }
                     const left = episode.deadline - now
                     if (left <= 0) {
-                        episode.gaveUpAt = now
+                        episode.gaveUpAt ??= now
                         // What this call waited, not what the episode did: a job that fails against an earlier give-up waited nothing.
                         const waited = refusals === 0 ? 0 : (now - asked) / 1000
                         throw new PipelineOverloadedError(
@@ -724,13 +723,14 @@ export class PipelineBackend implements WorkerBackend {
 
     /**
      * The wait for capacity this refusal belongs to: the one in progress, else a new one. One that gave up
-     * stays while jobs fail against it (see GIVE_UP_QUIET_MS) and until a socket opens, `connect()` or
-     * `disconnect()`, so every job queued behind the give-up fails at once, however long each one's round
-     * trip takes, instead of starting a wait of its own.
+     * stays until a socket opens, `connect()` or `disconnect()`, so every job that was queued behind the
+     * give-up (submitted before it) fails at once, however long each one's round trip takes, instead of
+     * starting a wait of its own. A job submitted after the give-up starts a wait of its own: capacity may
+     * be back, and only a try can tell.
      */
-    private joinEpisode(now: number): WaitEpisode {
+    private joinEpisode(now: number, submittedAt: number): WaitEpisode {
         let episode = this._episode
-        if (episode !== null && episode.gaveUpAt !== undefined && now - episode.gaveUpAt > GIVE_UP_QUIET_MS) {
+        if (episode !== null && episode.gaveUpAt !== undefined && submittedAt >= episode.gaveUpAt) {
             episode = null
         }
         if (episode === null) {
@@ -1056,6 +1056,7 @@ export class PipelineBackend implements WorkerBackend {
     private async run(job: PipelineJob): Promise<void> {
         let retried = false
         while (true) {
+            job.submittedAt = Date.now()
             const sent = await this.inOrder(() => this.setSource(job))
             if (sent === null) {
                 return

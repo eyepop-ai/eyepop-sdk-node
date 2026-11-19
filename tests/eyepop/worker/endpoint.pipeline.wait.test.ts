@@ -386,7 +386,7 @@ describe('pipeline mode waits for capacity', () => {
         expect(jest.getTimerCount()).toBe(0)
     })
 
-    test('a long queue fails promptly: each job that fails against the give-up renews it', async () => {
+    test('a long queue fails promptly: every job submitted before the give-up fails with it', async () => {
         const ep = endpoint({ pipelineWaitTimeout: 10 })
         await noSocket(ep)
         refused(200, 503, { 'Retry-After': '10' })
@@ -405,40 +405,43 @@ describe('pipeline mode waits for capacity', () => {
         }
         const errors = (await Promise.all(jobs)) as PipelineOverloadedError[]
         errors.forEach(error => expect(error).toBeInstanceOf(PipelineOverloadedError))
-        // 2 + 10 + 2 s for the first job and 2 s for each of the 19 behind it, which is more than the 30 s of
-        // quiet after the first give-up: a window that did not renew would let the later jobs wait 10 s each.
+        // 2 + 10 + 2 s for the first job and 2 s for each of the 19 behind it, which is more than the 30 s after
+        // the first give-up: every one of them was submitted before it, so none waits 10 s of its own.
         expect(Date.now() - started).toBeLessThan(60 * 1000)
         expect(waitsAnnounced()).toBe(1)
     })
 
-    test('a give-up is forgotten after 30 s without a job failing against it: a later job waits', async () => {
+    test('a job submitted after a give-up tries for itself, however soon it comes', async () => {
         const ep = endpoint({ pipelineWaitTimeout: 10 })
         await noSocket(ep)
         refused(2, 503, { 'Retry-After': '10' })
         const firstJob = outcome(all(await ep.process({ source: { url: 'https://images.example/0.jpg' } })))
         await asksAgainAfter(10000)
         expect(await firstJob).toBeInstanceOf(PipelineOverloadedError)
-        const failFast = async (n: number) => {
-            const upgrades = fake.upgrades
-            const error = (await outcome(all(await ep.process({ source: { url: `https://images.example/${n}.jpg` } })))) as PipelineOverloadedError
-            expect(error).toBeInstanceOf(PipelineOverloadedError)
-            expect(error.waitedSecs).toBe(0)
-            expect(error.message).toContain('gave up earlier')
-            expect(fake.upgrades).toBe(upgrades + 1)
-        }
-        refused(10, 503, { 'Retry-After': '10' })
-        await jest.advanceTimersByTimeAsync(29 * 1000)
-        await failFast(1)
-        // 58 s after the give-up, but 29 s after the last job that failed against it
-        await jest.advanceTimersByTimeAsync(29 * 1000)
-        await failFast(2)
-        expect(waitsAnnounced()).toBe(1)
+        // 1 s after the give-up, the pipeline API is back at 3 s of Retry-After: the job waits a wait of its own
+        // instead of failing against the give-up
+        await jest.advanceTimersByTimeAsync(1000)
         fake.upgradeAnswers.length = 0
-        await jest.advanceTimersByTimeAsync(31 * 1000)
         refused(1, 503, { 'Retry-After': '3' })
-        const later = all(await ep.process({ source: { url: 'https://images.example/3.jpg' } }))
+        const second = all(await ep.process({ source: { url: 'https://images.example/1.jpg' } }))
         await asksAgainAfter(3000)
-        expect(await later).toEqual([prediction(0), prediction(1)])
+        expect(await second).toEqual([prediction(0), prediction(1)])
+        await ep.disconnect()
+    })
+
+    test('a caller that submits a job every 20 s reaches the pipeline API again once capacity is back', async () => {
+        const ep = endpoint({ pipelineWaitTimeout: 10 })
+        await noSocket(ep)
+        refused(2, 503, { 'Retry-After': '10' })
+        const firstJob = outcome(all(await ep.process({ source: { url: 'https://images.example/0.jpg' } })))
+        await asksAgainAfter(10000)
+        expect(await firstJob).toBeInstanceOf(PipelineOverloadedError)
+        await jest.advanceTimersByTimeAsync(20 * 1000)
+        fake.upgradeAnswers.length = 0
+        const upgrades = fake.upgrades
+        // The first job gave up 20 s ago, inside the old 30 s record: capacity is back, so this job gets a socket
+        expect(await all(await ep.process({ source: { url: 'https://images.example/1.jpg' } }))).toEqual([prediction(0), prediction(1)])
+        expect(fake.upgrades).toBeGreaterThan(upgrades)
         await ep.disconnect()
     })
 
@@ -454,9 +457,11 @@ describe('pipeline mode waits for capacity', () => {
         expect(waited!.message).toContain('stayed at capacity for 10 seconds')
         expect(fast!.waitedSecs).toBe(0)
         expect(fast!.message).toContain('gave up earlier')
+        // A job submitted after the give-up tries for itself, and reports its own wait
         await jest.advanceTimersByTimeAsync(20 * 1000)
-        const later = (await outcome(all(await ep.process({ source: { url: 'https://images.example/2.jpg' } })))) as PipelineOverloadedError
-        expect(later.waitedSecs).toBe(0)
+        fake.upgradeAnswers.length = 0
+        expect(await all(await ep.process({ source: { url: 'https://images.example/2.jpg' } }))).toEqual([prediction(0), prediction(1)])
+        await ep.disconnect()
     })
 
     test('reconnect() after a failed connect, with no disconnect between, waits again', async () => {
