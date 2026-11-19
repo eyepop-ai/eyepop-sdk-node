@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [4.1.1] - 2026-11-19
+
 ### Fixed
 - On a worker session, a source error the pipeline reports as `{"event": "error", "source_id", "message"}` now fails the job's iteration with `Error event for source <id>: <message>`, as an error of the instance's form `{"event": {"type": "error", ...}}` always did. The stream handed the pipeline's form to the event handler as a bare string, which has no `type`, so the error was dropped and the iteration ended as if the source had finished. Every event of that form now reaches the handler as a `StreamEvent` with `type`, `source_id`, `message` and the new `info`; types the SDK does not know, such as the `warning` of eyepop-worker v4.19.11, are still skipped. Pipeline mode was not affected (eyepop-instance#699).
 - On a persistent worker session attached with `sessionUuid`, the endpoint now works on a pipeline the session's agent does not own: the first listed one whose id does not start with `agent-`, else the first listed one as before. compute-api lists a session's pipelines in no stable order, so on an agent-mode session `changePop()` could replace the pop of a declared stream's or a processor's pipeline.
