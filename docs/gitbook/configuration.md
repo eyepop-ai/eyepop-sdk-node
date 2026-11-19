@@ -41,13 +41,15 @@ With `isPipelineMode: false` (or `EYEPOP_PIPELINE_MODE=false`) and no session UU
 
 ### Waiting for capacity
 
-A pipeline API with no capacity refuses a new socket with HTTP 503 or 429. A new GPU node takes minutes to arrive, so in pipeline mode the SDK waits and asks again: the `Retry-After` the answer names (at least 1 s, growing by half with each refusal up to 10 s, with jitter), else 1, 2, 4, 8 and then 10 s. It gives up after `pipelineWaitTimeout` seconds, counted from the first refusal and shared by every socket that is refused meanwhile, and rejects with `PipelineOverloadedError`.
+A pipeline API with no capacity refuses a new socket with HTTP 503 or 429. A new GPU node takes minutes to arrive, so in pipeline mode the SDK waits and asks again: the `Retry-After` the answer names (at least 1 s, growing by half with each refusal up to 10 s or the `Retry-After` itself if that is more, plus up to half again as jitter), else 1, 2, 4, 8 and then 10 s. It gives up after `pipelineWaitTimeout` seconds, counted from the first refusal and shared by every socket that is refused meanwhile, and rejects with `PipelineOverloadedError`.
 
 | Option | Environment | Default |
 |---|---|---|
-| `pipelineWaitTimeout` | `EYEPOP_PIPELINE_WAIT_TIMEOUT` | `600` seconds; `0` does not wait and rejects at the first refusal |
+| `pipelineWaitTimeout` | `EYEPOP_PIPELINE_WAIT_TIMEOUT` (plain decimal seconds; blank is unset) | `600` seconds; `0` does not wait and rejects at the first refusal |
 
-The first wait is logged at `warn` and each retry at `debug`. Set a low value, or `0`, in a script or a test suite that should fail rather than wait. `disconnect()` ends a wait at once. The error is a `PipelineCommandError` with `error === 'overloaded'` and `waitedSecs`; it has no `status`, and its `cause` is the last refusal.
+A give-up is remembered until a socket opens, `connect()` or `disconnect()`: jobs queued behind it make one attempt and fail with it at once. Jobs go out in submission order, so a live source waiting for its own socket holds the jobs queued behind it for up to `pipelineWaitTimeout`. The reconnect after a `1011 overloaded` or `1001 shutting_down` close is a single attempt, not a wait.
+
+The first wait is logged at `warn` and each retry at `debug`. Set a low value, or `0`, in a script or a test suite that should fail rather than wait. `disconnect()` ends a wait at once. The error is a `PipelineCommandError` with `error === 'overloaded'` and `waitedSecs`; it has no `status`, and its `cause` is the last refusal, an `UpgradeError` (exported) with `status`.
 
 ### Account
 

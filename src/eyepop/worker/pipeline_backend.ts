@@ -29,8 +29,8 @@ const AT_CAPACITY = new Set([429, 503])
 const MAX_BACKOFF_MS = 10 * 1000
 // A repeated Retry-After grows by this factor, up to the larger of itself and MAX_BACKOFF_MS, so waiting sockets do not retry in lockstep every second.
 const RETRY_AFTER_GROWTH = 1.5
-// A wait that gave up is remembered this long: a connect that starts within it, as the next queued job does, is refused with it at once.
-const GIVE_UP_MEMORY_MS = 5 * 1000
+// The longest delay setTimeout takes; a longer one fires after 1 ms, which would have the SDK ask again in a tight loop.
+const MAX_TIMER_MS = 2 ** 31 - 1
 /** Uploads up to this size go as one combined message, larger ones in chunks. */
 export const COMBINED_UPLOAD_MAX_BYTES = 8 * 1024 * 1024
 
@@ -467,6 +467,8 @@ export class PipelineBackend implements WorkerBackend {
     public async reconnect(): Promise<void> {
         this._disconnecting = false
         this._waitsEnded = false
+        // A connect starts afresh: it waits for capacity, whatever an earlier wait gave up on.
+        this._episode = null
         await this.inOrder(() => this.ensureSocket())
         this.ctx.updateState()
     }
@@ -475,6 +477,7 @@ export class PipelineBackend implements WorkerBackend {
         // A job waiting for capacity would hold the disconnect for up to pipelineWaitTimeout, so no wait starts
         // or goes on from here; the jobs that need none end first, then the socket, which stops whatever still runs on it.
         this._waitsEnded = true
+        this._episode = null
         this._capacityWaits.forEach(cancel => cancel())
         await closeEndpoint()
         this._disconnecting = true
@@ -507,13 +510,13 @@ export class PipelineBackend implements WorkerBackend {
     }
 
     /** An open socket, or a new one with the last pop set on it. */
-    private async ensureSocket(): Promise<PipelineSocket> {
+    private async ensureSocket(patient: boolean = true): Promise<PipelineSocket> {
         const open = this.openSockets()[0]
         if (open !== undefined) {
             return open
         }
         if (this._connecting === null) {
-            this._connecting = this.openSocket(true).finally(() => (this._connecting = null))
+            this._connecting = this.openSocket(patient).finally(() => (this._connecting = null))
         }
         return await this._connecting
     }
@@ -639,8 +642,9 @@ export class PipelineBackend implements WorkerBackend {
      * Open the socket, and exchange the API key again after a 401, once. A 503 or 429 means no capacity yet.
      * When `patient` it is waited through, `Retry-After` seconds plus jitter, else a backoff, until
      * `pipelineWaitTimeout`, then PipelineOverloadedError. The limit belongs to the episode, not to the
-     * call: every socket that is refused while another waits, or just gave up, shares that deadline, so
-     * jobs queued behind a refusal fail with it instead of each starting a wait of its own. Disconnect ends
+     * call: every socket that is refused while another waits, or after it gave up and until a socket opens
+     * (see joinEpisode), shares that deadline, so jobs queued behind a refusal fail with it instead of
+     * each starting a wait of their own. Disconnect ends
      * a wait at once, and so does `cancelled` settling (the job that asked was cancelled). Any other refusal rejects.
      */
     private async upgrade(url: string, patient: boolean, cancelled?: Promise<void>): Promise<WebSocket> {
@@ -683,7 +687,7 @@ export class PipelineBackend implements WorkerBackend {
                         const waited = (now - episode.started) / 1000
                         throw new PipelineOverloadedError(
                             waited === 0
-                                ? `the pipeline API has no capacity (HTTP ${error.status}) and the SDK did not wait for it: pipelineWaitTimeout is ${episode.timeoutSecs} s, or a wait for capacity just gave up`
+                                ? `the pipeline API has no capacity (HTTP ${error.status}) and the SDK did not wait for it: pipelineWaitTimeout is ${episode.timeoutSecs} s, or a wait for capacity gave up earlier and no socket has opened since`
                                 : `the pipeline API stayed at capacity for ${Math.round(waited)} seconds (HTTP ${error.status}); the wait is limited by pipelineWaitTimeout (${episode.timeoutSecs} s)`,
                             waited,
                             error,
@@ -710,12 +714,13 @@ export class PipelineBackend implements WorkerBackend {
         }
     }
 
-    /** The wait for capacity this refusal belongs to: the one in progress, else a new one. */
+    /**
+     * The wait for capacity this refusal belongs to: the one in progress, else a new one. One that gave up
+     * stays until a socket opens, `connect()` or `disconnect()`, so every job queued behind the give-up
+     * fails at once, however long each one's round trip takes, instead of starting a wait of its own.
+     */
     private joinEpisode(now: number): WaitEpisode {
         let episode = this._episode
-        if (episode !== null && episode.gaveUpAt !== undefined && now - episode.gaveUpAt > GIVE_UP_MEMORY_MS) {
-            episode = null
-        }
         if (episode === null) {
             const timeoutSecs = this.ctx.options.pipelineWaitTimeout ?? PIPELINE_WAIT_TIMEOUT_SECS
             episode = { started: now, deadline: now + timeoutSecs * 1000, timeoutSecs, waiters: 0, gaveUpAt: undefined }
@@ -748,7 +753,7 @@ export class PipelineBackend implements WorkerBackend {
             const timer = setTimeout(() => {
                 this._capacityWaits.delete(cancel)
                 resolve()
-            }, ms)
+            }, Math.min(ms, MAX_TIMER_MS))
             this._capacityWaits.add(cancel)
             cancelled?.then(() => end(new WaitCancelled()))
         })
@@ -775,9 +780,10 @@ export class PipelineBackend implements WorkerBackend {
             const delay = this._reconnects === 0 ? 0 : Math.min(1000 * 2 ** (this._reconnects - 1), MAX_RECONNECT_DELAY_MS)
             this._reconnects += 1
             new Promise(resolve => setTimeout(resolve, delay))
-                .then(() => (this._disconnecting ? undefined : this.inOrder(() => this.ensureSocket())))
+                .then(() => (this._disconnecting ? undefined : this.inOrder(() => this.ensureSocket(false))))
                 .catch(error => {
-                    // The next job or changePop tries again and reports what fails.
+                    // One attempt, not a wait: it holds the send chain, which every job waits on. The next job or
+                    // changePop opens a socket, waiting for capacity, and reports what fails.
                     this.ctx.requestLogger.info('could not reopen the pipeline API socket: %s', error)
                 })
         }

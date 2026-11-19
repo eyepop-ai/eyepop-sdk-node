@@ -1,4 +1,15 @@
-import { EyePop, PIPELINE_WAIT_TIMEOUT_SECS, PipelineCommandError, PipelineConfigurationError, PipelineOverloadedError, PipelineSocketClosedError, Prediction, ResultStream, WorkerEndpoint } from '../../../src/eyepop'
+import {
+    EyePop,
+    UpgradeError as ExportedUpgradeError,
+    PIPELINE_WAIT_TIMEOUT_SECS,
+    PipelineCommandError,
+    PipelineConfigurationError,
+    PipelineOverloadedError,
+    PipelineSocketClosedError,
+    Prediction,
+    ResultStream,
+    WorkerEndpoint,
+} from '../../../src/eyepop'
 import { UpgradeError } from '../../../src/eyepop/shims/websockets'
 import { afterEach, beforeEach, describe, expect, jest, test } from '@jest/globals'
 import { performance } from 'node:perf_hooks'
@@ -47,6 +58,7 @@ describe('pipeline mode waits for capacity', () => {
         fake = new FakePipelineApi()
         await fake.start()
         logs = []
+        waitsAwaited = 0
         jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate', 'queueMicrotask', 'hrtime', 'performance'] })
         // No jitter unless a test asks for it, so that a wait is the Retry-After itself.
         jest.spyOn(Math, 'random').mockReturnValue(0)
@@ -70,30 +82,40 @@ describe('pipeline mode waits for capacity', () => {
         }
     }
 
-    // The nth upgrade was refused and the endpoint sleeps, with nothing else pending.
-    async function sleeping(upgrades: number): Promise<void> {
-        await until(() => fake.upgrades === upgrades && jest.getTimerCount() === 1)
+    // The endpoint announces each wait in a debug line and sets its timer in the same step, so that is
+    // what a test waits for.
+    const waitsAnnounced = () => logs.filter(line => line.msg.includes('retrying in')).length
+    let waitsAwaited = 0
+
+    async function sleeping(waits: number): Promise<void> {
+        await until(() => waitsAnnounced() >= waits)
     }
 
-    // The sleeping endpoint asks again after `ms` and not before.
-    async function asksAgainAfter(ms: number, upgrades: number): Promise<void> {
-        await sleeping(upgrades)
+    // The next wait ends after `ms` and not before: the endpoint asks the pipeline API again then.
+    async function asksAgainAfter(ms: number): Promise<void> {
+        waitsAwaited += 1
+        await sleeping(waitsAwaited)
+        const before = fake.upgrades
         await jest.advanceTimersByTimeAsync(ms - 1)
         await io()
-        expect(fake.upgrades).toBe(upgrades)
+        expect(fake.upgrades).toBe(before)
         await jest.advanceTimersByTimeAsync(1)
-        await until(() => fake.upgrades === upgrades + 1)
+        await until(() => fake.upgrades > before)
     }
 
-    const outcome = (promise: Promise<unknown>): Promise<unknown> => promise.then(() => undefined, error => error)
+    const outcome = (promise: Promise<unknown>): Promise<unknown> =>
+        promise.then(
+            () => undefined,
+            error => error,
+        )
 
     test('honours the Retry-After of each refusal, and a later one is at least half as long again', async () => {
         refused(1, 503, { 'Retry-After': '3' })
         refused(1, 503, { 'Retry-After': '4' })
         const ep = endpoint()
         const connecting = ep.connect()
-        await asksAgainAfter(3000, 1)
-        await asksAgainAfter(6000, 2)
+        await asksAgainAfter(3000)
+        await asksAgainAfter(6000)
         await connecting
         expect(fake.sockets).toHaveLength(1)
         await ep.disconnect()
@@ -103,7 +125,7 @@ describe('pipeline mode waits for capacity', () => {
         refused(1, 503, { 'Retry-After': '0' })
         const ep = endpoint()
         const connecting = ep.connect()
-        await asksAgainAfter(1000, 1)
+        await asksAgainAfter(1000)
         await connecting
         await ep.disconnect()
     })
@@ -112,7 +134,7 @@ describe('pipeline mode waits for capacity', () => {
         refused(1, 429, { 'Retry-After': '4' })
         const ep = endpoint()
         const connecting = ep.connect()
-        await asksAgainAfter(4000, 1)
+        await asksAgainAfter(4000)
         await connecting
         expect(fake.sockets).toHaveLength(1)
         await ep.disconnect()
@@ -127,7 +149,7 @@ describe('pipeline mode waits for capacity', () => {
         const ep = endpoint()
         const connecting = ep.connect()
         for (const [n, wait] of waits.entries()) {
-            await asksAgainAfter(wait, n + 1)
+            await asksAgainAfter(wait)
         }
         await connecting
         expect(fake.sockets).toHaveLength(1)
@@ -143,7 +165,7 @@ describe('pipeline mode waits for capacity', () => {
         const ep = endpoint()
         const connecting = ep.connect()
         for (const [n, wait] of waits.entries()) {
-            await asksAgainAfter(wait, n + 1)
+            await asksAgainAfter(wait)
         }
         await connecting
         await ep.disconnect()
@@ -153,9 +175,9 @@ describe('pipeline mode waits for capacity', () => {
         refused(3, 503, { 'Retry-After': '30' })
         const ep = endpoint()
         const connecting = ep.connect()
-        await asksAgainAfter(30000, 1)
-        await asksAgainAfter(30000, 2)
-        await asksAgainAfter(30000, 3)
+        await asksAgainAfter(30000)
+        await asksAgainAfter(30000)
+        await asksAgainAfter(30000)
         await connecting
         await ep.disconnect()
     })
@@ -164,7 +186,7 @@ describe('pipeline mode waits for capacity', () => {
         refused(1, 503, { 'Retry-After': value })
         const ep = endpoint()
         const connecting = ep.connect()
-        await asksAgainAfter(500, 1)
+        await asksAgainAfter(500)
         await connecting
         await ep.disconnect()
     })
@@ -173,7 +195,7 @@ describe('pipeline mode waits for capacity', () => {
         refused(1, 503, { 'Retry-After': '0.5' })
         const ep = endpoint()
         const connecting = ep.connect()
-        await asksAgainAfter(1000, 1)
+        await asksAgainAfter(1000)
         await connecting
         await ep.disconnect()
     })
@@ -182,7 +204,7 @@ describe('pipeline mode waits for capacity', () => {
         refused(5, 503, { 'Retry-After': '1000000000' })
         const ep = endpoint({ pipelineWaitTimeout: 20 })
         const failed = outcome(ep.connect())
-        await asksAgainAfter(20000, 1)
+        await asksAgainAfter(20000)
         const error = (await failed) as PipelineOverloadedError
         expect(error).toBeInstanceOf(PipelineOverloadedError)
         expect(error.waitedSecs).toBe(20)
@@ -193,8 +215,8 @@ describe('pipeline mode waits for capacity', () => {
         refused(10, 503, { 'Retry-After': '2' })
         const ep = endpoint({ pipelineWaitTimeout: 5 })
         const failed = outcome(ep.connect())
-        await asksAgainAfter(2000, 1)
-        await asksAgainAfter(3000, 2)
+        await asksAgainAfter(2000)
+        await asksAgainAfter(3000)
         const error = (await failed) as PipelineOverloadedError
         expect(error).toBeInstanceOf(PipelineOverloadedError)
         expect(error).toBeInstanceOf(PipelineCommandError)
@@ -212,8 +234,8 @@ describe('pipeline mode waits for capacity', () => {
         refused(10, 503, { 'Retry-After': '300' })
         const ep = endpoint()
         const failed = outcome(ep.connect())
-        await asksAgainAfter(300 * 1000, 1)
-        await asksAgainAfter(300 * 1000, 2)
+        await asksAgainAfter(300 * 1000)
+        await asksAgainAfter(300 * 1000)
         const error = (await failed) as PipelineOverloadedError
         expect(error).toBeInstanceOf(PipelineOverloadedError)
         expect(error.waitedSecs).toBe(600)
@@ -235,7 +257,7 @@ describe('pipeline mode waits for capacity', () => {
         const ep = endpoint()
         await ep.connect()
         expect(fake.upgrades).toBe(2)
-        expect(jest.getTimerCount()).toBe(1)
+        expect(waitsAnnounced()).toBe(0)
         await ep.disconnect()
     })
 
@@ -257,8 +279,8 @@ describe('pipeline mode waits for capacity', () => {
         await io()
         refused(2, 503, { 'Retry-After': '10' })
         const job = ep.process({ source: { url: 'https://images.example/a.jpg' } }).then(all)
-        await asksAgainAfter(10000, 2)
-        await asksAgainAfter(10000, 3)
+        await asksAgainAfter(10000)
+        await asksAgainAfter(10000)
         expect(await job).toEqual([prediction(0), prediction(1)])
         expect(fake.sockets).toHaveLength(2)
         await ep.disconnect()
@@ -282,9 +304,9 @@ describe('pipeline mode waits for capacity', () => {
         refused(3, 503, { 'Retry-After': '1' })
         const ep = endpoint()
         const connecting = ep.connect()
-        await asksAgainAfter(1000, 2)
-        await asksAgainAfter(1500, 3)
-        await asksAgainAfter(2250, 4)
+        await asksAgainAfter(1000)
+        await asksAgainAfter(1500)
+        await asksAgainAfter(2250)
         await connecting
         expect(fake.exchanges).toHaveLength(2)
         expect(fake.sockets[0]!.authorization).toBe('Bearer minted-2')
@@ -296,7 +318,7 @@ describe('pipeline mode waits for capacity', () => {
         fake.upgradeAnswers.push({ status: 401 }, { status: 401 })
         const ep = endpoint()
         const connecting = outcome(ep.connect())
-        await asksAgainAfter(1000, 1)
+        await asksAgainAfter(1000)
         expect(await connecting).toBeInstanceOf(UpgradeError)
         expect(fake.exchanges).toHaveLength(2)
     })
@@ -314,7 +336,7 @@ describe('pipeline mode waits for capacity', () => {
         }
         // The first job waits 100 s in all: attempts at 0, 10, ... 100 s.
         for (let attempt = 1; attempt <= 10; attempt++) {
-            await asksAgainAfter(10000, attempt + 1)
+            await asksAgainAfter(10000)
         }
         const errors = (await Promise.all(jobs)) as PipelineOverloadedError[]
         for (const error of errors) {
@@ -326,21 +348,116 @@ describe('pipeline mode waits for capacity', () => {
         expect(jest.getTimerCount()).toBe(0)
     })
 
-    test('the give-up is forgotten after a few seconds: a later job gets a wait of its own', async () => {
-        const ep = endpoint({ pipelineWaitTimeout: 10 })
+    // A refused upgrade takes `seconds` of the clock, as a slow network round trip would.
+    const roundTrip = (seconds: number) => {
+        fake.onUpgrade = () => jest.setSystemTime(Date.now() + seconds * 1000)
+    }
+
+    async function noSocket(ep: WorkerEndpoint): Promise<void> {
         await ep.connect()
         fake.closeSocket(0)
         await until(() => fake.openSockets === 0)
         await io()
+    }
+
+    test('queued jobs fail promptly after a give-up, however long each refused upgrade takes', async () => {
+        const ep = endpoint({ pipelineWaitTimeout: 10 })
+        await noSocket(ep)
+        refused(100, 503, { 'Retry-After': '10' })
+        roundTrip(2)
+        const started = Date.now()
+        const jobs: Array<Promise<unknown>> = []
+        for (const n of [0, 1, 2, 3, 4]) {
+            jobs.push(outcome(all(await ep.process({ source: { url: `https://images.example/${n}.jpg` } }))))
+        }
+        let settled = 0
+        jobs.forEach(job => job.then(() => (settled += 1)))
+        await asksAgainAfter(10000)
+        for (let step = 0; step < 1000 && settled < jobs.length; step++) {
+            await jest.advanceTimersByTimeAsync(1)
+            await io(5)
+        }
+        const errors = (await Promise.all(jobs)) as PipelineOverloadedError[]
+        errors.forEach(error => expect(error).toBeInstanceOf(PipelineOverloadedError))
+        // 22 s in all: the first job's refused upgrade (2 s), its wait (10 s), its last refused upgrade (2 s),
+        // and one refused upgrade (2 s) for each of the 4 jobs behind it. A job that started a wait of its
+        // own, as one does when the give-up is forgotten after 5 s, adds 10 s.
+        expect(Date.now() - started).toBeLessThan(25 * 1000)
+        expect(jest.getTimerCount()).toBe(0)
+    })
+
+    test('a give-up is remembered until a socket opens: a job that runs later makes one attempt', async () => {
+        const ep = endpoint({ pipelineWaitTimeout: 10 })
+        await noSocket(ep)
+        refused(50, 503, { 'Retry-After': '10' })
+        const first = outcome(all(await ep.process({ source: { url: 'https://images.example/0.jpg' } })))
+        await asksAgainAfter(10000)
+        expect(await first).toBeInstanceOf(PipelineOverloadedError)
+        const upgrades = fake.upgrades
+        await jest.advanceTimersByTimeAsync(60 * 60 * 1000)
+        const later = (await outcome(all(await ep.process({ source: { url: 'https://images.example/1.jpg' } })))) as PipelineOverloadedError
+        expect(later).toBeInstanceOf(PipelineOverloadedError)
+        expect(fake.upgrades).toBe(upgrades + 1)
+        expect(waitsAnnounced()).toBe(1)
+    })
+
+    test('a socket that opens ends the give-up: the next refusal is waited through again', async () => {
+        const ep = endpoint({ pipelineWaitTimeout: 10 })
+        await noSocket(ep)
         refused(2, 503, { 'Retry-After': '10' })
         const first = outcome(all(await ep.process({ source: { url: 'https://images.example/0.jpg' } })))
-        await asksAgainAfter(10000, 2)
+        await asksAgainAfter(10000)
         expect(await first).toBeInstanceOf(PipelineOverloadedError)
-        await jest.advanceTimersByTimeAsync(60 * 1000)
+        // capacity is back: this job gets a socket
+        expect(await all(await ep.process({ source: { url: 'https://images.example/1.jpg' } }))).toEqual([prediction(0), prediction(1)])
+        fake.closeSocket(1)
+        await until(() => fake.openSockets === 0)
+        await io()
         refused(1, 503, { 'Retry-After': '3' })
-        const second = all(await ep.process({ source: { url: 'https://images.example/1.jpg' } }))
-        await asksAgainAfter(3000, 4)
+        const second = all(await ep.process({ source: { url: 'https://images.example/2.jpg' } }))
+        await asksAgainAfter(3000)
         expect(await second).toEqual([prediction(0), prediction(1)])
+        await ep.disconnect()
+    })
+
+    test('disconnect and connect end the give-up', async () => {
+        const ep = endpoint({ pipelineWaitTimeout: 10 })
+        await noSocket(ep)
+        refused(2, 503, { 'Retry-After': '10' })
+        const first = outcome(all(await ep.process({ source: { url: 'https://images.example/0.jpg' } })))
+        await asksAgainAfter(10000)
+        expect(await first).toBeInstanceOf(PipelineOverloadedError)
+        await ep.disconnect()
+        refused(1, 503, { 'Retry-After': '3' })
+        const connecting = ep.connect()
+        await asksAgainAfter(3000)
+        await connecting
+        await ep.disconnect()
+    })
+
+    test('the reconnect after a 1011 overloaded close is one attempt, and does not hold the queue', async () => {
+        fake.closes.set(1, [1011, 'overloaded'])
+        const ep = endpoint()
+        await ep.connect()
+        refused(1, 503, { 'Retry-After': '60' })
+        const closed = await all(await ep.process({ source: { url: 'https://images.example/0.jpg' } })).catch(e => e)
+        expect(closed).toBeInstanceOf(PipelineSocketClosedError)
+        await jest.advanceTimersByTimeAsync(0)
+        await until(() => fake.upgrades === 2)
+        await io()
+        expect(waitsAnnounced()).toBe(0)
+        expect(jest.getTimerCount()).toBe(0)
+        // the next job opens a socket, which is not refused any more
+        expect(await all(await ep.process({ source: { url: 'https://images.example/1.jpg' } }))).toEqual([prediction(0), prediction(1)])
+        await ep.disconnect()
+    })
+
+    test('a delay beyond what setTimeout takes is clamped, not fired after 1 ms', async () => {
+        refused(1, 503, { 'Retry-After': '3000000' })
+        const ep = endpoint({ pipelineWaitTimeout: 1e10 })
+        const connecting = ep.connect()
+        await asksAgainAfter(2 ** 31 - 1)
+        await connecting
         await ep.disconnect()
     })
 
@@ -353,7 +470,7 @@ describe('pipeline mode waits for capacity', () => {
         refused(10, 503, { 'Retry-After': '60' })
         const stream = await ep.process({ source: { url: 'https://images.example/a.jpg' } })
         const done = all(stream)
-        await sleeping(2)
+        await sleeping(1)
         stream.cancel()
         expect(await done).toEqual([])
         expect(jest.getTimerCount()).toBe(0)
@@ -371,7 +488,7 @@ describe('pipeline mode waits for capacity', () => {
         await io()
         refused(10, 503, { 'Retry-After': '60' })
         const job = outcome(all(await ep.process({ source: { url: 'https://images.example/a.jpg' } })))
-        await sleeping(2)
+        await sleeping(1)
         await ep.disconnect()
         expect(await job).toBeInstanceOf(PipelineSocketClosedError)
         expect(jest.getTimerCount()).toBe(0)
@@ -381,8 +498,8 @@ describe('pipeline mode waits for capacity', () => {
         refused(2, 503, { 'Retry-After': '2' })
         const ep = endpoint()
         const connecting = ep.connect()
-        await asksAgainAfter(2000, 1)
-        await asksAgainAfter(3000, 2)
+        await asksAgainAfter(2000)
+        await asksAgainAfter(3000)
         await connecting
         await ep.disconnect()
         const waiting = logs.filter(line => line.msg.includes('no capacity'))
@@ -406,20 +523,43 @@ describe('pipeline mode waits for capacity', () => {
             refused(1, 503, { 'Retry-After': '1' })
             const ep = endpoint({ pipelineWaitTimeout: 600 })
             const connecting = ep.connect()
-            await asksAgainAfter(1000, 2)
+            await asksAgainAfter(1000)
             await connecting
             await ep.disconnect()
         })
 
-        test.each(['soon', '-1', 'Infinity'])('EYEPOP_PIPELINE_WAIT_TIMEOUT=%s is refused', value => {
+        test.each(['soon', '-1', 'Infinity', '0x10', '1e3', '1_0', ' 5 s'])('EYEPOP_PIPELINE_WAIT_TIMEOUT=%s is refused', value => {
             process.env['EYEPOP_PIPELINE_WAIT_TIMEOUT'] = value
             expect(() => endpoint()).toThrow(PipelineConfigurationError)
             expect(() => endpoint()).toThrow('EYEPOP_PIPELINE_WAIT_TIMEOUT')
         })
 
-        test('an empty EYEPOP_PIPELINE_WAIT_TIMEOUT is unset', () => {
-            process.env['EYEPOP_PIPELINE_WAIT_TIMEOUT'] = ''
-            expect(() => endpoint()).not.toThrow()
+        test.each(['', '   ', '\t'])('a blank EYEPOP_PIPELINE_WAIT_TIMEOUT (%j) is unset: the default wait holds', async value => {
+            process.env['EYEPOP_PIPELINE_WAIT_TIMEOUT'] = value
+            refused(1, 503, { 'Retry-After': '2' })
+            const ep = endpoint()
+            const connecting = ep.connect()
+            await asksAgainAfter(2000)
+            await connecting
+            await ep.disconnect()
+        })
+
+        test.each([
+            [' 7 ', 7],
+            ['0.5', 0.5],
+            ['012', 12],
+        ])('EYEPOP_PIPELINE_WAIT_TIMEOUT=%j is %d seconds', async (value, seconds) => {
+            process.env['EYEPOP_PIPELINE_WAIT_TIMEOUT'] = value
+            refused(2, 503, { 'Retry-After': '100' })
+            const ep = endpoint()
+            const failed = outcome(ep.connect())
+            await asksAgainAfter(Math.max(seconds * 1000, 1))
+            expect(((await failed) as PipelineOverloadedError).waitedSecs).toBe(seconds)
+        })
+
+        test('UpgradeError is exported, as the cause of a refused socket', () => {
+            expect(EyePop.workerEndpoint).toBeDefined()
+            expect(ExportedUpgradeError).toBe(UpgradeError)
         })
 
         test.each([-1, NaN, Infinity])('pipelineWaitTimeout %d is refused', value => {
