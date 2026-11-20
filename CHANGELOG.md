@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [4.2.0] - 2026-11-19
+
 ### Added
 - `mediaCacheSeconds` and `mediaCacheReencode` on a job (`ProcessParams`), on a worker session and in pipeline mode alike (eyepop-instance spec 024): the source is recorded to the media cache and its last that many seconds are kept, re-encoded with a keyframe every 2 s with `mediaCacheReencode`. On a worker session an upload sends only `mediaCacheSeconds`: the session's upload routes do not take `mediaCacheReencode`, so it is not sent and the endpoint logs a warning, once, that it has no effect there (it applies to a url or an asset source). In pipeline mode a recording job's `mediaId` is set once its source starts: an opaque string to pass back unchanged to read the recording. The pipeline API refuses the options without a media cache, for a token that names no account, and for a group; a pipeline API before eyepop-worker v4.20.6 refuses them always.
 - `warnings` on a job (`ResultStream`) in pipeline mode: the pipeline API's `warning` messages about its source, in order, each a `PipelineWarning` with its `message` and its `info` (`code`, `level` and details). Each is also logged as a warning. The pipeline API sends one when a source that records goes more than 10 s without a keyframe (`media_cache_gop_too_long`, with `gap_ms` and `threshold_ms`); the source runs on, and `mediaCacheReencode` avoids it. The SDK used to drop these messages.
