@@ -1,6 +1,7 @@
 import { ResultStream } from '../worker/worker_types'
 import { Logger } from 'pino'
-import { Prediction } from '../types'
+import { PredictedObject, Prediction } from '../types'
+import type { MediaFrameOptions } from '../worker/media'
 import { EvaluateRequest, EvaluateResponse, InferRequest, InferRunInfo } from './data_types'
 
 type VlmFetch = (path: string, options: RequestInit) => Promise<any>
@@ -16,6 +17,11 @@ export class InferAssetJob implements ResultStream {
     protected _controller: AbortController = new AbortController()
 
     protected _requestLogger: Logger;
+
+    /** A VLM inference on an asset records nothing, so it has no frame to read. */
+    public async mediaFrame(_prediction: Prediction, _object?: PredictedObject, _options?: MediaFrameOptions): Promise<Uint8Array> {
+        throw new Error('an asset inference has no recording (no mediaId) to read a frame from')
+    }
 
     [Symbol.asyncIterator](): AsyncIterator<Prediction> {
         if (!this._response) {

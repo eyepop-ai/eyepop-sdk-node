@@ -137,6 +137,8 @@ export {
     validatePop,
 } from './worker/worker_types'
 
+export { MediaReadError, PredictionFrameError, PredictionFrameErrorReason, MediaRange, MediaBox, MediaFrameOptions, MediaClipOptions, MediaClipMode, MediaClip, MediaReader, MediaWaitOptions, Nanoseconds } from './worker/media'
+
 export { Options, Authentication, SessionAuth, ApiKeyAuth, AccessTokenAuth, OAuth2Auth, Auth0Options, HttpClient, PlatformSupport, LocalAuth } from './options'
 
 export { DataOptions } from './data/data_options'
@@ -444,6 +446,7 @@ export * from './worker/worker_backend'
 export * from './worker/session_backend'
 export * from './worker/pipeline_backend'
 export * from './worker/jobs'
+export * from './worker/media'
 export * from './worker/webrtc_base'
 export * from './worker/webrtc_whep'
 export * from './worker/webrtc_whip'

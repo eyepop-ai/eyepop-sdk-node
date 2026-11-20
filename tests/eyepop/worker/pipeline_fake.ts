@@ -92,6 +92,9 @@ export class FakePipelineApi {
     failUploadAfter: number | null = null
     returnCredit = true
     dropEndedUploads = false
+    // Reads by mediaId (spec 025): each request, and scripted answers taken in order before the default ones.
+    mediaRequests: Array<{ path: string; query: URLSearchParams; authorization: string | undefined; accept: string | undefined }> = []
+    mediaAnswers: Array<{ status: number; headers?: Record<string, string>; body?: string | Buffer }> = []
 
     private readonly _server = http.createServer((request, response) => this.route(request, response))
     private readonly _wss = new WebSocketServer({ noServer: true, handleProtocols: protocols => (protocols.has('eyepop.v1') ? 'eyepop.v1' : false) })
@@ -193,9 +196,44 @@ export class FakePipelineApi {
                 config['pipeline_api_url'] = url
             }
             json(config)
+        } else if (request.method === 'GET' && request.url?.startsWith('/api/v1/media/')) {
+            this.mediaRead(request, response)
         } else {
             response.writeHead(404)
             response.end()
+        }
+    }
+
+    /**
+     * A read by mediaId: a scripted answer, else the range 1000 to 9000, a frame of the bytes `frame:<timestamp>` in
+     * the accepted format, or a clip of the bytes `clip:<start>-<end>` with its bounds and units in headers.
+     */
+    private mediaRead(request: http.IncomingMessage, response: http.ServerResponse): void {
+        const url = new URL(request.url ?? '', 'http://fake')
+        this.mediaRequests.push({ path: url.pathname, query: url.searchParams, authorization: request.headers['authorization'], accept: request.headers['accept'] })
+        const answer = this.mediaAnswers.shift()
+        if (answer !== undefined) {
+            response.writeHead(answer.status, answer.headers ?? {})
+            response.end(answer.body ?? '')
+            return
+        }
+        const kind = url.pathname.split('/').pop()
+        if (kind === 'range') {
+            response.writeHead(200, { 'Content-Type': 'application/json', 'X-Milli-Compute-Units': '0' })
+            response.end(JSON.stringify({ start_ns: 1000, end_ns: 9000 }))
+        } else if (kind === 'frame') {
+            const png = (request.headers['accept'] ?? '').includes('image/png')
+            response.writeHead(200, { 'Content-Type': png ? 'image/png' : 'image/jpeg', 'X-Milli-Compute-Units': '7' })
+            response.end(`frame:${url.searchParams.get('timestamp')}`)
+        } else if (kind === 'clip') {
+            const start = url.searchParams.get('start')
+            const end = url.searchParams.get('end')
+            response.writeHead(200, { 'Content-Type': 'video/mp4', 'X-Start-Ns': String(start), 'X-End-Ns': String(end), 'X-Milli-Compute-Units': '42' })
+            response.write(`clip:${start}`)
+            response.end(`-${end}`)
+        } else {
+            response.writeHead(404, { 'Content-Type': 'application/json' })
+            response.end(JSON.stringify({ error: 'not found', reason: 'stream_not_found', message: 'no such read' }))
         }
     }
 }

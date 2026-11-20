@@ -265,6 +265,7 @@ export class SessionBackend implements WorkerBackend {
     }
 
     private start(job: AbstractJob): ResultStream {
+        job.bindEndpoint(this.ctx.media(), this.ctx.logger)
         return job.start(
             () => {
                 this.ctx.jobDone()
@@ -721,6 +722,32 @@ export class SessionBackend implements WorkerBackend {
         if (response.status >= 300) {
             const message = await response.text()
             this.ctx.logger.info(`stopping pipeline failed, status ${response.status}: ${message}`)
+        }
+    }
+
+    /** A session's recordings read from its instance, at its root: `{base url}/media` (spec 025). */
+    public async mediaBaseUrl(): Promise<string> {
+        const session = await this.session()
+        if (!session.baseUrl) {
+            throw new Error('endpoint not connected, use connect()')
+        }
+        return `${session.baseUrl.replace(/\/+$/, '')}/media`
+    }
+
+    public async mediaHeaders(): Promise<Record<string, string>> {
+        return (await this.session()).authenticationHeaders()
+    }
+
+    /**
+     * A compute session's reads carry the session's own access token, which only compute-api issues: resolve the
+     * session again for a fresh one. A pop's session reads under the endpoint's token: forget it.
+     */
+    public async refreshMediaCredential(): Promise<void> {
+        this.ctx.forgetCredential()
+        if (this._sessionAccessToken) {
+            this._sessionAccessToken = null
+            this._sessionAccessTokenValidUntil = null
+            await this.reconnect()
         }
     }
 

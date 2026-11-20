@@ -3,6 +3,7 @@ import { HttpClient } from '../options'
 import { Semaphore } from '../semaphore'
 import { EndpointState } from '../types'
 import { WorkerOptions } from './worker_options'
+import { MediaReader, MediaRoute } from './media'
 import { Pop, ProcessParams, ResultStream, Source, WorkerSession } from './worker_types'
 
 /**
@@ -39,6 +40,8 @@ export interface WorkerContext {
     fetchWithRetry(fetcher: () => Promise<Response>, retries?: number): Promise<Response>
     /** The endpoint's credential as a session. */
     credentialSession(): Promise<{ eyepopUrl: string; accessToken: string; validUntil: number }>
+    /** The endpoint's reads by mediaId, which a job's `mediaFrame` goes through. */
+    media(): MediaReader
 }
 
 /**
@@ -46,7 +49,7 @@ export interface WorkerContext {
  * owns the public methods and their checks, the credential, the HTTP client and the job queue; it
  * hands each job to its backend as a WorkerWork.
  */
-export interface WorkerBackend {
+export interface WorkerBackend extends MediaRoute {
     /** Reach whatever runs jobs; called when the endpoint connects. */
     reconnect(): Promise<void>
     /**
