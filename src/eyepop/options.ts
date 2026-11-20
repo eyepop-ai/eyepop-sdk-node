@@ -112,8 +112,9 @@ export interface Options {
     accessToken?: string | undefined
 
     /**
-     * The account a login token (`accessToken` or `oAuth2`) is exchanged for, sent to the compute API
-     * as `account_uuid`. Needed when the user has no single account to pick.
+     * The account a credential (an API key, `accessToken` or `oAuth2`) is exchanged for, sent to the compute API
+     * as `account_uuid`. Needed when the credential's user has no single account to pick: without it the token
+     * names no account, and the pipeline API refuses what needs one, such as `mediaCacheSeconds`.
      */
     accountId?: string | undefined
 

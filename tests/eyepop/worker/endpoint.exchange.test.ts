@@ -43,15 +43,34 @@ describe('exchanging a credential at the compute API', () => {
         return EyePop.workerEndpoint({ eyepopUrl: fake.url, isPipelineMode: true, logger: pino({ level: 'silent' }), ...options })
     }
 
-    test('an API key is exchanged without an account', async () => {
-        const ep = endpoint({ apiKey: 'the api key', accountId: 'the-account' })
+    test('an API key is exchanged for the named account', async () => {
+        const ep = endpoint({ apiKey: 'the api key', accountId: 'the account/uuid' })
 
         await ep.connect()
         await ep.disconnect()
 
         expect(fake.exchanges).toEqual(['Bearer the api key'])
-        expect(fake.exchangeQueries).toEqual([''])
+        expect(fake.exchangeQueries).toEqual(['account_uuid=the%20account%2Fuuid'])
         expect(fake.sockets[0]!.authorization).toBe('Bearer minted-1')
+    })
+
+    test('an API key without an account is exchanged without one', async () => {
+        const ep = endpoint({ apiKey: 'the api key' })
+
+        await ep.connect()
+        await ep.disconnect()
+
+        expect(fake.exchangeQueries).toEqual([''])
+    })
+
+    test('an API key takes its account from EYEPOP_ACCOUNT_UUID', async () => {
+        process.env['EYEPOP_ACCOUNT_UUID'] = 'env-account'
+        const ep = endpoint({ apiKey: 'the api key' })
+
+        await ep.connect()
+        await ep.disconnect()
+
+        expect(fake.exchangeQueries).toEqual(['account_uuid=env-account'])
     })
 
     test('an opaque login token is exchanged and the exchanged token is the one sent', async () => {
