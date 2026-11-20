@@ -195,7 +195,7 @@ Each socket runs its own pipeline, which plays its sources one after another. Wh
 | `rtspForceNonCompliantUrl` | Not sent; a warning names it once per endpoint. |
 | `changePop`, `pop()` | Supported. A pop the pipeline refuses rejects, and the last pop it took stays. |
 | `session()` | Its `baseUrl` is the pipeline API's url, there is no `pipelineId`, and `isPipelineMode` is `true`: an endpoint created from it with `session` runs in pipeline mode too, with the token's own `validUntil`. |
-| `apiKey`, `accessToken`, `session`, `oAuth2` | An API key, or a login token (`accessToken`, `oAuth2`, with `accountId` naming the account), is exchanged at the compute API and never sent to the pipeline API; an `accessToken` that already carries an account claim, or that the compute API refuses as "API key or user login required", is sent as is. A 401 exchanges again once. Node sends the token as `Authorization: Bearer`; a browser, which cannot set headers on a WebSocket, as the `eyepop.bearer.<jwt>` subprotocol. |
+| `apiKey`, `accessToken`, `session`, `oAuth2` | An API key or a login token (`accessToken`, `oAuth2`), with `accountId` naming the account, is exchanged at the compute API and never sent to the pipeline API; an `accessToken` that already carries an account claim, or that the compute API refuses as "API key or user login required", is sent as is. A 401 exchanges again once. Node sends the token as `Authorization: Bearer`; a browser, which cannot set headers on a WebSocket, as the `eyepop.bearer.<jwt>` subprotocol. |
 | `popId`, `sessionUuid`, `sessionName`, `pipelineImage`, `pipelineVersion` | Throw at construction. Set `isPipelineMode: false` to use them. |
 | Prediction version | The pipeline API's own (V3); none is sent. |
 
@@ -203,7 +203,7 @@ Each socket runs its own pipeline, which plays its sources one after another. Wh
 
 ## Accounts
 
-Work runs and is billed under one account. If your credential belongs to more than one account, name it with `EYEPOP_ACCOUNT_UUID` or the `accountId` option, which `EyePop.workerEndpoint()` and `EyePop.dataEndpoint()` both take. In pipeline mode `accountId` is sent with the exchange of a login token (`accessToken` or `oAuth2`), and with the `/v1/configs` request when the compute API names the pipeline API (no `EYEPOP_ENV` or `pipelineApiUrl`). An API key is exchanged without it, so with an API key and `EYEPOP_ENV` (or `pipelineApiUrl`) set, `accountId` has no effect in pipeline mode. With `isPipelineMode: false` it sends it as `account_uuid` when it creates a worker session and reuses only a live session of that account; without it, the compute API refuses a session it cannot attribute to an account.
+Work runs and is billed under one account. If your credential belongs to more than one account, name it with `EYEPOP_ACCOUNT_UUID` or the `accountId` option, which `EyePop.workerEndpoint()` and `EyePop.dataEndpoint()` both take. In pipeline mode `accountId` is sent with the exchange of the credential, an API key or a login token (`accessToken` or `oAuth2`), and with the `/v1/configs` request when the compute API names the pipeline API (no `EYEPOP_ENV` or `pipelineApiUrl`). Without it, a credential with several accounts gets a token that names none, and the pipeline API refuses what needs one, such as `mediaCacheSeconds`. With `isPipelineMode: false` it sends it as `account_uuid` when it creates a worker session and reuses only a live session of that account; without it, the compute API refuses a session it cannot attribute to an account.
 
 ## Documentation
 

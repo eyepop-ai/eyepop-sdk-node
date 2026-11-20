@@ -307,7 +307,9 @@ export class Endpoint<T extends Endpoint<T>> {
                 if (credential === undefined) {
                     return Promise.reject('no valid auth option')
                 }
-                await this.storeExchangedToken(await this.exchange(this._client, credential), now)
+                // The account goes with an API key too: a key of a user with several accounts mints a token that
+                // names none without it, and the pipeline API then refuses whatever needs one (mediaCacheSeconds).
+                await this.storeExchangedToken(await this.exchange(this._client, credential, this._options.accountId), now)
             } else {
                 return Promise.reject('no valid auth option')
             }
