@@ -461,7 +461,9 @@ export interface ProcessParams {
     mediaCacheSeconds?: number | undefined
     /**
      * Record the source encoded again from its decode, with a keyframe every 2 s, for a camera that sends
-     * keyframes too rarely. Takes effect with `mediaCacheSeconds`.
+     * keyframes too rarely. Takes effect with `mediaCacheSeconds`. On a worker session it applies to a url or an
+     * asset source only: an upload ignores it, and the endpoint logs a warning once. In pipeline mode the pipeline
+     * API takes it with `mediaCacheSeconds` as it is.
      */
     mediaCacheReencode?: boolean | undefined
 }

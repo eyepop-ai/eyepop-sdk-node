@@ -20,22 +20,12 @@ function mediaCacheMembers(params: ProcessParams): Record<string, number | boole
     return members
 }
 
-// Module-level on purpose, like warnedWorkerRelease in data_endpoint.ts: the warning is once per process.
-let warnedUploadReencode = false
-
 /**
- * An upload sends mediaCacheSeconds as a query parameter. The instance's upload routes do not read
- * mediaCacheReencode, so it is not sent, and the caller is told once that it has no effect there; it
- * applies to a url or an asset source.
+ * The media cache query parameters an upload sends: mediaCacheSeconds only. The instance's upload routes do not
+ * read mediaCacheReencode, so it is not sent; the session backend tells the caller it has no effect there.
  */
-function setMediaCacheQuery(queryParams: URLSearchParams, params: ProcessParams): void {
-    if (params.mediaCacheSeconds !== undefined) {
-        queryParams.set('mediaCacheSeconds', String(params.mediaCacheSeconds))
-    }
-    if (params.mediaCacheReencode !== undefined && !warnedUploadReencode) {
-        warnedUploadReencode = true
-        console.warn('mediaCacheReencode has no effect for an upload on a worker session; it applies to a url or an asset source')
-    }
+export function uploadMediaCacheQuery(params: ProcessParams): Record<string, string> {
+    return params.mediaCacheSeconds !== undefined ? { mediaCacheSeconds: String(params.mediaCacheSeconds) } : {}
 }
 
 export class AbstractJob implements ResultStream {
@@ -239,7 +229,9 @@ export class UploadJob extends AbstractJob {
                     queryParams.set(key, value)
                 }
             }
-            setMediaCacheQuery(queryParams, this._params)
+            for (const [key, value] of Object.entries(uploadMediaCacheQuery(this._params))) {
+                queryParams.set(key, value)
+            }
             const postUrl: string = `${session.baseUrl.replace(/\/+$/, '')}/pipelines/${session.pipelineId}/source?${queryParams.toString()}`
             if (this._params.componentParams || this._params.roi || this._params.camera) {
                 const formData = new FormData()
@@ -352,7 +344,9 @@ export class UploadJob extends AbstractJob {
                     queryParams.set(key, value)
                 }
             }
-            setMediaCacheQuery(queryParams, this._params)
+            for (const [key, value] of Object.entries(uploadMediaCacheQuery(this._params))) {
+                queryParams.set(key, value)
+            }
             const postUrl: string = `${session.baseUrl.replace(/\/+$/, '')}/pipelines/${session.pipelineId}/source?${queryParams.toString()}`
             if (this._params.componentParams || this._params.roi || this._params.camera) {
                 const formData = new FormData()

@@ -99,7 +99,17 @@ export class SessionBackend implements WorkerBackend {
     private _pipeline: Pipeline | null = null
     private _pipelineCreatePromise: Promise<string> | null = null
 
+    // An upload ignores mediaCacheReencode; the endpoint says so once.
+    private _warnedUploadReencode = false
+
     constructor(private readonly ctx: WorkerContext) {}
+
+    private warnUploadReencode(params: ProcessParams): void {
+        if (params.mediaCacheReencode !== undefined && !this._warnedUploadReencode) {
+            this._warnedUploadReencode = true
+            this.ctx.logger.warn('mediaCacheReencode has no effect for an upload on a worker session; it applies to a url or an asset source')
+        }
+    }
 
     public async disconnect(closeEndpoint: () => Promise<void>): Promise<void> {
         await this.deleteOwnPipeline()
@@ -358,6 +368,7 @@ export class SessionBackend implements WorkerBackend {
     }
 
     private async uploadFile(source: FileSource, params: ProcessParams): Promise<ResultStream> {
+        this.warnUploadReencode(params)
         return await this.startConnected(
             async client =>
                 new UploadJob(
@@ -377,6 +388,7 @@ export class SessionBackend implements WorkerBackend {
     }
 
     private async uploadStream(source: StreamSource, params: ProcessParams): Promise<ResultStream> {
+        this.warnUploadReencode(params)
         return await this.startConnected(
             async client =>
                 new UploadJob(source.stream, source.mimeType, source.size, source.videoMode, params, async () => this.session(), client, this.ctx.requestLogger, undefined, DEFAULT_PREDICTION_VERSION),
@@ -385,6 +397,7 @@ export class SessionBackend implements WorkerBackend {
     }
 
     private async uploadPath(source: PathSource, params: ProcessParams): Promise<ResultStream> {
+        this.warnUploadReencode(params)
         return await this.startConnected(async client => {
             const streamSource = await this.resolvePath(source)
             let firstStreamPending = true

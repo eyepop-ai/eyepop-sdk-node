@@ -3,9 +3,7 @@ import { EyePop } from '../../../src/eyepop'
 import { MockServer } from 'jest-mock-server'
 import { describe, expect, test } from '@jest/globals'
 import { v4 as uuidv4 } from 'uuid'
-
-// these tests cover worker session mode; pipeline mode is the default
-process.env['EYEPOP_PIPELINE_MODE'] = 'false'
+import { pino } from 'pino'
 
 function prepMockServer(server: MockServer, popId: string, pipelineId: string) {
     server.post('/v1/auth/authenticate').mockImplementation(ctx => {
@@ -44,7 +42,7 @@ describe('a worker session records a source to the media cache (spec 024)', () =
             ctx.response.headers['content-type'] = 'application/json'
             ctx.body = JSON.stringify({ timestamp: 0 })
         })
-        const endpoint = EyePop.workerEndpoint({ eyepopUrl: server.getURL().toString(), auth: { apiKey: uuidv4() }, popId, stopJobs: false })
+        const endpoint = EyePop.workerEndpoint({ eyepopUrl: server.getURL().toString(), auth: { apiKey: uuidv4() }, popId, stopJobs: false, isPipelineMode: false })
         try {
             await endpoint.connect()
             for await (const _ of await endpoint.process({ source: { url: 'rtsp://camera.example/1' }, mediaCacheSeconds: 3600, mediaCacheReencode: true })) {
@@ -59,5 +57,35 @@ describe('a worker session records a source to the media cache (spec 024)', () =
         expect(bodies[0]?.['mediaCacheReencode']).toBe(true)
         expect(bodies[1]).not.toHaveProperty('mediaCacheSeconds')
         expect(bodies[1]).not.toHaveProperty('mediaCacheReencode')
+    })
+
+    test('an upload sends mediaCacheSeconds in its query but not mediaCacheReencode, and the endpoint warns once', async () => {
+        const popId = uuidv4()
+        const pipelineId = uuidv4()
+        prepMockServer(server, popId, pipelineId)
+        const queries: Array<Record<string, any>> = []
+        server.post(`/worker/pipelines/${pipelineId}/source`).mockImplementation(async ctx => {
+            queries.push({ ...ctx.request.query })
+            await ctx.request.req.toArray()
+            ctx.status = 200
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify({ timestamp: 0 })
+        })
+        const warnings: string[] = []
+        const logger = pino({ level: 'warn' }, { write: (line: string) => warnings.push(JSON.parse(line).msg) })
+        const endpoint = EyePop.workerEndpoint({ eyepopUrl: server.getURL().toString(), auth: { apiKey: uuidv4() }, popId, stopJobs: false, isPipelineMode: false, logger })
+        try {
+            await endpoint.connect()
+            for (let i = 0; i < 2; i++) {
+                for await (const _ of await endpoint.process({ source: { path: './tests/test.jpg' }, mediaCacheSeconds: 60, mediaCacheReencode: true })) {
+                }
+            }
+        } finally {
+            await endpoint.disconnect()
+        }
+        expect(queries).toHaveLength(2)
+        expect(queries[0]?.['mediaCacheSeconds']).toBe('60')
+        expect(queries[0]).not.toHaveProperty('mediaCacheReencode')
+        expect(warnings.filter(line => line.includes('mediaCacheReencode has no effect'))).toHaveLength(1)
     })
 })
