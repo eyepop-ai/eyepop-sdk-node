@@ -47,6 +47,7 @@ export function pops(socket: FakeSocket): unknown[] {
  * holds each upgrade that long, `configAnswers` answer `/v1/configs` with those statuses first, and `sourceGate` holds every source until it settles. `upgrades` counts the upgrade requests, `openSockets` the sockets still open,
  * and `closeSocket` closes the socket at that index `1000 idle`. `usages` are the running totals of
  * milli compute units a source reports after its predictions, and `milliComputeUnits` its end's total.
+ * `warnings` are sent about every source right after its start.
  *
  * Chunked uploads go one at a time, as on the pipeline API: an upload that got its `send` stays at the
  * head of the line until its `uploaded`, also once its source ended, and the bytes that still arrive
@@ -77,6 +78,8 @@ export class FakePipelineApi {
     sourceGate: Promise<void> | null = null
     sourceDelayMs = 0
     usages: number[] = []
+    // sent about every source right after its start, as the pipeline API warns about one (spec 024)
+    warnings: Record<string, unknown>[] = []
     milliComputeUnits: number | null = null
     // False plays a pipeline API from before stopSource, which answers it unknown_command.
     knowsStopSource = true
@@ -430,7 +433,12 @@ class Run {
             setImmediate(() => this.playNext())
             return
         }
-        this.send({ type: 'start', id })
+        // a source that records to the media cache gets a mediaId on its start, as the pipeline API gives it (spec 024)
+        const records = typeof command['mediaCacheSeconds'] === 'number' && command['mediaCacheSeconds'] > 0
+        this.send({ type: 'start', id, ...(records ? { mediaId: `v1.media-of-${id}` } : {}) })
+        for (const warning of this._fake.warnings) {
+            this.send({ type: 'warning', id, ...warning })
+        }
         if (isLive(command)) {
             let n = 0
             this._live = id

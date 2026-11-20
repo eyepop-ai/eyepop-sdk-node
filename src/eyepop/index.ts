@@ -124,6 +124,7 @@ export {
     AssetUuidSource,
     StreamSource,
     ResultStream,
+    PipelineWarning,
     VideoMode,
     ComponentParams,
     ProcessParams,

@@ -11,7 +11,7 @@ import { resolvePath } from '../shims/local_file'
 import { UpgradeError, openAuthorizedWebSocket } from '../shims/websockets'
 import { WorkerBackend, WorkerContext, WorkerWork } from './worker_backend'
 import { WebrtcBase } from './webrtc_base'
-import { AssetUuidSource, FileSource, MediaStreamSource, MotionDetectConfig, PathSource, Pop, ProcessParams, ResultStream, Source, StreamSource, UrlSource, VideoMode, WorkerSession } from './worker_types'
+import { AssetUuidSource, FileSource, MediaStreamSource, MotionDetectConfig, PathSource, PipelineWarning, Pop, ProcessParams, ResultStream, Source, StreamSource, UrlSource, VideoMode, WorkerSession } from './worker_types'
 
 export const PIPELINE_PATH = '/api/v1/pipeline'
 export const SUBPROTOCOL = 'eyepop.v1'
@@ -294,6 +294,8 @@ export class PipelineJob implements ResultStream {
     // Stops the job's source on the pipeline, once it was sent.
     stopOnPipeline: (() => void) | null = null
     private _milliComputeUnits: number | undefined = undefined
+    private _mediaId: string | undefined = undefined
+    private readonly _warnings: PipelineWarning[] = []
 
     constructor(
         readonly source: Message,
@@ -312,6 +314,35 @@ export class PipelineJob implements ResultStream {
     /** The source's milli compute units: the latest total of its `usage` messages and its `end`. */
     get milliComputeUnits(): number | undefined {
         return this._milliComputeUnits
+    }
+
+    /** The recording's mediaId, from the source's start, when it records to the media cache. */
+    get mediaId(): string | undefined {
+        return this._mediaId
+    }
+
+    /** The pipeline API's warnings about the source, in order. */
+    get warnings(): readonly PipelineWarning[] {
+        return this._warnings
+    }
+
+    /** Keep a warning about the source, and return it; the source runs on. */
+    noteWarning(message: Message): PipelineWarning {
+        const info = message['info']
+        const warning: PipelineWarning = {
+            message: typeof message['message'] === 'string' ? message['message'] : '',
+            ...(info !== null && typeof info === 'object' && !Array.isArray(info) ? { info: info as Record<string, unknown> } : {}),
+        }
+        this._warnings.push(warning)
+        return warning
+    }
+
+    /** Keep a start's mediaId, which the pipeline API sends for a source that records. */
+    noteStart(message: Message): void {
+        const value = message['mediaId']
+        if (typeof value === 'string' && value !== '') {
+            this._mediaId = value
+        }
     }
 
     /** Keep a usage's or an end's milliComputeUnits: each carries the source's total so far. */
@@ -341,6 +372,12 @@ export class PipelineJob implements ResultStream {
         }
         if (this.videoMode !== undefined) {
             command['videoMode'] = this.videoMode
+        }
+        if (this.params.mediaCacheSeconds !== undefined) {
+            command['mediaCacheSeconds'] = this.params.mediaCacheSeconds
+        }
+        if (this.params.mediaCacheReencode !== undefined) {
+            command['mediaCacheReencode'] = this.params.mediaCacheReencode
         }
         return command
     }
@@ -1005,6 +1042,9 @@ export class PipelineBackend implements WorkerBackend {
                 case 'result':
                     onResult()
                     break
+                case 'start':
+                    job.noteStart(message)
+                    break
                 case 'prediction':
                     job.predicted(message['prediction'] as Prediction)
                     break
@@ -1022,6 +1062,12 @@ export class PipelineBackend implements WorkerBackend {
                         return message['error']
                     }
                     throw new PipelineCommandError(message['error'] ?? '', message['message'] ?? '')
+                case 'warning': {
+                    // the source runs on: keep it for the caller and say so (media_cache_gop_too_long, spec 024)
+                    const warning = job.noteWarning(message)
+                    this.ctx.logger.warn('the pipeline API warns about source %s: %s', source.id, warning.message)
+                    break
+                }
                 case 'dropped':
                     this.ctx.requestLogger.debug('the pipeline API dropped %s predictions of a live source', message['count'])
                     break

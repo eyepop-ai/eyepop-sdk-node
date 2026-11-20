@@ -8,6 +8,26 @@ import { Area } from 'EyePop/data/data_types'
 
 type UploadBody = ReadableStream<Uint8Array> | Blob | BufferSource
 
+/** The media cache members a source sends, the instance's names; an unset one is left out (spec 024). */
+function mediaCacheMembers(params: ProcessParams): Record<string, number | boolean> {
+    const members: Record<string, number | boolean> = {}
+    if (params.mediaCacheSeconds !== undefined) {
+        members['mediaCacheSeconds'] = params.mediaCacheSeconds
+    }
+    if (params.mediaCacheReencode !== undefined) {
+        members['mediaCacheReencode'] = params.mediaCacheReencode
+    }
+    return members
+}
+
+/**
+ * The media cache query parameters an upload sends: mediaCacheSeconds only. The instance's upload routes do not
+ * read mediaCacheReencode, so it is not sent; the session backend tells the caller it has no effect there.
+ */
+export function uploadMediaCacheQuery(params: ProcessParams): Record<string, string> {
+    return params.mediaCacheSeconds !== undefined ? { mediaCacheSeconds: String(params.mediaCacheSeconds) } : {}
+}
+
 export class AbstractJob implements ResultStream {
     protected _getSession: () => Promise<WorkerSession>
 
@@ -209,6 +229,9 @@ export class UploadJob extends AbstractJob {
                     queryParams.set(key, value)
                 }
             }
+            for (const [key, value] of Object.entries(uploadMediaCacheQuery(this._params))) {
+                queryParams.set(key, value)
+            }
             const postUrl: string = `${session.baseUrl.replace(/\/+$/, '')}/pipelines/${session.pipelineId}/source?${queryParams.toString()}`
             if (this._params.componentParams || this._params.roi || this._params.camera) {
                 const formData = new FormData()
@@ -321,6 +344,9 @@ export class UploadJob extends AbstractJob {
                     queryParams.set(key, value)
                 }
             }
+            for (const [key, value] of Object.entries(uploadMediaCacheQuery(this._params))) {
+                queryParams.set(key, value)
+            }
             const postUrl: string = `${session.baseUrl.replace(/\/+$/, '')}/pipelines/${session.pipelineId}/source?${queryParams.toString()}`
             if (this._params.componentParams || this._params.roi || this._params.camera) {
                 const formData = new FormData()
@@ -407,6 +433,7 @@ export class LoadFromJob extends AbstractJob {
             // undefined is dropped by JSON.stringify, so an unset option leaves
             // the worker's own default to decide rather than pinning it here.
             rtspForceNonCompliantUrl: this._params.rtspForceNonCompliantUrl,
+            ...mediaCacheMembers(this._params),
         }
         if (this._params.motionDetect) {
             Object.assign(body, this._params.motionDetect)
@@ -581,6 +608,7 @@ export class LoadFromAssetUuidJob extends AbstractJob {
             fps: this._params.fps,
             camera: this._params.camera,
             version: this._version,
+            ...mediaCacheMembers(this._params),
         }
         if (this._params.motionDetect) {
             Object.assign(body, this._params.motionDetect)

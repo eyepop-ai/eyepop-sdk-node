@@ -269,6 +269,39 @@ describe('pipeline mode (SDK-27)', () => {
         expect(warnings).toEqual([])
     })
 
+    test('mediaCacheSeconds and mediaCacheReencode go on the setSource, and a recording job gets its mediaId (spec 024)', async () => {
+        const ep = endpoint()
+        await ep.connect()
+        const recorded = await ep.process({ source: { url: 'https://videos.example/a.mp4' }, mediaCacheSeconds: 600, mediaCacheReencode: true })
+        await all(recorded)
+        const plain = await ep.process({ source: { url: 'https://videos.example/b.mp4' } })
+        await all(plain)
+        await ep.disconnect()
+        const [first, second] = sources(only()) as [Record<string, any>, Record<string, any>]
+        expect(first['mediaCacheSeconds']).toBe(600)
+        expect(first['mediaCacheReencode']).toBe(true)
+        expect(second).not.toHaveProperty('mediaCacheSeconds')
+        expect(second).not.toHaveProperty('mediaCacheReencode')
+        expect(recorded.mediaId).toBe(`v1.media-of-${first['id']}`)
+        expect(plain.mediaId).toBeUndefined()
+        expect(warnings).toEqual([])
+    })
+
+    test('a warning about a source reaches its job and the log, and the source runs on (spec 024)', async () => {
+        const gap = {
+            message: 'the source went 12.0 s without a keyframe',
+            info: { code: 'media_cache_gop_too_long', level: 'warn', gap_ms: 12000, threshold_ms: 10000 },
+        }
+        fake.warnings = [gap]
+        const ep = endpoint()
+        await ep.connect()
+        const job = await ep.process({ source: { url: 'https://videos.example/a.mp4' }, mediaCacheSeconds: 600 })
+        expect(await all(job)).toHaveLength(fake.frames)
+        await ep.disconnect()
+        expect(job.warnings).toEqual([gap])
+        expect(warnings.some(line => line.includes('12.0 s without a keyframe'))).toBe(true)
+    })
+
     test('videoMode goes on an upload’s setSource (AWSU-317)', async () => {
         const ep = endpoint()
         await ep.connect()
