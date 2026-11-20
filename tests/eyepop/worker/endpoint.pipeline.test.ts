@@ -287,6 +287,21 @@ describe('pipeline mode (SDK-27)', () => {
         expect(warnings).toEqual([])
     })
 
+    test('a warning about a source reaches its job and the log, and the source runs on (spec 024)', async () => {
+        const gap = {
+            message: 'the source went 12.0 s without a keyframe',
+            info: { code: 'media_cache_gop_too_long', level: 'warn', gap_ms: 12000, threshold_ms: 10000 },
+        }
+        fake.warnings = [gap]
+        const ep = endpoint()
+        await ep.connect()
+        const job = await ep.process({ source: { url: 'https://videos.example/a.mp4' }, mediaCacheSeconds: 600 })
+        expect(await all(job)).toHaveLength(fake.frames)
+        await ep.disconnect()
+        expect(job.warnings).toEqual([gap])
+        expect(warnings.some(line => line.includes('12.0 s without a keyframe'))).toBe(true)
+    })
+
     test('videoMode goes on an upload’s setSource (AWSU-317)', async () => {
         const ep = endpoint()
         await ep.connect()

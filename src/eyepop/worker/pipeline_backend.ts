@@ -11,7 +11,7 @@ import { resolvePath } from '../shims/local_file'
 import { UpgradeError, openAuthorizedWebSocket } from '../shims/websockets'
 import { WorkerBackend, WorkerContext, WorkerWork } from './worker_backend'
 import { WebrtcBase } from './webrtc_base'
-import { AssetUuidSource, FileSource, MediaStreamSource, MotionDetectConfig, PathSource, Pop, ProcessParams, ResultStream, Source, StreamSource, UrlSource, VideoMode, WorkerSession } from './worker_types'
+import { AssetUuidSource, FileSource, MediaStreamSource, MotionDetectConfig, PathSource, PipelineWarning, Pop, ProcessParams, ResultStream, Source, StreamSource, UrlSource, VideoMode, WorkerSession } from './worker_types'
 
 export const PIPELINE_PATH = '/api/v1/pipeline'
 export const SUBPROTOCOL = 'eyepop.v1'
@@ -295,6 +295,7 @@ export class PipelineJob implements ResultStream {
     stopOnPipeline: (() => void) | null = null
     private _milliComputeUnits: number | undefined = undefined
     private _mediaId: string | undefined = undefined
+    private readonly _warnings: PipelineWarning[] = []
 
     constructor(
         readonly source: Message,
@@ -318,6 +319,22 @@ export class PipelineJob implements ResultStream {
     /** The recording's mediaId, from the source's start, when it records to the media cache. */
     get mediaId(): string | undefined {
         return this._mediaId
+    }
+
+    /** The pipeline API's warnings about the source, in order. */
+    get warnings(): readonly PipelineWarning[] {
+        return this._warnings
+    }
+
+    /** Keep a warning about the source, and return it; the source runs on. */
+    noteWarning(message: Message): PipelineWarning {
+        const info = message['info']
+        const warning: PipelineWarning = {
+            message: typeof message['message'] === 'string' ? message['message'] : '',
+            ...(info !== null && typeof info === 'object' && !Array.isArray(info) ? { info: info as Record<string, unknown> } : {}),
+        }
+        this._warnings.push(warning)
+        return warning
     }
 
     /** Keep a start's mediaId, which the pipeline API sends for a source that records. */
@@ -1045,6 +1062,12 @@ export class PipelineBackend implements WorkerBackend {
                         return message['error']
                     }
                     throw new PipelineCommandError(message['error'] ?? '', message['message'] ?? '')
+                case 'warning': {
+                    // the source runs on: keep it for the caller and say so (media_cache_gop_too_long, spec 024)
+                    const warning = job.noteWarning(message)
+                    this.ctx.logger.warn('the pipeline API warns about source %s: %s', source.id, warning.message)
+                    break
+                }
                 case 'dropped':
                     this.ctx.requestLogger.debug('the pipeline API dropped %s predictions of a live source', message['count'])
                     break

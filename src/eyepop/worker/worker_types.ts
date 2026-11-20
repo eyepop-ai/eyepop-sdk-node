@@ -91,6 +91,19 @@ export interface ResultStream extends AsyncIterable<Prediction> {
      * before the start, for a source that does not record, and on a worker session.
      */
     readonly mediaId?: string | undefined
+    /**
+     * The warnings the pipeline API sent about the stream's source in pipeline mode, in order; the source runs on.
+     * The pipeline API sends one when a source that records goes more than 10 s without a keyframe
+     * (`info.code` `media_cache_gop_too_long`, with `gap_ms` and `threshold_ms`); `mediaCacheReencode` avoids it.
+     * Each is also logged once as a warning. Undefined on a worker session.
+     */
+    readonly warnings?: readonly PipelineWarning[] | undefined
+}
+
+/** A pipeline API `warning` about a source: its text, and its `info` (a `code`, a `level` and details) when it has one. */
+export interface PipelineWarning {
+    readonly message: string
+    readonly info?: Record<string, unknown>
 }
 
 // Pop definition types
