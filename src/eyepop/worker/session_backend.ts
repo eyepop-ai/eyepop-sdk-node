@@ -738,6 +738,19 @@ export class SessionBackend implements WorkerBackend {
         return (await this.session()).authenticationHeaders()
     }
 
+    /**
+     * A compute session's reads carry the session's own access token, which only compute-api issues: resolve the
+     * session again for a fresh one. A pop's session reads under the endpoint's token: forget it.
+     */
+    public async refreshMediaCredential(): Promise<void> {
+        this.ctx.forgetCredential()
+        if (this._sessionAccessToken) {
+            this._sessionAccessToken = null
+            this._sessionAccessTokenValidUntil = null
+            await this.reconnect()
+        }
+    }
+
     public async authorizationHeader(): Promise<string> {
         if (this._sessionAccessToken) {
             return `Bearer ${this._sessionAccessToken}`

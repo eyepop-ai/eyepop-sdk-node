@@ -618,6 +618,11 @@ export class PipelineBackend implements WorkerBackend {
         return token === undefined ? {} : { Authorization: `Bearer ${token}` }
     }
 
+    /** The socket's token is the endpoint's: forget it, so the next read exchanges the credential again. */
+    public async refreshMediaCredential(): Promise<void> {
+        this.ctx.forgetCredential()
+    }
+
     private async configuredPipelineApiUrl(): Promise<string> {
         const client = this.ctx.client()
         if (client === null) {

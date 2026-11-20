@@ -51,7 +51,6 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> implements MediaRea
         this._media = new MediaReads({
             client: () => this._client,
             route: () => this._backend,
-            forgetCredential: () => this.statusHandler401(401),
             requestLogger: this._requestLogger,
         })
         this._backend = options.isPipelineMode ? new PipelineBackend(context) : new SessionBackend(context)

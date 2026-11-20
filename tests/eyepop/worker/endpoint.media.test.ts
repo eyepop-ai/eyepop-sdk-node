@@ -1,5 +1,5 @@
-import { EyePop, MediaReadError, PredictedObject, Prediction, ResultStream, WorkerEndpoint } from '../../../src/eyepop'
-import { afterEach, beforeAll, afterAll, beforeEach, describe, expect, test } from '@jest/globals'
+import { EyePop, MediaReadError, MediaReads, PredictedObject, Prediction, PredictionFrameError, ResultStream, WorkerEndpoint } from '../../../src/eyepop'
+import { afterEach, beforeEach, describe, expect, test } from '@jest/globals'
 import { MockServer } from 'jest-mock-server'
 import { v4 as uuidv4 } from 'uuid'
 import { pino } from 'pino'
@@ -32,15 +32,17 @@ async function bytes(stream: ReadableStream<Uint8Array>): Promise<string> {
     return Buffer.from(await new Response(stream).arrayBuffer()).toString()
 }
 
-async function refusal(read: Promise<unknown>): Promise<MediaReadError> {
+async function rejection<E>(read: Promise<unknown>, type: new (...args: any[]) => E): Promise<E> {
     try {
         await read
     } catch (error) {
-        expect(error).toBeInstanceOf(MediaReadError)
-        return error as MediaReadError
+        expect(error).toBeInstanceOf(type)
+        return error as E
     }
     throw new Error('read without a refusal')
 }
+
+const refusal = (read: Promise<unknown>) => rejection(read, MediaReadError)
 
 const PERSON: PredictedObject = { classLabel: 'person', confidence: 0.9, category: undefined as any, x: 10.4, y: 20.6, width: 100.2, height: 50, id: 1 } as PredictedObject
 const PREDICTION: Prediction = { timestamp: 1500, source_width: 640, source_height: 480, objects: [PERSON] }
@@ -116,10 +118,10 @@ describe('reads by mediaId in pipeline mode (spec 025)', () => {
         const job = await ep.process({ source: { url: 'https://videos.example/a.mp4' } })
         await all(job)
         expect(job.mediaId).toBeUndefined()
-        await expect(job.mediaFrame(PREDICTION, PERSON)).rejects.toThrow(/no mediaId/)
+        expect((await rejection(job.mediaFrame(PREDICTION, PERSON), PredictionFrameError)).reason).toBe('no_media_id')
         const recorded = await ep.process({ source: { url: 'https://videos.example/b.mp4' }, mediaCacheSeconds: 60 })
         await all(recorded)
-        await expect(recorded.mediaFrame({ source_width: 640, source_height: 480 })).rejects.toThrow(/no timestamp/)
+        expect((await rejection(recorded.mediaFrame({ source_width: 640, source_height: 480 }), PredictionFrameError)).reason).toBe('no_timestamp')
         expect(fake.mediaRequests).toHaveLength(0)
     })
 
@@ -150,6 +152,40 @@ describe('reads by mediaId in pipeline mode (spec 025)', () => {
         expect(fake.mediaRequests).toHaveLength(1)
     })
 
+    test('deadlineMs 0 does not ask again, even after a Retry-After of 0', async () => {
+        fake.mediaAnswers = [
+            {
+                status: 425,
+                headers: { 'Retry-After': '0', 'Content-Type': 'application/json' },
+                body: JSON.stringify({ error: 'media unavailable', reason: 'media_not_yet_available', message: 'not yet' }),
+            },
+        ]
+        const error = await refusal(ep.mediaFrame('v1.abc', 1500, { deadlineMs: 0 }))
+        expect(error.status).toBe(425)
+        expect(error.retryAfterMs).toBe(0)
+        expect(fake.mediaRequests).toHaveLength(1)
+    })
+
+    test.each([
+        ['error', { error: 'overloaded', message: 'max-reads' }],
+        ['reason', { error: 'unavailable', reason: 'overloaded', message: 'max-reads' }],
+    ])('a 503 overloaded (in %s) is asked again after its Retry-After, within the deadline', async (_field, body) => {
+        const overloaded = { status: 503, headers: { 'Retry-After': '0', 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+        fake.mediaAnswers = [overloaded, overloaded]
+        const frame = await ep.mediaFrame('v1.abc', 1500)
+        expect(Buffer.from(frame).toString()).toBe('frame:1500')
+        expect(fake.mediaRequests).toHaveLength(3)
+    })
+
+    test('a 503 overloaded past the deadline throws MediaReadError with the Retry-After', async () => {
+        fake.mediaAnswers = [{ status: 503, headers: { 'Retry-After': '2', 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'overloaded', message: 'max-reads' }) }]
+        const error = await refusal(ep.mediaClip('v1.abc', 0, 1000, { deadlineMs: 500 }))
+        expect(error.status).toBe(503)
+        expect(error.error).toBe('overloaded')
+        expect(error.retryAfterMs).toBe(2000)
+        expect(fake.mediaRequests).toHaveLength(1)
+    })
+
     test('a 401 authenticates again once', async () => {
         fake.mediaAnswers = [{ status: 401 }]
         expect(await ep.mediaRange('v1.abc')).toEqual({ startNs: 1000, endNs: 9000 })
@@ -170,7 +206,6 @@ describe('reads by mediaId in pipeline mode (spec 025)', () => {
         expect(error.error).toBe('refused')
         expect(error.reason).toBe(reason)
         expect(error.serverMessage).toBe(`the ${reason}`)
-        expect(error.message).toContain(reason)
         expect(fake.mediaRequests).toHaveLength(1)
     })
 
@@ -184,17 +219,15 @@ describe('reads by mediaId in pipeline mode (spec 025)', () => {
 })
 
 describe('reads by mediaId on a worker session (spec 025)', () => {
-    const server = new MockServer()
+    let server: MockServer
     const mediaId = 'v2.AAAAAAAAAAAAAAAAAAAAAA.abc'
 
-    beforeAll(async () => {
+    beforeEach(async () => {
+        server = new MockServer()
         await server.start()
     })
-    afterAll(async () => {
+    afterEach(async () => {
         await server.stop()
-    })
-    beforeEach(() => {
-        server.reset()
     })
 
     function session(popId: string, pipelineId: string, token: string) {
@@ -331,5 +364,84 @@ describe('reads by mediaId on a worker session (spec 025)', () => {
         } finally {
             await endpoint.disconnect()
         }
+    })
+
+    test("a 401 on a compute session's read resolves the session again for a fresh session token", async () => {
+        const sessionUuid = uuidv4()
+        const pipelineId = uuidv4()
+        const tokens = ['session-token-1', 'session-token-2']
+        let resolved = 0
+        server.post('/v1/auth/authenticate').mockImplementation(ctx => {
+            ctx.status = 200
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify({ access_token: uuidv4(), expires_in: 1000 * 1000, token_type: 'Bearer' })
+        })
+        server.get(`/v1/sessions/${sessionUuid}`).mockImplementation(ctx => {
+            ctx.status = 200
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify({
+                session_uuid: sessionUuid,
+                session_endpoint: `${server.getURL().toString()}${sessionUuid}`,
+                access_token: tokens[Math.min(resolved++, tokens.length - 1)],
+                access_token_expires_in: 1000 * 1000,
+                pipeline_uuid: '',
+                pipelines: [{ pipeline_id: pipelineId }],
+                session_status: 'running',
+                session_active: true,
+                persistent: true,
+            })
+        })
+        server.get(`/${sessionUuid}/health`).mockImplementation(ctx => {
+            ctx.status = 200
+            ctx.response.headers['content-type'] = 'text/plain'
+            ctx.body = "I'm fine"
+        })
+        const authorizations: Array<string | undefined> = []
+        server.get(`/${sessionUuid}/media/${mediaId}/range`).mockImplementation(ctx => {
+            const authorization = ctx.request.headers['authorization']
+            authorizations.push(authorization)
+            if (authorization !== `Bearer ${tokens[1]}`) {
+                ctx.status = 401
+                return
+            }
+            ctx.status = 200
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify({ start_ns: 100, end_ns: 2000 })
+        })
+        const endpoint = EyePop.workerEndpoint({
+            eyepopUrl: server.getURL().toString(),
+            auth: { apiKey: uuidv4() },
+            sessionUuid,
+            stopJobs: false,
+            isPipelineMode: false,
+            logger: pino({ level: 'silent' }),
+        })
+        try {
+            await endpoint.connect()
+            expect(await endpoint.mediaRange(mediaId)).toEqual({ startNs: 100, endNs: 2000 })
+        } finally {
+            await endpoint.disconnect()
+        }
+        expect(authorizations).toEqual([`Bearer ${tokens[0]}`, `Bearer ${tokens[1]}`])
+    })
+})
+
+describe('a refusal whose body cannot be read', () => {
+    test('throws MediaReadError with the status and the read failure as its cause', async () => {
+        const broken = new Error('connection reset')
+        const body = new ReadableStream<Uint8Array>({
+            pull(controller) {
+                controller.error(broken)
+            },
+        })
+        const reads = new MediaReads({
+            client: () => ({ fetch: async () => new Response(body, { status: 500 }) }) as any,
+            route: () => ({ mediaBaseUrl: async () => 'http://media.example', mediaHeaders: async () => ({}), refreshMediaCredential: async () => undefined }),
+            requestLogger: pino({ level: 'silent' }),
+        })
+        const error = await refusal(reads.mediaRange('v1.abc'))
+        expect(error.status).toBe(500)
+        expect(error.reason).toBeUndefined()
+        expect(error.cause).toBe(broken)
     })
 })

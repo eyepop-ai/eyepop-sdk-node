@@ -137,7 +137,7 @@ export {
     validatePop,
 } from './worker/worker_types'
 
-export { MediaReadError, MediaRange, MediaBox, MediaFrameOptions, MediaClipOptions, MediaClipMode, MediaClip, MediaReader, MediaWaitOptions, Nanoseconds } from './worker/media'
+export { MediaReadError, PredictionFrameError, PredictionFrameErrorReason, MediaRange, MediaBox, MediaFrameOptions, MediaClipOptions, MediaClipMode, MediaClip, MediaReader, MediaWaitOptions, Nanoseconds } from './worker/media'
 
 export { Options, Authentication, SessionAuth, ApiKeyAuth, AccessTokenAuth, OAuth2Auth, Auth0Options, HttpClient, PlatformSupport, LocalAuth } from './options'
 

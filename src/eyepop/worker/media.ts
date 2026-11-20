@@ -35,8 +35,8 @@ export interface MediaWaitOptions {
     /** Milliseconds the server waits for the moment before it answers 425; 0 to 10000, the server's 2000 by default. */
     readonly waitMs?: number | undefined
     /**
-     * Milliseconds the SDK keeps asking again after a 425, each time after its `Retry-After`; 30000 by default, 0 to
-     * not ask again. A 425 still missing then throws `MediaReadError`.
+     * Milliseconds the SDK keeps asking again after a 425, or a 503 `overloaded` from the pipeline API, each time
+     * after its `Retry-After`; 30000 by default, 0 to not ask again. One still refused then throws `MediaReadError`.
      */
     readonly deadlineMs?: number | undefined
     /** Aborts the read, also while it waits to ask again. */
@@ -70,9 +70,8 @@ export interface MediaClip {
     /** The PTS of the clip's last frame, from `X-End-Ns`. */
     readonly endNs: number
     /**
-     * What the read cost on the pipeline API, from an `X-Milli-Compute-Units` response header when the answer has
-     * one. The pipeline API sends a clip's units as an HTTP trailer once the clip has streamed, which `fetch` does
-     * not expose, so it is undefined for a clip today, and always on a worker session, whose reads are not priced.
+     * What the read cost on the pipeline API, from the clip's `X-Milli-Compute-Units` response header. Undefined
+     * when the answer has none: on a worker session, whose reads are not priced.
      */
     readonly milliComputeUnits?: number | undefined
 }
@@ -90,7 +89,9 @@ export interface MediaReader {
  * `invalid_media_id`, `invalid_request`, `invalid_bbox`, `clip_too_long` (400), `no_account` (403),
  * `stream_not_found` (404), `media_expired` or `media_gap` (410), `media_not_yet_available` (425, once the SDK's
  * deadline passed; `retryAfterMs` is the server's last `Retry-After`), `media_cache_unreachable` (502),
- * `media_cache_not_configured`, `media_cache_scope_unresolved` or `overloaded` (503).
+ * `media_cache_not_configured`, `media_cache_scope_unresolved` or `overloaded` (503; an `overloaded` one only once
+ * the SDK's deadline passed, with `retryAfterMs`). `cause` is the failure that kept the SDK from reading the
+ * refusal's body, when one did.
  */
 export class MediaReadError extends Error {
     readonly status: number
@@ -98,8 +99,14 @@ export class MediaReadError extends Error {
     readonly reason: string | undefined
     readonly serverMessage: string | undefined
     readonly retryAfterMs: number | undefined
+    readonly cause: unknown
 
-    constructor(status: number, fields: { error?: string | undefined; reason?: string | undefined; message?: string | undefined } = {}, retryAfterMs: number | undefined = undefined) {
+    constructor(
+        status: number,
+        fields: { error?: string | undefined; reason?: string | undefined; message?: string | undefined } = {},
+        retryAfterMs: number | undefined = undefined,
+        cause: unknown = undefined,
+    ) {
         super(`media read failed with ${status}${fields.reason ? ` ${fields.reason}` : ''}${fields.message ? `: ${fields.message}` : ''}`)
         this.name = 'MediaReadError'
         this.status = status
@@ -107,6 +114,21 @@ export class MediaReadError extends Error {
         this.reason = fields.reason
         this.serverMessage = fields.message
         this.retryAfterMs = retryAfterMs
+        this.cause = cause
+    }
+}
+
+/** Why a job's `mediaFrame` cannot read a prediction's frame, before it asks: the job has no `mediaId`, or the prediction no `timestamp`. */
+export type PredictionFrameErrorReason = 'no_media_id' | 'no_timestamp'
+
+/** A job's `mediaFrame` that cannot be read before any request: `reason` says what is missing. */
+export class PredictionFrameError extends Error {
+    readonly reason: PredictionFrameErrorReason
+
+    constructor(reason: PredictionFrameErrorReason, message: string) {
+        super(message)
+        this.name = 'PredictionFrameError'
+        this.reason = reason
     }
 }
 
@@ -116,20 +138,21 @@ export interface MediaRoute {
     mediaBaseUrl(): Promise<string>
     /** The headers that authorize a read; none locally. */
     mediaHeaders(): Promise<Record<string, string>>
+    /** After a read's 401: drop the credential it was sent with, so the next `mediaHeaders` carries a fresh one. */
+    refreshMediaCredential(): Promise<void>
 }
 
 /** What the reads need of their endpoint. */
 export interface MediaContext {
     client(): HttpClient | null
     route(): MediaRoute
-    /** Forget the endpoint's token after a 401, so the next read authenticates again. */
-    forgetCredential(): void
     readonly requestLogger: Logger
 }
 
 export const DEFAULT_MEDIA_DEADLINE_MS = 30 * 1000
-// A 425 without a usable Retry-After is asked again after this long.
+// A 425 or an overloaded 503 without a usable Retry-After is asked again after this long.
 const DEFAULT_RETRY_AFTER_MS = 1000
+const OVERLOADED = 'overloaded'
 
 /** A nanosecond timestamp as its query parameter: whole and exact, else a RangeError. */
 export function nanosecondsParam(value: Nanoseconds, name: string): string {
@@ -178,9 +201,17 @@ function retryAfterMs(response: Response): number | undefined {
     return Number.isNaN(date) ? undefined : Math.max(0, date - Date.now())
 }
 
-async function errorOf(response: Response, retryAfter: number | undefined): Promise<MediaReadError> {
-    const text = await response.text().catch(() => '')
-    let fields: { error?: string; reason?: string; message?: string } = {}
+type RefusalFields = { error?: string; reason?: string; message?: string }
+
+/** A refusal's body: its JSON `error`, `reason` and `message`, or its text as the message; the read's failure if it could not be read. */
+async function refusalOf(response: Response): Promise<{ fields: RefusalFields; cause?: unknown }> {
+    let text: string
+    try {
+        text = await response.text()
+    } catch (cause) {
+        return { fields: {}, cause }
+    }
+    let fields: RefusalFields = {}
     try {
         const body = JSON.parse(text)
         if (body !== null && typeof body === 'object') {
@@ -195,7 +226,7 @@ async function errorOf(response: Response, retryAfter: number | undefined): Prom
             fields = { message: text }
         }
     }
-    return new MediaReadError(response.status, fields, retryAfter)
+    return { fields }
 }
 
 function sleep(ms: number, signal: AbortSignal | undefined): Promise<void> {
@@ -266,8 +297,8 @@ export class MediaReads implements MediaReader {
     }
 
     /**
-     * One read: authenticates again once after a 401, asks again after each 425's Retry-After until the deadline,
-     * and throws MediaReadError for any other refusal. Not the endpoint's retry, which reconnects a session on a 404.
+     * One read: authenticates again once after a 401, asks again after each 425's or overloaded 503's Retry-After
+     * until the deadline, and throws MediaReadError for any other refusal. Not the endpoint's retry, which reconnects a session on a 404.
      */
     private async read(
         mediaId: string,
@@ -284,7 +315,8 @@ export class MediaReads implements MediaReader {
         if (client === null) {
             throw new Error('endpoint not connected, use connect()')
         }
-        const deadline = Date.now() + (options.deadlineMs ?? DEFAULT_MEDIA_DEADLINE_MS)
+        const budgetMs = options.deadlineMs ?? DEFAULT_MEDIA_DEADLINE_MS
+        const deadline = Date.now() + budgetMs
         const route = this.ctx.route()
         let reauthorized = false
         while (true) {
@@ -292,7 +324,7 @@ export class MediaReads implements MediaReader {
             const queryString = query.toString()
             const url = `${base}/${encodeURIComponent(mediaId)}/${kind}${queryString ? `?${queryString}` : ''}`
             this.ctx.requestLogger.debug('before GET %s', url)
-            const response = await client.fetch(url, {
+            const response: Response = await client.fetch(url, {
                 method: 'GET',
                 headers: { ...(await route.mediaHeaders()), ...headers },
                 ...(options.signal !== undefined ? { signal: options.signal } : {}),
@@ -305,17 +337,19 @@ export class MediaReads implements MediaReader {
             if (response.status === 401 && !reauthorized) {
                 reauthorized = true
                 await response.body?.cancel().catch(() => undefined)
-                this.ctx.forgetCredential()
+                await route.refreshMediaCredential()
                 continue
             }
-            const retryAfter = response.status === 425 ? (retryAfterMs(response) ?? DEFAULT_RETRY_AFTER_MS) : undefined
-            if (retryAfter !== undefined && Date.now() + retryAfter <= deadline) {
-                await response.body?.cancel().catch(() => undefined)
-                this.ctx.requestLogger.debug('%s of %s is not cached yet, asking again in %d ms', kind, mediaId, retryAfter)
+            const refusal = await refusalOf(response)
+            // A 425 waits for the cache; a 503 overloaded waits for the pipeline API's limiter, which reads pass as sockets do.
+            const retryable = response.status === 425 || (response.status === 503 && (refusal.fields.error === OVERLOADED || refusal.fields.reason === OVERLOADED))
+            const retryAfter = retryable ? (retryAfterMs(response) ?? DEFAULT_RETRY_AFTER_MS) : undefined
+            if (retryAfter !== undefined && budgetMs > 0 && Date.now() + retryAfter <= deadline) {
+                this.ctx.requestLogger.debug('%s of %s answered %d, asking again in %d ms', kind, mediaId, response.status, retryAfter)
                 await sleep(retryAfter, options.signal)
                 continue
             }
-            throw await errorOf(response, retryAfter)
+            throw new MediaReadError(response.status, refusal.fields, retryAfter, refusal.cause)
         }
     }
 }
@@ -328,11 +362,11 @@ export class MediaReads implements MediaReader {
  */
 export async function predictionFrame(reader: MediaReader, mediaId: string | undefined, prediction: Prediction, object?: PredictedObject, options: MediaFrameOptions = {}): Promise<Uint8Array> {
     if (mediaId === undefined) {
-        throw new Error('this job has no mediaId: it records only with mediaCacheSeconds, and only once its source started (its recording event or start)')
+        throw new PredictionFrameError('no_media_id', 'this job has no mediaId: it records only with mediaCacheSeconds, and only once its source started (its recording event or start)')
     }
     const timestamp = prediction.timestamp
     if (timestamp === undefined || timestamp === null) {
-        throw new Error('the prediction has no timestamp to read a frame at')
+        throw new PredictionFrameError('no_timestamp', 'the prediction has no timestamp to read a frame at')
     }
     let bbox = options.bbox
     if (object !== undefined) {

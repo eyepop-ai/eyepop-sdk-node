@@ -105,8 +105,9 @@ export interface ResultStream extends AsyncIterable<Prediction> {
      * The frame `prediction` was made on, from the job's recording (its `mediaId`), as JPEG bytes (PNG with
      * `options.png`): the endpoint's `mediaFrame` at the prediction's `timestamp`, cropped to `object`'s box when
      * given. An object's `x`, `y`, `width` and `height` are in the prediction's source pixels, which are the recorded
-     * frame's; the box is rounded out to whole pixels and clipped to the source. Throws an `Error` when the job has
-     * no `mediaId` or the prediction no `timestamp`, and `MediaReadError` when the read is refused.
+     * frame's; the box is rounded out to whole pixels and clipped to the source. Throws `PredictionFrameError`
+     * (`reason` `no_media_id` or `no_timestamp`) when the job has no `mediaId` or the prediction no `timestamp`, and
+     * `MediaReadError` when the read is refused. Required: a `ResultStream` written outside the SDK must add it.
      */
     mediaFrame(prediction: Prediction, object?: PredictedObject, options?: MediaFrameOptions): Promise<Uint8Array>
 }
