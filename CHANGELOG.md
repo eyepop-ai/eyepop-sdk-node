@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [4.2.1] - 2026-11-20
+
 ### Fixed
 - An API key is exchanged for the account `accountId` (or `EYEPOP_ACCOUNT_UUID`) names, as a login token is: the SDK sends it as `account_uuid` to `POST /v1/auth/authenticate`, as the Python SDK does. It used to exchange an API key without it, so in pipeline mode a key whose user has several accounts got a token that names none, and the pipeline API refused `mediaCacheSeconds` and `mediaCacheReencode` with `invalid_request` ("the token names none"). An `accountId` the key may not use is now refused by the compute API (`403`) when the endpoint connects, where it used to be ignored.
 
