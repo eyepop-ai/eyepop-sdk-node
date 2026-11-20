@@ -1,4 +1,5 @@
-import { Prediction, Session } from '../types'
+import { PredictedObject, Prediction, Session } from '../types'
+import type { MediaFrameOptions } from './media'
 import { Area } from 'EyePop/data/data_types'
 import { Camera, validateCamera } from '../camera'
 
@@ -86,21 +87,31 @@ export interface ResultStream extends AsyncIterable<Prediction> {
      */
     readonly milliComputeUnits?: number | undefined
     /**
-     * The recording's id, on a stream whose source records to the media cache (`mediaCacheSeconds`) in pipeline
-     * mode: an opaque string, set once the source starts, to pass back unchanged to read the recording. Undefined
-     * before the start, for a source that does not record, and on a worker session.
+     * The recording's id, on a stream whose source records to the media cache (`mediaCacheSeconds`): an opaque
+     * string to pass back unchanged to the endpoint's `mediaRange`, `mediaFrame` and `mediaClip`. In pipeline mode
+     * it comes with the source's start (`v1.`), on a worker session with the `recording` event that starts the
+     * source's result stream (`v2.`, eyepop-instance spec 025). Undefined until then and for a source that does not
+     * record.
      */
     readonly mediaId?: string | undefined
     /**
-     * The warnings the pipeline API sent about the stream's source in pipeline mode, in order; the source runs on.
-     * The pipeline API sends one when a source that records goes more than 10 s without a keyframe
+     * The warnings the pipeline sent about the stream's source, in order, in pipeline mode and on a worker session
+     * alike; the source runs on. One comes when a source that records goes more than 10 s without a keyframe
      * (`info.code` `media_cache_gop_too_long`, with `gap_ms` and `threshold_ms`); `mediaCacheReencode` avoids it.
-     * Each is also logged once as a warning. Undefined on a worker session.
+     * Each is also logged once as a warning.
      */
     readonly warnings?: readonly PipelineWarning[] | undefined
+    /**
+     * The frame `prediction` was made on, from the job's recording (its `mediaId`), as JPEG bytes (PNG with
+     * `options.png`): the endpoint's `mediaFrame` at the prediction's `timestamp`, cropped to `object`'s box when
+     * given. An object's `x`, `y`, `width` and `height` are in the prediction's source pixels, which are the recorded
+     * frame's; the box is rounded out to whole pixels and clipped to the source. Throws an `Error` when the job has
+     * no `mediaId` or the prediction no `timestamp`, and `MediaReadError` when the read is refused.
+     */
+    mediaFrame(prediction: Prediction, object?: PredictedObject, options?: MediaFrameOptions): Promise<Uint8Array>
 }
 
-/** A pipeline API `warning` about a source: its text, and its `info` (a `code`, a `level` and details) when it has one. */
+/** A pipeline `warning` about a source: its text, and its `info` (a `code`, a `level` and details) when it has one. */
 export interface PipelineWarning {
     readonly message: string
     readonly info?: Record<string, unknown>

@@ -1,7 +1,8 @@
-import { Prediction } from '../types'
+import { PredictedObject, Prediction } from '../types'
 import { Stream, StreamEvent, readableStreamFromString, MultipartPart, randomMultipartBoundary, encodeMultipartFormData } from '../streaming'
 import { Logger } from 'pino'
-import { ComponentParams, DEFAULT_PREDICTION_VERSION, PredictionVersion, ProcessParams, ResultStream, VideoMode, WorkerSession } from '../worker/worker_types'
+import { ComponentParams, DEFAULT_PREDICTION_VERSION, PipelineWarning, PredictionVersion, ProcessParams, ResultStream, VideoMode, WorkerSession } from '../worker/worker_types'
+import { MediaFrameOptions, MediaReader, predictionFrame } from './media'
 import { HttpClient } from '../options'
 import { WebrtcWhip } from './webrtc_whip'
 import { Area } from 'EyePop/data/data_types'
@@ -44,7 +45,13 @@ export class AbstractJob implements ResultStream {
 
     // A failure on a side request (the async upload beside a prepared result stream). It aborts the result
     // stream, and the iterator throws it instead of ending as if the job had been cancelled.
-    protected _sideFailure: Error | undefined = undefined;
+    protected _sideFailure: Error | undefined = undefined
+
+    // The recording's mediaId, from the instance's recording event (spec 025), and the pipeline's warnings.
+    private _mediaId: string | undefined = undefined
+    private readonly _warnings: PipelineWarning[] = []
+    private _media: MediaReader | undefined = undefined
+    private _logger: Logger | undefined = undefined;
 
     [Symbol.asyncIterator](): AsyncIterator<Prediction> {
         if (!this._responseStream) {
@@ -90,7 +97,55 @@ export class AbstractJob implements ResultStream {
         return Promise.reject('abstract class')
     }
 
+    /** The endpoint's reads by mediaId and its logger, which the job's warnings go to. */
+    public bindEndpoint(media: MediaReader, logger: Logger): void {
+        this._media = media
+        this._logger = logger
+    }
+
+    /**
+     * The recording's id, from the `recording` event that starts the result stream of a source that records to the
+     * media cache (`mediaCacheSeconds`); undefined until then and for a source that does not record.
+     */
+    get mediaId(): string | undefined {
+        return this._mediaId
+    }
+
+    /** The pipeline's warnings about the source, in order; the source runs on. */
+    get warnings(): readonly PipelineWarning[] {
+        return this._warnings
+    }
+
+    /**
+     * The frame `prediction` was made on, cropped to `object` when given, through the endpoint's `mediaFrame`;
+     * see `ResultStream.mediaFrame`.
+     */
+    public async mediaFrame(prediction: Prediction, object?: PredictedObject, options?: MediaFrameOptions): Promise<Uint8Array> {
+        if (this._media === undefined) {
+            throw new Error('this job is not bound to an endpoint that reads media')
+        }
+        return await predictionFrame(this._media, this._mediaId, prediction, object, options)
+    }
+
+    /** Keep what an event says about the recording: its mediaId, or a warning, which is also logged. */
+    protected noteEvent(event: StreamEvent): void {
+        if (event.type == 'recording') {
+            if (typeof event.mediaId === 'string' && event.mediaId !== '') {
+                this._mediaId = event.mediaId
+            }
+        } else if (event.type == 'warning') {
+            const info = event.info
+            const warning: PipelineWarning = {
+                message: typeof event.message === 'string' ? event.message : '',
+                ...(info !== null && typeof info === 'object' && !Array.isArray(info) ? { info: info as Record<string, unknown> } : {}),
+            }
+            this._warnings.push(warning)
+            ;(this._logger ?? this._requestLogger).warn('the pipeline warns about source %s: %s', event.source_id ?? '', warning.message)
+        }
+    }
+
     protected async onEvent(event: StreamEvent): Promise<void> {
+        this.noteEvent(event)
         if (event.type == 'error') {
             return Promise.reject(`Error event for source ${event.source_id}: ${event.message}`)
         }
@@ -204,6 +259,7 @@ export class UploadJob extends AbstractJob {
     }
 
     protected override async onEvent(event: StreamEvent): Promise<void> {
+        this.noteEvent(event)
         if (event.type == 'prepared') {
             if (!event.source_id) {
                 return Promise.reject('did not get a prepared sourceId to simulate full duplex')

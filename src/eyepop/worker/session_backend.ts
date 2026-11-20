@@ -265,6 +265,7 @@ export class SessionBackend implements WorkerBackend {
     }
 
     private start(job: AbstractJob): ResultStream {
+        job.bindEndpoint(this.ctx.media(), this.ctx.logger)
         return job.start(
             () => {
                 this.ctx.jobDone()
@@ -722,6 +723,19 @@ export class SessionBackend implements WorkerBackend {
             const message = await response.text()
             this.ctx.logger.info(`stopping pipeline failed, status ${response.status}: ${message}`)
         }
+    }
+
+    /** A session's recordings read from its instance, at its root: `{base url}/media` (spec 025). */
+    public async mediaBaseUrl(): Promise<string> {
+        const session = await this.session()
+        if (!session.baseUrl) {
+            throw new Error('endpoint not connected, use connect()')
+        }
+        return `${session.baseUrl.replace(/\/+$/, '')}/media`
+    }
+
+    public async mediaHeaders(): Promise<Record<string, string>> {
+        return (await this.session()).authenticationHeaders()
     }
 
     public async authorizationHeader(): Promise<string> {

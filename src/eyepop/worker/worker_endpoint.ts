@@ -5,14 +5,16 @@ import { validateCamera } from '../camera'
 import { WorkerBackend, WorkerContext, WorkerWork } from './worker_backend'
 import { SessionBackend } from './session_backend'
 import { MAX_OPEN_SOURCES, PipelineBackend, PipelineConfigurationError } from './pipeline_backend'
+import { MediaClip, MediaClipOptions, MediaFrameOptions, MediaRange, MediaReader, MediaReads, Nanoseconds } from './media'
 
 /**
  * Endpoint to an EyePop.ai worker. Its jobs run on a backend: a worker session by default, or with
  * `isPipelineMode` the pipeline API's socket. The methods are the same either way; a backend that
  * cannot honour an option says so.
  */
-export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
+export class WorkerEndpoint extends Endpoint<WorkerEndpoint> implements MediaReader {
     private readonly _backend: WorkerBackend
+    private readonly _media: MediaReads
 
     constructor(options: WorkerOptions) {
         if (options.isPipelineMode) {
@@ -44,7 +46,14 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
             forgetCredential: () => this.statusHandler401(401),
             fetchWithRetry: (fetcher, retries) => this.fetchWithRetry(fetcher, retries),
             credentialSession: () => super.session(),
+            media: () => this._media,
         }
+        this._media = new MediaReads({
+            client: () => this._client,
+            route: () => this._backend,
+            forgetCredential: () => this.statusHandler401(401),
+            requestLogger: this._requestLogger,
+        })
         this._backend = options.isPipelineMode ? new PipelineBackend(context) : new SessionBackend(context)
         this.setStatusRetryHandlers(new Map<number, Function>([[404, (statusCode: number) => this._backend.onStatus(statusCode)]]))
     }
@@ -156,6 +165,34 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> {
         }
         this.validateProcessParams(params)
         return await this.submit({ kind: 'loadFromGroup', urls, params })
+    }
+
+    // Reads of a recording by mediaId (eyepop-instance spec 025). A worker session asks its instance, pipeline mode
+    // the pipeline API; a recording outlives its session, and once the session is gone a pipeline mode endpoint of
+    // the same account reads it.
+
+    /** The first and last nanosecond the media cache holds of the recording; throws `MediaReadError` when refused. */
+    public async mediaRange(mediaId: string, options?: { signal?: AbortSignal | undefined }): Promise<MediaRange> {
+        return await this._media.mediaRange(mediaId, options)
+    }
+
+    /**
+     * The recording's frame at `timestampNs`, a prediction's `timestamp`, as JPEG bytes (PNG with `png`), optionally
+     * cropped to `bbox` in the frame's pixels and fit to `maxWidth` and `maxHeight`. A moment not cached yet is waited
+     * for, by the server for `waitMs` and then by the SDK after each `425` until `deadlineMs`; any refusal throws
+     * `MediaReadError`. A job's `mediaFrame(prediction, object)` reads this for one of its predictions.
+     */
+    public async mediaFrame(mediaId: string, timestampNs: Nanoseconds, options?: MediaFrameOptions): Promise<Uint8Array> {
+        return await this._media.mediaFrame(mediaId, timestampNs, options)
+    }
+
+    /**
+     * The recording between `startNs` and `endNs` as an MP4 that streams, with its real bounds: `mode` `exact` (the
+     * default) re-encodes it to the exact bounds, `keyframe` copies it from the keyframe at or before `startNs`. Waits
+     * as `mediaFrame` does; any refusal throws `MediaReadError`, `clip_too_long` for a window over the server's cap.
+     */
+    public async mediaClip(mediaId: string, startNs: Nanoseconds, endNs: Nanoseconds, options?: MediaClipOptions): Promise<MediaClip> {
+        return await this._media.mediaClip(mediaId, startNs, endNs, options)
     }
 
     private async submit(work: WorkerWork): Promise<ResultStream> {

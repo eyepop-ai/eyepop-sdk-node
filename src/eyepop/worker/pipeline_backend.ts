@@ -6,14 +6,17 @@
  * source's predictions back under the source's id.
  */
 import { LocalAuth, resolveAuth } from '../options'
-import { Prediction } from '../types'
+import { PredictedObject, Prediction } from '../types'
 import { resolvePath } from '../shims/local_file'
 import { UpgradeError, openAuthorizedWebSocket } from '../shims/websockets'
 import { WorkerBackend, WorkerContext, WorkerWork } from './worker_backend'
 import { WebrtcBase } from './webrtc_base'
+import { MediaFrameOptions, MediaReader, predictionFrame } from './media'
 import { AssetUuidSource, FileSource, MediaStreamSource, MotionDetectConfig, PathSource, PipelineWarning, Pop, ProcessParams, ResultStream, Source, StreamSource, UrlSource, VideoMode, WorkerSession } from './worker_types'
 
 export const PIPELINE_PATH = '/api/v1/pipeline'
+/** The pipeline API's reads by mediaId (eyepop-instance spec 025). */
+export const MEDIA_PATH = '/api/v1/media'
 export const SUBPROTOCOL = 'eyepop.v1'
 /** A socket may have this many open sources; one more is answered `queue_full`. */
 export const MAX_OPEN_SOURCES = 256
@@ -296,6 +299,8 @@ export class PipelineJob implements ResultStream {
     private _milliComputeUnits: number | undefined = undefined
     private _mediaId: string | undefined = undefined
     private readonly _warnings: PipelineWarning[] = []
+    // The endpoint's reads by mediaId, for mediaFrame.
+    reader: MediaReader | null = null
 
     constructor(
         readonly source: Message,
@@ -324,6 +329,14 @@ export class PipelineJob implements ResultStream {
     /** The pipeline API's warnings about the source, in order. */
     get warnings(): readonly PipelineWarning[] {
         return this._warnings
+    }
+
+    /** The frame a prediction was made on, cropped to an object when given; see `ResultStream.mediaFrame`. */
+    async mediaFrame(prediction: Prediction, object?: PredictedObject, options?: MediaFrameOptions): Promise<Uint8Array> {
+        if (this.reader === null) {
+            throw new Error('this job is not bound to an endpoint that reads media')
+        }
+        return await predictionFrame(this.reader, this._mediaId, prediction, object, options)
     }
 
     /** Keep a warning about the source, and return it; the source runs on. */
@@ -582,11 +595,27 @@ export class PipelineBackend implements WorkerBackend {
     }
 
     private async socketUrl(): Promise<string> {
+        return 'ws' + (await this.httpUrl()).slice('http'.length) + PIPELINE_PATH
+    }
+
+    /** The pipeline API's http(s) url, without a trailing slash: the option, the local endpoint or the compute API's config. */
+    private async httpUrl(): Promise<string> {
         if (this._pipelineApiUrl === null) {
             const base = this.ctx.options.pipelineApiUrl ?? (this.ctx.options.isLocalMode ? this.ctx.eyepopUrl() : new URL(await this.configuredPipelineApiUrl(), this.ctx.eyepopUrl() + '/').toString())
             this._pipelineApiUrl = checkedUrl(base)
         }
-        return 'ws' + this._pipelineApiUrl.slice('http'.length) + PIPELINE_PATH
+        return this._pipelineApiUrl
+    }
+
+    /** Reads by mediaId go to the pipeline API, beside its socket: `{pipeline API url}/api/v1/media` (spec 025). */
+    public async mediaBaseUrl(): Promise<string> {
+        return (await this.httpUrl()) + MEDIA_PATH
+    }
+
+    /** The socket's credential as a bearer token; none for a local pipeline API. */
+    public async mediaHeaders(): Promise<Record<string, string>> {
+        const token = await this.token()
+        return token === undefined ? {} : { Authorization: `Bearer ${token}` }
     }
 
     private async configuredPipelineApiUrl(): Promise<string> {
@@ -837,6 +866,7 @@ export class PipelineBackend implements WorkerBackend {
         }
         this.notSent({ rtspForceNonCompliantUrl: work.params.rtspForceNonCompliantUrl })
         const job = await this.jobOf(work)
+        job.reader = this.ctx.media()
         const limit = this.ctx.limit()
         await limit.acquire()
         this.ctx.updateState()

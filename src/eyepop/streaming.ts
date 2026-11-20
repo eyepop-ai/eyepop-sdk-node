@@ -8,6 +8,8 @@ export interface StreamEvent {
     message?: string
     // the event's own payload, e.g. a warning's code
     info?: unknown
+    // a recording event's mediaId (eyepop-instance spec 025)
+    mediaId?: string
 }
 
 /**
