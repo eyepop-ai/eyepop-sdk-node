@@ -245,4 +245,94 @@ describe('exchanging a credential at the compute API', () => {
         expect(login).toHaveBeenCalledTimes(2)
         expect(fake.sockets[0]!.authorization).toBe('Bearer minted-1')
     })
+
+    function loginSession(accessToken: string, validUntil: number = Date.now() + 3_600_000): Record<string, unknown> {
+        return { auth: { session: { eyepopUrl: fake.url, accessToken, validUntil } }, logger: pino({ level: 'silent' }) }
+    }
+
+    test('a login token session, as the dashboard passes, is exchanged for the named account', async () => {
+        const login = jwt({ sub: 'auth0|user' })
+        const ep = EyePop.workerEndpoint({ ...loginSession(login), accountId: 'the-account' })
+
+        await ep.connect()
+        await ep.disconnect()
+
+        expect(fake.exchanges).toEqual([`Bearer ${login}`])
+        expect(fake.exchangeQueries).toEqual(['account_uuid=the-account'])
+        expect(fake.sockets[0]!.authorization).toBe('Bearer minted-1')
+    })
+
+    test('a login token session is exchanged for the account the session names', async () => {
+        const ep = EyePop.workerEndpoint({
+            auth: { session: { eyepopUrl: fake.url, accessToken: 'the login token', validUntil: Date.now() + 3_600_000, accountId: 'session-account' } },
+            logger: pino({ level: 'silent' }),
+        } as any)
+
+        await ep.connect()
+        await ep.disconnect()
+
+        expect(fake.exchangeQueries).toEqual(['account_uuid=session-account'])
+    })
+
+    test('a login token session is exchanged for EYEPOP_ACCOUNT_UUID', async () => {
+        process.env['EYEPOP_ACCOUNT_UUID'] = 'env-account'
+        const ep = EyePop.workerEndpoint(loginSession('the login token'))
+
+        await ep.connect()
+        await ep.disconnect()
+
+        expect(fake.exchangeQueries).toEqual(['account_uuid=env-account'])
+    })
+
+    test('a login token session without an account is exchanged without one, for the default account', async () => {
+        const ep = EyePop.workerEndpoint(loginSession('the login token'))
+
+        await ep.connect()
+        await ep.disconnect()
+
+        expect(fake.exchangeQueries).toEqual([''])
+    })
+
+    test('a login token session is exchanged again on a 401', async () => {
+        fake.upgradeAnswers.push({ status: 401 })
+        const ep = EyePop.workerEndpoint(loginSession('the login token'))
+
+        await ep.connect()
+        await ep.disconnect()
+
+        expect(fake.exchanges).toEqual(['Bearer the login token', 'Bearer the login token'])
+        expect(fake.sockets[0]!.authorization).toBe('Bearer minted-2')
+    })
+
+    test('a session whose token carries an account is used as is', async () => {
+        const exchanged = jwt({ 'https://ident.eyepop.ai/account-uuid': 'the-account' })
+        const ep = EyePop.workerEndpoint(loginSession(exchanged))
+
+        await ep.connect()
+        await ep.disconnect()
+
+        expect(fake.exchanges).toEqual([])
+        expect(fake.sockets[0]!.authorization).toBe(`Bearer ${exchanged}`)
+    })
+
+    test('a session handed over from a pipeline mode endpoint is used as is', async () => {
+        const ep = EyePop.workerEndpoint({
+            auth: { session: { eyepopUrl: fake.url, accessToken: 'handed over', validUntil: Date.now() + 3_600_000, baseUrl: fake.url, isPipelineMode: true } },
+            logger: pino({ level: 'silent' }),
+        } as any)
+
+        await ep.connect()
+        await ep.disconnect()
+
+        expect(fake.exchanges).toEqual([])
+        expect(fake.sockets[0]!.authorization).toBe('Bearer handed over')
+    })
+
+    test('an expired login token session is refused without an exchange', async () => {
+        const ep = EyePop.workerEndpoint(loginSession('the login token', Date.now() - 1_000))
+
+        await expect(ep.connect()).rejects.toBe('error temporary access token expired')
+        expect(fake.exchanges).toEqual([])
+        expect(fake.upgrades).toBe(0)
+    })
 })
