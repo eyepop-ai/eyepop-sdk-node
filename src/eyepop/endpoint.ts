@@ -139,8 +139,11 @@ export class Endpoint<T extends Endpoint<T>> {
             return Promise.reject('cannot connect without defined auth option')
         }
         if ((auth as SessionAuth).session !== undefined) {
-            this._token = (auth as SessionAuth).session.accessToken
-            this._expire_token_time = (auth as SessionAuth).session.validUntil / 1000
+            // A login session is exchanged on first use instead, like an accessToken.
+            if (!this.isLoginSession((auth as SessionAuth).session)) {
+                this._token = (auth as SessionAuth).session.accessToken
+                this._expire_token_time = (auth as SessionAuth).session.validUntil / 1000
+            }
         } else if ((auth as OAuth2Auth).oAuth2 !== undefined) {
         } else if (accessTokenCredential(auth) !== undefined) {
         } else if (apiKeyCredential(auth) !== undefined) {
@@ -241,6 +244,14 @@ export class Endpoint<T extends Endpoint<T>> {
         return `Bearer ${await this.currentAccessToken()}`
     }
 
+    /**
+     * Whether a session's token is a login token to exchange rather than a token minted for this
+     * endpoint. Only a pipeline mode worker endpoint has such sessions.
+     */
+    protected isLoginSession(_session: Session): boolean {
+        return false
+    }
+
     private async exchange(client: HttpClient, credential: string, accountUuid?: string): Promise<Response> {
         const query = accountUuid ? `?account_uuid=${encodeURIComponent(accountUuid)}` : ''
         return await client.fetch(`${this.eyepopUrl()}/v1/auth/authenticate${query}`, {
@@ -296,7 +307,11 @@ export class Endpoint<T extends Endpoint<T>> {
                 this._token = 'implicit'
                 this._expire_token_time = Number.MAX_VALUE
             } else if ((auth as SessionAuth | undefined)?.session !== undefined) {
-                return Promise.reject('temporary access token expired')
+                const session = (auth as SessionAuth).session
+                if (!this.isLoginSession(session) || session.validUntil / 1000 <= now) {
+                    return Promise.reject('temporary access token expired')
+                }
+                await this.exchangeLoginToken(this._client, session.accessToken, session.validUntil / 1000, now)
             } else if ((auth as OAuth2Auth | undefined)?.oAuth2 !== undefined && this._options.eyepopUrl) {
                 const login = await authenticateBrowserSession((auth as OAuth2Auth).oAuth2 as Auth0Options, this._options)
                 await this.exchangeLoginToken(this._client, login.accessToken, login.validUntil / 1000, now)

@@ -1,4 +1,5 @@
 import { Endpoint } from '../endpoint'
+import { Session } from '../types'
 import { WorkerOptions } from '../worker/worker_options'
 import { ComponentParams, Pop, ProcessParams, ProcessRequest, ResultStream, Source, WorkerSession, validatePop } from '../worker/worker_types'
 import { validateCamera } from '../camera'
@@ -72,6 +73,14 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> implements MediaRea
 
     public override async session(): Promise<WorkerSession> {
         return await this._backend.session()
+    }
+
+    // The pipeline API bills only the account a token claims, and a login token claims none. A
+    // session that names a worker session, or was handed over from a pipeline mode endpoint, holds
+    // a token minted for it.
+    protected override isLoginSession(session: Session): boolean {
+        const shared = session as WorkerSession
+        return this.options().isPipelineMode === true && shared.popId === undefined && shared.baseUrl === undefined && shared.pipelineId === undefined
     }
 
     public popName(): string | null {
