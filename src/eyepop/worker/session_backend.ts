@@ -84,6 +84,10 @@ export class PipelineManagedError extends Error {
     }
 }
 
+function samePop(a: Pop | undefined, b: Pop | undefined): boolean {
+    return a !== undefined && b !== undefined && JSON.stringify(a) === JSON.stringify(b)
+}
+
 /** Runs jobs on a worker session: a compute API session, or a named pop found through its config. */
 export class SessionBackend implements WorkerBackend {
     private _baseUrl: string | null = null
@@ -124,26 +128,18 @@ export class SessionBackend implements WorkerBackend {
     }
 
     private async deleteOwnPipeline(): Promise<void> {
-        const client = this.ctx.client()
-        // An on-premise instance's pipeline is the instance's: `eyepop instance init` set it up with its pop, and
-        // the instance refuses to stop it (409 boot_pipeline). Only one this endpoint started is its to stop.
-        if (this.isLocal() && this._pipelineId !== this._startedPipelineId) {
-            return
+        if (this.ctx.options.popId == TransientPopId.Transient && this._pipelineId) {
+            await this.deleteTransientPipeline(this._pipelineId)
         }
-        if (this.ctx.options.popId == TransientPopId.Transient && this._pipelineId && client) {
-            const deleteUrl = `${this._baseUrl}/pipelines/${this._pipelineId}`
-            const headers = {
-                Authorization: await this.authorizationHeader(),
-            }
-            let response = await client.fetch(deleteUrl, {
-                method: 'DELETE',
-                headers: headers,
-            })
-            if (response?.status != 204) {
-                const message = await response?.text()
-                this.ctx.logger.info(`stopping pipeline failed, status ${response?.status}: ${message}`)
-            }
-        }
+    }
+
+    /**
+     * Whether this endpoint may stop the pipeline. An on-premise instance's pipeline is the instance's: `eyepop
+     * instance init` set it up with its pop, and the instance refuses to stop it (409 boot_pipeline). In local mode
+     * only one this endpoint started is its to stop.
+     */
+    private mayStopPipeline(pipelineId: string): boolean {
+        return !this.isLocal() || pipelineId === this._startedPipelineId
     }
 
     public onStatus(statusCode: number): void {
@@ -696,6 +692,7 @@ export class SessionBackend implements WorkerBackend {
         const previousBaseUrl = this._baseUrl
         const previousSessionAccessToken = this._sessionAccessToken
         const previousSessionAccessTokenValidUntil = this._sessionAccessTokenValidUntil
+        const previousPipelineId = this._pipelineId
         if (this._pipelineId) {
             await this.deleteTransientPipeline(this._pipelineId)
             this._pipelineId = null
@@ -716,12 +713,24 @@ export class SessionBackend implements WorkerBackend {
         if (!this._pipelineId) {
             throw new Error('Compute session did not provide a pipeline for the requested pop')
         }
+        if (this.isLocal() && previousPipelineId && this._pipelineId === previousPipelineId && !samePop(pop, previousPop)) {
+            // An instance in single-pipeline mode (`eyepop instance init`) answers a session create with its boot
+            // pipeline and ignores the pop: the pop did not change. Say so rather than report a pop that is not running.
+            this.ctx.options.pop = previousPop
+            this._pipeline = null
+            this.setTransientPipelinePop()
+            throw new PipelineManagedError(409, previousPipelineId, this._sessionUuid ?? this.ctx.options.sessionUuid, {
+                error: 'pop_fixed',
+                message: 'the on-premise instance kept its own pipeline; its pop is set by `eyepop instance init`',
+            })
+        }
         this.setTransientPipelinePop()
     }
 
+    /** Stops a pipeline of the session, unless it is not this endpoint's to stop (mayStopPipeline). */
     private async deleteTransientPipeline(pipelineId: string): Promise<void> {
         const client = this.ctx.client()
-        if (!client || !this._baseUrl) {
+        if (!client || !this._baseUrl || !this.mayStopPipeline(pipelineId)) {
             return
         }
         const deleteUrl = `${this._baseUrl}/pipelines/${pipelineId}`
