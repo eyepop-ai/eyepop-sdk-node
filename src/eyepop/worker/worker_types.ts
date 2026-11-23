@@ -237,7 +237,17 @@ export interface InferenceComponent extends BaseComponent {
     topKClasses?: number
     classes?: string[]
     targetFps?: string
+    /**
+     * For an ability that reasons over a span of video, the length of each chunk in seconds, above 0.
+     * A source sets its own with the same key in its `ComponentParams` values.
+     */
     videoChunkLengthSeconds?: number
+    /**
+     * The share of the chunk length the next chunk repeats, below 0.5; negative leaves that share out
+     * between chunks. Repeated frames are processed, and billed, again: overlap x sends about
+     * 1 / (1 - x) of the frames. A source sets its own with the same key in its `ComponentParams`
+     * values. An out-of-range value is refused by the server.
+     */
     videoChunkOverlap?: number
     params?: { [index: string]: any }
 }
@@ -434,6 +444,13 @@ export interface MotionDetectConfig {
     motionGridY?: number
 }
 
+/**
+ * A source's params for one component of the Pop, by the component's id. For a component that
+ * chunks video, `values` may set the source's own chunking with the component's attribute names,
+ * `videoChunkLengthSeconds` (above 0) and `videoChunkOverlap` (below 0.5, negative for gaps), which
+ * win over the Pop's for that source. The params `video_chunk_length_ns` and `video_chunk_overlap`
+ * are deprecated in favour of those.
+ */
 export interface ComponentParams {
     componentId: number
     values: { [index: string]: any }
