@@ -107,6 +107,29 @@ describe('pipeline mode (SDK-27)', () => {
         expect(inPipelineMode(EyePop.workerEndpoint({ accessToken: 't', isPipelineMode: true }))).toBe(true)
     })
 
+    // An on-premise instance serves worker sessions only: local mode means one on 127.0.0.1:8080
+    // unless the options name a local pipeline API.
+    test('local mode alone reaches the on-premise instance as a worker session', () => {
+        const byOption = EyePop.workerEndpoint({ isLocalMode: true })
+        process.env['EYEPOP_LOCAL_MODE'] = 'true'
+        const byEnvironment = EyePop.workerEndpoint({})
+        for (const local of [byOption, byEnvironment]) {
+            expect(inPipelineMode(local)).toBe(false)
+            expect(local.backend()).toBeInstanceOf(SessionBackend)
+            expect((local as any)._options.eyepopUrl).toBe('http://127.0.0.1:8080')
+        }
+    })
+
+    test.each([
+        ['the option', { isPipelineMode: true }, {}],
+        ['EYEPOP_PIPELINE_MODE', {}, { EYEPOP_PIPELINE_MODE: 'true' }],
+        ['pipelineApiUrl', { pipelineApiUrl: 'http://127.0.0.1:9100' }, {}],
+        ['EYEPOP_ENV=local', {}, { EYEPOP_ENV: 'local' }],
+    ])('local mode reaches a local pipeline API when %s says so', (_name, options, env) => {
+        Object.assign(process.env, env)
+        expect(inPipelineMode(EyePop.workerEndpoint({ isLocalMode: true, ...options }))).toBe(true)
+    })
+
     test('an empty EYEPOP_PIPELINE_MODE is unset, so the default holds', () => {
         process.env['EYEPOP_PIPELINE_MODE'] = ''
         expect(inPipelineMode(EyePop.workerEndpoint({ accessToken: 't' }))).toBe(true)
