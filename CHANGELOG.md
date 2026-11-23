@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [4.2.4] - 2026-11-23
+
+### Fixed
+- In local mode, stopping a pipeline asks the instance and takes its refusal quietly. `disconnect()` and `changePop()` send the DELETE, and an on-premise instance refuses one for its own pipeline, the one `eyepop instance init` set up, or a declared stream's, with `409` and `boot_pipeline` or `declared_stream`; that refusal is now logged at debug instead of `stopping pipeline failed, status 409 …` at info. 4.2.2 stopped asking in local mode on `disconnect()`, which also left running every pipeline the endpoint's own sessions had started on an instance that starts a pipeline per session; such a pipeline is stopped again.
+- In local mode, `changePop()` on an instance in single-pipeline mode (`eyepop instance init`) rejects with `PipelineManagedError` (`error` `pop_fixed`). Such an instance answers a new session with its own pipeline and ignores the pop, so the pop never changed, while `changePop()` resolved and `pop()` reported the new pop. The endpoint stays on the instance's pipeline with its previous pop. The same pop, with its keys in another order, is no change and does not reject. An instance that starts a pipeline per session runs the new pop, as before.
+
 ## [4.2.3] - 2026-11-23
 
 ### Fixed

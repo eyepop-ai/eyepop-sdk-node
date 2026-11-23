@@ -1,11 +1,20 @@
 import { EyePop } from '../../../src/eyepop'
 import { WorkerEndpoint } from '../../../src/eyepop/worker/worker_endpoint'
+import { PipelineManagedError } from '../../../src/eyepop/worker/session_backend'
 import { TransientPopId, type WorkerOptions } from '../../../src/eyepop/worker/worker_options'
 import { PopComponentType, type Pop } from '../../../src/eyepop/worker/worker_types'
 
 import { MockServer } from 'jest-mock-server'
 import { describe, expect, test } from '@jest/globals'
 import { v4 as uuidv4 } from 'uuid'
+import { pino } from 'pino'
+
+/** A logger that keeps what is logged at info and above, to check what the endpoint reports. */
+function recordingLogger(): { logger: pino.Logger; lines: string[] } {
+    const lines: string[] = []
+    const logger = pino({ level: 'info' }, { write: (line: string) => void lines.push(line) })
+    return { logger, lines }
+}
 
 // these tests cover worker session mode; pipeline mode is the default
 process.env['EYEPOP_PIPELINE_MODE'] = 'false'
@@ -1141,10 +1150,12 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
             ctx.body = JSON.stringify({ error: 'boot_pipeline' })
         })
 
+        const { logger, lines } = recordingLogger()
         const endpoint = workerEndpoint({
             eyepopUrl: server.getURL().toString(),
             popId: test_pop_id,
             auth: { isLocal: true },
+            logger,
         })
         try {
             await endpoint.connect()
@@ -1153,7 +1164,172 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
         } finally {
             await endpoint.disconnect()
         }
-        expect(stopRoute).toHaveBeenCalledTimes(0)
+        // The instance decides: it refuses to stop its own pipeline, and the endpoint takes that quietly.
+        expect(stopRoute).toHaveBeenCalledTimes(1)
+        expect(lines.filter(line => line.includes('stopping pipeline failed'))).toEqual([])
+    })
+
+    test('EyePopSdk in local mode leaves the instance its own pipeline on changePop, and says the pop is fixed', async () => {
+        // An instance in single-pipeline mode (`eyepop instance init`) answers a session create with its boot
+        // pipeline, whatever the pop: the pop does not change.
+        const sessionRoute = (ctx: any) => {
+            ctx.status = 200
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify([
+                {
+                    session_uuid: test_session_uuid,
+                    session_endpoint: `${server.getURL().toString()}${test_session_uuid}`,
+                    pipelines: [{ pipeline_id: test_pipeline_id }],
+                    session_status: 'running',
+                    session_active: true,
+                },
+            ])
+        }
+        server.get(`/v1/sessions`).mockImplementation(sessionRoute)
+        const createRoute = server.post(`/v1/sessions`).mockImplementation(sessionRoute)
+        server.get(`/${test_session_uuid}/health`).mockImplementation(ctx => {
+            ctx.status = 200
+            ctx.response.headers['content-type'] = 'text/plain'
+            ctx.body = "I'm fine"
+        })
+        const stopRoute = server.delete(`/${test_session_uuid}/pipelines/${test_pipeline_id}`).mockImplementation(ctx => {
+            ctx.status = 409
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify({ error: 'boot_pipeline' })
+        })
+
+        const { logger, lines } = recordingLogger()
+        const endpoint = workerEndpoint({
+            eyepopUrl: server.getURL().toString(),
+            popId: test_pop_id,
+            auth: { isLocal: true },
+            logger,
+        })
+        try {
+            await endpoint.connect()
+            const refusal = await endpoint.changePop(test_transient_pop).then(
+                () => null,
+                error => error,
+            )
+            expect(stopRoute).toHaveBeenCalledTimes(1)
+            expect(createRoute).toHaveBeenCalledTimes(1)
+            expect(refusal).toBeInstanceOf(PipelineManagedError)
+            expect(refusal.error).toEqual('pop_fixed')
+            expect(refusal.pipelineId).toEqual(test_pipeline_id)
+            const session = await endpoint.session()
+            expect(session.pipelineId).toEqual(test_pipeline_id)
+            expect(endpoint.pop()).toBeNull()
+        } finally {
+            await endpoint.disconnect()
+        }
+        // Asked again on disconnect, refused again: the instance's pipeline stays, and nothing is reported.
+        expect(stopRoute).toHaveBeenCalledTimes(2)
+        expect(lines.filter(line => line.includes('stopping pipeline failed'))).toEqual([])
+    })
+
+    test('EyePopSdk in local mode takes the same pop with its keys in another order as no change', async () => {
+        const sessionRoute = (ctx: any) => {
+            ctx.status = 200
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify([
+                {
+                    session_uuid: test_session_uuid,
+                    session_endpoint: `${server.getURL().toString()}${test_session_uuid}`,
+                    pipelines: [{ pipeline_id: test_pipeline_id }],
+                    session_status: 'running',
+                    session_active: true,
+                },
+            ])
+        }
+        server.get(`/v1/sessions`).mockImplementation(sessionRoute)
+        server.post(`/v1/sessions`).mockImplementation(sessionRoute)
+        server.get(`/${test_session_uuid}/health`).mockImplementation(ctx => {
+            ctx.status = 200
+            ctx.response.headers['content-type'] = 'text/plain'
+            ctx.body = "I'm fine"
+        })
+        server.delete(`/${test_session_uuid}/pipelines/${test_pipeline_id}`).mockImplementation(ctx => {
+            ctx.status = 409
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify({ error: 'boot_pipeline' })
+        })
+        const reordered: Pop = {
+            components: [
+                {
+                    categoryName: 'answer',
+                    ability: 'eyepop.vlm.preview:latest',
+                    type: PopComponentType.INFERENCE,
+                },
+            ],
+        }
+
+        const endpoint = workerEndpoint({
+            eyepopUrl: server.getURL().toString(),
+            popId: test_pop_id,
+            pop: test_transient_pop,
+            auth: { isLocal: true },
+        })
+        try {
+            await endpoint.connect()
+            await endpoint.changePop(reordered)
+            expect((await endpoint.session()).pipelineId).toEqual(test_pipeline_id)
+        } finally {
+            await endpoint.disconnect()
+        }
+    })
+
+    test('EyePopSdk in local mode changes the pop on an instance that starts a pipeline per session', async () => {
+        const test_new_pipeline_id = uuidv4()
+        const session = (pipelineId: string) => [
+            {
+                session_uuid: test_session_uuid,
+                session_endpoint: `${server.getURL().toString()}${test_session_uuid}`,
+                pipelines: [{ pipeline_id: pipelineId }],
+                session_status: 'running',
+                session_active: true,
+            },
+        ]
+        server.get(`/v1/sessions`).mockImplementation(ctx => {
+            ctx.status = 200
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify(session(test_pipeline_id))
+        })
+        // Without single-pipeline mode an instance starts an ad hoc pipeline with the create's pop.
+        const createRoute = server.post(`/v1/sessions`).mockImplementation(ctx => {
+            ctx.status = 200
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify(session(test_new_pipeline_id))
+        })
+        server.get(`/${test_session_uuid}/health`).mockImplementation(ctx => {
+            ctx.status = 200
+            ctx.response.headers['content-type'] = 'text/plain'
+            ctx.body = "I'm fine"
+        })
+        const stopRoute = server.delete(`/${test_session_uuid}/pipelines/${test_pipeline_id}`).mockImplementation(ctx => {
+            ctx.status = 204
+        })
+        const stopNewRoute = server.delete(`/${test_session_uuid}/pipelines/${test_new_pipeline_id}`).mockImplementation(ctx => {
+            ctx.status = 204
+        })
+
+        const endpoint = workerEndpoint({
+            eyepopUrl: server.getURL().toString(),
+            popId: test_pop_id,
+            auth: { isLocal: true },
+        })
+        try {
+            await endpoint.connect()
+            await endpoint.changePop(test_transient_pop)
+            expect(createRoute).toHaveBeenCalledTimes(1)
+            expect((await endpoint.session()).pipelineId).toEqual(test_new_pipeline_id)
+            expect(endpoint.pop()).toEqual(test_transient_pop)
+        } finally {
+            await endpoint.disconnect()
+        }
+        // Both are pipelines the endpoint's session creates started: the pop change stops the first, and
+        // disconnect the second.
+        expect(stopRoute).toHaveBeenCalledTimes(1)
+        expect(stopNewRoute).toHaveBeenCalledTimes(1)
     })
 
     test('EyePopSdk uses configured session ready timeout for compute health', async () => {
