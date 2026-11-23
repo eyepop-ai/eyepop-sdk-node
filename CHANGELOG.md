@@ -2,7 +2,10 @@
 
 ## [Unreleased]
 
+## [4.2.3] - 2026-11-23
+
 ### Fixed
+- Local mode reaches an on-premise instance again. `isLocalMode: true` (or `EYEPOP_LOCAL_MODE=true`) now defaults to a worker session on `http://127.0.0.1:8080`, which is what an instance serves; since pipeline mode became the default, local mode went to a local pipeline API on `127.0.0.1:9002` instead, which an instance does not run, and connecting failed unless the code also passed `isPipelineMode: false`. Local mode is still pipeline mode when the options say so: `isPipelineMode: true`, `EYEPOP_PIPELINE_MODE=true`, a `pipelineApiUrl`, or `EYEPOP_ENV=local`. Without local mode nothing changes.
 - In pipeline mode, a `session` holding a login token, one that names no worker session (no `popId`, `baseUrl` or `pipelineId`), is exchanged at `POST /v1/auth/authenticate` as an `accessToken` is, for the account `accountId`, the session's `accountId` or `EYEPOP_ACCOUNT_UUID` names, or the user's default account when none does. It used to be sent to the pipeline API as is, and a login token claims no account, so the pipeline API billed none of its sockets. This is how the dashboard connects since 4.0.0 made pipeline mode the default. A session token that already carries an account, or a session handed over from a pipeline mode endpoint, is still used as is.
 
 ## [4.2.2] - 2026-11-23

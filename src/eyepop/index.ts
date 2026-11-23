@@ -189,6 +189,22 @@ const pipelineModeFromEnv = (value?: string): boolean => {
     throw new Error(`EYEPOP_PIPELINE_MODE=${value} is not one of true, yes, false, no`)
 }
 
+/**
+ * The mode of an endpoint that did not say. EYEPOP_PIPELINE_MODE decides when it is set. Otherwise pipeline mode is
+ * the default, except in local mode: an on-premise instance serves worker sessions only, so local mode reaches it
+ * unless the options name a local pipeline API, with pipelineApiUrl or EYEPOP_ENV=local.
+ */
+const pipelineModeDefault = (isLocalMode: boolean | undefined, pipelineApiUrl: string | undefined): boolean => {
+    const env = readEnv('EYEPOP_PIPELINE_MODE')
+    if (env) {
+        return pipelineModeFromEnv(env)
+    }
+    if (!isLocalMode) {
+        return true
+    }
+    return pipelineApiUrl !== undefined || readEnv('EYEPOP_ENV')?.toLowerCase() === 'local'
+}
+
 /** The compute API per EYEPOP_ENV, which mints the token the pipeline API of that environment takes. */
 const COMPUTE_API_URLS: ReadonlyMap<string, string> = new Map([
     ['staging', 'https://compute.staging.eyepop.xyz'],
@@ -238,7 +254,7 @@ export namespace EyePop {
             const shared = (resolveAuth(opts) as SessionAuth | undefined)?.session as WorkerSession | undefined
             const namesWorkerSession = shared?.popId !== undefined || shared?.baseUrl !== undefined || shared?.pipelineId !== undefined
             opts.isPipelineMode =
-                shared?.isPipelineMode ?? (namesWorkerSession ? false : pipelineModeFromEnv(readEnv('EYEPOP_PIPELINE_MODE')))
+                shared?.isPipelineMode ?? (namesWorkerSession ? false : pipelineModeDefault(opts.isLocalMode, opts.pipelineApiUrl))
         }
         if (opts.isPipelineMode) {
             return pipelineEndpoint(opts)
