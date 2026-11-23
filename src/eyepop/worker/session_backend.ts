@@ -84,9 +84,32 @@ export class PipelineManagedError extends Error {
     }
 }
 
-function samePop(a: Pop | undefined, b: Pop | undefined): boolean {
-    return a !== undefined && b !== undefined && JSON.stringify(a) === JSON.stringify(b)
+/** JSON with object keys sorted, so two pops that differ only in key order compare equal; array order counts. */
+function canonicalJson(value: unknown): string {
+    return JSON.stringify(value, (_key, v) =>
+        v && typeof v === 'object' && !Array.isArray(v)
+            ? Object.fromEntries(Object.keys(v).sort().map(k => [k, (v as Record<string, unknown>)[k]]))
+            : v,
+    )
 }
+
+function samePop(a: Pop | undefined, b: Pop | undefined): boolean {
+    return a !== undefined && b !== undefined && canonicalJson(a) === canonicalJson(b)
+}
+
+/** The `error` of a JSON refusal body, or '' when the body is not one. */
+function refusalReason(body: string): string {
+    try {
+        const error = JSON.parse(body)?.error
+        return typeof error === 'string' ? error : ''
+    } catch {
+        return ''
+    }
+}
+
+// The instance's refusals of a DELETE for a pipeline that is not the caller's to stop: an on-premise instance's own
+// pipeline, which `eyepop instance init` set up, and a declared stream's.
+const NOT_THE_CALLERS_PIPELINE = new Set(['boot_pipeline', 'declared_stream'])
 
 /** Runs jobs on a worker session: a compute API session, or a named pop found through its config. */
 export class SessionBackend implements WorkerBackend {
@@ -102,8 +125,6 @@ export class SessionBackend implements WorkerBackend {
 
     private _pipeline: Pipeline | null = null
     private _pipelineCreatePromise: Promise<string> | null = null
-    // The pipeline this endpoint started itself (startTransientPipeline), as opposed to one its session came with.
-    private _startedPipelineId: string | null = null
 
     // An upload ignores mediaCacheReencode; the endpoint says so once.
     private _warnedUploadReencode = false
@@ -131,15 +152,6 @@ export class SessionBackend implements WorkerBackend {
         if (this.ctx.options.popId == TransientPopId.Transient && this._pipelineId) {
             await this.deleteTransientPipeline(this._pipelineId)
         }
-    }
-
-    /**
-     * Whether this endpoint may stop the pipeline. An on-premise instance's pipeline is the instance's: `eyepop
-     * instance init` set it up with its pop, and the instance refuses to stop it (409 boot_pipeline). In local mode
-     * only one this endpoint started is its to stop.
-     */
-    private mayStopPipeline(pipelineId: string): boolean {
-        return !this.isLocal() || pipelineId === this._startedPipelineId
     }
 
     public onStatus(statusCode: number): void {
@@ -677,7 +689,6 @@ export class SessionBackend implements WorkerBackend {
         }
         try {
             this._pipelineId = await this._pipelineCreatePromise
-            this._startedPipelineId = this._pipelineId
             this.setTransientPipelinePop()
         } finally {
             this._pipelineCreatePromise = null
@@ -724,18 +735,17 @@ export class SessionBackend implements WorkerBackend {
                 message: 'the on-premise instance kept its own pipeline; its pop is set by `eyepop instance init`',
             })
         }
-        if (this.isLocal() && this._pipelineId !== previousPipelineId) {
-            // An instance that starts a pipeline per session started this one for this pop change: it is this
-            // endpoint's, so disconnect() or the next changePop() stops it.
-            this._startedPipelineId = this._pipelineId
-        }
         this.setTransientPipelinePop()
     }
 
-    /** Stops a pipeline of the session, unless it is not this endpoint's to stop (mayStopPipeline). */
+    /**
+     * Stops a pipeline of the session. The instance decides whose pipeline it is: it refuses one that is not the
+     * caller's to stop, an on-premise instance's own pipeline or a declared stream's, with 409 and the reason, and
+     * that refusal is expected, not a failure.
+     */
     private async deleteTransientPipeline(pipelineId: string): Promise<void> {
         const client = this.ctx.client()
-        if (!client || !this._baseUrl || !this.mayStopPipeline(pipelineId)) {
+        if (!client || !this._baseUrl) {
             return
         }
         const deleteUrl = `${this._baseUrl}/pipelines/${pipelineId}`
@@ -748,6 +758,10 @@ export class SessionBackend implements WorkerBackend {
         })
         if (response.status >= 300) {
             const message = await response.text()
+            if (response.status == 409 && NOT_THE_CALLERS_PIPELINE.has(refusalReason(message))) {
+                this.ctx.logger.debug(`pipeline ${pipelineId} is not this endpoint's to stop: ${message}`)
+                return
+            }
             this.ctx.logger.info(`stopping pipeline failed, status ${response.status}: ${message}`)
         }
     }
