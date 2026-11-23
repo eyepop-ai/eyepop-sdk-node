@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Added
+- A source sets its own video chunking (VREE-352): `componentParams: [{componentId, values: {videoChunkLengthSeconds: 4, videoChunkOverlap: 0.25}}]` overrides the Pop component's `videoChunkLengthSeconds` and `videoChunkOverlap` for that source, under the same names. The overlap now takes effect in the worker: overlap x repeats the last x of each chunk at the start of the next, so about 1 / (1 - x) of the frames are processed and billed; a negative overlap leaves gaps. A length of 0 or less, or an overlap of 0.5 or more, is refused by the server (400). The params `video_chunk_length_ns` and `video_chunk_overlap` are deprecated in favour of the component attributes.
+
 ## [4.2.4] - 2026-11-23
 
 ### Fixed
