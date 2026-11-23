@@ -98,6 +98,8 @@ export class SessionBackend implements WorkerBackend {
 
     private _pipeline: Pipeline | null = null
     private _pipelineCreatePromise: Promise<string> | null = null
+    // The pipeline this endpoint started itself (startTransientPipeline), as opposed to one its session came with.
+    private _startedPipelineId: string | null = null
 
     // An upload ignores mediaCacheReencode; the endpoint says so once.
     private _warnedUploadReencode = false
@@ -116,8 +118,18 @@ export class SessionBackend implements WorkerBackend {
         await closeEndpoint()
     }
 
+    /** Local mode: the session is an on-premise instance, reached without credentials. */
+    private isLocal(): boolean {
+        return (resolveAuth(this.ctx.options) as LocalAuth | undefined)?.isLocal !== undefined
+    }
+
     private async deleteOwnPipeline(): Promise<void> {
         const client = this.ctx.client()
+        // An on-premise instance's pipeline is the instance's: `eyepop instance init` set it up with its pop, and
+        // the instance refuses to stop it (409 boot_pipeline). Only one this endpoint started is its to stop.
+        if (this.isLocal() && this._pipelineId !== this._startedPipelineId) {
+            return
+        }
         if (this.ctx.options.popId == TransientPopId.Transient && this._pipelineId && client) {
             const deleteUrl = `${this._baseUrl}/pipelines/${this._pipelineId}`
             const headers = {
@@ -669,6 +681,7 @@ export class SessionBackend implements WorkerBackend {
         }
         try {
             this._pipelineId = await this._pipelineCreatePromise
+            this._startedPipelineId = this._pipelineId
             this.setTransientPipelinePop()
         } finally {
             this._pipelineCreatePromise = null

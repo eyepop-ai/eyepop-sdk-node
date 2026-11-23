@@ -5,6 +5,11 @@
 ### Fixed
 - In pipeline mode, a `session` holding a login token, one that names no worker session (no `popId`, `baseUrl` or `pipelineId`), is exchanged at `POST /v1/auth/authenticate` as an `accessToken` is, for the account `accountId`, the session's `accountId` or `EYEPOP_ACCOUNT_UUID` names, or the user's default account when none does. It used to be sent to the pipeline API as is, and a login token claims no account, so the pipeline API billed none of its sockets. This is how the dashboard connects since 4.0.0 made pipeline mode the default. A session token that already carries an account, or a session handed over from a pipeline mode endpoint, is still used as is.
 
+## [4.2.2] - 2026-11-23
+
+### Fixed
+- In local mode, `disconnect()` leaves an on-premise instance its own pipeline. It used to ask the instance to stop the pipeline `eyepop instance init` set up, which the instance refuses, and logged `stopping pipeline failed, status 409 … boot_pipeline` on every disconnect. A pipeline the endpoint started itself is still stopped, and cloud sessions are unchanged.
+
 ## [4.2.1] - 2026-11-20
 
 ### Fixed
