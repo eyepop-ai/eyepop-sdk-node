@@ -6,7 +6,7 @@
 
 ### Fixed
 - In local mode, `changePop()` leaves an on-premise instance its own pipeline. It used to ask the instance to stop the pipeline `eyepop instance init` set up before asking for one with the new pop, which the instance refuses, and logged `stopping pipeline failed, status 409 … boot_pipeline`. Only a pipeline the endpoint started itself is stopped, as on `disconnect()` since 4.2.2; cloud sessions are unchanged.
-- In local mode, `changePop()` on an instance in single-pipeline mode (`eyepop instance init`) rejects with `PipelineManagedError` (`error` `pop_fixed`). Such an instance answers a new session with its own pipeline and ignores the pop, so the pop never changed, while `changePop()` resolved and `pop()` reported the new pop. The endpoint stays on the instance's pipeline with its previous pop. An instance that starts a pipeline per session runs the new pop, as before.
+- In local mode, `changePop()` on an instance in single-pipeline mode (`eyepop instance init`) rejects with `PipelineManagedError` (`error` `pop_fixed`). Such an instance answers a new session with its own pipeline and ignores the pop, so the pop never changed, while `changePop()` resolved and `pop()` reported the new pop. The endpoint stays on the instance's pipeline with its previous pop. An instance that starts a pipeline per session runs the new pop, as before, and the pipeline it started for the new pop is the endpoint's: `disconnect()` or the next `changePop()` stops it.
 
 ## [4.2.3] - 2026-11-23
 

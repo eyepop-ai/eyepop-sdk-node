@@ -1241,6 +1241,9 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
         const stopRoute = server.delete(`/${test_session_uuid}/pipelines/${test_pipeline_id}`).mockImplementation(ctx => {
             ctx.status = 204
         })
+        const stopNewRoute = server.delete(`/${test_session_uuid}/pipelines/${test_new_pipeline_id}`).mockImplementation(ctx => {
+            ctx.status = 204
+        })
 
         const endpoint = workerEndpoint({
             eyepopUrl: server.getURL().toString(),
@@ -1256,7 +1259,9 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
         } finally {
             await endpoint.disconnect()
         }
+        // The instance's own pipeline stays; the one the pop change started is the endpoint's to stop.
         expect(stopRoute).toHaveBeenCalledTimes(0)
+        expect(stopNewRoute).toHaveBeenCalledTimes(1)
     })
 
     test('EyePopSdk uses configured session ready timeout for compute health', async () => {

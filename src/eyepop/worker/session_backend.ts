@@ -724,6 +724,11 @@ export class SessionBackend implements WorkerBackend {
                 message: 'the on-premise instance kept its own pipeline; its pop is set by `eyepop instance init`',
             })
         }
+        if (this.isLocal() && this._pipelineId !== previousPipelineId) {
+            // An instance that starts a pipeline per session started this one for this pop change: it is this
+            // endpoint's, so disconnect() or the next changePop() stops it.
+            this._startedPipelineId = this._pipelineId
+        }
         this.setTransientPipelinePop()
     }
 
