@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [4.2.2] - 2026-11-23
+
 ### Fixed
 - In local mode, `disconnect()` leaves an on-premise instance its own pipeline. It used to ask the instance to stop the pipeline `eyepop instance init` set up, which the instance refuses, and logged `stopping pipeline failed, status 409 … boot_pipeline` on every disconnect. A pipeline the endpoint started itself is still stopped, and cloud sessions are unchanged.
 
