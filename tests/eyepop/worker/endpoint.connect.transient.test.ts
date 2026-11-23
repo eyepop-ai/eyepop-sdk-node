@@ -1113,6 +1113,49 @@ describe('EyePopSdk endpoint module auth and connect for transient popId', () =>
         }
     })
 
+    test('EyePopSdk in local mode leaves the instance its own pipeline on disconnect', async () => {
+        // An on-premise instance answers the session routes itself, with the pipeline `eyepop instance init` set up.
+        const sessionRoute = (ctx: any) => {
+            ctx.status = 200
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify([
+                {
+                    session_uuid: test_session_uuid,
+                    session_endpoint: `${server.getURL().toString()}${test_session_uuid}`,
+                    pipelines: [{ pipeline_id: test_pipeline_id }],
+                    session_status: 'running',
+                    session_active: true,
+                },
+            ])
+        }
+        server.get(`/v1/sessions`).mockImplementation(sessionRoute)
+        server.post(`/v1/sessions`).mockImplementation(sessionRoute)
+        server.get(`/${test_session_uuid}/health`).mockImplementation(ctx => {
+            ctx.status = 200
+            ctx.response.headers['content-type'] = 'text/plain'
+            ctx.body = "I'm fine"
+        })
+        const stopRoute = server.delete(`/${test_session_uuid}/pipelines/${test_pipeline_id}`).mockImplementation(ctx => {
+            ctx.status = 409
+            ctx.response.headers['content-type'] = 'application/json'
+            ctx.body = JSON.stringify({ error: 'boot_pipeline' })
+        })
+
+        const endpoint = workerEndpoint({
+            eyepopUrl: server.getURL().toString(),
+            popId: test_pop_id,
+            auth: { isLocal: true },
+        })
+        try {
+            await endpoint.connect()
+            const session = await endpoint.session()
+            expect(session.pipelineId).toEqual(test_pipeline_id)
+        } finally {
+            await endpoint.disconnect()
+        }
+        expect(stopRoute).toHaveBeenCalledTimes(0)
+    })
+
     test('EyePopSdk uses configured session ready timeout for compute health', async () => {
         server.post('/v1/auth/authenticate').mockImplementationOnce(ctx => {
             ctx.status = 200
