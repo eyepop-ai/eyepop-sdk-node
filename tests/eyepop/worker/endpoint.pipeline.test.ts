@@ -292,6 +292,18 @@ describe('pipeline mode (SDK-27)', () => {
         expect(warnings).toEqual([])
     })
 
+    test('targetResolution goes on the setSource, and is not sent when unset (AIW-195)', async () => {
+        const ep = endpoint()
+        await ep.connect()
+        await all(await ep.process({ source: { url: 'https://videos.example/a.mp4' }, targetResolution: { width: 1280, height: 720 } }))
+        await all(await ep.process({ source: { url: 'https://videos.example/b.mp4' } }))
+        await ep.disconnect()
+        const [first, second] = sources(only()) as [Record<string, any>, Record<string, any>]
+        expect(first['targetResolution']).toEqual({ width: 1280, height: 720 })
+        expect(second).not.toHaveProperty('targetResolution')
+        expect(warnings).toEqual([])
+    })
+
     test('mediaCacheSeconds and mediaCacheReencode go on the setSource, and a recording job gets its mediaId (spec 024)', async () => {
         const ep = endpoint()
         await ep.connect()

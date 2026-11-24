@@ -190,6 +190,7 @@ Each socket runs its own pipeline, which plays its sources one after another. Wh
 | `url`, `assetUuid` sources, `loadFromGroup` | Supported. An `rtsp://` or `rtmp://` url is live. |
 | `mediaStream` source | A WHIP ingress, signalled on the socket; the media goes over WebRTC. |
 | `componentParams`, `roi`, `camera`, `fps` | Supported. |
+| `targetResolution` | Sent with `setSource`. Needs a worker with eyepop-pipeline target resolution (AIW-190); an older one ignores it. |
 | `motionDetect` | Its members (`motionDetect`, `motionSensitivity`, `motionThreshold`, `motionGap`, `motionGridX`, `motionGridY`) go on the source; a member left unset takes the pop's `defaults`. A group takes no motion detection: `uploadGroup`, `uploadStreamGroup` and `loadFromGroup` with `motionDetect` reject with `PipelineCommandError` `invalid_request` before anything is sent. Needs a pipeline API of eyepop-worker v4.15.0 or later; an older one refuses the source `invalid_request`. |
 | `videoMode` | Goes on an upload's source: `buffer` reads the whole upload before it plays, so an MP4 with its `moov` atom at the end plays; `stream` plays it as it arrives. Unset, the pipeline API buffers a video upload. Needs eyepop-worker v4.15.0 or later. |
 | `rtspForceNonCompliantUrl` | Not sent; a warning names it once per endpoint. |

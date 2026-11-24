@@ -289,7 +289,7 @@ export class UploadJob extends AbstractJob {
                 queryParams.set(key, value)
             }
             const postUrl: string = `${session.baseUrl.replace(/\/+$/, '')}/pipelines/${session.pipelineId}/source?${queryParams.toString()}`
-            if (this._params.componentParams || this._params.roi || this._params.camera) {
+            if (this._params.componentParams || this._params.roi || this._params.camera || this._params.targetResolution) {
                 const formData = new FormData()
                 if (this._params.componentParams) {
                     const blob = new Blob([JSON.stringify(this._params.componentParams)], { type: 'application/json' })
@@ -306,6 +306,10 @@ export class UploadJob extends AbstractJob {
                 if (this._params.camera) {
                     const blob = new Blob([JSON.stringify(this._params.camera)], { type: 'application/json' })
                     formData.append('camera', blob)
+                }
+                if (this._params.targetResolution) {
+                    const blob = new Blob([JSON.stringify(this._params.targetResolution)], { type: 'application/json' })
+                    formData.append('targetResolution', blob)
                 }
                 const fileBlob = await new Response(await this.uploadBody()).blob()
                 formData.append('file', fileBlob)
@@ -404,7 +408,7 @@ export class UploadJob extends AbstractJob {
                 queryParams.set(key, value)
             }
             const postUrl: string = `${session.baseUrl.replace(/\/+$/, '')}/pipelines/${session.pipelineId}/source?${queryParams.toString()}`
-            if (this._params.componentParams || this._params.roi || this._params.camera) {
+            if (this._params.componentParams || this._params.roi || this._params.camera || this._params.targetResolution) {
                 const formData = new FormData()
                 if (this._params.componentParams) {
                     const blob = new Blob([JSON.stringify(this._params.componentParams)], { type: 'application/json' })
@@ -421,6 +425,10 @@ export class UploadJob extends AbstractJob {
                 if (this._params.camera) {
                     const blob = new Blob([JSON.stringify(this._params.camera)], { type: 'application/json' })
                     formData.append('camera', blob)
+                }
+                if (this._params.targetResolution) {
+                    const blob = new Blob([JSON.stringify(this._params.targetResolution)], { type: 'application/json' })
+                    formData.append('targetResolution', blob)
                 }
                 const fileBlob = await new Response(await this.uploadBody()).blob()
                 formData.append('file', fileBlob)
@@ -484,6 +492,7 @@ export class LoadFromJob extends AbstractJob {
             params: this._params.componentParams,
             roi: this._params.roi,
             fps: this._params.fps,
+            targetResolution: this._params.targetResolution,
             camera: this._params.camera,
             version: this._version,
             // undefined is dropped by JSON.stringify, so an unset option leaves
@@ -563,6 +572,9 @@ export class UploadGroupJob extends AbstractJob {
         if (this._params.camera) {
             parts.push({ name: 'camera', contentType: 'application/json', content: JSON.stringify(this._params.camera) })
         }
+        if (this._params.targetResolution) {
+            parts.push({ name: 'targetResolution', contentType: 'application/json', content: JSON.stringify(this._params.targetResolution) })
+        }
         for (const source of this._sources) {
             // the worker only finds a file part that has a filename, the same "blob" FormData gives a single upload
             parts.push({ name: 'file', filename: 'blob', contentType: source.mimeType, content: source.stream })
@@ -616,6 +628,9 @@ export class LoadFromGroupJob extends AbstractJob {
         if (this._params.roi) {
             body['roi'] = this._params.roi
         }
+        if (this._params.targetResolution) {
+            body['targetResolution'] = this._params.targetResolution
+        }
         if (this._params.camera) {
             body['camera'] = this._params.camera
         }
@@ -662,6 +677,7 @@ export class LoadFromAssetUuidJob extends AbstractJob {
             params: this._params.componentParams,
             roi: this._params.roi,
             fps: this._params.fps,
+            targetResolution: this._params.targetResolution,
             camera: this._params.camera,
             version: this._version,
             ...mediaCacheMembers(this._params),
@@ -728,6 +744,7 @@ export class LoadMediaStreamJob extends AbstractJob {
             params: this._params.componentParams,
             roi: this._params.roi,
             fps: this._params.fps,
+            targetResolution: this._params.targetResolution,
             camera: this._params.camera,
             version: this._version,
         }
