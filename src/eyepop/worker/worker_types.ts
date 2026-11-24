@@ -456,11 +456,45 @@ export interface ComponentParams {
     values: { [index: string]: any }
 }
 
+/**
+ * The box a source's video, or a group's images, is scaled down to fit inside.
+ *
+ * The worker scales after `fps` and motion detection, keeps the display aspect
+ * ratio, gives a scaled frame square pixels and even sides, and never scales up:
+ * a frame that fits already keeps its own size. Each side must be a whole number
+ * from 64 to 16384 pixels; the worker refuses anything else.
+ */
+export interface TargetResolution {
+    width: number
+    height: number
+}
+
+/** The smallest and largest side a {@link TargetResolution} may have, in pixels. */
+export const TARGET_RESOLUTION_SIDE_MIN = 64
+export const TARGET_RESOLUTION_SIDE_MAX = 16384
+
+/**
+ * Throw if a target box has a side that is not a whole number from 64 to 16384.
+ *
+ * Checked locally so a bad one fails before an upload starts rather than as a
+ * 400 partway through it. The rules are the worker's, not stricter ones.
+ */
+export function validateTargetResolution(target: TargetResolution): void {
+    for (const side of ['width', 'height'] as const) {
+        const value = target[side]
+        if (!Number.isInteger(value) || value < TARGET_RESOLUTION_SIDE_MIN || value > TARGET_RESOLUTION_SIDE_MAX) {
+            throw new Error(`targetResolution.${side} must be a whole number from ${TARGET_RESOLUTION_SIDE_MIN} to ${TARGET_RESOLUTION_SIDE_MAX} pixels, not ${value}`)
+        }
+    }
+}
+
 export interface ProcessParams {
     componentParams?: ComponentParams[] | undefined
     motionDetect?: MotionDetectConfig | undefined
     roi?: Area | undefined
     fps?: string | undefined
+    /** The box the video, or a group's images, are scaled down to fit inside; see {@link TargetResolution}. */
+    targetResolution?: TargetResolution | undefined
     /**
      * This source's camera calibration, overriding the Pop's `defaults.camera`.
      *

@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Added
+- A source can be scaled down to a target resolution (AIW-195). `ProcessParams.targetResolution: { width, height }` is sent as `targetResolution` in session mode (URL, group and asset bodies, and a multipart part on uploads, which now go multipart when it is the only extra) and with `setSource` in pipeline mode. The worker scales the video, or a group's images, down to fit inside the box after `fps` and motion detection, keeping the aspect ratio and never scaling up. Each side must be a whole number from 64 to 16384: `validateTargetResolution()` throws before any request otherwise. Needs a worker with the matching eyepop-pipeline; an older one ignores it.
+
 ## [4.2.5] - 2026-11-23
 
 ### Added

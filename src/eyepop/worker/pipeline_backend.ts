@@ -380,6 +380,9 @@ export class PipelineJob implements ResultStream {
         if (this.params.fps !== undefined) {
             command['fps'] = this.params.fps
         }
+        if (this.params.targetResolution !== undefined) {
+            command['targetResolution'] = this.params.targetResolution
+        }
         for (const [name, value] of motionFields(this.params)) {
             command[name] = value
         }

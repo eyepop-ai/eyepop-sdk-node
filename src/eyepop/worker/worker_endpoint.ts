@@ -1,7 +1,7 @@
 import { Endpoint } from '../endpoint'
 import { Session } from '../types'
 import { WorkerOptions } from '../worker/worker_options'
-import { ComponentParams, Pop, ProcessParams, ProcessRequest, ResultStream, Source, WorkerSession, validatePop } from '../worker/worker_types'
+import { ComponentParams, Pop, ProcessParams, ProcessRequest, ResultStream, Source, WorkerSession, validatePop, validateTargetResolution } from '../worker/worker_types'
 import { validateCamera } from '../camera'
 import { WorkerBackend, WorkerContext, WorkerWork } from './worker_backend'
 import { SessionBackend } from './session_backend'
@@ -136,7 +136,7 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> implements MediaRea
     }
 
     /**
-     * Reject a source's calibration before any work is started for it.
+     * Reject a source's calibration or target resolution before any work is started for it.
      *
      * Called by every entry point that takes ProcessParams, before the
      * concurrency limit is acquired, so a request that can never be sent
@@ -145,6 +145,9 @@ export class WorkerEndpoint extends Endpoint<WorkerEndpoint> implements MediaRea
     private validateProcessParams(params: ProcessParams): void {
         if (params.camera !== undefined) {
             validateCamera(params.camera)
+        }
+        if (params.targetResolution !== undefined) {
+            validateTargetResolution(params.targetResolution)
         }
     }
 

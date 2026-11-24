@@ -218,6 +218,28 @@ export class AbstractJob implements ResultStream {
     }
 }
 
+/** The JSON parts an upload carries beside its file parts; none means a single upload can go up as its raw body. */
+function uploadMetadataParts(params: ProcessParams): MultipartPart[] {
+    const parts: MultipartPart[] = []
+    const json = (name: string, value: unknown) => parts.push({ name, contentType: 'application/json', content: JSON.stringify(value) })
+    if (params.componentParams) {
+        json('params', params.componentParams)
+    }
+    if (params.roi) {
+        json('roi', params.roi)
+    }
+    if (params.fps) {
+        json('fps', params.fps)
+    }
+    if (params.camera) {
+        json('camera', params.camera)
+    }
+    if (params.targetResolution) {
+        json('targetResolution', params.targetResolution)
+    }
+    return parts
+}
+
 export class UploadJob extends AbstractJob {
     private readonly _uploadStream: UploadBody
     private readonly _uploadBodyFactory: (() => Promise<UploadBody>) | undefined
@@ -289,35 +311,25 @@ export class UploadJob extends AbstractJob {
                 queryParams.set(key, value)
             }
             const postUrl: string = `${session.baseUrl.replace(/\/+$/, '')}/pipelines/${session.pipelineId}/source?${queryParams.toString()}`
-            if (this._params.componentParams || this._params.roi || this._params.camera) {
-                const formData = new FormData()
-                if (this._params.componentParams) {
-                    const blob = new Blob([JSON.stringify(this._params.componentParams)], { type: 'application/json' })
-                    formData.append('params', blob)
-                }
-                if (this._params.roi) {
-                    const blob = new Blob([JSON.stringify(this._params.roi)], { type: 'application/json' })
-                    formData.append('roi', blob)
-                }
-                if (this._params.fps) {
-                    const blob = new Blob([JSON.stringify(this._params.fps)], { type: 'application/json' })
-                    formData.append('fps', blob)
-                }
-                if (this._params.camera) {
-                    const blob = new Blob([JSON.stringify(this._params.camera)], { type: 'application/json' })
-                    formData.append('camera', blob)
-                }
-                const fileBlob = await new Response(await this.uploadBody()).blob()
-                formData.append('file', fileBlob)
+            const metadataParts = uploadMetadataParts(this._params)
+            if (metadataParts.length > 0) {
+                // streamed, as a raw upload is: the file part is never read into memory first
+                const parts: MultipartPart[] = [
+                    ...metadataParts,
+                    // the worker only finds a file part that has a filename
+                    { name: 'file', filename: 'blob', contentType: this._mimeType, content: await this.uploadBody() },
+                ]
+                const boundary = randomMultipartBoundary()
                 const headers = {
                     ...session.authenticationHeaders(),
                     Accept: 'application/jsonl',
+                    'Content-Type': `multipart/form-data; boundary=${boundary}`,
                 }
 
                 request = this._client.fetch(postUrl, {
                     headers: headers,
                     method: 'POST',
-                    body: formData,
+                    body: encodeMultipartFormData(parts, boundary),
                     signal: this._controller.signal,
                     // @ts-ignore
                     duplex: 'half',
@@ -404,35 +416,25 @@ export class UploadJob extends AbstractJob {
                 queryParams.set(key, value)
             }
             const postUrl: string = `${session.baseUrl.replace(/\/+$/, '')}/pipelines/${session.pipelineId}/source?${queryParams.toString()}`
-            if (this._params.componentParams || this._params.roi || this._params.camera) {
-                const formData = new FormData()
-                if (this._params.componentParams) {
-                    const blob = new Blob([JSON.stringify(this._params.componentParams)], { type: 'application/json' })
-                    formData.append('params', blob)
-                }
-                if (this._params.roi) {
-                    const blob = new Blob([JSON.stringify(this._params.roi)], { type: 'application/json' })
-                    formData.append('roi', blob)
-                }
-                if (this._params.fps) {
-                    const blob = new Blob([JSON.stringify(this._params.fps)], { type: 'application/json' })
-                    formData.append('fps', blob)
-                }
-                if (this._params.camera) {
-                    const blob = new Blob([JSON.stringify(this._params.camera)], { type: 'application/json' })
-                    formData.append('camera', blob)
-                }
-                const fileBlob = await new Response(await this.uploadBody()).blob()
-                formData.append('file', fileBlob)
+            const metadataParts = uploadMetadataParts(this._params)
+            if (metadataParts.length > 0) {
+                // streamed, as a raw upload is: the file part is never read into memory first
+                const parts: MultipartPart[] = [
+                    ...metadataParts,
+                    // the worker only finds a file part that has a filename
+                    { name: 'file', filename: 'blob', contentType: this._mimeType, content: await this.uploadBody() },
+                ]
+                const boundary = randomMultipartBoundary()
                 const headers = {
                     ...session.authenticationHeaders(),
                     Accept: 'application/jsonl',
+                    'Content-Type': `multipart/form-data; boundary=${boundary}`,
                 }
 
                 response = await this._client.fetch(postUrl, {
                     headers: headers,
                     method: 'POST',
-                    body: formData,
+                    body: encodeMultipartFormData(parts, boundary),
                     signal: this._controller.signal,
                     // @ts-ignore
                     duplex: 'half',
@@ -484,6 +486,7 @@ export class LoadFromJob extends AbstractJob {
             params: this._params.componentParams,
             roi: this._params.roi,
             fps: this._params.fps,
+            targetResolution: this._params.targetResolution,
             camera: this._params.camera,
             version: this._version,
             // undefined is dropped by JSON.stringify, so an unset option leaves
@@ -550,19 +553,7 @@ export class UploadGroupJob extends AbstractJob {
         }
         const postUrl = `${session.baseUrl.replace(/\/+$/, '')}/pipelines/${session.pipelineId}/source?${queryParams.toString()}`
 
-        const parts: MultipartPart[] = []
-        if (this._params.componentParams) {
-            parts.push({ name: 'params', contentType: 'application/json', content: JSON.stringify(this._params.componentParams) })
-        }
-        if (this._params.roi) {
-            parts.push({ name: 'roi', contentType: 'application/json', content: JSON.stringify(this._params.roi) })
-        }
-        if (this._params.fps) {
-            parts.push({ name: 'fps', contentType: 'application/json', content: JSON.stringify(this._params.fps) })
-        }
-        if (this._params.camera) {
-            parts.push({ name: 'camera', contentType: 'application/json', content: JSON.stringify(this._params.camera) })
-        }
+        const parts: MultipartPart[] = uploadMetadataParts(this._params)
         for (const source of this._sources) {
             // the worker only finds a file part that has a filename, the same "blob" FormData gives a single upload
             parts.push({ name: 'file', filename: 'blob', contentType: source.mimeType, content: source.stream })
@@ -616,6 +607,9 @@ export class LoadFromGroupJob extends AbstractJob {
         if (this._params.roi) {
             body['roi'] = this._params.roi
         }
+        if (this._params.targetResolution) {
+            body['targetResolution'] = this._params.targetResolution
+        }
         if (this._params.camera) {
             body['camera'] = this._params.camera
         }
@@ -662,6 +656,7 @@ export class LoadFromAssetUuidJob extends AbstractJob {
             params: this._params.componentParams,
             roi: this._params.roi,
             fps: this._params.fps,
+            targetResolution: this._params.targetResolution,
             camera: this._params.camera,
             version: this._version,
             ...mediaCacheMembers(this._params),
@@ -728,6 +723,7 @@ export class LoadMediaStreamJob extends AbstractJob {
             params: this._params.componentParams,
             roi: this._params.roi,
             fps: this._params.fps,
+            targetResolution: this._params.targetResolution,
             camera: this._params.camera,
             version: this._version,
         }
